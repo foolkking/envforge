@@ -1,0 +1,17 @@
+{
+  "id": "openjdk-runtime-dry-run",
+  "title": "OpenJDK runtime - Maven config dry run",
+  "destructive": false,
+  "planSource": { "kind": "capability-selection", "capabilityIds": ["openjdk-runtime"] },
+  "expected": {
+    "planType": "rebuild",
+    "items": [{ "id": "capability:openjdk-runtime", "capabilityKey": "runtime.java", "supportLevel": "full-migration", "minActions": 4 }],
+    "conflictsBlock": 0,
+    "conflictsWarn": 0,
+    "approvalsRequired": [{ "kind": "secret-confirm" }],
+    "remainingRisks": ["Maven repository"]
+  },
+  "approvalAcks": { "risksAck": "ALL", "approvalsAck": "ALL" },
+  "verify": { "actionRunStatuses": ["succeeded"], "auditChecks": ["java -version", "mvn --version", "Maven settings redaction"] },
+  "notes": ["Maven settings and JVM tuning are reviewed; local artifact caches are rebuilt."]
+}

@@ -1,0 +1,17 @@
+{
+  "id": "grafana-dashboard-dry-run",
+  "title": "Grafana - database backup and datasource secret dry run",
+  "destructive": false,
+  "planSource": { "kind": "capability-selection", "capabilityIds": ["grafana-dashboard"] },
+  "expected": {
+    "planType": "rebuild",
+    "items": [{ "id": "capability:grafana-dashboard", "capabilityKey": "observability.dashboard.grafana", "supportLevel": "full-migration", "minActions": 5 }],
+    "conflictsBlock": 0,
+    "conflictsWarn": 0,
+    "approvalsRequired": [{ "kind": "backup-restore-confirm" }, { "kind": "secret-confirm" }],
+    "remainingRisks": ["Datasource passwords", "Dashboard database"]
+  },
+  "approvalAcks": { "risksAck": "ALL", "approvalsAck": "ALL" },
+  "verify": { "actionRunStatuses": ["succeeded"], "auditChecks": ["Grafana health", "database backup", "datasource secret review"] },
+  "notes": ["Grafana dashboards and alerting state use backup/snapshot handling; datasource secrets are redacted."]
+}

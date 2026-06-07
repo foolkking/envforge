@@ -1,0 +1,17 @@
+{
+  "id": "kubernetes-tools-dry-run",
+  "title": "Kubernetes tools - kubeconfig and Helm dry run",
+  "destructive": false,
+  "planSource": { "kind": "capability-selection", "capabilityIds": ["kubernetes-tools"] },
+  "expected": {
+    "planType": "rebuild",
+    "items": [{ "id": "capability:kubernetes-tools", "capabilityKey": "developer.kubectl", "supportLevel": "full-migration", "minActions": 4 }],
+    "conflictsBlock": 0,
+    "conflictsWarn": 0,
+    "approvalsRequired": [{ "kind": "secret-confirm" }],
+    "remainingRisks": ["kube/config"]
+  },
+  "approvalAcks": { "risksAck": "ALL", "approvalsAck": "ALL" },
+  "verify": { "actionRunStatuses": ["succeeded"], "auditChecks": ["kubectl version --client", "helm version", "kubeconfig credential redaction"] },
+  "notes": ["Kubeconfig and Helm registry credentials require explicit operator review."]
+}

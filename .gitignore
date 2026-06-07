@@ -26,3 +26,10 @@ Thumbs.db
 .vscode/
 
 # Generated package manager files can be committed once a manager is chosen.
+
+# Harness run outputs (Real Target Harness & Evaluation phase). Each
+# run produces a timestamped directory under docs/harness-reports/ —
+# directories named like "2026-05-29T14-05-48-709Z". Curated runs go
+# under "release/<release-name>/" or "baseline-<date>/" and ARE
+# committed.
+docs/harness-reports/[0-9]*-[0-9]*-[0-9]*T*/

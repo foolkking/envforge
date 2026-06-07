@@ -1,0 +1,44 @@
+{
+  "id": "python-toolchain-dry-run",
+  "title": "Python toolchain - pip config dry run",
+  "destructive": false,
+  "planSource": {
+    "kind": "capability-selection",
+    "capabilityIds": ["python-toolchain"]
+  },
+  "expected": {
+    "planType": "rebuild",
+    "items": [
+      {
+        "id": "capability:python-toolchain",
+        "capabilityKey": "runtime.python",
+        "supportLevel": "full-migration",
+        "minActions": 5
+      }
+    ],
+    "conflictsBlock": 0,
+    "conflictsWarn": 0,
+    "approvalsRequired": [
+      { "kind": "secret-confirm" }
+    ],
+    "remainingRisks": [
+      "venvs and project-level requirements"
+    ]
+  },
+  "approvalAcks": {
+    "risksAck": "ALL",
+    "approvalsAck": "ALL"
+  },
+  "verify": {
+    "actionRunStatuses": ["succeeded"],
+    "auditChecks": [
+      "python3 --version",
+      "pip version validation",
+      "pipx and venv review",
+      "pip index credential redaction"
+    ]
+  },
+  "notes": [
+    "pipx apps, virtualenvs, and private index credentials are reviewed explicitly rather than copied wholesale."
+  ]
+}

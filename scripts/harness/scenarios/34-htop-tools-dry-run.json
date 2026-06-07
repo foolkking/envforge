@@ -1,0 +1,16 @@
+{
+  "id": "htop-tools-dry-run",
+  "title": "System monitoring tools - preferences dry run",
+  "destructive": false,
+  "planSource": { "kind": "capability-selection", "capabilityIds": ["htop-tools"] },
+  "expected": {
+    "planType": "rebuild",
+    "items": [{ "id": "capability:htop-tools", "capabilityKey": "ops.monitoring.tools", "supportLevel": "full-migration", "minActions": 7 }],
+    "conflictsBlock": 0,
+    "conflictsWarn": 0,
+    "remainingRisks": ["iotop requires"]
+  },
+  "approvalAcks": { "risksAck": "ALL", "approvalsAck": "ALL" },
+  "verify": { "actionRunStatuses": ["succeeded"], "auditChecks": ["htop --version", "iostat -V", "sysstat history excluded"] },
+  "notes": ["Monitoring tool preferences are low-risk; historical sar/sysstat samples are not migrated."]
+}

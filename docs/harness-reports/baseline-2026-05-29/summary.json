@@ -1,0 +1,43 @@
+{
+  "runId": "2026-05-29T14-05-48-709Z",
+  "mode": "dry-run",
+  "scenarios": [
+    {
+      "id": "build-nginx-success",
+      "verdict": "pass",
+      "jsonPath": "E:\\1project\\EnvForge\\docs\\harness-reports\\2026-05-29T14-05-48-709Z\\build-nginx-success.report.json",
+      "mdPath": "E:\\1project\\EnvForge\\docs\\harness-reports\\2026-05-29T14-05-48-709Z\\build-nginx-success.report.md"
+    },
+    {
+      "id": "nginx-config-postvalidate-failure-rollback",
+      "verdict": "pass",
+      "jsonPath": "E:\\1project\\EnvForge\\docs\\harness-reports\\2026-05-29T14-05-48-709Z\\nginx-config-postvalidate-failure-rollback.report.json",
+      "mdPath": "E:\\1project\\EnvForge\\docs\\harness-reports\\2026-05-29T14-05-48-709Z\\nginx-config-postvalidate-failure-rollback.report.md"
+    },
+    {
+      "id": "build-docker-success",
+      "verdict": "pass",
+      "jsonPath": "E:\\1project\\EnvForge\\docs\\harness-reports\\2026-05-29T14-05-48-709Z\\build-docker-success.report.json",
+      "mdPath": "E:\\1project\\EnvForge\\docs\\harness-reports\\2026-05-29T14-05-48-709Z\\build-docker-success.report.md"
+    },
+    {
+      "id": "ssh-hardening-safe-apply",
+      "verdict": "pass",
+      "jsonPath": "E:\\1project\\EnvForge\\docs\\harness-reports\\2026-05-29T14-05-48-709Z\\ssh-hardening-safe-apply.report.json",
+      "mdPath": "E:\\1project\\EnvForge\\docs\\harness-reports\\2026-05-29T14-05-48-709Z\\ssh-hardening-safe-apply.report.md"
+    },
+    {
+      "id": "remove-managed-nginx",
+      "verdict": "pass",
+      "jsonPath": "E:\\1project\\EnvForge\\docs\\harness-reports\\2026-05-29T14-05-48-709Z\\remove-managed-nginx.report.json",
+      "mdPath": "E:\\1project\\EnvForge\\docs\\harness-reports\\2026-05-29T14-05-48-709Z\\remove-managed-nginx.report.md"
+    },
+    {
+      "id": "remove-existing-nginx-blocked",
+      "verdict": "pass",
+      "jsonPath": "E:\\1project\\EnvForge\\docs\\harness-reports\\2026-05-29T14-05-48-709Z\\remove-existing-nginx-blocked.report.json",
+      "mdPath": "E:\\1project\\EnvForge\\docs\\harness-reports\\2026-05-29T14-05-48-709Z\\remove-existing-nginx-blocked.report.md"
+    }
+  ],
+  "failures": 0
+}

@@ -1,0 +1,17 @@
+{
+  "id": "tailscale-dry-run",
+  "title": "Tailscale - re-authentication dry run",
+  "destructive": false,
+  "planSource": { "kind": "capability-selection", "capabilityIds": ["tailscale"] },
+  "expected": {
+    "planType": "rebuild",
+    "items": [{ "id": "capability:tailscale", "capabilityKey": "network.vpn.tailscale", "supportLevel": "full-migration", "minActions": 4 }],
+    "conflictsBlock": 0,
+    "conflictsWarn": 0,
+    "approvalsRequired": [{ "kind": "secret-confirm" }],
+    "remainingRisks": ["Node identity key", "ACL / subnet-router"]
+  },
+  "approvalAcks": { "risksAck": "ALL", "approvalsAck": "ALL" },
+  "verify": { "actionRunStatuses": ["succeeded"], "auditChecks": ["tailscale status", "authkey re-authentication", "subnet route review"] },
+  "notes": ["Target re-authentication is preferred over copying tailscaled.state."]
+}

@@ -1,0 +1,16 @@
+{
+  "id": "uptime-kuma-dry-run",
+  "title": "Uptime Kuma - monitor database dry run",
+  "destructive": false,
+  "planSource": { "kind": "capability-selection", "capabilityIds": ["uptime-kuma"] },
+  "expected": {
+    "planType": "rebuild",
+    "items": [{ "id": "capability:uptime-kuma", "capabilityKey": "observability.uptime-kuma", "supportLevel": "full-migration", "minActions": 3 }],
+    "conflictsBlock": 0,
+    "conflictsWarn": 0,
+    "remainingRisks": ["kuma.db", "notification credentials"]
+  },
+  "approvalAcks": { "risksAck": "ALL", "approvalsAck": "ALL" },
+  "verify": { "actionRunStatuses": ["succeeded"], "auditChecks": ["Uptime Kuma HTTP", "kuma.db", "notifier secrets"] },
+  "notes": ["Uptime Kuma migration requires SQLite backup and notifier credential review."]
+}

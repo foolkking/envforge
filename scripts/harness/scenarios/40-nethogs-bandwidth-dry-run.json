@@ -1,0 +1,16 @@
+{
+  "id": "nethogs-bandwidth-dry-run",
+  "title": "Network bandwidth tools - capture scope dry run",
+  "destructive": false,
+  "planSource": { "kind": "capability-selection", "capabilityIds": ["nethogs-bandwidth"] },
+  "expected": {
+    "planType": "rebuild",
+    "items": [{ "id": "capability:nethogs-bandwidth", "capabilityKey": "network.monitoring.tools", "supportLevel": "full-migration", "minActions": 7 }],
+    "conflictsBlock": 0,
+    "conflictsWarn": 0,
+    "remainingRisks": ["CAP_NET_RAW"]
+  },
+  "approvalAcks": { "risksAck": "ALL", "approvalsAck": "ALL" },
+  "verify": { "actionRunStatuses": ["succeeded"], "auditChecks": ["nethogs -V", "vnstat history excluded", "packet capture privilege review"] },
+  "notes": ["Network monitoring tools are installed; packet capture privileges and vnstat history require review."]
+}

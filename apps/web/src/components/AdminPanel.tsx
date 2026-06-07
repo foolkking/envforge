@@ -122,7 +122,7 @@ export function AdminPanel({ locale, authToken, connections }: Props) {
         <div className="settings-section-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
             <Layers size={18} style={{ color: "#3b82f6" }} />
-            <h3>{locale === "zh" ? "全局任务队列监控" : "Global Task Queue Monitor"}</h3>
+            <h3>{locale === "zh" ? "EnvForge 工作区任务队列" : "EnvForge workspace task queue"}</h3>
           </div>
           <button
             type="button"
@@ -137,8 +137,8 @@ export function AdminPanel({ locale, authToken, connections }: Props) {
         </div>
         <p className="settings-help">
           {locale === "zh"
-            ? "监控系统中当前所有目标虚拟机的并发 SSH 任务和排队状态。"
-            : "Monitor active SSH tasks and queue status for all VMs in the system."}
+            ? "EnvForge 工作区内的并发 SSH 任务和排队状态。这是 EnvForge 自身的任务调度面板，不是服务器资源监控，也不是 Linux 系统用户管理。"
+            : "EnvForge workspace concurrency and SSH task queue. This is EnvForge's own job scheduler, not a server resource monitor and not a Linux system user manager."}
         </p>
 
         {queueError && <p className="settings-error">{queueError}</p>}
@@ -222,7 +222,7 @@ export function AdminPanel({ locale, authToken, connections }: Props) {
         <div className="settings-section-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "12px" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
             <Users size={18} style={{ color: "#3b82f6" }} />
-            <h3>{locale === "zh" ? "用户管理" : "User Management"}</h3>
+            <h3>{locale === "zh" ? "EnvForge 平台用户" : "EnvForge platform users"}</h3>
           </div>
           <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
             <div className="search-input-wrapper" style={{ position: "relative" }}>

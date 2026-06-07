@@ -1,0 +1,16 @@
+{
+  "id": "node-production-deploy-dry-run",
+  "title": "Node production deploy - PM2 and proxy dry run",
+  "destructive": false,
+  "planSource": { "kind": "capability-selection", "capabilityIds": ["node-production-deploy"] },
+  "expected": {
+    "planType": "rebuild",
+    "items": [{ "id": "capability:node-production-deploy", "capabilityKey": "catalog.node-production-deploy", "supportLevel": "full-migration", "minActions": 7 }],
+    "conflictsBlock": 0,
+    "conflictsWarn": 0,
+    "remainingRisks": ["PM2 saved process list"]
+  },
+  "approvalAcks": { "risksAck": "ALL", "approvalsAck": "ALL" },
+  "verify": { "actionRunStatuses": ["succeeded"], "auditChecks": ["node/npm validation", "PM2 environment review", "Nginx upstream review"] },
+  "notes": ["The combo certifies runtime/proxy reconstruction while keeping application source and PM2 secrets operator-owned."]
+}

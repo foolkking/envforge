@@ -1,0 +1,17 @@
+{
+  "id": "meilisearch-dry-run",
+  "title": "Meilisearch - dump/import and master key dry run",
+  "destructive": false,
+  "planSource": { "kind": "capability-selection", "capabilityIds": ["meilisearch"] },
+  "expected": {
+    "planType": "rebuild",
+    "items": [{ "id": "capability:meilisearch", "capabilityKey": "database.search.meilisearch", "supportLevel": "full-migration", "minActions": 3 }],
+    "conflictsBlock": 0,
+    "conflictsWarn": 0,
+    "approvalsRequired": [{ "kind": "data-strategy-confirm" }, { "kind": "secret-confirm" }],
+    "remainingRisks": ["MEILI_MASTER_KEY", "Index data"]
+  },
+  "approvalAcks": { "risksAck": "ALL", "approvalsAck": "ALL" },
+  "verify": { "actionRunStatuses": ["succeeded"], "auditChecks": ["Meilisearch health", "dump/import review", "master key continuity"] },
+  "notes": ["Meilisearch index data uses dump/import; master key continuity affects API keys."]
+}

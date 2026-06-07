@@ -1,0 +1,1064 @@
+[
+  {
+    "route": "/app/build",
+    "theme": "light",
+    "file": "E:\\1project\\EnvForge\\screenshots\\scheme-3-4-check\\mobile-light-app-build.png",
+    "info": {
+      "href": "http://127.0.0.1:5173/app/build",
+      "theme": "light",
+      "text": "E\nEnvForge\nLinux 环境重建与迁移平台\n总览\n资源状态、最近计划、待审队列、通知\n迁移\n源主机、快照、分析与迁移候选\n构建\n选择已认证能力，生成重建计划，进入审查和执行门禁\n计划\n计划中心、配方、排程、漂移、外发通知、报告\n报告\n迁移 / 重建 / 修复报告\n构建\n返回首页\nC\n更多\n构建模式流程\n1\n目标主机\n连接干净的目标机器\n!\n目标快照\n只读读取目标主机当前状态\n!\n已认证能力\n选择已认证能力\n!\n处理冲突\n处理兼容性冲突\n!\n重建计划\n生成可审查的重建计划\n!\n审查\n审查动作、风险与回滚\n!\n执行\n执行已审查的计划\n!\n验证\n运行规则库验证检查\n9\n报告\n查看 Markdown 报告\n构建\n\n105 items · 0 selected\n\n生成重建计划（0）\n已认证能力 · 105 构建页仅展示通过完整迁移认证的能力。所有操作仍需进入计划审查和执行门禁。\n全部\n运行时\n数据库\n安全\n网络\n容器\n开发\n服务\n\n计划检查器\n\n等待能力选择\n\n选择已认证能力后，这里会显示批量影响、预检查、重建计划和审查门禁。\n\nNode.js 运行时配置\nMD\nConfigure\n\nNode.js 运行时能力：包含 Node.js、npm、registry 配置和常见环境变量模板，纳入 Environment Plan 后再应用。\n\n已认证\n通过环境计划应用\n2\nREVIEW\nnodejs\nnpm\n设置 npm registry\nDocker 容器引擎\nMD\nConfigure\n\nDocker Engine 安装、compose 插件、镜像加速和服务自启动。\n\n已认证\n通过环境计划应用\n8.9k\nPRIVILEGED\ndocker.io\ndocker-compose-plugin\n启动 Docker 服务\n启动 Docker\nSSH 安全加固\nMD\nConfigure\n\n端口修改、禁用 Root 登录、公钥认证、连接限制和审计。\n\n已认证\n通过环境计划应用\n6.2k\nPRIVILEGED\nCAPABILITY\nopenssh-server\nCOMMAND\n重启 ssh",
+      "viewport": {
+        "innerWidth": 449,
+        "scrollWidth": 449,
+        "clientWidth": 390
+      },
+      "overflow": [
+        {
+          "tag": "button",
+          "cls": "",
+          "x": 261,
+          "w": 208,
+          "right": 469,
+          "text": "迁移\n源主机、快照、分析与迁移候选"
+        },
+        {
+          "tag": "span",
+          "cls": "nav-item-copy",
+          "x": 303,
+          "w": 154,
+          "right": 457,
+          "text": "迁移\n源主机、快照、分析与迁移候选"
+        },
+        {
+          "tag": "span",
+          "cls": "nav-item-label",
+          "x": 303,
+          "w": 154,
+          "right": 457,
+          "text": "迁移"
+        },
+        {
+          "tag": "span",
+          "cls": "nav-item-description",
+          "x": 303,
+          "w": 154,
+          "right": 457,
+          "text": "源主机、快照、分析与迁移候选"
+        },
+        {
+          "tag": "button",
+          "cls": "active",
+          "x": 473,
+          "w": 318,
+          "right": 791,
+          "text": "构建\n选择已认证能力，生成重建计划，进入审查和执行门禁"
+        },
+        {
+          "tag": "svg",
+          "cls": "",
+          "x": 485,
+          "w": 20,
+          "right": 505,
+          "text": ""
+        },
+        {
+          "tag": "path",
+          "cls": "",
+          "x": 498,
+          "w": 5,
+          "right": 503,
+          "text": ""
+        },
+        {
+          "tag": "path",
+          "cls": "",
+          "x": 501,
+          "w": 0,
+          "right": 501,
+          "text": ""
+        },
+        {
+          "tag": "path",
+          "cls": "",
+          "x": 488,
+          "w": 15,
+          "right": 503,
+          "text": ""
+        },
+        {
+          "tag": "path",
+          "cls": "",
+          "x": 491,
+          "w": 8,
+          "right": 499,
+          "text": ""
+        },
+        {
+          "tag": "polyline",
+          "cls": "",
+          "x": 488,
+          "w": 15,
+          "right": 502,
+          "text": ""
+        },
+        {
+          "tag": "line",
+          "cls": "",
+          "x": 495,
+          "w": 0,
+          "right": 495,
+          "text": ""
+        },
+        {
+          "tag": "span",
+          "cls": "nav-item-copy",
+          "x": 515,
+          "w": 264,
+          "right": 779,
+          "text": "构建\n选择已认证能力，生成重建计划，进入审查和执行门禁"
+        },
+        {
+          "tag": "span",
+          "cls": "nav-item-label",
+          "x": 515,
+          "w": 264,
+          "right": 779,
+          "text": "构建"
+        },
+        {
+          "tag": "span",
+          "cls": "nav-item-description",
+          "x": 515,
+          "w": 264,
+          "right": 779,
+          "text": "选择已认证能力，生成重建计划，进入审查和执行门禁"
+        },
+        {
+          "tag": "button",
+          "cls": "",
+          "x": 795,
+          "w": 285,
+          "right": 1080,
+          "text": "计划\n计划中心、配方、排程、漂移、外发通知、报告"
+        },
+        {
+          "tag": "svg",
+          "cls": "",
+          "x": 807,
+          "w": 20,
+          "right": 827,
+          "text": ""
+        },
+        {
+          "tag": "rect",
+          "cls": "",
+          "x": 809,
+          "w": 17,
+          "right": 825,
+          "text": ""
+        },
+        {
+          "tag": "rect",
+          "cls": "",
+          "x": 809,
+          "w": 17,
+          "right": 825,
+          "text": ""
+        },
+        {
+          "tag": "line",
+          "cls": "",
+          "x": 812,
+          "w": 0,
+          "right": 812,
+          "text": ""
+        }
+      ]
+    }
+  },
+  {
+    "route": "/app/plans",
+    "theme": "light",
+    "file": "E:\\1project\\EnvForge\\screenshots\\scheme-3-4-check\\mobile-light-app-plans.png",
+    "info": {
+      "href": "http://127.0.0.1:5173/app/plans",
+      "theme": "light",
+      "text": "E\nEnvForge\nLinux 环境重建与迁移平台\n总览\n资源状态、最近计划、待审队列、通知\n迁移\n源主机、快照、分析与迁移候选\n构建\n选择已认证能力，生成重建计划，进入审查和执行门禁\n计划\n计划中心、配方、排程、漂移、外发通知、报告\n报告\n迁移 / 重建 / 修复报告\n计划\n返回首页\nC\n更多\n计划\n执行记录\n排程\n漂移\n外发通知\n报告\n环境计划\n刷新\n全部\n(0)\n迁移\n(0)\n重建\n(0)\n变更\n(0)\n移除\n(0)\n修复\n(0)\n导入配方\n(0)\n尚未创建环境计划。先在迁移或构建模式生成计划。\n\n选择左侧计划查看详情、动作、验证结果与回滚结果。\n\n+ 新建计划草稿\n导入配方\n\n暂无计划草稿\n\n选择或新建环境计划\n\n计划用于审查迁移、重建、配置变更和移除能力。所有目标机器变更都应先进入计划。\n\n+ 新建计划草稿",
+      "viewport": {
+        "innerWidth": 449,
+        "scrollWidth": 449,
+        "clientWidth": 390
+      },
+      "overflow": [
+        {
+          "tag": "button",
+          "cls": "",
+          "x": 261,
+          "w": 208,
+          "right": 469,
+          "text": "迁移\n源主机、快照、分析与迁移候选"
+        },
+        {
+          "tag": "span",
+          "cls": "nav-item-copy",
+          "x": 303,
+          "w": 154,
+          "right": 457,
+          "text": "迁移\n源主机、快照、分析与迁移候选"
+        },
+        {
+          "tag": "span",
+          "cls": "nav-item-label",
+          "x": 303,
+          "w": 154,
+          "right": 457,
+          "text": "迁移"
+        },
+        {
+          "tag": "span",
+          "cls": "nav-item-description",
+          "x": 303,
+          "w": 154,
+          "right": 457,
+          "text": "源主机、快照、分析与迁移候选"
+        },
+        {
+          "tag": "button",
+          "cls": "",
+          "x": 473,
+          "w": 318,
+          "right": 791,
+          "text": "构建\n选择已认证能力，生成重建计划，进入审查和执行门禁"
+        },
+        {
+          "tag": "svg",
+          "cls": "",
+          "x": 485,
+          "w": 20,
+          "right": 505,
+          "text": ""
+        },
+        {
+          "tag": "path",
+          "cls": "",
+          "x": 498,
+          "w": 5,
+          "right": 503,
+          "text": ""
+        },
+        {
+          "tag": "path",
+          "cls": "",
+          "x": 501,
+          "w": 0,
+          "right": 501,
+          "text": ""
+        },
+        {
+          "tag": "path",
+          "cls": "",
+          "x": 488,
+          "w": 15,
+          "right": 503,
+          "text": ""
+        },
+        {
+          "tag": "path",
+          "cls": "",
+          "x": 491,
+          "w": 8,
+          "right": 499,
+          "text": ""
+        },
+        {
+          "tag": "polyline",
+          "cls": "",
+          "x": 488,
+          "w": 15,
+          "right": 502,
+          "text": ""
+        },
+        {
+          "tag": "line",
+          "cls": "",
+          "x": 495,
+          "w": 0,
+          "right": 495,
+          "text": ""
+        },
+        {
+          "tag": "span",
+          "cls": "nav-item-copy",
+          "x": 515,
+          "w": 264,
+          "right": 779,
+          "text": "构建\n选择已认证能力，生成重建计划，进入审查和执行门禁"
+        },
+        {
+          "tag": "span",
+          "cls": "nav-item-label",
+          "x": 515,
+          "w": 264,
+          "right": 779,
+          "text": "构建"
+        },
+        {
+          "tag": "span",
+          "cls": "nav-item-description",
+          "x": 515,
+          "w": 264,
+          "right": 779,
+          "text": "选择已认证能力，生成重建计划，进入审查和执行门禁"
+        },
+        {
+          "tag": "button",
+          "cls": "active",
+          "x": 795,
+          "w": 285,
+          "right": 1080,
+          "text": "计划\n计划中心、配方、排程、漂移、外发通知、报告"
+        },
+        {
+          "tag": "svg",
+          "cls": "",
+          "x": 807,
+          "w": 20,
+          "right": 827,
+          "text": ""
+        },
+        {
+          "tag": "rect",
+          "cls": "",
+          "x": 809,
+          "w": 17,
+          "right": 825,
+          "text": ""
+        },
+        {
+          "tag": "rect",
+          "cls": "",
+          "x": 809,
+          "w": 17,
+          "right": 825,
+          "text": ""
+        },
+        {
+          "tag": "line",
+          "cls": "",
+          "x": 812,
+          "w": 0,
+          "right": 812,
+          "text": ""
+        }
+      ]
+    }
+  },
+  {
+    "route": "/app/reports",
+    "theme": "light",
+    "file": "E:\\1project\\EnvForge\\screenshots\\scheme-3-4-check\\mobile-light-app-reports.png",
+    "info": {
+      "href": "http://127.0.0.1:5173/app/reports",
+      "theme": "light",
+      "text": "E\nEnvForge\nLinux 环境重建与迁移平台\n总览\n资源状态、最近计划、待审队列、通知\n迁移\n源主机、快照、分析与迁移候选\n构建\n选择已认证能力，生成重建计划，进入审查和执行门禁\n计划\n计划中心、配方、排程、漂移、外发通知、报告\n报告\n迁移 / 重建 / 修复报告\n报告\n返回首页\nC\n更多\n\n报告中心\n\n迁移、重建与修复报告\n\n报告是终态计划的证据出口，只提供查看、复制和下载，不在这里重新执行变更。\n\n刷新报告\n成功\n0\n部分成功\n0\n失败\n0\n已回滚\n0\n已归档\n0\n\n终态计划\n\n报告索引\n0\n\n尚无终态计划，执行或验证一些计划后再来。\n\nMARKDOWN 报告\n\n选择一个报告查看证据内容\n\n左侧列表只展示已进入终态的计划。",
+      "viewport": {
+        "innerWidth": 449,
+        "scrollWidth": 449,
+        "clientWidth": 390
+      },
+      "overflow": [
+        {
+          "tag": "button",
+          "cls": "",
+          "x": 261,
+          "w": 208,
+          "right": 469,
+          "text": "迁移\n源主机、快照、分析与迁移候选"
+        },
+        {
+          "tag": "span",
+          "cls": "nav-item-copy",
+          "x": 303,
+          "w": 154,
+          "right": 457,
+          "text": "迁移\n源主机、快照、分析与迁移候选"
+        },
+        {
+          "tag": "span",
+          "cls": "nav-item-label",
+          "x": 303,
+          "w": 154,
+          "right": 457,
+          "text": "迁移"
+        },
+        {
+          "tag": "span",
+          "cls": "nav-item-description",
+          "x": 303,
+          "w": 154,
+          "right": 457,
+          "text": "源主机、快照、分析与迁移候选"
+        },
+        {
+          "tag": "button",
+          "cls": "",
+          "x": 473,
+          "w": 318,
+          "right": 791,
+          "text": "构建\n选择已认证能力，生成重建计划，进入审查和执行门禁"
+        },
+        {
+          "tag": "svg",
+          "cls": "",
+          "x": 485,
+          "w": 20,
+          "right": 505,
+          "text": ""
+        },
+        {
+          "tag": "path",
+          "cls": "",
+          "x": 498,
+          "w": 5,
+          "right": 503,
+          "text": ""
+        },
+        {
+          "tag": "path",
+          "cls": "",
+          "x": 501,
+          "w": 0,
+          "right": 501,
+          "text": ""
+        },
+        {
+          "tag": "path",
+          "cls": "",
+          "x": 488,
+          "w": 15,
+          "right": 503,
+          "text": ""
+        },
+        {
+          "tag": "path",
+          "cls": "",
+          "x": 491,
+          "w": 8,
+          "right": 499,
+          "text": ""
+        },
+        {
+          "tag": "polyline",
+          "cls": "",
+          "x": 488,
+          "w": 15,
+          "right": 502,
+          "text": ""
+        },
+        {
+          "tag": "line",
+          "cls": "",
+          "x": 495,
+          "w": 0,
+          "right": 495,
+          "text": ""
+        },
+        {
+          "tag": "span",
+          "cls": "nav-item-copy",
+          "x": 515,
+          "w": 264,
+          "right": 779,
+          "text": "构建\n选择已认证能力，生成重建计划，进入审查和执行门禁"
+        },
+        {
+          "tag": "span",
+          "cls": "nav-item-label",
+          "x": 515,
+          "w": 264,
+          "right": 779,
+          "text": "构建"
+        },
+        {
+          "tag": "span",
+          "cls": "nav-item-description",
+          "x": 515,
+          "w": 264,
+          "right": 779,
+          "text": "选择已认证能力，生成重建计划，进入审查和执行门禁"
+        },
+        {
+          "tag": "button",
+          "cls": "",
+          "x": 795,
+          "w": 285,
+          "right": 1080,
+          "text": "计划\n计划中心、配方、排程、漂移、外发通知、报告"
+        },
+        {
+          "tag": "svg",
+          "cls": "",
+          "x": 807,
+          "w": 20,
+          "right": 827,
+          "text": ""
+        },
+        {
+          "tag": "rect",
+          "cls": "",
+          "x": 809,
+          "w": 17,
+          "right": 825,
+          "text": ""
+        },
+        {
+          "tag": "rect",
+          "cls": "",
+          "x": 809,
+          "w": 17,
+          "right": 825,
+          "text": ""
+        },
+        {
+          "tag": "line",
+          "cls": "",
+          "x": 812,
+          "w": 0,
+          "right": 812,
+          "text": ""
+        }
+      ]
+    }
+  },
+  {
+    "route": "/app/build",
+    "theme": "dark",
+    "file": "E:\\1project\\EnvForge\\screenshots\\scheme-3-4-check\\mobile-dark-app-build.png",
+    "info": {
+      "href": "http://127.0.0.1:5173/app/build",
+      "theme": "dark",
+      "text": "E\nEnvForge\nLinux 环境重建与迁移平台\n总览\n资源状态、最近计划、待审队列、通知\n迁移\n源主机、快照、分析与迁移候选\n构建\n选择已认证能力，生成重建计划，进入审查和执行门禁\n计划\n计划中心、配方、排程、漂移、外发通知、报告\n报告\n迁移 / 重建 / 修复报告\n构建\n返回首页\nC\n更多\n构建模式流程\n1\n目标主机\n连接干净的目标机器\n!\n目标快照\n只读读取目标主机当前状态\n!\n已认证能力\n选择已认证能力\n!\n处理冲突\n处理兼容性冲突\n!\n重建计划\n生成可审查的重建计划\n!\n审查\n审查动作、风险与回滚\n!\n执行\n执行已审查的计划\n!\n验证\n运行规则库验证检查\n9\n报告\n查看 Markdown 报告\n构建\n\n105 items · 0 selected\n\n生成重建计划（0）\n已认证能力 · 105 构建页仅展示通过完整迁移认证的能力。所有操作仍需进入计划审查和执行门禁。\n全部\n运行时\n数据库\n安全\n网络\n容器\n开发\n服务\n\n计划检查器\n\n等待能力选择\n\n选择已认证能力后，这里会显示批量影响、预检查、重建计划和审查门禁。\n\nNode.js 运行时配置\nMD\nConfigure\n\nNode.js 运行时能力：包含 Node.js、npm、registry 配置和常见环境变量模板，纳入 Environment Plan 后再应用。\n\n已认证\n通过环境计划应用\n2\nREVIEW\nnodejs\nnpm\n设置 npm registry\nDocker 容器引擎\nMD\nConfigure\n\nDocker Engine 安装、compose 插件、镜像加速和服务自启动。\n\n已认证\n通过环境计划应用\n8.9k\nPRIVILEGED\ndocker.io\ndocker-compose-plugin\n启动 Docker 服务\n启动 Docker\nSSH 安全加固\nMD\nConfigure\n\n端口修改、禁用 Root 登录、公钥认证、连接限制和审计。\n\n已认证\n通过环境计划应用\n6.2k\nPRIVILEGED\nCAPABILITY\nopenssh-server\nCOMMAND\n重启 ssh",
+      "viewport": {
+        "innerWidth": 449,
+        "scrollWidth": 449,
+        "clientWidth": 390
+      },
+      "overflow": [
+        {
+          "tag": "button",
+          "cls": "",
+          "x": 261,
+          "w": 208,
+          "right": 469,
+          "text": "迁移\n源主机、快照、分析与迁移候选"
+        },
+        {
+          "tag": "span",
+          "cls": "nav-item-copy",
+          "x": 303,
+          "w": 154,
+          "right": 457,
+          "text": "迁移\n源主机、快照、分析与迁移候选"
+        },
+        {
+          "tag": "span",
+          "cls": "nav-item-label",
+          "x": 303,
+          "w": 154,
+          "right": 457,
+          "text": "迁移"
+        },
+        {
+          "tag": "span",
+          "cls": "nav-item-description",
+          "x": 303,
+          "w": 154,
+          "right": 457,
+          "text": "源主机、快照、分析与迁移候选"
+        },
+        {
+          "tag": "button",
+          "cls": "active",
+          "x": 473,
+          "w": 318,
+          "right": 791,
+          "text": "构建\n选择已认证能力，生成重建计划，进入审查和执行门禁"
+        },
+        {
+          "tag": "svg",
+          "cls": "",
+          "x": 485,
+          "w": 20,
+          "right": 505,
+          "text": ""
+        },
+        {
+          "tag": "path",
+          "cls": "",
+          "x": 498,
+          "w": 5,
+          "right": 503,
+          "text": ""
+        },
+        {
+          "tag": "path",
+          "cls": "",
+          "x": 501,
+          "w": 0,
+          "right": 501,
+          "text": ""
+        },
+        {
+          "tag": "path",
+          "cls": "",
+          "x": 488,
+          "w": 15,
+          "right": 503,
+          "text": ""
+        },
+        {
+          "tag": "path",
+          "cls": "",
+          "x": 491,
+          "w": 8,
+          "right": 499,
+          "text": ""
+        },
+        {
+          "tag": "polyline",
+          "cls": "",
+          "x": 488,
+          "w": 15,
+          "right": 502,
+          "text": ""
+        },
+        {
+          "tag": "line",
+          "cls": "",
+          "x": 495,
+          "w": 0,
+          "right": 495,
+          "text": ""
+        },
+        {
+          "tag": "span",
+          "cls": "nav-item-copy",
+          "x": 515,
+          "w": 264,
+          "right": 779,
+          "text": "构建\n选择已认证能力，生成重建计划，进入审查和执行门禁"
+        },
+        {
+          "tag": "span",
+          "cls": "nav-item-label",
+          "x": 515,
+          "w": 264,
+          "right": 779,
+          "text": "构建"
+        },
+        {
+          "tag": "span",
+          "cls": "nav-item-description",
+          "x": 515,
+          "w": 264,
+          "right": 779,
+          "text": "选择已认证能力，生成重建计划，进入审查和执行门禁"
+        },
+        {
+          "tag": "button",
+          "cls": "",
+          "x": 795,
+          "w": 285,
+          "right": 1080,
+          "text": "计划\n计划中心、配方、排程、漂移、外发通知、报告"
+        },
+        {
+          "tag": "svg",
+          "cls": "",
+          "x": 807,
+          "w": 20,
+          "right": 827,
+          "text": ""
+        },
+        {
+          "tag": "rect",
+          "cls": "",
+          "x": 809,
+          "w": 17,
+          "right": 825,
+          "text": ""
+        },
+        {
+          "tag": "rect",
+          "cls": "",
+          "x": 809,
+          "w": 17,
+          "right": 825,
+          "text": ""
+        },
+        {
+          "tag": "line",
+          "cls": "",
+          "x": 812,
+          "w": 0,
+          "right": 812,
+          "text": ""
+        }
+      ]
+    }
+  },
+  {
+    "route": "/app/plans",
+    "theme": "dark",
+    "file": "E:\\1project\\EnvForge\\screenshots\\scheme-3-4-check\\mobile-dark-app-plans.png",
+    "info": {
+      "href": "http://127.0.0.1:5173/app/plans",
+      "theme": "dark",
+      "text": "E\nEnvForge\nLinux 环境重建与迁移平台\n总览\n资源状态、最近计划、待审队列、通知\n迁移\n源主机、快照、分析与迁移候选\n构建\n选择已认证能力，生成重建计划，进入审查和执行门禁\n计划\n计划中心、配方、排程、漂移、外发通知、报告\n报告\n迁移 / 重建 / 修复报告\n计划\n返回首页\nC\n更多\n计划\n执行记录\n排程\n漂移\n外发通知\n报告\n环境计划\n刷新\n全部\n(0)\n迁移\n(0)\n重建\n(0)\n变更\n(0)\n移除\n(0)\n修复\n(0)\n导入配方\n(0)\n尚未创建环境计划。先在迁移或构建模式生成计划。\n\n选择左侧计划查看详情、动作、验证结果与回滚结果。\n\n+ 新建计划草稿\n导入配方\n\n暂无计划草稿\n\n选择或新建环境计划\n\n计划用于审查迁移、重建、配置变更和移除能力。所有目标机器变更都应先进入计划。\n\n+ 新建计划草稿",
+      "viewport": {
+        "innerWidth": 449,
+        "scrollWidth": 449,
+        "clientWidth": 390
+      },
+      "overflow": [
+        {
+          "tag": "button",
+          "cls": "",
+          "x": 261,
+          "w": 208,
+          "right": 469,
+          "text": "迁移\n源主机、快照、分析与迁移候选"
+        },
+        {
+          "tag": "span",
+          "cls": "nav-item-copy",
+          "x": 303,
+          "w": 154,
+          "right": 457,
+          "text": "迁移\n源主机、快照、分析与迁移候选"
+        },
+        {
+          "tag": "span",
+          "cls": "nav-item-label",
+          "x": 303,
+          "w": 154,
+          "right": 457,
+          "text": "迁移"
+        },
+        {
+          "tag": "span",
+          "cls": "nav-item-description",
+          "x": 303,
+          "w": 154,
+          "right": 457,
+          "text": "源主机、快照、分析与迁移候选"
+        },
+        {
+          "tag": "button",
+          "cls": "",
+          "x": 473,
+          "w": 318,
+          "right": 791,
+          "text": "构建\n选择已认证能力，生成重建计划，进入审查和执行门禁"
+        },
+        {
+          "tag": "svg",
+          "cls": "",
+          "x": 485,
+          "w": 20,
+          "right": 505,
+          "text": ""
+        },
+        {
+          "tag": "path",
+          "cls": "",
+          "x": 498,
+          "w": 5,
+          "right": 503,
+          "text": ""
+        },
+        {
+          "tag": "path",
+          "cls": "",
+          "x": 501,
+          "w": 0,
+          "right": 501,
+          "text": ""
+        },
+        {
+          "tag": "path",
+          "cls": "",
+          "x": 488,
+          "w": 15,
+          "right": 503,
+          "text": ""
+        },
+        {
+          "tag": "path",
+          "cls": "",
+          "x": 491,
+          "w": 8,
+          "right": 499,
+          "text": ""
+        },
+        {
+          "tag": "polyline",
+          "cls": "",
+          "x": 488,
+          "w": 15,
+          "right": 502,
+          "text": ""
+        },
+        {
+          "tag": "line",
+          "cls": "",
+          "x": 495,
+          "w": 0,
+          "right": 495,
+          "text": ""
+        },
+        {
+          "tag": "span",
+          "cls": "nav-item-copy",
+          "x": 515,
+          "w": 264,
+          "right": 779,
+          "text": "构建\n选择已认证能力，生成重建计划，进入审查和执行门禁"
+        },
+        {
+          "tag": "span",
+          "cls": "nav-item-label",
+          "x": 515,
+          "w": 264,
+          "right": 779,
+          "text": "构建"
+        },
+        {
+          "tag": "span",
+          "cls": "nav-item-description",
+          "x": 515,
+          "w": 264,
+          "right": 779,
+          "text": "选择已认证能力，生成重建计划，进入审查和执行门禁"
+        },
+        {
+          "tag": "button",
+          "cls": "active",
+          "x": 795,
+          "w": 285,
+          "right": 1080,
+          "text": "计划\n计划中心、配方、排程、漂移、外发通知、报告"
+        },
+        {
+          "tag": "svg",
+          "cls": "",
+          "x": 807,
+          "w": 20,
+          "right": 827,
+          "text": ""
+        },
+        {
+          "tag": "rect",
+          "cls": "",
+          "x": 809,
+          "w": 17,
+          "right": 825,
+          "text": ""
+        },
+        {
+          "tag": "rect",
+          "cls": "",
+          "x": 809,
+          "w": 17,
+          "right": 825,
+          "text": ""
+        },
+        {
+          "tag": "line",
+          "cls": "",
+          "x": 812,
+          "w": 0,
+          "right": 812,
+          "text": ""
+        }
+      ]
+    }
+  },
+  {
+    "route": "/app/reports",
+    "theme": "dark",
+    "file": "E:\\1project\\EnvForge\\screenshots\\scheme-3-4-check\\mobile-dark-app-reports.png",
+    "info": {
+      "href": "http://127.0.0.1:5173/app/reports",
+      "theme": "dark",
+      "text": "E\nEnvForge\nLinux 环境重建与迁移平台\n总览\n资源状态、最近计划、待审队列、通知\n迁移\n源主机、快照、分析与迁移候选\n构建\n选择已认证能力，生成重建计划，进入审查和执行门禁\n计划\n计划中心、配方、排程、漂移、外发通知、报告\n报告\n迁移 / 重建 / 修复报告\n报告\n返回首页\nC\n更多\n\n报告中心\n\n迁移、重建与修复报告\n\n报告是终态计划的证据出口，只提供查看、复制和下载，不在这里重新执行变更。\n\n刷新报告\n成功\n0\n部分成功\n0\n失败\n0\n已回滚\n0\n已归档\n0\n\n终态计划\n\n报告索引\n0\n\n尚无终态计划，执行或验证一些计划后再来。\n\nMARKDOWN 报告\n\n选择一个报告查看证据内容\n\n左侧列表只展示已进入终态的计划。",
+      "viewport": {
+        "innerWidth": 449,
+        "scrollWidth": 449,
+        "clientWidth": 390
+      },
+      "overflow": [
+        {
+          "tag": "button",
+          "cls": "",
+          "x": 261,
+          "w": 208,
+          "right": 469,
+          "text": "迁移\n源主机、快照、分析与迁移候选"
+        },
+        {
+          "tag": "span",
+          "cls": "nav-item-copy",
+          "x": 303,
+          "w": 154,
+          "right": 457,
+          "text": "迁移\n源主机、快照、分析与迁移候选"
+        },
+        {
+          "tag": "span",
+          "cls": "nav-item-label",
+          "x": 303,
+          "w": 154,
+          "right": 457,
+          "text": "迁移"
+        },
+        {
+          "tag": "span",
+          "cls": "nav-item-description",
+          "x": 303,
+          "w": 154,
+          "right": 457,
+          "text": "源主机、快照、分析与迁移候选"
+        },
+        {
+          "tag": "button",
+          "cls": "",
+          "x": 473,
+          "w": 318,
+          "right": 791,
+          "text": "构建\n选择已认证能力，生成重建计划，进入审查和执行门禁"
+        },
+        {
+          "tag": "svg",
+          "cls": "",
+          "x": 485,
+          "w": 20,
+          "right": 505,
+          "text": ""
+        },
+        {
+          "tag": "path",
+          "cls": "",
+          "x": 498,
+          "w": 5,
+          "right": 503,
+          "text": ""
+        },
+        {
+          "tag": "path",
+          "cls": "",
+          "x": 501,
+          "w": 0,
+          "right": 501,
+          "text": ""
+        },
+        {
+          "tag": "path",
+          "cls": "",
+          "x": 488,
+          "w": 15,
+          "right": 503,
+          "text": ""
+        },
+        {
+          "tag": "path",
+          "cls": "",
+          "x": 491,
+          "w": 8,
+          "right": 499,
+          "text": ""
+        },
+        {
+          "tag": "polyline",
+          "cls": "",
+          "x": 488,
+          "w": 15,
+          "right": 502,
+          "text": ""
+        },
+        {
+          "tag": "line",
+          "cls": "",
+          "x": 495,
+          "w": 0,
+          "right": 495,
+          "text": ""
+        },
+        {
+          "tag": "span",
+          "cls": "nav-item-copy",
+          "x": 515,
+          "w": 264,
+          "right": 779,
+          "text": "构建\n选择已认证能力，生成重建计划，进入审查和执行门禁"
+        },
+        {
+          "tag": "span",
+          "cls": "nav-item-label",
+          "x": 515,
+          "w": 264,
+          "right": 779,
+          "text": "构建"
+        },
+        {
+          "tag": "span",
+          "cls": "nav-item-description",
+          "x": 515,
+          "w": 264,
+          "right": 779,
+          "text": "选择已认证能力，生成重建计划，进入审查和执行门禁"
+        },
+        {
+          "tag": "button",
+          "cls": "",
+          "x": 795,
+          "w": 285,
+          "right": 1080,
+          "text": "计划\n计划中心、配方、排程、漂移、外发通知、报告"
+        },
+        {
+          "tag": "svg",
+          "cls": "",
+          "x": 807,
+          "w": 20,
+          "right": 827,
+          "text": ""
+        },
+        {
+          "tag": "rect",
+          "cls": "",
+          "x": 809,
+          "w": 17,
+          "right": 825,
+          "text": ""
+        },
+        {
+          "tag": "rect",
+          "cls": "",
+          "x": 809,
+          "w": 17,
+          "right": 825,
+          "text": ""
+        },
+        {
+          "tag": "line",
+          "cls": "",
+          "x": 812,
+          "w": 0,
+          "right": 812,
+          "text": ""
+        }
+      ]
+    }
+  }
+]

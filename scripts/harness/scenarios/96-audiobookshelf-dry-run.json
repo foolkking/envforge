@@ -1,0 +1,16 @@
+{
+  "id": "audiobookshelf-dry-run",
+  "title": "Audiobookshelf - library metadata dry run",
+  "destructive": false,
+  "planSource": { "kind": "capability-selection", "capabilityIds": ["audiobookshelf"] },
+  "expected": {
+    "planType": "rebuild",
+    "items": [{ "id": "capability:audiobookshelf", "capabilityKey": "app.media.audiobookshelf", "supportLevel": "full-migration", "minActions": 3 }],
+    "conflictsBlock": 0,
+    "conflictsWarn": 0,
+    "remainingRisks": ["Audiobook/podcast libraries", "Metadata"]
+  },
+  "approvalAcks": { "risksAck": "ALL", "approvalsAck": "ALL" },
+  "verify": { "actionRunStatuses": ["succeeded"], "auditChecks": ["Audiobookshelf ping", "library mounts", "user progress"] },
+  "notes": ["Audiobookshelf migration requires library mount and metadata/user-progress review."]
+}

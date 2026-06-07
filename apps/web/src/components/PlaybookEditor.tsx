@@ -145,7 +145,7 @@ export function PlaybookEditor({
             onClick={onRunDryRun}
             disabled={!yaml.trim()}
           >
-            ⚡ {locale === "zh" ? "预演（dry-run）" : "Run dry-run"}
+            ⚡ {locale === "zh" ? "预演" : "Run dry-run"}
           </button>
         ) : null}
         <span className="playbook-editor-meta">
@@ -184,7 +184,7 @@ export function PlaybookEditor({
           autoComplete="off"
           autoCorrect="off"
           autoCapitalize="off"
-          aria-label={locale === "zh" ? "Playbook YAML 编辑器" : "Playbook YAML editor"}
+          aria-label={locale === "zh" ? "编排 YAML 编辑器" : "Playbook YAML editor"}
         />
       </div>
     </div>

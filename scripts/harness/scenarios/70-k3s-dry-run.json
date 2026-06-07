@@ -1,0 +1,17 @@
+{
+  "id": "k3s-dry-run",
+  "title": "K3s - snapshot and kubeconfig dry run",
+  "destructive": false,
+  "planSource": { "kind": "capability-selection", "capabilityIds": ["k3s"] },
+  "expected": {
+    "planType": "rebuild",
+    "items": [{ "id": "capability:k3s", "capabilityKey": "container.kubernetes.k3s", "supportLevel": "full-migration", "minActions": 4 }],
+    "conflictsBlock": 0,
+    "conflictsWarn": 0,
+    "approvalsRequired": [{ "kind": "backup-restore-confirm" }, { "kind": "secret-confirm" }],
+    "remainingRisks": ["Workload state lives", "node-token"]
+  },
+  "approvalAcks": { "risksAck": "ALL", "approvalsAck": "ALL" },
+  "verify": { "actionRunStatuses": ["succeeded"], "auditChecks": ["k3s kubectl get nodes", "snapshot/restore", "kubeconfig secret review"] },
+  "notes": ["K3s control-plane state uses snapshot/restore; local-path volumes remain operator-owned."]
+}

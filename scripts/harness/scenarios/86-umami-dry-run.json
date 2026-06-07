@@ -1,0 +1,16 @@
+{
+  "id": "umami-dry-run",
+  "title": "Umami - analytics database dry run",
+  "destructive": false,
+  "planSource": { "kind": "capability-selection", "capabilityIds": ["umami"] },
+  "expected": {
+    "planType": "rebuild",
+    "items": [{ "id": "capability:umami", "capabilityKey": "app.analytics.umami", "supportLevel": "full-migration", "minActions": 4 }],
+    "conflictsBlock": 0,
+    "conflictsWarn": 0,
+    "remainingRisks": ["Analytics database", "APP_SECRET"]
+  },
+  "approvalAcks": { "risksAck": "ALL", "approvalsAck": "ALL" },
+  "verify": { "actionRunStatuses": ["succeeded"], "auditChecks": ["Umami heartbeat", "PostgreSQL backup", "tracker domain"] },
+  "notes": ["Umami requires PostgreSQL backup/restore and APP_SECRET continuity."]
+}

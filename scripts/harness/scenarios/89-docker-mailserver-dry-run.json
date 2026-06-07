@@ -1,0 +1,17 @@
+{
+  "id": "docker-mailserver-dry-run",
+  "title": "docker-mailserver - mail DNS dry run",
+  "destructive": false,
+  "planSource": { "kind": "capability-selection", "capabilityIds": ["docker-mailserver"] },
+  "expected": {
+    "planType": "rebuild",
+    "items": [{ "id": "capability:docker-mailserver", "capabilityKey": "app.mail.docker-mailserver", "supportLevel": "full-migration", "minActions": 3 }],
+    "conflictsBlock": 0,
+    "conflictsWarn": 0,
+    "approvalsRequired": [{ "kind": "manual-dns-confirm" }, { "kind": "secret-confirm" }],
+    "remainingRisks": ["Maildir data", "DKIM"]
+  },
+  "approvalAcks": { "risksAck": "ALL", "approvalsAck": "ALL" },
+  "verify": { "actionRunStatuses": ["succeeded"], "auditChecks": ["mail ports", "DKIM keys", "MX records"] },
+  "notes": ["Mail migration requires DNS cutover, DKIM/TLS secret handling, and mailbox backup review."]
+}

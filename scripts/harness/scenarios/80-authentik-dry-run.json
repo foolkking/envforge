@@ -1,0 +1,17 @@
+{
+  "id": "authentik-dry-run",
+  "title": "Authentik - IdP blueprint dry run",
+  "destructive": false,
+  "planSource": { "kind": "capability-selection", "capabilityIds": ["authentik"] },
+  "expected": {
+    "planType": "rebuild",
+    "items": [{ "id": "capability:authentik", "capabilityKey": "security.sso.authentik", "supportLevel": "full-migration", "minActions": 3 }],
+    "conflictsBlock": 0,
+    "conflictsWarn": 0,
+    "approvalsRequired": [{ "kind": "identity-provider-confirm" }, { "kind": "secret-confirm" }],
+    "remainingRisks": ["Identity-provider users", "AUTHENTIK_SECRET_KEY"]
+  },
+  "approvalAcks": { "risksAck": "ALL", "approvalsAck": "ALL" },
+  "verify": { "actionRunStatuses": ["succeeded"], "auditChecks": ["health ready", "blueprint export", "client secret review"] },
+  "notes": ["Authentik migration uses blueprint export/import or reviewed DB backup with IdP secret handling."]
+}

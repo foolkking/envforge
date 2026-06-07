@@ -1,0 +1,16 @@
+{
+  "id": "paperless-ngx-dry-run",
+  "title": "Paperless-ngx - document media dry run",
+  "destructive": false,
+  "planSource": { "kind": "capability-selection", "capabilityIds": ["paperless-ngx"] },
+  "expected": {
+    "planType": "rebuild",
+    "items": [{ "id": "capability:paperless-ngx", "capabilityKey": "app.docs.paperless", "supportLevel": "full-migration", "minActions": 5 }],
+    "conflictsBlock": 0,
+    "conflictsWarn": 0,
+    "remainingRisks": ["Document media", "PAPERLESS_SECRET_KEY"]
+  },
+  "approvalAcks": { "risksAck": "ALL", "approvalsAck": "ALL" },
+  "verify": { "actionRunStatuses": ["succeeded"], "auditChecks": ["Paperless API", "document media", "PostgreSQL"] },
+  "notes": ["Paperless migration requires media, DB, Redis, and secret-key continuity review."]
+}

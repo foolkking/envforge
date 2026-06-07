@@ -1,0 +1,16 @@
+{
+  "id": "linkwarden-dry-run",
+  "title": "Linkwarden - archive and secret continuity dry run",
+  "destructive": false,
+  "planSource": { "kind": "capability-selection", "capabilityIds": ["linkwarden"] },
+  "expected": {
+    "planType": "rebuild",
+    "items": [{ "id": "capability:linkwarden", "capabilityKey": "catalog.linkwarden", "supportLevel": "full-migration", "minActions": 3 }],
+    "conflictsBlock": 0,
+    "conflictsWarn": 0,
+    "remainingRisks": ["NEXTAUTH_SECRET"]
+  },
+  "approvalAcks": { "risksAck": "ALL", "approvalsAck": "ALL" },
+  "verify": { "actionRunStatuses": ["succeeded"], "auditChecks": ["NEXTAUTH_SECRET continuity", "archive data volume review", "PostgreSQL backup review"] },
+  "notes": ["Linkwarden is certified with explicit archive-volume and secret-continuity review."]
+}

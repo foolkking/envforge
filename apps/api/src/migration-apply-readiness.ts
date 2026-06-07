@@ -30,7 +30,9 @@ export function assessMigrationApplyReadiness(plan: MigrationPlan): MigrationApp
 function assessItem(item: MigrationPlanItem): MigrationApplyReadiness["items"][number] {
   const blockers: string[] = [];
   const warnings: string[] = [];
-  if (item.userDecision !== "approved") blockers.push("User has not approved this candidate.");
+  if (item.userDecision !== "approved" && item.userDecision !== "add-to-plan" && item.userDecision !== "migrate-artifact") {
+    blockers.push("User has not approved this candidate for plan inclusion.");
+  }
   if (item.type === "manual-install" || item.type === "unknown-review") blockers.push("Unknown/manual install requires reviewed source, config, and data paths.");
   if (item.actions.some((action) => action.kind === "copyConfig")) blockers.push("Config copy requires diff approval, secret scan review, target backup, and rollback checkpoint.");
   if (item.actions.some((action) => action.kind === "restart")) warnings.push("Service restart/reload must be explicitly enabled at apply time.");

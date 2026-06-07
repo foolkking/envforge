@@ -1,0 +1,17 @@
+{
+  "id": "security-baseline-dry-run",
+  "title": "Security baseline - SSH and firewall lockout dry run",
+  "destructive": true,
+  "planSource": { "kind": "capability-selection", "capabilityIds": ["security-baseline"] },
+  "expected": {
+    "planType": "rebuild",
+    "items": [{ "id": "capability:security-baseline", "capabilityKey": "catalog.security-baseline", "supportLevel": "full-migration", "minActions": 6 }],
+    "conflictsBlock": 0,
+    "conflictsWarn": 0,
+    "approvalsRequired": [{ "kind": "ssh-lockout-confirm" }, { "kind": "firewall-lockout-confirm" }],
+    "remainingRisks": ["Auto-rollback timer"]
+  },
+  "approvalAcks": { "risksAck": "ALL", "approvalsAck": "ALL", "dangerousGatePhrase": "CONFIRM SSH-LOCKOUT-CONFIRM" },
+  "verify": { "actionRunStatuses": ["succeeded"], "auditChecks": ["sshd -t", "firewall status", "fail2ban status", "auto-rollback timer"] },
+  "notes": ["Security baseline is certified only with explicit SSH and firewall lockout approval gates."]
+}

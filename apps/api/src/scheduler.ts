@@ -200,8 +200,9 @@ async function fireSchedule(sch: StoredSchedule): Promise<void> {
     const pb = (db.playbooks ?? []).find((p) => p.id === sch.playbookId && p.userId === sch.userId);
     yamlText = pb?.yaml ?? null;
   }
-  // catalogId path is handled directly in executor via batch
-  const { executePlaybookTask, executeBatchCatalogTask, registerBatchTask } = await import("./executor.js");
+  const { executePlaybookTask, registerBatchTask } = await import("./executor.js");
+  const { listCatalogFromDatabase } = await import("./database.js");
+  const { buildRebuildPlan } = await import("./environment-plan.js");
 
   const taskIds: string[] = [];
   for (const conn of targets) {
@@ -212,13 +213,11 @@ async function fireSchedule(sch: StoredSchedule): Promise<void> {
         [{ catalogId: sch.catalogId, displayName: `${sch.name} (scheduled)` }],
         sch.dryRun
       );
-      void executeBatchCatalogTask(
-        sch.userId,
-        conn,
-        [{ catalogId: sch.catalogId, displayName: sch.name }],
-        sch.dryRun,
-        taskId
-      );
+      const catalogItem = (await listCatalogFromDatabase()).find((item) => item.id === sch.catalogId);
+      if (catalogItem) {
+        const plan = buildRebuildPlan([catalogItem], conn.id);
+        void executePlaybookTask(sch.userId, conn, plan.export?.yaml ?? "", sch.dryRun, taskId);
+      }
       taskIds.push(taskId);
     } else if (yamlText) {
       const taskId = registerBatchTask(

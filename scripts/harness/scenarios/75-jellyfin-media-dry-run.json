@@ -1,0 +1,17 @@
+{
+  "id": "jellyfin-media-dry-run",
+  "title": "Jellyfin - media metadata dry run",
+  "destructive": false,
+  "planSource": { "kind": "capability-selection", "capabilityIds": ["jellyfin-media"] },
+  "expected": {
+    "planType": "rebuild",
+    "items": [{ "id": "capability:jellyfin-media", "capabilityKey": "app.media.jellyfin", "supportLevel": "full-migration", "minActions": 3 }],
+    "conflictsBlock": 0,
+    "conflictsWarn": 0,
+    "approvalsRequired": [{ "kind": "data-strategy-confirm" }],
+    "remainingRisks": ["Media files", "Hardware acceleration"]
+  },
+  "approvalAcks": { "risksAck": "ALL", "approvalsAck": "ALL" },
+  "verify": { "actionRunStatuses": ["succeeded"], "auditChecks": ["Jellyfin public info", "media mount review", "hardware acceleration"] },
+  "notes": ["Jellyfin media mounts are operator-owned; metadata and plugin state require review."]
+}

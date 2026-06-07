@@ -284,12 +284,12 @@ export function ConfigureRunPanel({
           <div>
             <p className="eyebrow">
               {preview
-                ? (locale === "zh" ? "预览：将要执行的内容" : "Preview: what will run")
+                ? (locale === "zh" ? "预览：将生成的计划" : "Preview: plan to create")
                 : !schema
-                  ? (locale === "zh" ? "执行预览" : "Execution preview")
-                  : (locale === "zh" ? "配置并运行" : "Configure & Run")}
+                  ? (locale === "zh" ? "计划预览" : "Plan preview")
+                  : (locale === "zh" ? "配置计划" : "Configure Plan")}
             </p>
-            <h2>{guide ? (locale === "zh" ? guide.item.name : guide.item.nameEn) : (locale === "zh" ? "配置 Playbook" : "Configure Playbook")}</h2>
+            <h2>{guide ? (locale === "zh" ? guide.item.name : guide.item.nameEn) : (locale === "zh" ? "配置编排" : "Configure Playbook")}</h2>
           </div>
           <button className="ghost-action icon-action" type="button" onClick={onClose} disabled={submitting} aria-label={locale === "zh" ? "关闭" : "Close"}>
             <X aria-hidden />
@@ -301,14 +301,14 @@ export function ConfigureRunPanel({
           <section className="configure-run-guide" aria-label={locale === "zh" ? "使用说明" : "Guide"}>
             {guide
               ? <div className="markdown-preview">{renderMarkdownPreview(guide.markdown)}</div>
-              : <p className="muted">{locale === "zh" ? "（此 Playbook 没有提供使用说明）" : "(No guide available for this Playbook)"}</p>}
+              : <p className="muted">{locale === "zh" ? "（此编排没有提供使用说明）" : "(No guide available for this Playbook)"}</p>}
           </section>
 
           {/* Right pane: 预览 / 表单 / 加载中
               schema 为 null（无表单）：直接显示预览或加载状态
               schema 非 null：根据 preview 是否已 load 切换表单/预览 */}
           {preview ? (
-            <section className="configure-run-form" aria-label={locale === "zh" ? "执行预览" : "Execution preview"}>
+            <section className="configure-run-form" aria-label={locale === "zh" ? "计划预览" : "Plan preview"}>
               <PreviewPanel
                 preview={preview}
                 locale={locale}
@@ -370,7 +370,7 @@ export function ConfigureRunPanel({
                 <button type="button" className="primary-action" onClick={handleShowPreview} disabled={submitting || previewing}>
                   {previewing
                     ? (locale === "zh" ? "生成预览中…" : "Generating preview…")
-                    : (locale === "zh" ? "预览将要执行的内容 →" : "Preview what will run →")}
+                    : (locale === "zh" ? "预览将生成的计划 →" : "Preview generated plan →")}
                 </button>
               </div>
 

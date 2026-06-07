@@ -1,0 +1,16 @@
+{
+  "id": "seafile-dry-run",
+  "title": "Seafile - backup and fsck dry run",
+  "destructive": false,
+  "planSource": { "kind": "capability-selection", "capabilityIds": ["seafile"] },
+  "expected": {
+    "planType": "rebuild",
+    "items": [{ "id": "capability:seafile", "capabilityKey": "catalog.seafile", "supportLevel": "full-migration", "minActions": 4 }],
+    "conflictsBlock": 0,
+    "conflictsWarn": 0,
+    "remainingRisks": ["seaf-fsck"]
+  },
+  "approvalAcks": { "risksAck": "ALL", "approvalsAck": "ALL" },
+  "verify": { "actionRunStatuses": ["succeeded"], "auditChecks": ["seaf-backup", "seaf-fsck", "MariaDB dump", "encrypted library warning"] },
+  "notes": ["Seafile migration requires its backup/check tooling plus DB restore validation."]
+}

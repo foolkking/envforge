@@ -1,0 +1,47 @@
+{
+  "id": "ssh-hardening-safe-apply",
+  "title": "SSH hardening — safe apply with reload-not-restart and probe",
+  "destructive": true,
+  "planSource": {
+    "kind": "capability-selection",
+    "capabilityIds": ["ssh-hardening"]
+  },
+  "expected": {
+    "planType": "rebuild",
+    "items": [
+      {
+        "id": "capability:ssh-hardening",
+        "capabilityKey": "security.ssh",
+        "supportLevel": "full-migration"
+      }
+    ],
+    "approvalsRequired": [
+      { "kind": "ssh-lockout-confirm" },
+      { "kind": "secret-confirm" }
+    ],
+    "remainingRisks": [
+      "Operators must review authorized_keys migration manually."
+    ]
+  },
+  "approvalAcks": {
+    "risksAck": "ALL",
+    "approvalsAck": "ALL",
+    "dangerousGatePhrase": "CONFIRM SSH-LOCKOUT-CONFIRM"
+  },
+  "verify": {
+    "actionRunStatuses": ["succeeded"],
+    "sshdRestarted": false,
+    "sshdReloaded": true,
+    "freshSshProbe": "passed",
+    "auditChecks": [
+      "sshd -t pre",
+      "sshd -t post",
+      "systemctl reload sshd|ssh",
+      "fresh ssh BatchMode probe"
+    ]
+  },
+  "notes": [
+    "Plan Report MUST contain a probe entry under verifyResult.checks[*].command containing `ssh -o BatchMode=yes`.",
+    "If probe fails the orchestrator must auto-rollback via restoreConfigFileFromBackup."
+  ]
+}

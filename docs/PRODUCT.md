@@ -33,6 +33,29 @@ The user problem is usually not "install nginx". The user problem is:
 
 EnvForge solves this through inventory modeling, intent scoring, configuration governance, catalog rules, migration planning, verification, and rollback.
 
+## Operating Modes
+
+EnvForge supports three product modes, but all three share the same Environment Plan engine.
+
+| Mode | Entry | Output | Boundary |
+| :-- | :-- | :-- | :-- |
+| Migrate Mode | Existing source VM | Migration Plan | Source VM collection is read-only by default |
+| Build Mode | Empty or clean target VM plus the certified-capability catalog | Rebuild Plan | End users see Full Migration Certified capabilities only; selection generates a plan, it does not bypass review |
+| Maintain Mode | EnvForge-managed target environment | Change Plan, Remove Plan, Repair Plan | Only managed capabilities and reviewed changes are in scope; rule governance lives in Capability Admin, not Maintain |
+
+The shared flow is:
+
+```text
+Capability or discovery evidence
+  -> Environment Plan
+  -> Review
+  -> Apply
+  -> Verify
+  -> Rollback / Report
+```
+
+This lets EnvForge remain friendly for new users who want to build a target VM from the catalog without turning into a generic server panel.
+
 ## What EnvForge Is Not
 
 EnvForge is not a generic server control panel.
@@ -62,6 +85,13 @@ The primary scenario is old VM to new VM migration:
 9. EnvForge runs validation hooks.
 10. If verification fails, EnvForge rolls back files, packages, and service state where possible.
 
+Secondary scenarios are still first-class:
+
+- Build a new target VM by selecting capabilities from the Capability Catalog and generating a Rebuild Plan.
+- Maintain an EnvForge-managed target by creating Config Change Proposals, Remove Capability Plans, Repair Plans, and verification reports.
+
+These scenarios must not expose direct install, direct uninstall, or unverified arbitrary file editing as ordinary actions.
+
 ## Product Philosophy
 
 ### Automatic Discovery, Cautious Migration
@@ -72,17 +102,28 @@ EnvForge should collect broadly but migrate conservatively. It is acceptable to 
 
 `apt-mark showmanual`, `dpkg-query`, `rpm -qa`, `pacman -Q`, and language package managers are signals, not final decisions. EnvForge uses Package Intent Score to infer likely user intent.
 
-### Catalog as Capability Rules
+### Catalog as Capability Admin
 
-The catalog is not an app store. It is a rule library describing capabilities:
+The catalog is not an app store. It is split across two surfaces:
 
-- how to detect software;
-- how to decide whether it is migration-worthy;
-- where its configs live;
-- which configs are default or custom;
-- which data paths matter;
-- which references must be resolved;
+- **End-user Build (`/market`)** — shows the certified-only subset of
+  the Capability Catalog. Users pick capabilities, configure them, and
+  generate a Rebuild Plan. The supportLevel ladder is internal and is
+  never surfaced here.
+- **Admin Capability Admin (`/catalog`)** — admin-only workbench with
+  four tabs (Overview, Rule Registry, Suggestion Inbox, Package
+  Integrations) for governing rules, processing user suggestions,
+  driving certification upgrades, and maintaining cross-distro package /
+  service / config maps. The non-admin nav hides this entry.
+
+Both surfaces describe capabilities, not commands:
+
+- how to detect software,
+- which packages, services, configs, and data paths belong to it,
+- how to migrate or rebuild it on a target,
 - how to validate and roll back.
+
+Catalog actions are expressed as Environment Plan actions. A button can be friendly, but its meaning should be "Add to Plan" or "Generate Rebuild Plan", not "install immediately."
 
 ### Human-in-the-Loop by Design
 
@@ -107,7 +148,8 @@ Unknown software, custom scripts, `/opt` installs, private binaries, suspicious 
 | Configuration Governance | Config ownership, default/custom status, secret status, diff, edit, validate, backup |
 | Migration Plan | Actions, risk, completeness, dependencies, target compatibility, user decisions |
 | Execution Result | Apply logs, validation checks, failed items, rollback availability, export report |
-| Capability Catalog | Software/profile rules, support level, comments, suggestions, admin review |
+| Build (end users) | Certified capabilities only, capability-type filter, target context, suggestion review, plan draft |
+| Capability Admin (admins) | Overview, Rule Registry, Suggestion Inbox, Package Integrations |
 | Account / Inbox | User identity, notification preferences, suggestion feedback, moderation notices |
 
 ## Non-Goals
@@ -141,3 +183,12 @@ EnvForge is successful when a user can answer:
 5. Migration Completeness Score and Review Queue.
 6. Plan / Apply / Verify / Rollback engine.
 7. Exportable artifacts: EnvForge plan, Ansible playbook, Bash script, Markdown report.
+## Navigation and Workspace IA
+
+The main user workspace is Dashboard, Migrate, Build, Plans, and Reports. Guests follow the same navigation as regular users. Catalog has been renamed to Capability Admin and is visible only to admins.
+
+Maintain was removed as a first-level destination. Schedule, Drift, and Webhook operations moved to Plans because they operate around Environment Plans. Runtime notices moved to Dashboard as actionable findings. User and queue governance moved to Capability Admin.
+
+Account was removed as a first-level destination. Profile, SSH keys, API tokens, sessions, 2FA, preferences, inbox, notifications, snapshots, reports, and exports are summarized from Dashboard. Full migration method content was deleted.
+
+Build is certified-only and does not expose supportLevel buckets. Package Integrations is rule-level package and service mapping governance, not a host install/uninstall manager. Suggestion Inbox and Users & Queues support user-driven capability adjustments, certification review, owner assignment, and backlog flow.

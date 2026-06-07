@@ -1,0 +1,31 @@
+{
+  "id": "remove-managed-nginx",
+  "title": "Remove plan auto-removes nginx that EnvForge installed",
+  "destructive": true,
+  "depends": ["build-nginx-success"],
+  "planSource": {
+    "kind": "remove-request",
+    "packages": ["nginx"],
+    "source": "apt",
+    "managedByEnvForge": true,
+    "preserveData": true
+  },
+  "expected": {
+    "planType": "remove",
+    "managedMarkerExists": true,
+    "expectedEligibility": "auto",
+    "blockedUntilApproved": false
+  },
+  "verify": {
+    "actionRunStatuses": ["succeeded"],
+    "verifyCommands": [
+      "systemctl is-active nginx || true",
+      "dpkg -s nginx 2>&1 | grep -q 'is not installed' || rpm -q nginx 2>&1 | grep -qi 'not installed'"
+    ]
+  },
+  "notes": [
+    "Pre-condition: ManagedCapabilityRecord with capabilityKey=web-server.nginx, packagesInstalled[*].existedBefore=false.",
+    "Post-condition: nginx package removed (or service stopped on rpm-based hosts where dpkg -s is N/A).",
+    "Data paths under /var/www/html / /var/log/nginx must NOT be touched (preserveData=true)."
+  ]
+}

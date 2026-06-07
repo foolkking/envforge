@@ -1,0 +1,16 @@
+{
+  "id": "wikijs-dry-run",
+  "title": "Wiki.js - content backup dry run",
+  "destructive": false,
+  "planSource": { "kind": "capability-selection", "capabilityIds": ["wikijs"] },
+  "expected": {
+    "planType": "rebuild",
+    "items": [{ "id": "capability:wikijs", "capabilityKey": "app.docs.wikijs", "supportLevel": "full-migration", "minActions": 3 }],
+    "conflictsBlock": 0,
+    "conflictsWarn": 0,
+    "remainingRisks": ["Markdown content", "Auth provider secrets"]
+  },
+  "approvalAcks": { "risksAck": "ALL", "approvalsAck": "ALL" },
+  "verify": { "actionRunStatuses": ["succeeded"], "auditChecks": ["Wiki.js health", "database backup", "uploads"] },
+  "notes": ["Wiki.js requires DB backup/export and optional git sync repository review."]
+}

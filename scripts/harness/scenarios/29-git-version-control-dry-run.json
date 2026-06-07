@@ -1,0 +1,17 @@
+{
+  "id": "git-version-control-dry-run",
+  "title": "Git version control - config dry run",
+  "destructive": false,
+  "planSource": { "kind": "capability-selection", "capabilityIds": ["git-version-control"] },
+  "expected": {
+    "planType": "rebuild",
+    "items": [{ "id": "capability:git-version-control", "capabilityKey": "developer.git", "supportLevel": "full-migration", "minActions": 4 }],
+    "conflictsBlock": 0,
+    "conflictsWarn": 0,
+    "approvalsRequired": [{ "kind": "secret-confirm" }],
+    "remainingRisks": ["Credential helper"]
+  },
+  "approvalAcks": { "risksAck": "ALL", "approvalsAck": "ALL" },
+  "verify": { "actionRunStatuses": ["succeeded"], "auditChecks": ["git --version", "credential helper review", "signing key review"] },
+  "notes": ["Git configs are governed; repositories and signing keys remain operator-owned."]
+}

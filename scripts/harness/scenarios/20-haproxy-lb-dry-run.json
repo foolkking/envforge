@@ -1,0 +1,43 @@
+{
+  "id": "haproxy-lb-dry-run",
+  "title": "HAProxy load balancer - backend and TLS dry run",
+  "destructive": false,
+  "planSource": {
+    "kind": "capability-selection",
+    "capabilityIds": ["haproxy-lb"]
+  },
+  "expected": {
+    "planType": "rebuild",
+    "items": [
+      {
+        "id": "capability:haproxy-lb",
+        "capabilityKey": "network.load-balancer.haproxy",
+        "supportLevel": "full-migration",
+        "minActions": 4
+      }
+    ],
+    "conflictsBlock": 0,
+    "conflictsWarn": 0,
+    "approvalsRequired": [
+      { "kind": "secret-confirm" }
+    ],
+    "remainingRisks": [
+      "TLS certificate files"
+    ]
+  },
+  "approvalAcks": {
+    "risksAck": "ALL",
+    "approvalsAck": "ALL"
+  },
+  "verify": {
+    "actionRunStatuses": ["succeeded"],
+    "auditChecks": [
+      "haproxy -c validation",
+      "backend dependency review",
+      "TLS key redaction"
+    ]
+  },
+  "notes": [
+    "HAProxy is certified with config validation and explicit backend/TLS review; target services must exist before apply."
+  ]
+}

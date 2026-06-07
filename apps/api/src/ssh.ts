@@ -192,7 +192,8 @@ function fullSnapshotToStored(full: FullSystemSnapshot): StoredProbeSnapshot {
       name: s.name,
       version: s.version,
       source: s.source,
-      status: s.status
+      status: s.status,
+      trust: s.trust
     })),
     configChecklist: full.configChecklist,
     counts: full.counts

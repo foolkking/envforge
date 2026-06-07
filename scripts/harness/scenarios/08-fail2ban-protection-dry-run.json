@@ -1,0 +1,42 @@
+{
+  "id": "fail2ban-protection-dry-run",
+  "title": "Fail2Ban protection - sshd jail dry run",
+  "destructive": false,
+  "planSource": {
+    "kind": "capability-selection",
+    "capabilityIds": ["fail2ban-protection"]
+  },
+  "expected": {
+    "planType": "rebuild",
+    "items": [
+      {
+        "id": "capability:fail2ban-protection",
+        "capabilityKey": "security.fail2ban",
+        "supportLevel": "full-migration",
+        "minActions": 6
+      }
+    ],
+    "conflictsBlock": 0,
+    "conflictsWarn": 0,
+    "approvalsRequired": [],
+    "remainingRisks": [
+      "Custom jail rules may reference removed services after migrate."
+    ]
+  },
+  "approvalAcks": {
+    "risksAck": "ALL"
+  },
+  "verify": {
+    "actionRunStatuses": ["succeeded"],
+    "auditChecks": [
+      "fail2ban-client status",
+      "systemctl is-active fail2ban",
+      "jail.local rollback",
+      "custom action/log path review"
+    ]
+  },
+  "notes": [
+    "Custom action scripts and log paths are reportable manual review items, not hidden comments.",
+    "The dry-run report must include the custom jail review manual step."
+  ]
+}

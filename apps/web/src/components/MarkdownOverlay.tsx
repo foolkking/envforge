@@ -230,7 +230,7 @@ function SuggestionPane({ guide, locale, authToken }: { guide: CatalogGuide; loc
     <section className="community-pane suggestion-pane">
       <div className="suggestion-copy compact">
         <h3>{locale === "zh" ? "针对当前条目提出修改" : "Suggest a change for this item"}</h3>
-        <p>{locale === "zh" ? "适合提交更好的安装步骤、变量默认值、文档说明或兼容性补充。" : "Use this for install steps, variable defaults, docs, or compatibility notes."}</p>
+        <p>{locale === "zh" ? "适合提交更好的重建计划、变量默认值、文档说明或兼容性补充。" : "Use this for rebuild plan steps, variable defaults, docs, or compatibility notes."}</p>
       </div>
       <textarea value={remark} onChange={(e) => setRemark(e.target.value)} rows={4} placeholder={locale === "zh" ? "修改原因和预期效果" : "Reason and expected outcome"} />
       <textarea value={playbookYaml} onChange={(e) => setPlaybookYaml(e.target.value)} rows={8} placeholder="playbook.yaml patch (optional)" />

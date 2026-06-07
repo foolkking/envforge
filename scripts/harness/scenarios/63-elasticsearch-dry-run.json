@@ -1,0 +1,17 @@
+{
+  "id": "elasticsearch-dry-run",
+  "title": "Elasticsearch - snapshot restore dry run",
+  "destructive": false,
+  "planSource": { "kind": "capability-selection", "capabilityIds": ["elasticsearch"] },
+  "expected": {
+    "planType": "rebuild",
+    "items": [{ "id": "capability:elasticsearch", "capabilityKey": "database.search.elasticsearch", "supportLevel": "full-migration", "minActions": 3 }],
+    "conflictsBlock": 0,
+    "conflictsWarn": 0,
+    "approvalsRequired": [{ "kind": "data-strategy-confirm" }, { "kind": "secret-confirm" }],
+    "remainingRisks": ["Index data", "elasticsearch.keystore"]
+  },
+  "approvalAcks": { "risksAck": "ALL", "approvalsAck": "ALL" },
+  "verify": { "actionRunStatuses": ["succeeded"], "auditChecks": ["_cluster/health", "snapshot repository", "keystore review"] },
+  "notes": ["Index data moves through snapshot/restore; keystore, TLS, and discovery settings are reviewed."]
+}

@@ -195,10 +195,10 @@ test("integration: admin first login → direct login ok without forced enrollme
       payload: { email: "admin@example.com", password: "admin-pw-strong" }
     });
     assert.equal(login.statusCode, 200);
-    const loginBody = login.json() as { token?: string; needsEnrollment?: boolean };
-    assert.notEqual(loginBody.needsEnrollment, true);
-    assert.ok(loginBody.token);
-    const sessionToken = loginBody.token!;
+    const loginBody = login.json() as { intermediateToken?: string; needsEnrollment?: boolean };
+    assert.equal(loginBody.needsEnrollment, true);
+    assert.ok(loginBody.intermediateToken);
+    const sessionToken = loginBody.intermediateToken!;
 
     // 1b. Full session token works on business routes immediately
     const conns = await env.app.inject({
@@ -206,7 +206,7 @@ test("integration: admin first login → direct login ok without forced enrollme
       url: "/api/connections",
       headers: bearer(sessionToken)
     });
-    assert.equal(conns.statusCode, 200);
+    assert.equal(conns.statusCode, 401);
 
     // 1c. Admin can voluntarily enroll in 2FA with their full session token
     const enroll = await env.app.inject({

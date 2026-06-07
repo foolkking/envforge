@@ -1,0 +1,16 @@
+{
+  "id": "stirling-pdf-dry-run",
+  "title": "Stirling PDF - stateless service dry run",
+  "destructive": false,
+  "planSource": { "kind": "capability-selection", "capabilityIds": ["stirling-pdf"] },
+  "expected": {
+    "planType": "rebuild",
+    "items": [{ "id": "capability:stirling-pdf", "capabilityKey": "catalog.stirling-pdf", "supportLevel": "full-migration", "minActions": 2 }],
+    "conflictsBlock": 0,
+    "conflictsWarn": 0,
+    "remainingRisks": ["Uploaded PDFs"]
+  },
+  "approvalAcks": { "risksAck": "ALL", "approvalsAck": "ALL" },
+  "verify": { "actionRunStatuses": ["succeeded"], "auditChecks": ["stirling-pdf container pull", "optional auth config review", "no persisted uploads by default"] },
+  "notes": ["Stirling PDF is mostly stateless; optional login/custom files remain review items."]
+}

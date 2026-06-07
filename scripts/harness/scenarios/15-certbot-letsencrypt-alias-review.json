@@ -1,0 +1,37 @@
+{
+  "id": "certbot-letsencrypt-alias-review",
+  "title": "Certbot Let's Encrypt alias - detect-only review",
+  "destructive": false,
+  "planSource": {
+    "kind": "capability-selection",
+    "capabilityIds": ["certbot-letsencrypt"]
+  },
+  "expected": {
+    "planType": "rebuild",
+    "items": [
+      {
+        "id": "capability:certbot-letsencrypt",
+        "capabilityKey": "security.tls.certbot",
+        "supportLevel": "detect-only",
+        "minActions": 1
+      }
+    ],
+    "conflictsBlock": 0,
+    "conflictsWarn": 0
+  },
+  "approvalAcks": {
+    "risksAck": "ALL",
+    "approvalsAck": "ALL"
+  },
+  "verify": {
+    "actionRunStatuses": ["manual-required"],
+    "auditChecks": [
+      "alias remains detect-only",
+      "certbot-ssl is the certified user-facing TLS capability",
+      "no ACME contact in dry-run"
+    ]
+  },
+  "notes": [
+    "This catalog id remains a detect-only alias/review card. The certified user-facing Certbot capability is certbot-ssl."
+  ]
+}

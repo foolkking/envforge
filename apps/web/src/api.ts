@@ -53,6 +53,12 @@ export interface TargetVirtualMachine {
   configChecklist: SystemConfigItem[];
 }
 
+export interface CatalogItemCertification {
+  status: "certified" | "not-ready";
+  visibleToUsers: boolean;
+  reasons: string[];
+}
+
 export interface CatalogItem {
   id: string;
   kind: "software" | "combo";
@@ -70,8 +76,22 @@ export interface CatalogItem {
   guideAuthor: "admin" | "user";
   installMode: "skip-existing" | "replace-existing";
   components: CatalogComponent[];
+  capabilityKey?: string;
   /** 支持的部署模式：system = apt 安装，docker = docker compose 部署 */
   deployModes?: Array<"system" | "docker">;
+  supportLevel?: "detect-only" | "basic-rebuild" | "managed-config" | "full-migration";
+  modeSupport?: {
+    migrate?: boolean;
+    build?: boolean;
+    maintain?: boolean;
+  };
+  managedActions?: Array<"detect" | "install" | "config-read" | "config-migrate" | "validate" | "rollback" | "data-strategy">;
+  /**
+   * Full Migration Certified status, attached by the server's
+   * annotateCertification overlay. End-user UI MUST consume this and
+   * MUST NOT render the legacy supportLevel as a user-visible badge.
+   */
+  certification?: CatalogItemCertification;
 }
 
 export interface CatalogComponent {
@@ -370,14 +390,541 @@ export async function fetchTargets(): Promise<TargetVirtualMachine[]> {
   return body.targets;
 }
 
+export interface CatalogResponseMeta {
+  total: number;
+  certified: number;
+  notReady: number;
+  viewer: "user-certified-only" | "admin-all";
+}
+
 export async function fetchCatalog(): Promise<CatalogItem[]> {
   const response = await fetch("/api/catalog");
   if (!response.ok) {
     throw new Error(`Catalog failed: ${response.status}`);
   }
 
-  const body = (await response.json()) as { items: CatalogItem[] };
+  const body = (await response.json()) as { items: CatalogItem[]; meta?: CatalogResponseMeta };
   return body.items;
+}
+
+/**
+ * Fetch the certified-only catalog plus its server-side meta block.
+ * Build pages should consume this — the items are already filtered to
+ * the Full Migration Certified set, and the meta carries the totals
+ * needed for the "X certified / Y total" callout.
+ */
+export async function fetchCatalogWithMeta(): Promise<{ items: CatalogItem[]; meta: CatalogResponseMeta }> {
+  const response = await fetch("/api/catalog");
+  if (!response.ok) throw new Error(`Catalog failed: ${response.status}`);
+  const body = (await response.json()) as { items: CatalogItem[]; meta?: CatalogResponseMeta };
+  return {
+    items: body.items,
+    meta: body.meta ?? {
+      total: body.items.length,
+      certified: body.items.length,
+      notReady: 0,
+      viewer: "user-certified-only"
+    }
+  };
+}
+
+/**
+ * Admin-only: fetch the admin Capability Rules registry. Returns every
+ * catalog item with its full certification metadata. The server
+ * refuses to serve this surface to non-admin tokens — UI code MUST
+ * pass a bearer token.
+ */
+export async function fetchCapabilityRulesAdmin(token: string): Promise<{
+  items: Array<{
+    id: string;
+    capabilityKey?: string;
+    name: string;
+    category: string;
+    certification: CatalogItemCertification;
+  }>;
+  meta: { total: number; certified: number; notReady: number };
+}> {
+  const response = await fetch("/api/catalog/certification", {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  if (response.status === 403) throw new Error("Capability Rules Admin requires an admin token.");
+  if (!response.ok) throw new Error(`Admin catalog failed: ${response.status}`);
+  return response.json();
+}
+
+/**
+ * Admin-only: fetch every catalog item (certified + not-ready) for
+ * display in the registry. End-user Build code MUST NOT call this.
+ */
+export async function fetchCatalogAdminAll(token: string): Promise<{ items: CatalogItem[]; meta: CatalogResponseMeta }> {
+  const response = await fetch("/api/catalog?include=all", {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  if (!response.ok) throw new Error(`Admin catalog failed: ${response.status}`);
+  return response.json();
+}
+
+export interface BuildSuggestion {
+  id: string;
+  capabilityId: string;
+  capabilityKey?: string;
+  name: string;
+  reason: string;
+  evidence: string[];
+  riskLevel: "safe" | "review" | "privileged" | "dangerous";
+  certified: true;
+  canAddToPlan: boolean;
+  requiresManualSteps: boolean;
+  touchesData: boolean;
+  touchesSecrets: boolean;
+  actions: Array<"accept" | "dismiss" | "snooze" | "view-reasoning">;
+}
+
+/**
+ * Build suggestions for a target. Returns a list of CERTIFIED
+ * capabilities the planner recommends adding to the next Rebuild Plan
+ * given the target's snapshot evidence + current selection.
+ *
+ * The server-side filter MUST drop any not-ready capability before
+ * returning. Admins fetching this endpoint receive the same
+ * certified-only list — admin "improvement suggestions" for not-ready
+ * items live in the Capability Rules Admin registry, not here.
+ */
+export async function fetchBuildSuggestions(token: string, targetId: string): Promise<BuildSuggestion[]> {
+  const response = await fetch(`/api/build/${encodeURIComponent(targetId)}/suggestions`, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  if (!response.ok) throw new Error(`Suggestions failed: ${response.status}`);
+  const body = (await response.json()) as { suggestions: BuildSuggestion[] };
+  return body.suggestions;
+}
+
+// ── Admin Capability Workbench: Suggestion Inbox ─────────────────────────
+//
+// These helpers are consumed by Capability Admin → Suggestion Inbox.
+// They reuse the existing /api/admin/suggestions endpoints and require
+// an admin bearer token; the server returns 403 for non-admins.
+
+export interface AdminSuggestionRecord {
+  id: string;
+  catalogId: string | null;
+  userId: string;
+  username: string;
+  displayName: string;
+  avatarUrl: string | null;
+  type: string;
+  nameZh: string;
+  nameEn: string;
+  category: string | null;
+  playbookYaml: string | null;
+  guideMarkdown: string | null;
+  remark: string | null;
+  status: "pending" | "accepted" | "rejected" | string;
+  feedback: string | null;
+  processedBy: string | null;
+  processedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export async function fetchAdminSuggestions(
+  token: string,
+  query: { status?: string; limit?: number; cursorCreatedAt?: string; cursorId?: string } = {}
+): Promise<{ suggestions: AdminSuggestionRecord[]; nextCursor?: { createdAt: string; id: string } }> {
+  const params = new URLSearchParams();
+  if (query.status) params.set("status", query.status);
+  if (query.limit) params.set("limit", String(query.limit));
+  if (query.cursorCreatedAt) params.set("cursorCreatedAt", query.cursorCreatedAt);
+  if (query.cursorId) params.set("cursorId", query.cursorId);
+  const qs = params.toString();
+  const url = qs ? `/api/admin/suggestions?${qs}` : "/api/admin/suggestions";
+  const response = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+  if (response.status === 403) throw new Error("Admin only.");
+  if (!response.ok) throw new Error(`Admin suggestions failed: ${response.status}`);
+  return response.json();
+}
+
+export async function processAdminSuggestion(
+  token: string,
+  suggestionId: string,
+  action: "accepted" | "rejected",
+  feedback?: string
+): Promise<{ success: true }> {
+  const response = await fetch(`/api/admin/suggestions/${encodeURIComponent(suggestionId)}/process`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ action, feedback })
+  });
+  if (response.status === 403) throw new Error("Admin only.");
+  if (!response.ok) throw new Error(`Process suggestion failed: ${response.status}`);
+  return response.json();
+}
+
+// ── Admin Capability Workbench: Package Integrations ─────────────────────
+//
+// Rule-level package-integration governance. NOT a host-level package
+// manager. Lists each capability with the cross-distro package map,
+// service map, binary detection, config paths, secret patterns,
+// validate / rollback hooks, and data strategy that drive certification.
+
+export interface PackageIntegrationRuleSummary {
+  packageMap: Partial<Record<"apt" | "dnf" | "yum" | "pacman" | "apk", string[]>>;
+  serviceMap: Partial<Record<"debian" | "rhel" | "fedora" | "arch" | "alpine", string[]>>;
+  binaries: string[];
+  systemd: string[];
+  ports: number[];
+  configFiles: string[];
+  configGlobs: string[];
+  secretPatterns: string[];
+  dataPaths: string[];
+  validate: string[];
+  restartServices: string[];
+  dataStrategy: "none" | "optional" | "recommended" | string;
+  migrationStrategy?: string;
+}
+
+export interface PackageIntegrationRow {
+  id: string;
+  capabilityKey?: string;
+  name: string;
+  category: string;
+  certification: CatalogItemCertification;
+  hasRule: boolean;
+  ruleSummary: PackageIntegrationRuleSummary | null;
+}
+
+export async function fetchPackageIntegrations(
+  token: string
+): Promise<{ items: PackageIntegrationRow[]; meta: { total: number; withRule: number; withoutRule: number } }> {
+  const response = await fetch("/api/admin/package-integrations", {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  if (response.status === 403) throw new Error("Admin only.");
+  if (!response.ok) throw new Error(`Package integrations failed: ${response.status}`);
+  return response.json();
+}
+
+export interface PackageIntegrationDetail {
+  id: string;
+  capabilityKey?: string;
+  name: string;
+  category: string;
+  certification: CatalogItemCertification;
+  rule: unknown | null;
+}
+
+export async function fetchPackageIntegrationDetail(
+  token: string,
+  capabilityId: string
+): Promise<PackageIntegrationDetail> {
+  const response = await fetch(`/api/admin/package-integrations/${encodeURIComponent(capabilityId)}`, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  if (response.status === 403) throw new Error("Admin only.");
+  if (response.status === 404) throw new Error("Capability not found.");
+  if (!response.ok) throw new Error(`Package integration detail failed: ${response.status}`);
+  return response.json();
+}
+
+export interface CapabilityStandardSection {
+  id: string;
+  label: string;
+  description: string;
+  required: boolean;
+  allowNotApplicable: boolean;
+  severity: "required" | "critical" | "advisory";
+  schema?: unknown;
+}
+
+export interface CapabilityStandardProfile {
+  id: string;
+  key: string;
+  name: string;
+  version: number;
+  status: "draft" | "active" | "retired";
+  description?: string;
+  sections: CapabilityStandardSection[];
+  createdAt: string;
+  updatedAt: string;
+  createdBy: string;
+  updatedBy: string;
+}
+
+export interface CapabilityRequirementSectionState {
+  status: "pending" | "satisfied" | "notApplicable" | "blocked";
+  notes?: string;
+  evidence?: string[];
+  notApplicableReason?: string;
+}
+
+export interface CapabilityRequirementDraft {
+  id: string;
+  capabilityId: string;
+  profileId: string;
+  draftVersion: number;
+  status: "draft" | "submitted" | "published";
+  sections: Record<string, CapabilityRequirementSectionState>;
+  ruleOverlay?: unknown;
+  note?: string;
+  createdAt: string;
+  updatedAt: string;
+  createdBy: string;
+  updatedBy: string;
+}
+
+export interface CapabilityRequirementVersion {
+  id: string;
+  capabilityId: string;
+  profileId: string;
+  version: number;
+  status: "published" | "superseded" | "rolled-back";
+  sections: Record<string, CapabilityRequirementSectionState>;
+  ruleOverlay?: unknown;
+  certificationRunId?: string;
+  rollbackOfVersionId?: string;
+  publishedAt: string;
+  publishedBy: string;
+}
+
+export interface CapabilityCertificationRun {
+  id: string;
+  capabilityId: string;
+  profileId: string;
+  draftId?: string;
+  versionId?: string;
+  status: "certified" | "not-ready";
+  visibleToUsers: boolean;
+  reasons: string[];
+  missingSections: string[];
+  sectionResults: Record<string, { ok: boolean; reason?: string }>;
+  createdAt: string;
+  createdBy: string;
+}
+
+export interface AdminAuditLogEntry {
+  id: string;
+  adminId: string;
+  action: string;
+  targetId: string;
+  oldValue: string | null;
+  newValue: string | null;
+  feedback: string | null;
+  timestamp: string;
+}
+
+export async function fetchCapabilityStandards(
+  token: string
+): Promise<{ profiles: CapabilityStandardProfile[]; activeProfileId: string }> {
+  const response = await fetch("/api/admin/capability-standards", {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  return readJsonOrThrow(response, "Fetch capability standards failed");
+}
+
+export async function createCapabilityStandard(
+  token: string,
+  input: {
+    key: string;
+    name: string;
+    description?: string;
+    sections: CapabilityStandardSection[];
+  }
+): Promise<{ profile: CapabilityStandardProfile }> {
+  const response = await fetch("/api/admin/capability-standards", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify(input)
+  });
+  return readJsonOrThrow(response, "Create capability standard failed");
+}
+
+export async function updateCapabilityStandard(
+  token: string,
+  profileId: string,
+  input: {
+    name?: string;
+    description?: string;
+    status?: "draft" | "active" | "retired";
+    sections?: CapabilityStandardSection[];
+  }
+): Promise<{ profile: CapabilityStandardProfile }> {
+  const response = await fetch(`/api/admin/capability-standards/${encodeURIComponent(profileId)}`, {
+    method: "PATCH",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify(input)
+  });
+  return readJsonOrThrow(response, "Update capability standard failed");
+}
+
+export async function cloneCapabilityStandard(
+  token: string,
+  profileId: string,
+  input: {
+    key?: string;
+    name?: string;
+    description?: string;
+    status?: "draft" | "active";
+  } = {}
+): Promise<{ profile: CapabilityStandardProfile }> {
+  const response = await fetch(`/api/admin/capability-standards/${encodeURIComponent(profileId)}/clone`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify(input)
+  });
+  return readJsonOrThrow(response, "Clone capability standard failed");
+}
+
+export async function fetchCapabilityRequirements(
+  token: string,
+  capabilityId: string,
+  options: { profileId?: string } = {}
+): Promise<{
+  item: { id: string; capabilityKey?: string; name: string; category: string };
+  activeProfile: CapabilityStandardProfile;
+  certification: CatalogItemCertification;
+  draft: CapabilityRequirementDraft | null;
+  currentVersion: CapabilityRequirementVersion | null;
+  versions: CapabilityRequirementVersion[];
+  latestRun: CapabilityCertificationRun | null;
+  projectedSections: Record<string, CapabilityRequirementSectionState>;
+}> {
+  const query = options.profileId ? `?profileId=${encodeURIComponent(options.profileId)}` : "";
+  const response = await fetch(`/api/admin/capabilities/${encodeURIComponent(capabilityId)}/requirements${query}`, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  return readJsonOrThrow(response, "Fetch capability requirements failed");
+}
+
+export async function saveCapabilityRequirementDraft(
+  token: string,
+  capabilityId: string,
+  input: {
+    profileId?: string;
+    sections?: Record<string, Partial<CapabilityRequirementSectionState>>;
+    ruleOverlay?: unknown;
+    note?: string;
+  }
+): Promise<{ draft: CapabilityRequirementDraft }> {
+  const response = await fetch(`/api/admin/capabilities/${encodeURIComponent(capabilityId)}/requirements/draft`, {
+    method: "PATCH",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify(input)
+  });
+  return readJsonOrThrow(response, "Save requirement draft failed");
+}
+
+export async function simulateCapabilityRequirementCertification(
+  token: string,
+  capabilityId: string,
+  input: {
+    profileId?: string;
+    draftId?: string;
+    sections?: Record<string, Partial<CapabilityRequirementSectionState>>;
+  }
+): Promise<{ run: CapabilityCertificationRun }> {
+  const response = await fetch(`/api/admin/capabilities/${encodeURIComponent(capabilityId)}/certification/simulate`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify(input)
+  });
+  return readJsonOrThrow(response, "Simulate requirement certification failed");
+}
+
+export async function publishCapabilityRequirementDraft(
+  token: string,
+  capabilityId: string,
+  input: { profileId?: string; draftId?: string; note?: string }
+): Promise<{ version: CapabilityRequirementVersion; run: CapabilityCertificationRun }> {
+  const response = await fetch(`/api/admin/capabilities/${encodeURIComponent(capabilityId)}/requirements/publish`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify(input)
+  });
+  return readJsonOrThrow(response, "Publish requirement draft failed");
+}
+
+export async function rollbackCapabilityRequirementVersion(
+  token: string,
+  capabilityId: string,
+  input: { profileId?: string; versionId: string; note?: string }
+): Promise<{ version: CapabilityRequirementVersion }> {
+  const response = await fetch(`/api/admin/capabilities/${encodeURIComponent(capabilityId)}/rollback-version`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify(input)
+  });
+  return readJsonOrThrow(response, "Rollback requirement version failed");
+}
+
+export async function fetchCapabilityCertificationRuns(
+  token: string,
+  capabilityId: string,
+  options: { profileId?: string; limit?: number } = {}
+): Promise<{ runs: CapabilityCertificationRun[] }> {
+  const params = new URLSearchParams();
+  if (options.profileId) params.set("profileId", options.profileId);
+  if (options.limit) params.set("limit", String(options.limit));
+  const query = params.toString() ? `?${params.toString()}` : "";
+  const response = await fetch(`/api/admin/capabilities/${encodeURIComponent(capabilityId)}/certification/runs${query}`, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  return readJsonOrThrow(response, "Fetch certification runs failed");
+}
+
+export async function fetchCapabilityAuditLog(
+  token: string,
+  options: { targetId?: string; action?: string; limit?: number } = {}
+): Promise<{ entries: AdminAuditLogEntry[] }> {
+  const params = new URLSearchParams();
+  if (options.targetId) params.set("targetId", options.targetId);
+  if (options.action) params.set("action", options.action);
+  if (options.limit) params.set("limit", String(options.limit));
+  const query = params.toString() ? `?${params.toString()}` : "";
+  const response = await fetch(`/api/admin/capability-audit-log${query}`, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  return readJsonOrThrow(response, "Fetch capability audit log failed");
+}
+
+export interface CapabilityWorkflowUser {
+  id: string;
+  name: string;
+  role: "maintainer" | "reviewer" | "admin" | string;
+  assignedCapabilities: string[];
+  openSuggestions: number;
+  openBacklogItems: number;
+  reviewLoad: number;
+  lastActive: string;
+}
+
+export interface CapabilityWorkflowQueue {
+  id: string;
+  name: string;
+  type: "Suggestion Triage" | "Certification Review" | "Rule Upgrade" | "Package Integration Fix" | "Combo Adjustment" | "Harness Missing" | "Security Approval Design" | string;
+  openItems: number;
+  priority: "P0" | "P1" | "P2" | string;
+  oldestItem: string | null;
+  ownerGroup: string;
+  status: "open" | "paused" | "archived" | string;
+  nextAction: string;
+}
+
+export async function fetchCapabilityWorkflowUsers(token: string): Promise<{ users: CapabilityWorkflowUser[] }> {
+  const response = await fetch("/api/admin/capability-users", {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  if (response.status === 403) throw new Error("Admin only.");
+  if (!response.ok) throw new Error(`Capability users failed: ${response.status}`);
+  return response.json();
+}
+
+export async function fetchCapabilityWorkflowQueues(token: string): Promise<{ queues: CapabilityWorkflowQueue[] }> {
+  const response = await fetch("/api/admin/capability-queues", {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  if (response.status === 403) throw new Error("Admin only.");
+  if (!response.ok) throw new Error(`Capability queues failed: ${response.status}`);
+  return response.json();
 }
 
 export async function fetchCatalogGuide(id: string): Promise<CatalogGuide> {
@@ -399,13 +946,25 @@ export async function fetchMigrationStrategies(): Promise<MigrationStrategy[]> {
   return body.strategies;
 }
 
-export async function fetchCurrentUser(): Promise<CurrentUser> {
-  const response = await fetch("/api/me");
+export async function fetchCurrentUser(token?: string): Promise<CurrentUser> {
+  const response = await fetch("/api/me", {
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined
+  });
   if (!response.ok) {
     throw new Error(`Current user failed: ${response.status}`);
   }
 
-  return response.json() as Promise<CurrentUser>;
+  const body = (await response.json()) as CurrentUser | MeFullResponse;
+  if ("user" in body) {
+    return {
+      id: body.user.id,
+      name: body.user.name,
+      nameEn: body.user.displayName || body.user.name,
+      authenticated: true,
+      uploadedProfiles: []
+    };
+  }
+  return body;
 }
 
 export async function registerAccount(input: { name: string; email: string; password: string }): Promise<AuthResponse> {
@@ -860,6 +1419,7 @@ export interface ExecutionTask {
   error?: string;
 }
 
+/** @deprecated Direct catalog/profile execution is legacy-only. Use createEnvironmentPlan/applyEnvironmentPlan. */
 export async function executeProfile(
   token: string,
   connectionId: string,
@@ -868,7 +1428,14 @@ export async function executeProfile(
   /** Optional form values for configurable Playbooks (vars.schema.json) */
   vars?: Record<string, unknown>
 ): Promise<{ taskId: string; steps: TaskStep[]; fieldErrors?: Record<string, string> }> {
-  const response = await fetch("/api/execute", {
+  void token;
+  void connectionId;
+  void profileId;
+  void dryRun;
+  void vars;
+  throw new Error("Legacy direct execute is disabled. Create an Environment Plan and apply it after review.");
+  /*
+  const response = await fetch("/api/legacy-disabled/execute", {
     method: "POST",
     headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
     body: JSON.stringify({ connectionId, profileId, dryRun, vars })
@@ -881,6 +1448,7 @@ export async function executeProfile(
     }
   }
   return readJsonOrThrow<{ taskId: string; steps: TaskStep[] }>(response, "Execute failed");
+  */
 }
 
 // ─── Vars schema (configurable Playbooks) ────────────────────────────────
@@ -969,18 +1537,353 @@ export async function fetchPlaybookPreview(
   return data as { preview: PlaybookPreview };
 }
 
+/** @deprecated Batch execution is legacy-only. Use createEnvironmentPlan with source.kind="capability-selection". */
 export async function batchExecute(
   token: string,
   connectionId: string,
   catalogIds: string[],
   dryRun = true
-): Promise<{ taskId: string; totalItems: number; items: BatchItem[] }> {
-  const response = await fetch("/api/batch-execute", {
+): Promise<{ taskId: string; totalItems: number; items: BatchItem[]; plan?: EnvironmentPlan; planType?: "rebuild" }> {
+  void token;
+  void connectionId;
+  void catalogIds;
+  void dryRun;
+  throw new Error("Legacy batch execute is disabled. Generate a Rebuild Plan from selected capabilities.");
+  /*
+  const response = await fetch("/api/legacy-disabled/batch-execute", {
     method: "POST",
     headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
     body: JSON.stringify({ connectionId, catalogIds, dryRun })
   });
-  return readJsonOrThrow<{ taskId: string; totalItems: number; items: BatchItem[] }>(response, "Batch execute failed");
+  return readJsonOrThrow<{ taskId: string; totalItems: number; items: BatchItem[]; plan?: EnvironmentPlan; planType?: "rebuild" }>(response, "Batch execute failed");
+  */
+}
+
+export type EnvironmentPlanType = "migration" | "rebuild" | "change" | "remove" | "repair" | "imported-recipe";
+export type EnvironmentPlanStatus =
+  | "draft"
+  | "needs-review"
+  | "approved"
+  | "applying"
+  | "verifying"
+  | "succeeded"
+  | "partially-succeeded"
+  | "failed"
+  | "rolled-back"
+  | "committed";
+export interface EnvironmentPlanAction {
+  id: string;
+  kind: string;
+  label: string;
+  command?: string;
+  packageNames?: string[];
+  path?: string;
+  serviceName?: string;
+  requiresSudo: boolean;
+  changesTarget: boolean;
+  canRollback: boolean;
+  risk: "low" | "medium" | "high";
+  verify?: string;
+  rollback?: string;
+  notes?: string[];
+}
+export interface EnvironmentPlanItem {
+  id: string;
+  name: string;
+  type: string;
+  sourceId?: string;
+  confidence?: number;
+  supportLevel?: CatalogItem["supportLevel"];
+  risks: string[];
+  evidence: string[];
+  actions: EnvironmentPlanAction[];
+  userDecision: "pending" | "approved" | "skipped";
+  capabilityKey?: string;
+  audit?: {
+    supportLevel?: CatalogItem["supportLevel"];
+    remainingRisks?: string[];
+    capabilityKey?: string;
+    reviewerNotes?: string;
+  };
+  requiredApprovals?: PlanRequiredApproval[];
+}
+
+/**
+ * Approval gate kinds — match the server-side `PlanApprovalKind` enum.
+ */
+export type PlanApprovalKind =
+  | "secret-confirm"
+  | "data-strategy-confirm"
+  | "ssh-lockout-confirm"
+  | "firewall-lockout-confirm"
+  | "identity-provider-confirm"
+  | "backup-restore-confirm"
+  | "manual-dns-confirm";
+
+export interface PlanRequiredApproval {
+  id: string;
+  kind: PlanApprovalKind;
+  itemId: string;
+  label: string;
+  prompt: string;
+}
+
+export interface PlanReviewConflict {
+  id: string;
+  type: string;
+  severity: "block" | "warn";
+  reason: string;
+  capabilityKeys: string[];
+  participatingItemIds: string[];
+  resolutionOptions: Array<{
+    id: string;
+    label: string;
+    keepCapabilityKeys?: string[];
+    removeCapabilityKeys?: string[];
+  }>;
+}
+
+export interface PlanApprovalState {
+  risks?: Record<string, string[]>;
+  conflicts?: Array<{ conflictId: string; resolutionId?: string; ackedAt: string }>;
+  approvals?: Array<{ itemId: string; gateId: string; ackedAt: string }>;
+}
+
+export interface EnvironmentPlan {
+  id: string;
+  type: EnvironmentPlanType;
+  status?: EnvironmentPlanStatus;
+  name: string;
+  sourceHost?: string;
+  targetConnectionId?: string;
+  generatedAt: string;
+  summary: {
+    totalItems: number;
+    totalActions: number;
+    highRisk: number;
+    requiresSudo: number;
+    rollbackable: number;
+    dataPreservedByDefault?: boolean;
+  };
+  review: {
+    required: boolean;
+    reasons: string[];
+    conflicts?: PlanReviewConflict[];
+    approvalsRequired?: PlanRequiredApproval[];
+  };
+  approvals?: PlanApprovalState;
+  items: EnvironmentPlanItem[];
+  export?: { yaml?: string; markdown?: string };
+}
+
+export interface CreateEnvironmentPlanInput {
+  type: EnvironmentPlanType;
+  source:
+    | { kind: "capability-selection"; capabilityIds: string[] }
+    | { kind: "recipe"; yaml: string; name?: string }
+    | { kind: "remove-request"; packages: string[]; source?: string; managedByEnvForge?: boolean; preserveData?: boolean }
+    | { kind: "config-change"; path: string; content: string }
+    | { kind: "repair-failures"; failures: RepairFailureInput[]; name?: string; sourcePlanId?: string }
+    | { kind: "existing-plan"; plan: EnvironmentPlan };
+  targetConnectionId?: string;
+  sourceConnectionId?: string;
+}
+
+/**
+ * Repair failure descriptor accepted by `/api/plans` when
+ * `source.kind="repair-failures"`. Mirrors `RepairFailure` on the server.
+ */
+export interface RepairFailureInput {
+  label: string;
+  kind?: "service-down" | "config-modified" | "package-missing" | "verify-failed" | "custom";
+  serviceName?: string;
+  path?: string;
+  packageNames?: string[];
+  validateCommand?: string;
+  repairCommand?: string;
+  severity?: "low" | "medium" | "high";
+  evidence?: string[];
+}
+
+export async function createEnvironmentPlan(token: string, input: CreateEnvironmentPlanInput): Promise<{ plan: EnvironmentPlan }> {
+  const response = await fetch("/api/plans", {
+    method: "POST",
+    headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify(input)
+  });
+  return readJsonOrThrow(response, "Create Environment Plan failed");
+}
+
+export async function reviewEnvironmentPlan(
+  token: string,
+  plan: EnvironmentPlan,
+  options: {
+    decision?: "approved" | "rejected";
+    note?: string;
+    acknowledgedRisks?: Array<{ itemId: string; risks: string[] }>;
+    acknowledgedConflicts?: Array<{ conflictId: string; resolutionId?: string }>;
+    acknowledgedApprovals?: Array<{ itemId: string; gateId: string }>;
+  } = {}
+): Promise<{ plan: EnvironmentPlan }> {
+  const response = await fetch(`/api/plans/${encodeURIComponent(plan.id)}/review`, {
+    method: "POST",
+    headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ decision: options.decision ?? "approved", note: options.note, plan, ...options })
+  });
+  return readJsonOrThrow(response, "Review Environment Plan failed");
+}
+
+export interface ApplyGateRefusal {
+  blockingConflicts: PlanReviewConflict[];
+  unresolvedWarnConflicts: PlanReviewConflict[];
+  missingRiskAcks: Array<{ itemId: string; risks: string[] }>;
+  missingApprovalGates: PlanRequiredApproval[];
+  reasons: string[];
+}
+
+export async function applyEnvironmentPlan(
+  token: string,
+  plan: EnvironmentPlan,
+  dryRun: boolean,
+  acknowledged = false,
+  acks: {
+    acknowledgedRisks?: Array<{ itemId: string; risks: string[] }>;
+    acknowledgedConflicts?: Array<{ conflictId: string; resolutionId?: string }>;
+    acknowledgedApprovals?: Array<{ itemId: string; gateId: string }>;
+  } = {}
+): Promise<{ taskId?: string; dryRun: boolean; plan: EnvironmentPlan; targets?: Array<{ connectionId: string; label: string; taskId: string }>; gate?: ApplyGateRefusal }> {
+  const response = await fetch(`/api/plans/${encodeURIComponent(plan.id)}/apply`, {
+    method: "POST",
+    headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ plan, dryRun, acknowledged, ...acks })
+  });
+  return readJsonOrThrow(response, "Apply Environment Plan failed");
+}
+
+/**
+ * Per-action verify result returned by /api/plans/:id/verify.
+ */
+export interface PlanVerifyResult {
+  actionId: string;
+  label: string;
+  status: "passed" | "warning" | "failed" | "skipped";
+  message?: string;
+  output?: string;
+  ranAt: string;
+}
+
+export interface PlanRollbackResult {
+  actionId: string;
+  label: string;
+  status: "passed" | "failed" | "skipped";
+  message?: string;
+  output?: string;
+  ranAt: string;
+}
+
+export interface PlanHistoryEvent {
+  at: string;
+  event: "created" | "reviewed" | "applied" | "verified" | "rolled-back" | "imported";
+  actor: string;
+  note?: string;
+}
+
+export interface PlanListEntry {
+  id: string;
+  type: EnvironmentPlanType;
+  status: EnvironmentPlan["status"];
+  name: string;
+  sourceHost?: string;
+  targetConnectionId?: string;
+  createdAt: string;
+  updatedAt: string;
+  verifyResults: PlanVerifyResult[];
+  rollbackResults: PlanRollbackResult[];
+}
+
+export async function listEnvironmentPlans(
+  token: string,
+  filter?: { type?: EnvironmentPlanType; status?: EnvironmentPlan["status"]; targetConnectionId?: string }
+): Promise<PlanListEntry[]> {
+  const params = new URLSearchParams();
+  if (filter?.type) params.set("type", filter.type);
+  if (filter?.status) params.set("status", filter.status);
+  if (filter?.targetConnectionId) params.set("targetConnectionId", filter.targetConnectionId);
+  const url = params.toString() ? `/api/plans?${params.toString()}` : "/api/plans";
+  const response = await fetch(url, { headers: { "Authorization": `Bearer ${token}` } });
+  const body = await readJsonOrThrow<{ plans: PlanListEntry[] }>(response, "List Environment Plans failed");
+  return body.plans;
+}
+
+export async function fetchEnvironmentPlan(token: string, id: string): Promise<{ plan: EnvironmentPlan; verifyResults: PlanVerifyResult[]; rollbackResults: PlanRollbackResult[]; history: PlanHistoryEvent[] }> {
+  const response = await fetch(`/api/plans/${encodeURIComponent(id)}`, {
+    headers: { "Authorization": `Bearer ${token}` }
+  });
+  return readJsonOrThrow(response, "Fetch Environment Plan failed");
+}
+
+export async function verifyEnvironmentPlan(token: string, id: string): Promise<{ plan: EnvironmentPlan; results: PlanVerifyResult[] }> {
+  const response = await fetch(`/api/plans/${encodeURIComponent(id)}/verify`, {
+    method: "POST",
+    headers: { "Authorization": `Bearer ${token}` }
+  });
+  return readJsonOrThrow(response, "Verify Environment Plan failed");
+}
+
+export async function rollbackEnvironmentPlan(token: string, id: string): Promise<{ plan: EnvironmentPlan; results: PlanRollbackResult[] }> {
+  const response = await fetch(`/api/plans/${encodeURIComponent(id)}/rollback`, {
+    method: "POST",
+    headers: { "Authorization": `Bearer ${token}` }
+  });
+  return readJsonOrThrow(response, "Rollback Environment Plan failed");
+}
+
+/**
+ * Build a Repair Plan from the verify failures of an existing plan.
+ * The server reads the plan's stored verify results, classifies each
+ * failure, and returns a fresh Repair Plan that the operator can review,
+ * approve, and apply through the standard /api/plans/:id/* lifecycle.
+ */
+export async function repairFromVerify(token: string, planId: string): Promise<{ plan: EnvironmentPlan }> {
+  const response = await fetch(`/api/plans/${encodeURIComponent(planId)}/repair-from-verify`, {
+    method: "POST",
+    headers: { "Authorization": `Bearer ${token}` }
+  });
+  return readJsonOrThrow(response, "Repair from verify failed");
+}
+
+export async function fetchEnvironmentPlanReport(token: string, id: string): Promise<string> {
+  const response = await fetch(`/api/plans/${encodeURIComponent(id)}/report`, {
+    headers: { "Authorization": `Bearer ${token}` }
+  });
+  const body = await readJsonOrThrow<{ report: string }>(response, "Fetch Environment Plan report failed");
+  return body.report;
+}
+
+export async function createRebuildPlan(token: string, connectionId: string, catalogIds: string[]): Promise<{ plan: EnvironmentPlan }> {
+  return createEnvironmentPlan(token, {
+    type: "rebuild",
+    targetConnectionId: connectionId,
+    source: { kind: "capability-selection", capabilityIds: catalogIds }
+  });
+}
+
+export async function applyRebuildPlan(
+  token: string,
+  connectionId: string,
+  plan: EnvironmentPlan,
+  options: { dryRun?: boolean; acknowledged?: boolean } = {}
+): Promise<{ taskId: string; dryRun: boolean; planType: "rebuild"; plan: EnvironmentPlan; totalItems: number; items: BatchItem[] }> {
+  void connectionId;
+  const result = await applyEnvironmentPlan(token, plan, options.dryRun ?? true, options.acknowledged === true);
+  return {
+    taskId: result.taskId ?? "",
+    dryRun: result.dryRun,
+    planType: "rebuild",
+    plan: result.plan,
+    totalItems: result.plan.summary.totalItems,
+    items: []
+  };
 }
 
 export async function cancelTaskRequest(token: string, taskId: string): Promise<void> {
@@ -1236,6 +2139,7 @@ export interface MultiExecuteResult {
   message: string;
 }
 
+/** @deprecated Direct YAML execution is legacy-only. Use createEnvironmentPlan with source.kind="recipe". */
 export async function multiExecute(token: string, input: {
   yaml?: string;
   playbookId?: string;
@@ -1243,12 +2147,17 @@ export async function multiExecute(token: string, input: {
   tags?: string[];
   dryRun?: boolean;
 }): Promise<MultiExecuteResult> {
-  const response = await fetch("/api/multi-execute", {
+  void token;
+  void input;
+  throw new Error("Legacy direct YAML execution is disabled. Import the recipe as an Environment Plan.");
+  /*
+  const response = await fetch("/api/legacy-disabled/multi-execute", {
     method: "POST",
     headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
     body: JSON.stringify(input)
   });
   return readJsonOrThrow<MultiExecuteResult>(response, "Multi-execute failed");
+  */
 }
 
 export async function fetchTask(token: string, taskId: string): Promise<ExecutionTask> {
@@ -1300,6 +2209,14 @@ export interface ConfigFileInfo {
     sensitivity: "safe" | "review" | "secret";
     secretPatterns?: string[];
   };
+  governance?: {
+    owners: Array<{ id: string; type: "software" | "system" | "user" | "unknown"; confidence: number; reason: string[] }>;
+    defaultStatus: "default" | "modified" | "user-created" | "unknown";
+    migrationStrategy: "copy" | "copy-with-review" | "redact-or-confirm" | "do-not-copy" | "manual-review";
+    validationHint?: string;
+    rollbackHint: string;
+    riskNotes: string[];
+  };
 }
 
 export interface ConfigFileContent {
@@ -1312,6 +2229,17 @@ export interface ConfigFileContent {
     hasSecrets: boolean;
     hits: Array<{ pattern: string; line: number }>;
   };
+}
+
+export interface ConfigValidationResult {
+  path: string;
+  command?: string;
+  status: "passed" | "failed" | "skipped";
+  stdout: string;
+  stderr: string;
+  exitCode: number | null;
+  message: string;
+  durationMs: number;
 }
 
 export async function fetchConfigFiles(token: string, connectionId: string): Promise<ConfigFileInfo[]> {
@@ -1329,13 +2257,93 @@ export async function readRemoteConfigFile(token: string, connectionId: string, 
   return readJsonOrThrow<ConfigFileContent>(response, "Read config file failed");
 }
 
-export async function writeRemoteConfigFile(token: string, connectionId: string, path: string, content: string, backup = true): Promise<{ success: boolean; message: string }> {
-  const response = await fetch(`/api/connections/${encodeURIComponent(connectionId)}/configs/write`, {
+/** @deprecated Direct config writes are disabled. Use Config Change Plans instead. */
+export async function writeRemoteConfigFile(
+  _token: string,
+  _connectionId: string,
+  _path: string,
+  _content: string,
+  _backup = true
+): Promise<{ success: boolean; message: string }> {
+  throw new Error("Direct config writes are disabled. Create a Config Change Plan instead.");
+}
+
+export async function createConfigChangePlan(
+  token: string,
+  connectionId: string,
+  path: string,
+  content: string
+): Promise<{ plan: EnvironmentPlan; current: ConfigFileContent; validation: ConfigValidationResult }> {
+  const [current, validation, created] = await Promise.all([
+    readRemoteConfigFile(token, connectionId, path),
+    validateRemoteConfigFile(token, connectionId, path),
+    createEnvironmentPlan(token, {
+      type: "change",
+      targetConnectionId: connectionId,
+      source: { kind: "config-change", path, content }
+    })
+  ]);
+  return { plan: created.plan, current, validation };
+}
+
+export async function createConfigMigrationPlan(
+  token: string,
+  connectionId: string,
+  paths: string[],
+  targetConnectionId?: string
+): Promise<{ plan: EnvironmentPlan }> {
+  const response = await fetch(`/api/connections/${encodeURIComponent(connectionId)}/configs/migration-plan`, {
     method: "POST",
     headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ path, content, backup })
+    body: JSON.stringify({ paths, targetConnectionId })
   });
-  return readJsonOrThrow<{ success: boolean; message: string }>(response, "Write config file failed");
+  return readJsonOrThrow<{ plan: EnvironmentPlan }>(response, "Create config migration plan failed");
+}
+
+export async function applyConfigChangePlan(
+  token: string,
+  connectionId: string,
+  plan: EnvironmentPlan,
+  path: string,
+  content: string,
+  acknowledged = true
+): Promise<{ success: boolean; message: string; plan: EnvironmentPlan; validation: ConfigValidationResult; rollback?: { success: boolean; message: string; validation?: ConfigValidationResult } }> {
+  const reviewedPlan = { ...plan, status: "approved" as const };
+  const response = await fetch(`/api/plans/${encodeURIComponent(plan.id)}/apply`, {
+    method: "POST",
+    headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ plan: reviewedPlan, path, content, acknowledged, dryRun: false })
+  });
+  const result = await readJsonOrThrow<{ plan: EnvironmentPlan; validation: ConfigValidationResult; write?: { message?: string }; rollback?: { success: boolean; message: string; validation?: ConfigValidationResult } }>(response, "Apply config change plan failed");
+  return {
+    success: result.validation.status !== "failed",
+    message: result.write?.message ?? (result.validation.status === "failed" ? "Config Change Plan failed validation." : "Config Change Plan applied and validated."),
+    plan: result.plan,
+    validation: result.validation,
+    rollback: result.rollback
+  };
+}
+
+export async function validateRemoteConfigFile(token: string, connectionId: string, path: string): Promise<ConfigValidationResult> {
+  const response = await fetch(`/api/connections/${encodeURIComponent(connectionId)}/configs/validate`, {
+    method: "POST",
+    headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ path })
+  });
+  return readJsonOrThrow<ConfigValidationResult>(response, "Validate config file failed");
+}
+
+export async function rollbackRemoteConfigFile(
+  token: string,
+  connectionId: string,
+  path: string
+): Promise<{ success: boolean; message: string; validation?: ConfigValidationResult }> {
+  const response = await fetch(`/api/connections/${encodeURIComponent(connectionId)}/configs/rollback`, {
+    method: "POST",
+    headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ path })
+  });
+  return readJsonOrThrow<{ success: boolean; message: string; validation?: ConfigValidationResult }>(response, "Rollback config file failed");
 }
 
 export async function fetchConfigFileDiff(
@@ -1361,6 +2369,101 @@ export type MigrationClass =
   | "do-not-migrate";
 
 export type ConfidenceBand = "high" | "medium" | "low" | "ignore";
+export type ReviewDecision = "pending" | "approved" | "skipped" | "ignore" | "record-only" | "migrate-artifact" | "create-catalog-draft" | "add-to-plan" | "needs-manual-instruction";
+export type RiskLevel = "safe" | "review" | "privileged" | "dangerous";
+export type DecisionBand = "auto" | "review" | "manual" | "ignore";
+export type MigrationSupportLevel = "detect-only" | "basic-rebuild" | "managed-config" | "full-migration";
+export type PackageArtifactClass =
+  | "system-baseline"
+  | "library-dependency"
+  | "user-installed-package"
+  | "language-global-package"
+  | "container-workload"
+  | "manual-install"
+  | "runtime-service"
+  | "unknown-review";
+export type RawEvidenceKind =
+  | "package"
+  | "language-package"
+  | "service"
+  | "schedule"
+  | "container"
+  | "manual-path"
+  | "port"
+  | "config"
+  | "security-check"
+  | "unknown";
+
+export interface RawMigrationEvidence {
+  id: string;
+  kind: RawEvidenceKind;
+  source: string;
+  name?: string;
+  value?: string;
+  version?: string;
+  status?: string;
+  trust?: "user" | "uncertain";
+  path?: string;
+  port?: number;
+  label?: string;
+  category?: string;
+  catalogRuleId?: string;
+}
+
+export interface NormalizedArtifact {
+  artifactKey: string;
+  artifactClass: PackageArtifactClass;
+  displayName: string;
+  migrationClass: MigrationClass;
+  userFacing: boolean;
+  capabilityKey?: string;
+  catalogRuleId?: string;
+  catalogRuleName?: string;
+  evidenceSources: string[];
+  rawEvidence: RawMigrationEvidence[];
+  packageNames: string[];
+  serviceNames: string[];
+  ports: number[];
+  configPaths: string[];
+  dataPaths: string[];
+  configBundles: ConfigBundle[];
+  reasons: string[];
+}
+
+export type ConfigOwnership = "catalog-owned" | "inferred-owner" | "user-dotfile" | "system-security" | "unknown";
+export type ConfigDefaultStatus = "default" | "modified" | "user-created" | "unknown";
+export type ConfigBundleSensitivity = "safe" | "review" | "secret" | "blocked";
+export type ConfigBundleMigrationStrategy =
+  | "omit-default"
+  | "copy-with-review"
+  | "template-with-vars"
+  | "secret-out-of-band"
+  | "manual-only"
+  | "blocked";
+
+export interface ConfigBundleFile {
+  path: string;
+  isGlob: boolean;
+  defaultStatus: ConfigDefaultStatus;
+  sensitivity: ConfigBundleSensitivity;
+  source: "catalog" | "security-checklist" | "inferred";
+}
+
+export interface ConfigBundle {
+  id: string;
+  ownerCapabilityKey: string | null;
+  ownerRuleId?: string;
+  ownerDisplayName?: string;
+  paths: ConfigBundleFile[];
+  ownership: ConfigOwnership;
+  defaultStatus: ConfigDefaultStatus;
+  sensitivity: ConfigBundleSensitivity;
+  migrationStrategy: ConfigBundleMigrationStrategy;
+  validationHint?: string;
+  rollbackStrategy?: string;
+  riskLevel: RiskLevel;
+  reasons: string[];
+}
 
 export interface MigrationCandidate {
   id: string;
@@ -1369,18 +2472,40 @@ export interface MigrationCandidate {
   version: string;
   migrationClass: MigrationClass;
   confidence: number;
+  intentConfidence: number;
+  migrationReadiness: number;
+  riskLevel: RiskLevel;
+  supportLevel: MigrationSupportLevel;
+  decisionBand: DecisionBand;
   band: ConfidenceBand;
   catalogRuleId?: string;
   catalogRuleName?: string;
   reasons: string[];
   risks: string[];
   recommendedActions: string[];
+  normalizedArtifactKey?: string;
+  artifactClass?: PackageArtifactClass;
+  rawEvidence?: RawMigrationEvidence[];
+  normalizedArtifacts?: NormalizedArtifact[];
+  configBundles?: ConfigBundle[];
+  blockers?: string[];
+  reviewReasons?: string[];
+  evidenceSources?: string[];
+  packageNames?: string[];
+  serviceNames?: string[];
+  ports?: number[];
+  configPaths?: string[];
+  dataPaths?: string[];
+  validateCommands?: string[];
+  restartServices?: string[];
 }
 
 export interface MigrationCandidateReport {
   sourceHost: string;
   generatedAt: string;
   summary: Record<ConfidenceBand | "total", number>;
+  normalizedArtifacts: NormalizedArtifact[];
+  configBundles: ConfigBundle[];
   candidates: MigrationCandidate[];
 }
 
@@ -1389,7 +2514,43 @@ export interface MigrationDecision {
   userId: string;
   connectionId: string;
   candidateId: string;
-  decision: "pending" | "approved" | "skipped";
+  decision: ReviewDecision;
+  note?: string;
+  updatedAt: string;
+}
+
+export type MigrationConfigDecisionStatus = "approved" | "blocked";
+export type MigrationConfigStrategy =
+  | "omit-default"
+  | "copy-with-review"
+  | "template-with-vars"
+  | "secret-out-of-band"
+  | "manual-only"
+  | "blocked";
+
+export interface MigrationConfigDecision {
+  id: string;
+  userId: string;
+  sessionId: string;
+  connectionId: string;
+  bundleId: string;
+  strategy: MigrationConfigStrategy;
+  status: MigrationConfigDecisionStatus;
+  note?: string;
+  updatedAt: string;
+}
+
+export type MigrationDataStrategy = "no-data" | "backup-restore" | "rsync-copy" | "export-import" | "manual" | "external";
+
+export interface MigrationDataDecision {
+  id: string;
+  userId: string;
+  sessionId: string;
+  connectionId: string;
+  candidateId: string;
+  strategy: MigrationDataStrategy;
+  status: "confirmed" | "blocked";
+  paths: string[];
   note?: string;
   updatedAt: string;
 }
@@ -1397,7 +2558,7 @@ export interface MigrationDecision {
 export interface MigrationReviewQueueItem {
   candidate: MigrationCandidate;
   reason: string;
-  decision: "pending" | "approved" | "skipped";
+  decision: ReviewDecision;
   note?: string;
 }
 
@@ -1409,9 +2570,15 @@ export interface MigrationPlan {
     name: string;
     type: MigrationClass;
     confidence: number;
+    intentConfidence?: number;
+    migrationReadiness?: number;
+    riskLevel?: RiskLevel;
+    supportLevel?: MigrationSupportLevel;
+    decisionBand?: DecisionBand;
     actions: Array<{ kind: string; label: string; command?: string; requiresSudo?: boolean; backup?: boolean }>;
     risks: string[];
-    userDecision: "pending" | "approved" | "skipped";
+    configBundles?: ConfigBundle[];
+    userDecision: ReviewDecision;
   }>;
 }
 
@@ -1477,6 +2644,126 @@ export interface MigrationApplyReadiness {
   items: Array<{ id: string; name: string; ready: boolean; blockers: string[]; warnings: string[] }>;
 }
 
+export interface MigrationApplyResult {
+  sourceHost: string;
+  generatedAt: string;
+  ok: boolean;
+  rolledBack: boolean;
+  summary: { passed: number; failed: number; skipped: number; rolledBack: number; total: number };
+  steps: Array<{
+    itemId: string;
+    itemName: string;
+    action: string;
+    label: string;
+    status: "passed" | "failed" | "skipped" | "rolled-back";
+    changed: boolean;
+    message: string;
+    stdout?: string;
+    stderr?: string;
+    startedAt: string;
+    completedAt: string;
+    durationMs: number;
+  }>;
+}
+
+export type MigrationSessionStatus =
+  | "created"
+  | "source-connected"
+  | "snapshot-collected"
+  | "analysis-ready"
+  | "selection-in-progress"
+  | "config-review-required"
+  | "plan-ready"
+  | "target-connected"
+  | "dry-run-passed"
+  | "applying"
+  | "applied"
+  | "verified"
+  | "reported"
+  | "failed"
+  | "rolled-back";
+
+export type MigrationSessionStep = "source" | "analysis" | "select" | "unknown" | "config-data" | "plan" | "target" | "apply" | "report";
+
+export interface MigrationSessionSummary {
+  totalCandidates: number;
+  autoCandidates: number;
+  reviewCandidates: number;
+  manualCandidates: number;
+  ignoredArtifacts: number;
+  selectedCount: number;
+  skippedCount: number;
+  recordOnlyCount: number;
+  pendingReviewCount: number;
+  blockerCount: number;
+  configRiskCount: number;
+  secretOrBlockedConfigCount: number;
+  dataReviewCount: number;
+  planItemCount: number;
+  applyBlockerCount: number;
+}
+
+export interface MigrationSessionView {
+  id: string;
+  userId: string;
+  connectionId: string;
+  targetConnectionId?: string;
+  status: MigrationSessionStatus;
+  currentStep: MigrationSessionStep;
+  recommendedStep: MigrationSessionStep;
+  recommendedStatus: MigrationSessionStatus;
+  createdAt: string;
+  updatedAt: string;
+  lastSnapshotAt?: string;
+  lastAnalysisAt?: string;
+  lastPlanAt?: string;
+  lastDryRunAt?: string;
+  lastApplyAt?: string;
+  lastVerifyAt?: string;
+  lastReportAt?: string;
+  summary: MigrationSessionSummary;
+}
+
+export interface MigrationSessionAnalysis {
+  session: MigrationSessionView;
+  report?: MigrationCandidateReport;
+  reviewQueue: MigrationReviewQueueItem[];
+  decisions: MigrationDecision[];
+}
+
+export interface MigrationSessionPlanResponse {
+  session: MigrationSessionView;
+  plan: MigrationPlan;
+  environmentPlan?: unknown;
+  readiness?: MigrationApplyReadiness;
+}
+
+export interface MigrationSessionApplyReadiness {
+  ready: boolean;
+  generatedAt: string;
+  blockers: string[];
+  warnings: string[];
+  targetConnectionId?: string;
+  dryRun?: { id: string; status: "passed" | "failed" | "blocked" | "generated"; createdAt: string; summary?: Record<string, number | boolean | string> };
+  items: MigrationApplyReadiness["items"];
+}
+
+export interface MigrationSessionReport {
+  sessionId: string;
+  sourceHost: string;
+  targetConnectionId?: string;
+  generatedAt: string;
+  summary: MigrationSessionSummary;
+  plan?: { items: number; generatedAt: string };
+  configDecisions: MigrationConfigDecision[];
+  dataDecisions: MigrationDataDecision[];
+  readiness?: MigrationSessionApplyReadiness;
+  dryRun?: { status: string; createdAt: string; summary?: Record<string, number | boolean | string>; result?: MigrationDryRunResult };
+  apply?: { status: string; createdAt: string; summary?: Record<string, number | boolean | string>; result?: MigrationApplyResult };
+  verify?: { status: string; createdAt: string; summary?: Record<string, number | boolean | string>; result?: MigrationVerificationRunResult };
+  rollback?: { available: boolean; rolledBack: boolean; steps: Array<{ label?: string; message?: string; status?: string }> };
+}
+
 export async function fetchMigrationCandidates(token: string, connectionId: string): Promise<MigrationCandidateReport> {
   const response = await fetch(`/api/connections/${encodeURIComponent(connectionId)}/migration-candidates`, {
     headers: { "Authorization": `Bearer ${token}` }
@@ -1493,6 +2780,34 @@ export async function fetchMigrationReviewQueue(token: string, connectionId: str
   return body.queue;
 }
 
+export interface CatalogDraft {
+  id: string;
+  capabilityKey: string;
+  yaml: string;
+  notes: string[];
+}
+
+/**
+ * Generate a Capability Catalog v2 YAML draft for a Review Queue candidate.
+ * The server inspects the candidate's evidence (packages, configs, data
+ * paths, validate commands) and returns a fillable rule template.
+ */
+export async function generateCatalogDraft(
+  token: string,
+  connectionId: string,
+  candidateId: string
+): Promise<CatalogDraft> {
+  const response = await fetch(
+    `/api/connections/${encodeURIComponent(connectionId)}/migration-candidates/${encodeURIComponent(candidateId)}/catalog-draft`,
+    {
+      method: "POST",
+      headers: { "Authorization": `Bearer ${token}` }
+    }
+  );
+  const body = await readJsonOrThrow<{ draft: CatalogDraft }>(response, "Generate catalog draft failed");
+  return body.draft;
+}
+
 export async function saveMigrationDecision(
   token: string,
   connectionId: string,
@@ -1507,6 +2822,22 @@ export async function saveMigrationDecision(
   });
   const body = await readJsonOrThrow<{ decision: MigrationDecision }>(response, "Save migration decision failed");
   return body.decision;
+}
+
+export async function saveMigrationDecisionsBulk(
+  token: string,
+  connectionId: string,
+  candidateIds: string[],
+  decision: MigrationDecision["decision"],
+  note?: string
+): Promise<MigrationDecision[]> {
+  const response = await fetch(`/api/connections/${encodeURIComponent(connectionId)}/migration-decisions/bulk`, {
+    method: "POST",
+    headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ candidateIds, decision, note })
+  });
+  const body = await readJsonOrThrow<{ decisions: MigrationDecision[] }>(response, "Save migration decisions failed");
+  return body.decisions;
 }
 
 export async function fetchMigrationPlan(token: string, connectionId: string): Promise<MigrationPlan> {
@@ -1566,16 +2897,259 @@ export async function fetchMigrationApplyReadiness(token: string, connectionId: 
   return body.readiness;
 }
 
+export async function runMigrationApply(
+  token: string,
+  connectionId: string,
+  options: { restartServices?: boolean; rollbackOnFailure?: boolean; requireAllActions?: boolean } = {}
+): Promise<MigrationApplyResult> {
+  const response = await fetch(`/api/connections/${encodeURIComponent(connectionId)}/migration-plan/apply`, {
+    method: "POST",
+    headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify(options)
+  });
+  const body = await readJsonOrThrow<{ result: MigrationApplyResult }>(response, "Run migration apply failed");
+  return body.result;
+}
+
 
 // ── 软件卸载 ──────────────────────────────────────────────
 
-export async function uninstallPackages(token: string, connectionId: string, packages: string[], source: string, dryRun = false): Promise<{ taskId: string; dryRun: boolean; packages: string[] }> {
-  const response = await fetch(`/api/connections/${encodeURIComponent(connectionId)}/uninstall`, {
+export async function createMigrationSession(
+  token: string,
+  input: { connectionId: string; targetConnectionId?: string; reuseLatest?: boolean; note?: string }
+): Promise<MigrationSessionView> {
+  const response = await fetch("/api/migration/sessions", {
     method: "POST",
     headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ packages, source, dryRun })
+    body: JSON.stringify(input)
   });
-  return readJsonOrThrow<{ taskId: string; dryRun: boolean; packages: string[] }>(response, "Uninstall failed");
+  const body = await readJsonOrThrow<{ session: MigrationSessionView }>(response, "Create migration session failed");
+  return body.session;
+}
+
+export async function getMigrationSession(token: string, sessionId: string): Promise<MigrationSessionView> {
+  const response = await fetch(`/api/migration/sessions/${encodeURIComponent(sessionId)}`, {
+    headers: { "Authorization": `Bearer ${token}` }
+  });
+  const body = await readJsonOrThrow<{ session: MigrationSessionView }>(response, "Fetch migration session failed");
+  return body.session;
+}
+
+export async function updateMigrationSession(
+  token: string,
+  sessionId: string,
+  input: { currentStep?: MigrationSessionStep; status?: MigrationSessionStatus; targetConnectionId?: string; note?: string }
+): Promise<MigrationSessionView> {
+  const response = await fetch(`/api/migration/sessions/${encodeURIComponent(sessionId)}`, {
+    method: "PATCH",
+    headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify(input)
+  });
+  const body = await readJsonOrThrow<{ session: MigrationSessionView }>(response, "Update migration session failed");
+  return body.session;
+}
+
+export async function attachMigrationSessionSnapshot(
+  token: string,
+  sessionId: string
+): Promise<{ session: MigrationSessionView; report?: MigrationCandidateReport }> {
+  const response = await fetch(`/api/migration/sessions/${encodeURIComponent(sessionId)}/snapshot`, {
+    method: "POST",
+    headers: { "Authorization": `Bearer ${token}` }
+  });
+  return readJsonOrThrow<{ session: MigrationSessionView; report?: MigrationCandidateReport }>(response, "Attach session snapshot failed");
+}
+
+export async function fetchMigrationSessionAnalysis(token: string, sessionId: string): Promise<MigrationSessionAnalysis> {
+  const response = await fetch(`/api/migration/sessions/${encodeURIComponent(sessionId)}/analysis`, {
+    headers: { "Authorization": `Bearer ${token}` }
+  });
+  return readJsonOrThrow<MigrationSessionAnalysis>(response, "Fetch migration session analysis failed");
+}
+
+export async function saveMigrationSessionDecisions(
+  token: string,
+  sessionId: string,
+  input: { candidateId?: string; candidateIds?: string[]; decision: MigrationDecision["decision"]; note?: string }
+): Promise<{ session: MigrationSessionView; decisions: MigrationDecision[] }> {
+  const response = await fetch(`/api/migration/sessions/${encodeURIComponent(sessionId)}/decisions`, {
+    method: "POST",
+    headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify(input)
+  });
+  return readJsonOrThrow<{ session: MigrationSessionView; decisions: MigrationDecision[] }>(response, "Save migration session decisions failed");
+}
+
+export async function fetchMigrationSessionConfigBundles(
+  token: string,
+  sessionId: string
+): Promise<{ session: MigrationSessionView; configBundles: ConfigBundle[]; configDecisions: MigrationConfigDecision[]; dataDecisions: MigrationDataDecision[] }> {
+  const response = await fetch(`/api/migration/sessions/${encodeURIComponent(sessionId)}/config-bundles`, {
+    headers: { "Authorization": `Bearer ${token}` }
+  });
+  return readJsonOrThrow<{ session: MigrationSessionView; configBundles: ConfigBundle[]; configDecisions: MigrationConfigDecision[]; dataDecisions: MigrationDataDecision[] }>(response, "Fetch session config bundles failed");
+}
+
+export async function saveMigrationSessionConfigDecision(
+  token: string,
+  sessionId: string,
+  input: { bundleId: string; strategy: MigrationConfigStrategy; status: MigrationConfigDecisionStatus; note?: string }
+): Promise<{ session: MigrationSessionView; configDecisions: MigrationConfigDecision[]; dataDecisions: MigrationDataDecision[] }> {
+  const response = await fetch(`/api/migration/sessions/${encodeURIComponent(sessionId)}/config-decisions`, {
+    method: "POST",
+    headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify(input)
+  });
+  return readJsonOrThrow<{ session: MigrationSessionView; configDecisions: MigrationConfigDecision[]; dataDecisions: MigrationDataDecision[] }>(response, "Save config decision failed");
+}
+
+export async function saveMigrationSessionDataDecision(
+  token: string,
+  sessionId: string,
+  input: { candidateId: string; strategy: MigrationDataStrategy; status: "confirmed" | "blocked"; paths?: string[]; note?: string }
+): Promise<{ session: MigrationSessionView; configDecisions: MigrationConfigDecision[]; dataDecisions: MigrationDataDecision[] }> {
+  const response = await fetch(`/api/migration/sessions/${encodeURIComponent(sessionId)}/data-decisions`, {
+    method: "POST",
+    headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify(input)
+  });
+  return readJsonOrThrow<{ session: MigrationSessionView; configDecisions: MigrationConfigDecision[]; dataDecisions: MigrationDataDecision[] }>(response, "Save data decision failed");
+}
+
+export async function fetchMigrationSessionPlan(token: string, sessionId: string): Promise<MigrationSessionPlanResponse> {
+  const response = await fetch(`/api/migration/sessions/${encodeURIComponent(sessionId)}/plan`, {
+    headers: { "Authorization": `Bearer ${token}` }
+  });
+  return readJsonOrThrow<MigrationSessionPlanResponse>(response, "Fetch session migration plan failed");
+}
+
+export async function dryRunMigrationSession(
+  token: string,
+  sessionId: string
+): Promise<{ session: MigrationSessionView; result: MigrationDryRunResult }> {
+  const response = await fetch(`/api/migration/sessions/${encodeURIComponent(sessionId)}/dry-run`, {
+    method: "POST",
+    headers: { "Authorization": `Bearer ${token}` }
+  });
+  return readJsonOrThrow<{ session: MigrationSessionView; result: MigrationDryRunResult }>(response, "Dry-run migration session failed");
+}
+
+export async function fetchMigrationSessionApplyReadiness(
+  token: string,
+  sessionId: string
+): Promise<{ session: MigrationSessionView; readiness: MigrationSessionApplyReadiness }> {
+  const response = await fetch(`/api/migration/sessions/${encodeURIComponent(sessionId)}/apply-readiness`, {
+    headers: { "Authorization": `Bearer ${token}` }
+  });
+  return readJsonOrThrow<{ session: MigrationSessionView; readiness: MigrationSessionApplyReadiness }>(response, "Fetch migration apply readiness failed");
+}
+
+export async function applyMigrationSession(
+  token: string,
+  sessionId: string,
+  input: { restartServices?: boolean; rollbackOnFailure?: boolean; requireAllActions?: boolean } = {}
+): Promise<{ session: MigrationSessionView; result: MigrationApplyResult }> {
+  const response = await fetch(`/api/migration/sessions/${encodeURIComponent(sessionId)}/apply`, {
+    method: "POST",
+    headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify(input)
+  });
+  return readJsonOrThrow<{ session: MigrationSessionView; result: MigrationApplyResult }>(response, "Apply migration session failed");
+}
+
+export async function verifyMigrationSession(
+  token: string,
+  sessionId: string
+): Promise<{ session: MigrationSessionView; result: MigrationVerificationRunResult; preview: MigrationVerificationPreview }> {
+  const response = await fetch(`/api/migration/sessions/${encodeURIComponent(sessionId)}/verify`, {
+    method: "POST",
+    headers: { "Authorization": `Bearer ${token}` }
+  });
+  return readJsonOrThrow<{ session: MigrationSessionView; result: MigrationVerificationRunResult; preview: MigrationVerificationPreview }>(response, "Verify migration session failed");
+}
+
+export async function fetchMigrationSessionReport(
+  token: string,
+  sessionId: string
+): Promise<{ session: MigrationSessionView; report: MigrationSessionReport }> {
+  const response = await fetch(`/api/migration/sessions/${encodeURIComponent(sessionId)}/report`, {
+    headers: { "Authorization": `Bearer ${token}` }
+  });
+  return readJsonOrThrow<{ session: MigrationSessionView; report: MigrationSessionReport }>(response, "Fetch migration session report failed");
+}
+
+export interface RemoveCapabilityPlan {
+  /** Persisted plan id assigned by the server. */
+  id?: string;
+  type: "remove";
+  status?: "draft" | "needs-review" | "approved" | "applying" | "succeeded" | "failed" | "rolled-back" | "committed";
+  name: string;
+  targetConnectionId: string;
+  packages?: string[];
+  source?: string;
+  reason?: string;
+  preserveDataByDefault?: boolean;
+  /** True when EnvForge installed the capability and tracks rollback. */
+  managedByEnvForge?: boolean;
+  risks?: string[];
+  actions?: unknown[];
+  /** Items, evidence, summary, review reasons — preserved opaquely so the
+   *  client never has to re-implement plan parsing. */
+  items?: Array<{ id: string; name: string; risks: string[]; evidence: string[] }>;
+  review?: { required: boolean; reasons: string[] };
+  summary?: { totalItems: number; totalActions: number; highRisk: number; requiresSudo: number; rollbackable: number; dataPreservedByDefault?: boolean };
+  yaml?: string;
+  export?: { yaml?: string; markdown?: string };
+}
+
+export async function createRemoveCapabilityPlan(
+  token: string,
+  connectionId: string,
+  packages: string[],
+  source: string,
+  options: { managedByEnvForge?: boolean; preserveData?: boolean } = {}
+): Promise<{ plan: RemoveCapabilityPlan }> {
+  const response = await fetch(`/api/connections/${encodeURIComponent(connectionId)}/remove-capability-plan`, {
+    method: "POST",
+    headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      packages,
+      source,
+      managedByEnvForge: options.managedByEnvForge,
+      preserveData: options.preserveData
+    })
+  });
+  return readJsonOrThrow<{ plan: RemoveCapabilityPlan }>(response, "Create remove plan failed");
+}
+
+export async function applyRemoveCapabilityPlan(
+  token: string,
+  connectionId: string,
+  plan: RemoveCapabilityPlan,
+  options: { dryRun?: boolean; acknowledged?: boolean; unmanagedRiskAcknowledged?: boolean } = {}
+): Promise<{ taskId: string; dryRun: boolean; planType: "remove"; packages: string[] }> {
+  const response = await fetch(`/api/connections/${encodeURIComponent(connectionId)}/apply-remove-plan`, {
+    method: "POST",
+    headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      plan,
+      dryRun: options.dryRun,
+      acknowledged: options.acknowledged,
+      unmanagedRiskAcknowledged: options.unmanagedRiskAcknowledged
+    })
+  });
+  return readJsonOrThrow<{ taskId: string; dryRun: boolean; planType: "remove"; packages: string[] }>(response, "Apply remove plan failed");
+}
+
+/** @deprecated Direct package uninstall is no longer part of the product flow. */
+export async function uninstallPackages(
+  _token: string,
+  _connectionId: string,
+  _packages: string[],
+  _source: string,
+  _dryRun = false
+): Promise<{ taskId: string; dryRun: boolean; packages: string[] }> {
+  throw new Error("Direct uninstall is disabled. Create a Remove Capability Plan instead.");
 }
 
 // ── Preflight & Verify ───────────────────────────────────
@@ -2217,7 +3791,7 @@ export async function resolveAdminReport(
 
 // ── Admin: Suggestions ──
 
-export async function fetchAdminSuggestions(
+export async function fetchLegacyAdminSuggestions(
   token: string,
   status?: string,
   cursor?: CommentCursor,
@@ -2246,7 +3820,7 @@ export async function fetchAdminSuggestionDetail(
   return readJsonOrThrow(r, "Fetch suggestion detail failed");
 }
 
-export async function processAdminSuggestion(
+export async function processLegacyAdminSuggestion(
   token: string,
   id: string,
   action: "accepted" | "rejected",

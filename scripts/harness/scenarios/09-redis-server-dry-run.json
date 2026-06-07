@@ -1,0 +1,45 @@
+{
+  "id": "redis-server-dry-run",
+  "title": "Redis server - RDB/AOF strategy dry run",
+  "destructive": false,
+  "planSource": {
+    "kind": "capability-selection",
+    "capabilityIds": ["redis-server"]
+  },
+  "expected": {
+    "planType": "rebuild",
+    "items": [
+      {
+        "id": "capability:redis-server",
+        "capabilityKey": "cache.redis",
+        "supportLevel": "full-migration",
+        "minActions": 5
+      }
+    ],
+    "conflictsBlock": 0,
+    "conflictsWarn": 0,
+    "approvalsRequired": [
+      { "kind": "data-strategy-confirm" }
+    ],
+    "remainingRisks": [
+      "RDB / AOF persistence files require explicit review."
+    ]
+  },
+  "approvalAcks": {
+    "risksAck": "ALL",
+    "approvalsAck": "ALL"
+  },
+  "verify": {
+    "actionRunStatuses": ["succeeded"],
+    "auditChecks": [
+      "redis-cli ping",
+      "RDB/AOF review",
+      "no raw rsync of /var/lib/redis",
+      "data-strategy-confirm approval"
+    ]
+  },
+  "notes": [
+    "Redis persistence is handled through explicit RDB/AOF review using SAVE/BGSAVE or an application-level cache reset decision.",
+    "EnvForge must not copy /var/lib/redis blindly while Redis is running."
+  ]
+}

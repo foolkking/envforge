@@ -7,6 +7,7 @@
     "fool": "dist/index.js"
   },
   "scripts": {
+    "clean": "node -e \"const fs=require('node:fs');try { fs.rmSync('dist', { recursive: true, force: true }); } catch {}\"",
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },

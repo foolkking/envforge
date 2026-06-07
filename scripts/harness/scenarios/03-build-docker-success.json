@@ -1,0 +1,38 @@
+{
+  "id": "build-docker-success",
+  "title": "Build docker — happy path",
+  "destructive": false,
+  "planSource": {
+    "kind": "capability-selection",
+    "capabilityIds": ["docker-host-profile"]
+  },
+  "expected": {
+    "planType": "rebuild",
+    "items": [
+      {
+        "id": "capability:docker-host-profile",
+        "capabilityKey": "container.docker",
+        "supportLevel": "full-migration",
+        "minActions": 4
+      }
+    ],
+    "conflictsBlock": 0,
+    "conflictsWarn": 0,
+    "approvalsRequired": [],
+    "remainingRisks": [
+      "External networks and named volumes still need operator review per host."
+    ]
+  },
+  "approvalAcks": {
+    "risksAck": "ALL"
+  },
+  "verify": {
+    "actionRunStatuses": ["succeeded"],
+    "managedCapabilityKeys": ["container.docker"],
+    "verifyCommands": ["docker version", "docker info"]
+  },
+  "notes": [
+    "Plan Report must record packagesInstalled (docker.io, docker-compose-plugin) on the ManagedCapabilityRecord.",
+    "On Anolis/RHEL, package-translate maps docker.io to docker. The harness records the actual package manager and version."
+  ]
+}

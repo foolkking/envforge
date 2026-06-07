@@ -99,7 +99,7 @@ export const KNOWN_USER_PACKAGES = new Set<string>([
   "zsh", "fish", "tmux", "screen", "byobu",
 
   // ── CLI productivity ──
-  "jq", "yq", "ripgrep", "fd-find", "bat", "exa", "eza", "zoxide", "tldr",
+  "jq", "yq", "ripgrep", "fd", "fd-find", "bat", "exa", "eza", "lsd", "zoxide", "tldr", "tealdeer",
   "fzf", "ncdu", "tree", "htop", "btop", "iotop", "atop",
   "tmate", "asciinema",
   "gh", "glab",

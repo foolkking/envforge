@@ -44,7 +44,7 @@ export function TerminalPanel({
 }) {
   const [expanded, setExpanded] = useState(false);
   const [height, setHeight] = useState(300);
-  const [width, setWidth] = useState(420);
+  const [width, setWidth] = useState(244);
   const bodyRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -78,8 +78,8 @@ export function TerminalPanel({
     const startX = e.clientX;
     const startW = width;
     function onMove(ev: MouseEvent) {
-      const maxWidth = Math.max(320, window.innerWidth - 278 - 18);
-      setWidth(Math.max(320, Math.min(maxWidth, startW + ev.clientX - startX)));
+      const maxWidth = Math.max(360, window.innerWidth - 288);
+      setWidth(Math.max(244, Math.min(maxWidth, startW + ev.clientX - startX)));
     }
     function onUp() {
       document.removeEventListener("mousemove", onMove);
@@ -127,7 +127,7 @@ export function TerminalPanel({
             <div className="terminal-log terminal-task-log">
               <div className="terminal-line terminal-info">
                 <span className="terminal-prefix">TASK</span>
-                <span>{activeTask.kind === "batch-install" ? (locale === "zh" ? "批量安装任务" : "Batch install task") : (locale === "zh" ? "执行任务" : "Execution task")}</span>
+                <span>{activeTask.kind === "batch-install" ? (locale === "zh" ? "环境计划应用任务" : "Environment plan apply task") : (locale === "zh" ? "执行任务" : "Execution task")}</span>
               </div>
               {activeTask.kind === "batch-install" ? renderBatchTask(activeTask) : renderSingleTask(activeTask)}
             </div>
@@ -136,7 +136,7 @@ export function TerminalPanel({
           {terminalLogs.length === 0 && !activeTask ? (
             <div className="terminal-empty">
               <Terminal aria-hidden />
-              <p>{locale === "zh" ? "连接、采集、安装和配置写入日志会显示在这里。" : "Connection, scan, install, and config write logs appear here."}</p>
+              <p>{locale === "zh" ? "连接、采集、计划应用、验证和回滚日志会显示在这里。" : "Connection, scan, plan apply, verify, and rollback logs appear here."}</p>
             </div>
           ) : null}
         </div>
@@ -152,7 +152,7 @@ function getHeaderText(locale: Locale, activeTask: ExecutionTask | null, activeC
     }
     if (activeTask.kind === "batch-install" && activeTask.items) {
       const done = activeTask.items.filter((item) => ["succeeded", "failed", "skipped"].includes(item.status)).length;
-      return `${locale === "zh" ? "批量安装" : "Batch install"} · ${done}/${activeTask.items.length}`;
+      return `${locale === "zh" ? "计划应用" : "Plan apply"} · ${done}/${activeTask.items.length}`;
     }
     const done = activeTask.steps.filter((step) => step.status === "succeeded").length;
     return `${locale === "zh" ? "任务" : "Task"} · ${done}/${activeTask.steps.length}`;

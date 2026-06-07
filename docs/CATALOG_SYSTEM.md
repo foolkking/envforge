@@ -26,7 +26,7 @@ The catalog answers:
 | supportLevel | Meaning |
 | :-- | :-- |
 | detect-only | EnvForge can detect it but does not plan migration automatically |
-| basic-migration | EnvForge can reinstall/recreate a package or runtime |
+| basic-rebuild | EnvForge can recreate a package, runtime, or default capability through a Rebuild Plan |
 | managed-config | EnvForge understands config paths, validation, backup, and security notes |
 | full-migration | EnvForge covers detect, intent, config, references, data strategy, validation, rollback, and cross-distro rules |
 
@@ -35,7 +35,7 @@ Recommended catalog split:
 ```text
 10 full-migration
 30 managed-config
-75 detect-only/basic-migration
+75 detect-only/basic-rebuild
 ```
 
 Prioritize deep support for nginx, docker, postgresql, mysql/mariadb, redis, nodejs/npm, python/pip/pipx, ssh, ufw, and fail2ban.
@@ -64,7 +64,7 @@ crossDistro: {}
 
 Required fields increase with support level:
 
-| Field | detect-only | basic-migration | managed-config | full-migration |
+| Field | detect-only | basic-rebuild | managed-config | full-migration |
 | :-- | :--: | :--: | :--: | :--: |
 | id/name/kind/capability | yes | yes | yes | yes |
 | detect | yes | yes | yes | yes |

@@ -1,0 +1,16 @@
+{
+  "id": "bookstack-dry-run",
+  "title": "BookStack - app key and uploads dry run",
+  "destructive": false,
+  "planSource": { "kind": "capability-selection", "capabilityIds": ["bookstack"] },
+  "expected": {
+    "planType": "rebuild",
+    "items": [{ "id": "capability:bookstack", "capabilityKey": "app.docs.bookstack", "supportLevel": "full-migration", "minActions": 4 }],
+    "conflictsBlock": 0,
+    "conflictsWarn": 0,
+    "remainingRisks": ["APP_KEY", "uploads"]
+  },
+  "approvalAcks": { "risksAck": "ALL", "approvalsAck": "ALL" },
+  "verify": { "actionRunStatuses": ["succeeded"], "auditChecks": ["BookStack login", "APP_KEY", "database backup"] },
+  "notes": ["BookStack restore requires APP_KEY continuity plus DB and upload backup."]
+}

@@ -1,0 +1,41 @@
+{
+  "id": "remove-existing-nginx-blocked",
+  "title": "Remove plan refuses to auto-remove nginx that existed before EnvForge",
+  "destructive": false,
+  "preconditions": {
+    "managedCapabilityRecord": {
+      "capabilityKey": "web-server.nginx",
+      "catalogId": "nginx-web-service",
+      "packagesInstalled": [
+        {
+          "name": "nginx",
+          "manager": "apt",
+          "existedBefore": true,
+          "removableByEnvForge": true
+        }
+      ]
+    }
+  },
+  "planSource": {
+    "kind": "remove-request",
+    "packages": ["nginx"],
+    "source": "apt",
+    "managedByEnvForge": true,
+    "preserveData": true
+  },
+  "expected": {
+    "planType": "remove",
+    "managedMarkerExists": true,
+    "expectedEligibility": "manual",
+    "blockedUntilApproved": true,
+    "reviewReasonsContain": ["existed before"]
+  },
+  "verify": {
+    "applyAttemptWithoutAck": "refused",
+    "applyAttemptWithAck": "succeeded"
+  },
+  "notes": [
+    "The package never disappears from disk on the unack path — apply gate must refuse.",
+    "When the operator passes `acknowledgedActionIds: [\"remove-packages\"]` the apply proceeds."
+  ]
+}

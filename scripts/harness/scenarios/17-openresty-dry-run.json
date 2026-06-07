@@ -1,0 +1,44 @@
+{
+  "id": "openresty-dry-run",
+  "title": "OpenResty - Lua module and TLS reference dry run",
+  "destructive": false,
+  "planSource": {
+    "kind": "capability-selection",
+    "capabilityIds": ["openresty"]
+  },
+  "expected": {
+    "planType": "rebuild",
+    "items": [
+      {
+        "id": "capability:openresty",
+        "capabilityKey": "web-server.openresty",
+        "supportLevel": "full-migration",
+        "minActions": 4
+      }
+    ],
+    "conflictsBlock": 0,
+    "conflictsWarn": 0,
+    "approvalsRequired": [
+      { "kind": "secret-confirm" }
+    ],
+    "remainingRisks": [
+      "Lua modules under /usr/local/openresty/lualib"
+    ]
+  },
+  "approvalAcks": {
+    "risksAck": "ALL",
+    "approvalsAck": "ALL"
+  },
+  "verify": {
+    "actionRunStatuses": ["succeeded"],
+    "auditChecks": [
+      "openresty -t",
+      "Lua module review",
+      "TLS key path review",
+      "upstream service review"
+    ]
+  },
+  "notes": [
+    "OpenResty custom Lua modules and TLS references are reviewed explicitly; EnvForge does not bulk-copy lualib."
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "id": "clickhouse-dry-run",
+  "title": "ClickHouse - backup restore dry run",
+  "destructive": false,
+  "planSource": { "kind": "capability-selection", "capabilityIds": ["clickhouse"] },
+  "expected": {
+    "planType": "rebuild",
+    "items": [{ "id": "capability:clickhouse", "capabilityKey": "database.olap.clickhouse", "supportLevel": "full-migration", "minActions": 5 }],
+    "conflictsBlock": 0,
+    "conflictsWarn": 0,
+    "approvalsRequired": [{ "kind": "data-strategy-confirm" }, { "kind": "secret-confirm" }],
+    "remainingRisks": ["Table data", "ZooKeeper"]
+  },
+  "approvalAcks": { "risksAck": "ALL", "approvalsAck": "ALL" },
+  "verify": { "actionRunStatuses": ["succeeded"], "auditChecks": ["SELECT 1", "BACKUP/RESTORE", "users.xml review"] },
+  "notes": ["ClickHouse table data moves through BACKUP/RESTORE or clickhouse-backup; Keeper/ZooKeeper state is external."]
+}

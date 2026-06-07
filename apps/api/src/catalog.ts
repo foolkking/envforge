@@ -15,8 +15,63 @@ export interface CatalogItem {
   guideAuthor: "admin" | "user";
   installMode: "skip-existing" | "replace-existing";
   components: CatalogComponent[];
+  /**
+   * Stable product-level capability key used to join visible catalog cards with
+   * deeper detection/migration rules. The visible catalog id can stay friendly
+   * or legacy-compatible while rules evolve independently.
+   */
+  capabilityKey?: string;
   /** 支持的部署模式：system = apt 安装，docker = docker compose 部署 */
   deployModes?: Array<"system" | "docker">;
+  supportLevel?: "detect-only" | "basic-rebuild" | "managed-config" | "full-migration";
+  modeSupport?: {
+    migrate?: boolean;
+    build?: boolean;
+    maintain?: boolean;
+  };
+  managedActions?: Array<"detect" | "install" | "config-read" | "config-migrate" | "validate" | "rollback" | "data-strategy">;
+  /**
+   * Multi-card capability relationships. When two visible catalog cards
+   * map to the same capabilityKey (e.g. mysql-server + mariadb both at
+   * `database.mysql`) they MUST declare one of these so the quality
+   * gate and the planner know how to treat them.
+   *
+   *   - `variantOf`     — same product, different distro packaging.
+   *   - `profileOf`     — different package set targeting the same role.
+   *   - `alternativeOf` — drop-in replacement; pick exactly one.
+   *   - `includes`      — combo / profile composing the listed cards.
+   */
+  variantOf?: string;
+  profileOf?: string;
+  alternativeOf?: string;
+  includes?: string[];
+  /**
+   * UI hints. Optional overrides; the runtime falls back to safe defaults
+   * (e.g. show risk callout whenever audit.remainingRisks is non-empty).
+   */
+  ui?: {
+    /** When true, place the card on the front-page Recommended row. */
+    recommended?: boolean;
+    /** When false, suppress the risk callout even if remainingRisks is non-empty
+     *  (the catalog quality gate refuses this contradiction). */
+    mustShowRiskCallout?: boolean;
+  };
+  /**
+   * V2 audit record. Populated by `withCapabilityMetadata` from
+   * `catalog-audit-records.ts`. Items not yet audited carry
+   * `audit.status === "pending"` so the UI can flag them.
+   */
+  audit?: {
+    status: "pass" | "fixed" | "needs-review" | "blocked" | "pending";
+    originalSupportLevel?: NonNullable<CatalogItem["supportLevel"]>;
+    finalSupportLevel?: NonNullable<CatalogItem["supportLevel"]>;
+    reasons?: string[];
+    missingFieldsBefore?: string[];
+    changesMade?: string[];
+    remainingRisks?: string[];
+    reviewerNotes?: string;
+    batch?: number;
+  };
   /**
    * 跨发行版兼容性声明（可选）。
    * 见 distro-compat.ts 的 PlaybookCompatibility。声明后，部署前 EnvForge 会
@@ -44,8 +99,8 @@ export function listCatalogItems(): CatalogItem[] {
       name: "Node.js 运行时配置",
       nameEn: "Node.js runtime profile",
       category: "runtime",
-      summary: "安装 Node.js、npm 全局工具、registry 和常见环境变量模板。",
-      summaryEn: "Install Node.js, npm globals, registry settings, and environment templates.",
+      summary: "Node.js 运行时能力：包含 Node.js、npm、registry 配置和常见环境变量模板，纳入 Environment Plan 后再应用。",
+      summaryEn: "Node.js runtime capability: Node.js, npm, registry configuration, and common environment templates, applied through an Environment Plan.",
       rating: 4.8,
       installs: "12.4k",
       imageTone: "teal",
@@ -249,6 +304,7 @@ function getNewSoftwareCatalog(): CatalogItem[] {
       installs: "9.8k",
       imageTone: "orange",
       sensitivity: "privileged",
+      alternativeOf: "mariadb",
       assets: ["mysql", "service", "backup"],
       guidePath: "configs/catalog/software/mysql-server.md",
       guideAuthor: "admin",
@@ -366,6 +422,7 @@ function getNewSoftwareCatalog(): CatalogItem[] {
       installs: "8.7k",
       imageTone: "emerald",
       sensitivity: "review",
+      alternativeOf: "certbot-letsencrypt",
       assets: ["certbot", "ssl", "letsencrypt"],
       guidePath: "configs/catalog/software/certbot-ssl.md",
       guideAuthor: "admin",
@@ -646,7 +703,9 @@ function getNewSoftwareCatalog(): CatalogItem[] {
       components: [
         { type: "software", label: "htop", labelEn: "htop", detail: "apt" },
         { type: "software", label: "btop", labelEn: "btop", detail: "apt" },
-        { type: "software", label: "ncdu", labelEn: "ncdu", detail: "apt" }
+        { type: "software", label: "ncdu", labelEn: "ncdu", detail: "apt" },
+        { type: "software", label: "iotop", labelEn: "iotop", detail: "apt" },
+        { type: "software", label: "sysstat", labelEn: "sysstat", detail: "apt" }
       ],
       compatibility: { families: ["debian-family", "rhel-family"] }
     },
@@ -681,6 +740,7 @@ function getNewSoftwareCatalog(): CatalogItem[] {
       summary: "MySQL 兼容的开源数据库分支。",
       summaryEn: "Open-source MySQL-compatible database fork.",
       rating: 4.6, installs: "4.5k", imageTone: "blue", sensitivity: "review",
+      alternativeOf: "mysql-server",
       assets: ["mariadb", "mysql-client"],
       guidePath: "configs/catalog/software/mariadb.md",
       guideAuthor: "admin", installMode: "skip-existing", deployModes: ["system", "docker"],
@@ -881,7 +941,9 @@ function getNewSoftwareCatalog(): CatalogItem[] {
       guideAuthor: "admin", installMode: "skip-existing", deployModes: ["system"],
       components: [
         { type: "software", label: "rsync", labelEn: "rsync", detail: "apt" },
-        { type: "software", label: "rclone", labelEn: "rclone", detail: "apt" }
+        { type: "software", label: "rclone", labelEn: "rclone", detail: "apt" },
+        { type: "software", label: "borgbackup", labelEn: "borgbackup", detail: "apt" },
+        { type: "software", label: "restic", labelEn: "restic", detail: "apt" }
       ],
       compatibility: { families: ["debian-family", "rhel-family"] }
     },
@@ -1084,7 +1146,11 @@ function getNewSoftwareCatalog(): CatalogItem[] {
       components: [
         { type: "software", label: "bat", labelEn: "bat", detail: "apt" },
         { type: "software", label: "ripgrep", labelEn: "ripgrep", detail: "apt" },
-        { type: "software", label: "fd-find", labelEn: "fd", detail: "apt" }
+        { type: "software", label: "fd-find", labelEn: "fd", detail: "apt" },
+        { type: "software", label: "exa", labelEn: "exa", detail: "apt" },
+        { type: "software", label: "zoxide", labelEn: "zoxide", detail: "apt" },
+        { type: "software", label: "fzf", labelEn: "fzf", detail: "apt" },
+        { type: "software", label: "tldr", labelEn: "tldr", detail: "apt" }
       ],
       compatibility: { families: ["debian-family", "rhel-family"] }
     },
@@ -1133,7 +1199,10 @@ function getNewSoftwareCatalog(): CatalogItem[] {
       guideAuthor: "admin", installMode: "skip-existing", deployModes: ["system"],
       components: [
         { type: "software", label: "nethogs", labelEn: "nethogs", detail: "apt" },
-        { type: "software", label: "vnstat", labelEn: "vnstat", detail: "apt" }
+        { type: "software", label: "vnstat", labelEn: "vnstat", detail: "apt" },
+        { type: "software", label: "iftop", labelEn: "iftop", detail: "apt" },
+        { type: "software", label: "tcpdump", labelEn: "tcpdump", detail: "apt" },
+        { type: "software", label: "nmap", labelEn: "nmap", detail: "apt" }
       ],
       compatibility: { families: ["debian-family", "rhel-family"] }
     },
@@ -1149,8 +1218,8 @@ function getNewSoftwareCatalog(): CatalogItem[] {
     {
       id: "x-ui-panel", kind: "software", name: "3x-ui 面板", nameEn: "3x-ui panel",
       category: "network",
-      summary: "3x-ui 面板（Xray + 多协议代理）一键安装，含端口、用户名、密码配置。",
-      summaryEn: "3x-ui panel (Xray multi-protocol proxy) one-click install with port + admin password setup.",
+      summary: "3x-ui 面板（Xray + 多协议代理）重建计划，含端口、用户名、密码配置。",
+      summaryEn: "3x-ui panel (Xray multi-protocol proxy) rebuild plan with port + admin password setup.",
       rating: 4.6, installs: "0", imageTone: "indigo", sensitivity: "privileged",
       assets: ["3x-ui", "xray", "panel"],
       guidePath: "configs/catalog/software/x-ui-panel.md",
@@ -1434,8 +1503,8 @@ function getNewSoftwareCatalog(): CatalogItem[] {
       guidePath: "configs/catalog/software/keycloak.md",
       guideAuthor: "admin", installMode: "skip-existing", deployModes: ["docker"],
       components: [
-        { type: "software", label: "quay.io/keycloak/keycloak", labelEn: "Keycloak", detail: "docker image" },
-        { type: "software", label: "postgres:16-alpine", labelEn: "PostgreSQL", detail: "docker image" }
+        { type: "system-command", label: "Start Keycloak container", labelEn: "Start Keycloak container", detail: "docker compose up -d keycloak" },
+        { type: "system-command", label: "Start Keycloak database", labelEn: "Start Keycloak database", detail: "docker compose up -d keycloak-db" }
       ],
       compatibility: { families: ["debian-family", "rhel-family"] }
     },
@@ -1449,7 +1518,7 @@ function getNewSoftwareCatalog(): CatalogItem[] {
       guidePath: "configs/catalog/software/authelia.md",
       guideAuthor: "admin", installMode: "skip-existing", deployModes: ["docker"],
       components: [
-        { type: "software", label: "authelia/authelia", labelEn: "Authelia", detail: "docker image" }
+        { type: "system-command", label: "Start Authelia container", labelEn: "Start Authelia container", detail: "docker compose up -d authelia" }
       ],
       compatibility: { families: ["debian-family", "rhel-family"] }
     },
@@ -1703,6 +1772,113 @@ function getNewSoftwareCatalog(): CatalogItem[] {
         { type: "software", label: "memcached:1.6", labelEn: "Memcached", detail: "docker image" }
       ],
       compatibility: { families: ["debian-family", "rhel-family"] }
+    },
+    // ── Enforcement-phase additions: critical capability stubs ──────
+    // These four items fill known gaps the V2 audit flagged. They land
+    // at the safest level (`detect-only` / `managed-config`) until a
+    // dedicated capability rule is written. Promoting any of them
+    // requires the Enforcement-phase quality gate to pass.
+    {
+      id: "apache-httpd",
+      kind: "software",
+      name: "Apache HTTP Server",
+      nameEn: "Apache HTTP Server",
+      category: "service",
+      summary: "Apache 2.x web 服务器能力规则（用于识别现有 Apache 部署）。",
+      summaryEn: "Apache 2.x web server capability rule (used to detect existing Apache deployments).",
+      rating: 4.4,
+      installs: "0",
+      imageTone: "red",
+      sensitivity: "review",
+      capabilityKey: "web-server.apache",
+      assets: ["apache2", "httpd"],
+      guidePath: "configs/catalog/software/apache-httpd.md",
+      guideAuthor: "admin",
+      installMode: "skip-existing",
+      deployModes: ["system"],
+      supportLevel: "full-migration",
+      components: [
+        { type: "software", label: "apache2", labelEn: "apache2", detail: "apt (debian-family)" },
+        { type: "software", label: "httpd", labelEn: "httpd", detail: "dnf (rhel-family)" },
+        { type: "system-config", label: "/etc/apache2/apache2.conf", labelEn: "apache2.conf", detail: "/etc/apache2/apache2.conf" }
+      ],
+      compatibility: { families: ["debian-family", "rhel-family"] }
+    },
+    {
+      id: "php-fpm",
+      kind: "software",
+      name: "PHP-FPM",
+      nameEn: "PHP FastCGI Process Manager",
+      category: "service",
+      summary: "PHP-FPM 池治理能力规则（用于识别 nginx/apache 后端 PHP-FPM）。",
+      summaryEn: "PHP-FPM pool governance capability rule (used to detect PHP-FPM behind nginx/apache).",
+      rating: 4.5,
+      installs: "0",
+      imageTone: "indigo",
+      sensitivity: "review",
+      capabilityKey: "runtime.php-fpm",
+      assets: ["php-fpm", "fpm"],
+      guidePath: "configs/catalog/software/php-fpm.md",
+      guideAuthor: "admin",
+      installMode: "skip-existing",
+      deployModes: ["system"],
+      supportLevel: "full-migration",
+      components: [
+        { type: "software", label: "php-fpm", labelEn: "php-fpm", detail: "apt / dnf" },
+        { type: "system-config", label: "/etc/php/*/fpm/pool.d", labelEn: "php-fpm pool.d", detail: "/etc/php/*/fpm/pool.d" }
+      ],
+      compatibility: { families: ["debian-family", "rhel-family"] }
+    },
+    {
+      id: "certbot-letsencrypt",
+      kind: "software",
+      name: "Certbot Let's Encrypt 客户端",
+      nameEn: "Certbot Let's Encrypt client",
+      category: "security",
+      summary: "Certbot ACME 客户端能力规则；与 certbot-ssl 共享 capability 但只覆盖 ACME 续期路径。",
+      summaryEn: "Certbot ACME client capability rule; shares capability with certbot-ssl but covers only the ACME renewal path.",
+      rating: 4.5,
+      installs: "0",
+      imageTone: "amber",
+      sensitivity: "review",
+      capabilityKey: "security.tls.certbot",
+      alternativeOf: "certbot-ssl",
+      assets: ["certbot", "letsencrypt", "acme"],
+      guidePath: "configs/catalog/software/certbot-letsencrypt.md",
+      guideAuthor: "admin",
+      installMode: "skip-existing",
+      deployModes: ["system"],
+      supportLevel: "detect-only",
+      components: [
+        { type: "software", label: "certbot", labelEn: "certbot", detail: "apt / dnf" },
+        { type: "system-config", label: "/etc/letsencrypt", labelEn: "letsencrypt config", detail: "/etc/letsencrypt" }
+      ],
+      compatibility: { families: ["debian-family", "rhel-family"] }
+    },
+    {
+      id: "systemd-resolved",
+      kind: "software",
+      name: "systemd-resolved",
+      nameEn: "systemd-resolved",
+      category: "network",
+      summary: "systemd-resolved DNS stub listener 能力规则（用于检测端口 53 占用并与 pihole/adguard 互斥）。",
+      summaryEn: "systemd-resolved DNS stub listener capability rule (detects port 53 usage and conflicts with pihole/adguard).",
+      rating: 4.3,
+      installs: "0",
+      imageTone: "slate",
+      sensitivity: "privileged",
+      capabilityKey: "system.dns.systemd-resolved",
+      assets: ["systemd-resolved", "dns"],
+      guidePath: "configs/catalog/software/systemd-resolved.md",
+      guideAuthor: "admin",
+      installMode: "skip-existing",
+      deployModes: ["system"],
+      supportLevel: "detect-only",
+      components: [
+        { type: "software", label: "systemd-resolved", labelEn: "systemd-resolved", detail: "system package" },
+        { type: "system-config", label: "/etc/systemd/resolved.conf", labelEn: "resolved.conf", detail: "/etc/systemd/resolved.conf" }
+      ],
+      compatibility: { families: ["debian-family", "rhel-family"] }
     }
   ];
 }
@@ -1715,6 +1891,7 @@ function getNewComboCatalog(): CatalogItem[] {
       name: "LAMP 全栈环境",
       nameEn: "LAMP full stack",
       category: "service",
+      supportLevel: "full-migration",
       summary: "Apache + MySQL + PHP 经典 Web 服务器组合，一键部署。",
       summaryEn: "Apache + MySQL + PHP classic web server stack, one-click deploy.",
       rating: 4.5,
@@ -1743,6 +1920,7 @@ function getNewComboCatalog(): CatalogItem[] {
       name: "LEMP 全栈环境",
       nameEn: "LEMP full stack",
       category: "service",
+      supportLevel: "full-migration",
       summary: "Nginx + MySQL + PHP-FPM 高性能 Web 服务器组合。",
       summaryEn: "Nginx + MySQL + PHP-FPM high-performance web server stack.",
       rating: 4.7,
@@ -1770,6 +1948,7 @@ function getNewComboCatalog(): CatalogItem[] {
       name: "Node.js 生产部署",
       nameEn: "Node.js production deploy",
       category: "runtime",
+      supportLevel: "full-migration",
       summary: "Node.js + PM2 进程管理 + Nginx 反向代理，生产级部署方案。",
       summaryEn: "Node.js + PM2 process manager + Nginx reverse proxy, production-grade deploy.",
       rating: 4.8,
@@ -1797,6 +1976,7 @@ function getNewComboCatalog(): CatalogItem[] {
       name: "Docker + Compose 开发环境",
       nameEn: "Docker + Compose dev environment",
       category: "container",
+      supportLevel: "full-migration",
       summary: "Docker Engine + Docker Compose + 常用开发镜像配置。",
       summaryEn: "Docker Engine + Docker Compose + common dev image configurations.",
       rating: 4.7,
@@ -1823,6 +2003,7 @@ function getNewComboCatalog(): CatalogItem[] {
       name: "安全基线（UFW + Fail2Ban + SSH 加固 + 自动更新）",
       nameEn: "Security baseline (UFW + Fail2Ban + SSH hardening + auto-update)",
       category: "security",
+      supportLevel: "full-migration",
       summary: "服务器安全加固一站式方案：防火墙、入侵防护、SSH 加固和自动安全更新。",
       summaryEn: "One-stop server hardening: firewall, intrusion protection, SSH hardening, and auto security updates.",
       rating: 4.9,
@@ -1849,6 +2030,7 @@ function getNewComboCatalog(): CatalogItem[] {
       name: "监控全家桶（Prometheus + Grafana + Loki）",
       nameEn: "Monitoring stack (Prometheus + Grafana + Loki)",
       category: "service",
+      supportLevel: "full-migration",
       summary: "完整可观测性栈一键部署：指标 + 日志 + 系统/容器 metrics，预配置数据源。",
       summaryEn: "Full observability stack: metrics + logs + system/container metrics, pre-wired datasources.",
       rating: 4.8, installs: "0", imageTone: "orange", sensitivity: "review",
@@ -1928,6 +2110,7 @@ function getNewComboCatalog(): CatalogItem[] {
       name: "SSO 单点登录中央认证（Authelia + Traefik + Redis）",
       nameEn: "SSO stack (Authelia + Traefik + Redis)",
       category: "security",
+      supportLevel: "full-migration",
       summary: "给所有自托管应用一个统一登录入口——Authelia + Traefik forward-auth + Redis session。",
       summaryEn: "Unified login for all self-hosted apps—Authelia + Traefik forward-auth + Redis sessions.",
       rating: 4.7, installs: "0", imageTone: "indigo", sensitivity: "privileged",

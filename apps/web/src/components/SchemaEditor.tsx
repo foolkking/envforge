@@ -46,7 +46,7 @@ export function SchemaEditor({
     ? {
         title: "可配置参数 (vars.schema.json)",
         emptyTitle: "此 Playbook 还没有配置参数",
-        emptyDesc: "添加字段后，用户在配置市场卡片上会看到一个 ⚙ 按钮，点开有表单可以填写参数。这些参数会替换 Playbook 中的 {{ var_name }} 占位符。",
+        emptyDesc: "添加字段后，用户在能力规则卡片上会看到一个参数按钮，点开后可填写生成 Environment Plan 所需的变量。",
         addField: "+ 添加字段",
         clearSchema: "🗑 删除整个 schema",
         clearConfirm: "确定删除整个 schema 吗？此 Playbook 将不再有可配置参数（恢复到基线行为）。",
@@ -55,7 +55,7 @@ export function SchemaEditor({
     : {
         title: "Configurable parameters (vars.schema.json)",
         emptyTitle: "No vars schema yet",
-        emptyDesc: "After you add fields, the catalog card shows a ⚙ button that opens a form. Form values replace {{ var_name }} placeholders in the Playbook.",
+        emptyDesc: "After you add fields, the capability card shows a parameter button. Form values feed the generated Environment Plan.",
         addField: "+ Add field",
         clearSchema: "🗑 Delete entire schema",
         clearConfirm: "Delete the entire schema? This Playbook will no longer have configurable parameters.",

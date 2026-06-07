@@ -478,6 +478,21 @@ function parseFullOutput(raw: string, host: string, _latencyMs: number): FullSys
   }
 
   // ── Counts ──
+  const enabledServices = parseLines(sections["services-enabled"]).filter(Boolean);
+  const runningServices = parseLines(sections["services-running"]).filter(Boolean);
+  const runningServiceNames = new Set(runningServices.map((svc) => svc.replace(/\.service$/, "")));
+  for (const svc of [...new Set([...enabledServices, ...runningServices])]) {
+    const name = svc.replace(/\.service$/, "");
+    if (!name || isSystemService(name)) continue;
+    software.push({
+      name,
+      version: runningServiceNames.has(name) ? "running-service" : "enabled-service",
+      source: "systemd",
+      status: runningServiceNames.has(name) ? "running" : "enabled",
+      trust: "user"
+    });
+  }
+
   const counts = {
     apt: software.filter((s) => s.source === "apt" || s.source === "apt-manual").length,
     rpm: software.filter((s) => s.source === "rpm").length,
@@ -493,8 +508,8 @@ function parseFullOutput(raw: string, host: string, _latencyMs: number): FullSys
     nvm: software.filter((s) => s.source === "nvm").length,
     pyenv: software.filter((s) => s.source === "pyenv").length,
     docker: software.filter((s) => s.source === "docker").length,
-    enabledServices: parseLines(sections["services-enabled"]).filter(Boolean).length,
-    runningServices: parseLines(sections["services-running"]).filter(Boolean).length,
+    enabledServices: enabledServices.length,
+    runningServices: runningServices.length,
     total: software.length
   };
 

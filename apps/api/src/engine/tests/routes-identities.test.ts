@@ -67,6 +67,9 @@ async function setupApp(opts?: {
   process.env.FOOL_DATA_DIR = tmpDir;
   process.env.PUBLIC_BASE_URL = "https://envforge.test";
   delete process.env.ENVFORGE_ADMIN_EMAILS;
+  process.env.GOOGLE_CLIENT_ID = "";
+  process.env.GOOGLE_CLIENT_SECRET = "";
+  process.env.GOOGLE_REDIRECT_URI = "";
 
   if (opts?.githubConfigured !== false) {
     process.env.GITHUB_CLIENT_ID = "test-client-id";

@@ -1,0 +1,17 @@
+{
+  "id": "golang-runtime-dry-run",
+  "title": "Go runtime - env and module config dry run",
+  "destructive": false,
+  "planSource": { "kind": "capability-selection", "capabilityIds": ["golang-runtime"] },
+  "expected": {
+    "planType": "rebuild",
+    "items": [{ "id": "capability:golang-runtime", "capabilityKey": "runtime.go", "supportLevel": "full-migration", "minActions": 5 }],
+    "conflictsBlock": 0,
+    "conflictsWarn": 0,
+    "approvalsRequired": [{ "kind": "secret-confirm" }],
+    "remainingRisks": ["GOPRIVATE"]
+  },
+  "approvalAcks": { "risksAck": "ALL", "approvalsAck": "ALL" },
+  "verify": { "actionRunStatuses": ["succeeded"], "auditChecks": ["go version", "private module review", "module cache rebuilt"] },
+  "notes": ["Go module cache and project builds are rebuilt; private module domains are reviewed explicitly."]
+}

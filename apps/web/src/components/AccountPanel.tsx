@@ -106,7 +106,7 @@ function ProfileSection({ locale, authToken, me, onRefresh }: {
       <div className="settings-section-heading">
         <div>
           <h3>{locale === "zh" ? "个人资料" : "Profile"}</h3>
-          <p>{locale === "zh" ? "用于配置市场、评论和建议中的公开身份。" : "Public identity used in catalog comments and suggestions."}</p>
+          <p>{locale === "zh" ? "用于能力规则库、评论和建议中的公开身份。" : "Public identity used in capability catalog comments and suggestions."}</p>
         </div>
       </div>
       <div className="settings-form-grid">
@@ -323,7 +323,9 @@ function IdentitiesSection({ locale, authToken, identities, providers, onRefresh
           <div className="identity-row" key={identity.provider}>
             <strong>{identity.provider}</strong>
             <span className="identity-email">{identity.providerEmail ?? identity.providerLogin ?? "-"}</span>
-            {identity.provider !== "local" ? <button className="secondary-action" type="button" onClick={() => void unlink(identity.provider)}>{locale === "zh" ? "解绑" : "Unlink"}</button> : null}
+            {identity.provider === "github" || identity.provider === "google" ? (
+              <button className="secondary-action" type="button" onClick={() => void unlink(identity.provider as "github" | "google")}>{locale === "zh" ? "解绑" : "Unlink"}</button>
+            ) : null}
           </div>
         ))}
       </div>
@@ -352,14 +354,14 @@ function NotificationsSection({ locale, authToken, prefs }: {
     { key: "emailMentions", label: locale === "zh" ? "@提及" : "Mentions", desc: locale === "zh" ? "有人在评论或建议中提到你。" : "Someone mentions you in comments or suggestions." },
     { key: "emailComments", label: locale === "zh" ? "评论回复" : "Comment replies", desc: locale === "zh" ? "自己的评论收到回复。" : "Your comments receive replies." },
     { key: "emailSuggestionStatus", label: locale === "zh" ? "建议状态" : "Suggestion status", desc: locale === "zh" ? "建议被采纳、拒绝或需要补充。" : "Suggestion accepted, rejected, or needs changes." },
-    { key: "emailPublishStatus", label: locale === "zh" ? "发布结果" : "Publish results", desc: locale === "zh" ? "配置市场发布或审核完成。" : "Catalog publishing or moderation completes." }
+    { key: "emailPublishStatus", label: locale === "zh" ? "发布结果" : "Publish results", desc: locale === "zh" ? "能力规则发布或审核完成。" : "Capability rule publishing or moderation completes." }
   ];
 
   const visibleItems: Array<{ key: keyof NotificationPrefs; label: string; desc: string }> = [
     { key: "emailMentions", label: locale === "zh" ? "@提及" : "Mentions", desc: locale === "zh" ? "有人在评论或建议中提到你。" : "Someone mentions you in comments or suggestions." },
     { key: "emailComments", label: locale === "zh" ? "评论回复" : "Comment replies", desc: locale === "zh" ? "自己的评论收到回复。" : "Your comments receive replies." },
     { key: "emailSuggestionStatus", label: locale === "zh" ? "建议状态" : "Suggestion status", desc: locale === "zh" ? "建议被采纳、拒绝或需要补充。" : "Suggestion accepted, rejected, or needs changes." },
-    { key: "emailPublishStatus", label: locale === "zh" ? "发布结果" : "Publish results", desc: locale === "zh" ? "配置市场发布或审核完成。" : "Catalog publishing or moderation completes." }
+    { key: "emailPublishStatus", label: locale === "zh" ? "发布结果" : "Publish results", desc: locale === "zh" ? "能力规则发布或审核完成。" : "Capability rule publishing or moderation completes." }
   ];
 
   async function save() {

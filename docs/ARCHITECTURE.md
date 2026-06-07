@@ -10,6 +10,47 @@ Discover -> Classify -> Plan -> Apply -> Verify -> Rollback
 
 This architecture replaces the older mental model of "server management panel + package installer." The system is built to extract an old Linux VM into a normalized model, classify what matters, and produce a safe migration plan for rebuilding a target VM.
 
+The same architecture also powers Build Mode and Maintain Mode. The product has multiple inputs, but one mutation path:
+
+```text
+Migrate Mode:  Source VM -> HostSnapshot -> Analysis -> Migration Plan
+Build Mode:    Target VM -> Capability Catalog -> Rebuild Plan
+Maintain Mode: Managed Environment -> State Diff -> Change / Remove / Repair Plan
+
+All modes: Environment Plan -> Review -> Apply -> Verify -> Rollback / Report
+```
+
+Direct install, direct uninstall, and unverified remote text editing are not architectural primitives. They are represented as Environment Plan actions with risk, evidence, validation, and rollback metadata.
+
+## Environment Plan Execution Contract
+
+Environment Plan is the only product-level write path.
+
+```text
+createPlan -> reviewPlan -> applyPlan -> verifyPlan -> commit / rollback
+```
+
+The unified API surface is:
+
+- `POST /api/plans`
+- `GET /api/plans/:id`
+- `POST /api/plans/:id/review`
+- `POST /api/plans/:id/apply`
+- `POST /api/plans/:id/verify`
+- `POST /api/plans/:id/rollback`
+- `GET /api/plans/:id/report`
+
+Legacy direct execution routes such as `/api/execute`, multi-execute, snapshot deploy-stage, direct uninstall, and direct config write are not part of the main UI contract. If retained for development or compatibility, they must be disabled by default, clearly marked legacy, and never be the route used by Migrate, Build, or Maintain mode.
+
+Plan types are:
+
+- `migration`: generated from classified HostSnapshot evidence.
+- `rebuild`: generated from Capability Catalog selection.
+- `change`: generated from a Config Change Proposal.
+- `remove`: generated from Remove Capability requests or target conflict resolution.
+- `repair`: generated from failed verification or drift repair.
+- `imported-recipe`: generated from imported YAML/recipe content after risk scanning.
+
 ## System Boundaries
 
 EnvForge owns:
@@ -68,7 +109,12 @@ apps/api/src/
     risk-score.ts
 
   planner/
+    environment-plan.ts
     migration-plan-builder.ts
+    rebuild-plan-builder.ts
+    change-plan-builder.ts
+    remove-plan-builder.ts
+    repair-plan-builder.ts
     action-graph.ts
     dependency-graph.ts
     target-diff.ts
@@ -141,12 +187,20 @@ Output: migration candidates with confidence, evidence, risks, and default decis
 
 ## Stage 3: Plan
 
-Plan builds a user-reviewable migration plan.
+Plan builds a user-reviewable Environment Plan.
+
+Specific plan types share the same action model:
+
+- `MigrationPlan`: generated from classified HostSnapshot evidence.
+- `RebuildPlan`: generated from selected Capability Catalog rules.
+- `ChangePlan`: generated from a Config Change Proposal.
+- `RemovePlan`: generated for EnvForge-managed capability cleanup or target conflict resolution.
+- `RepairPlan`: generated after verification failures.
 
 A plan contains:
 
 - source host and target host metadata;
-- selected migration candidates;
+- selected capabilities, migration candidates, or managed-environment changes;
 - action graph;
 - dependencies;
 - risk score;
@@ -171,7 +225,7 @@ Actions include:
 - `snapshot`
 - `rollback`
 
-Output: `MigrationPlan`.
+Output: `EnvironmentPlan` with a type-specific view such as `MigrationPlan`, `RebuildPlan`, `ChangePlan`, `RemovePlan`, or `RepairPlan`.
 
 ## Stage 4: Apply
 
@@ -308,3 +362,10 @@ Future backend targets:
 | Analytics and audits | SQLite | ClickHouse |
 
 Scaling triggers and operational SOPs are tracked in [ROADMAP.md](./ROADMAP.md).
+## Navigation and Workspace Boundaries
+
+The web shell separates user workspace pages from admin governance pages. Regular users and guests receive Dashboard, Migrate, Build, Plans, and Reports. Admins additionally receive Capability Admin.
+
+Build consumes only `GET /api/catalog`, which is certified-only. Admin rule governance uses `GET /api/catalog/certification`, `GET /api/catalog?include=all`, `GET /api/admin/suggestions`, `GET /api/admin/package-integrations`, `GET /api/admin/capability-users`, and `GET /api/admin/capability-queues`.
+
+Maintain was decomposed by architectural ownership: schedules, drift, and webhooks are Plan operations; runtime notices are Dashboard findings; user and queue management is Capability Admin workflow governance. Account data is surfaced through Dashboard / Account & Security drawers instead of a first-level route.

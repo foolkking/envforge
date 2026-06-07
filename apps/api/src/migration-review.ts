@@ -1,15 +1,15 @@
-import type { MigrationCandidate, MigrationCandidateReport, MigrationPlanItem } from "./migration-classifier.js";
+import type { MigrationCandidate, MigrationCandidateReport, ReviewDecision } from "./migration-classifier.js";
 import type { StoredMigrationDecision } from "./runtime-store.js";
 
 export interface MigrationReviewQueueItem {
   candidate: MigrationCandidate;
   reason: string;
-  decision: MigrationPlanItem["userDecision"];
+  decision: ReviewDecision;
   note?: string;
 }
 
-export function decisionMap(decisions: StoredMigrationDecision[] | undefined): Record<string, MigrationPlanItem["userDecision"]> {
-  const result: Record<string, MigrationPlanItem["userDecision"]> = {};
+export function decisionMap(decisions: StoredMigrationDecision[] | undefined): Record<string, ReviewDecision> {
+  const result: Record<string, ReviewDecision> = {};
   for (const row of decisions ?? []) result[row.candidateId] = row.decision;
   return result;
 }

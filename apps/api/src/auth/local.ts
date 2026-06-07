@@ -261,12 +261,15 @@ export async function loginUser(input: { email?: string; password?: string }): P
   //   - User has TOTP enabled  → 2fa-pending session (5 min)
   //   - Otherwise → regular session
   const totpEnabled = !!user.totpEnabledAt;
-  const needsEnrollment = false; // Cancel forced 2FA for administrators
+  const needsEnrollment = shouldBeAdmin && !totpEnabled;
 
   const now = new Date().toISOString();
 
   if (totpEnabled) {
     return await issueIntermediateSession(user, "twofa-pending", now, needsPromotion);
+  }
+  if (needsEnrollment) {
+    return await issueIntermediateSession(user, "enrollment-required", now, needsPromotion);
   }
 
   // Standard full-access session.

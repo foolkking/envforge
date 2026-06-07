@@ -1,0 +1,17 @@
+{
+  "id": "jenkins-ci-dry-run",
+  "title": "Jenkins - home backup and credential store dry run",
+  "destructive": false,
+  "planSource": { "kind": "capability-selection", "capabilityIds": ["jenkins-ci"] },
+  "expected": {
+    "planType": "rebuild",
+    "items": [{ "id": "capability:jenkins-ci", "capabilityKey": "ci.jenkins", "supportLevel": "full-migration", "minActions": 3 }],
+    "conflictsBlock": 0,
+    "conflictsWarn": 0,
+    "approvalsRequired": [{ "kind": "backup-restore-confirm" }, { "kind": "secret-confirm" }],
+    "remainingRisks": ["JENKINS_HOME", "Plugin compatibility"]
+  },
+  "approvalAcks": { "risksAck": "ALL", "approvalsAck": "ALL" },
+  "verify": { "actionRunStatuses": ["succeeded"], "auditChecks": ["Jenkins health", "JENKINS_HOME backup", "credential store secret review"] },
+  "notes": ["Jenkins data migration depends on compatible Jenkins/plugin versions and explicit credential-store handling."]
+}

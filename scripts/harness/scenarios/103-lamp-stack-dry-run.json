@@ -1,0 +1,16 @@
+{
+  "id": "lamp-stack-dry-run",
+  "title": "LAMP stack - component migration dry run",
+  "destructive": false,
+  "planSource": { "kind": "capability-selection", "capabilityIds": ["lamp-stack"] },
+  "expected": {
+    "planType": "rebuild",
+    "items": [{ "id": "capability:lamp-stack", "capabilityKey": "catalog.lamp-stack", "supportLevel": "full-migration", "minActions": 8 }],
+    "conflictsBlock": 0,
+    "conflictsWarn": 0,
+    "remainingRisks": ["MySQL data"]
+  },
+  "approvalAcks": { "risksAck": "ALL", "approvalsAck": "ALL" },
+  "verify": { "actionRunStatuses": ["succeeded"], "auditChecks": ["Apache configtest", "MySQL dump strategy", "PHP module review"] },
+  "notes": ["LAMP is certified by composing the certified Apache, MySQL, and PHP strategies with combo-level harness coverage."]
+}

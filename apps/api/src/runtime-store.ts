@@ -143,7 +143,7 @@ export interface StoredProbeSnapshot {
     disk?: { total: string; used: string; available: string; usePercent: string };
     uptimeText?: string;
   };
-  software: Array<{ name: string; version: string; source: string; status: string }>;
+  software: Array<{ name: string; version: string; source: string; status: string; trust?: "user" | "uncertain" }>;
   configChecklist: Array<{ id: string; label: string; category: string; status: string; lastChanged: string }>;
   /** Per-source counts for summary display */
   counts?: {
@@ -199,7 +199,7 @@ export interface StoredUserProfile {
   userId: string;
   kind: "software" | "combo" | "vm-snapshot";
   /**
-   * public  — 出现在配置市场，所有人可见
+   * public  — 出现在能力规则库，所有人可见
    * private — 仅自己可见，用于存储含隐私数据的虚拟机运行环境快照
    */
   visibility: "public" | "private";
@@ -230,6 +230,92 @@ export interface StoredUserProfile {
   updatedAt: string;
 }
 
+export interface CapabilityStandardSection {
+  id: string;
+  label: string;
+  description: string;
+  required: boolean;
+  allowNotApplicable: boolean;
+  severity: "required" | "critical" | "advisory";
+  schema?: unknown;
+}
+
+export interface CapabilityStandardProfile {
+  id: string;
+  key: string;
+  name: string;
+  version: number;
+  status: "draft" | "active" | "retired";
+  description?: string;
+  sections: CapabilityStandardSection[];
+  createdAt: string;
+  updatedAt: string;
+  createdBy: string;
+  updatedBy: string;
+}
+
+export interface CapabilityRequirementSectionState {
+  status: "pending" | "satisfied" | "notApplicable" | "blocked";
+  notes?: string;
+  evidence?: string[];
+  notApplicableReason?: string;
+}
+
+export interface CapabilityRequirementDraft {
+  id: string;
+  capabilityId: string;
+  profileId: string;
+  draftVersion: number;
+  status: "draft" | "submitted" | "published";
+  sections: Record<string, CapabilityRequirementSectionState>;
+  ruleOverlay?: unknown;
+  note?: string;
+  createdAt: string;
+  updatedAt: string;
+  createdBy: string;
+  updatedBy: string;
+}
+
+export interface CapabilityRequirementVersion {
+  id: string;
+  capabilityId: string;
+  profileId: string;
+  version: number;
+  status: "published" | "superseded" | "rolled-back";
+  sections: Record<string, CapabilityRequirementSectionState>;
+  ruleOverlay?: unknown;
+  certificationRunId?: string;
+  rollbackOfVersionId?: string;
+  publishedAt: string;
+  publishedBy: string;
+}
+
+export interface CapabilityCertificationRun {
+  id: string;
+  capabilityId: string;
+  profileId: string;
+  draftId?: string;
+  versionId?: string;
+  status: "certified" | "not-ready";
+  visibleToUsers: boolean;
+  reasons: string[];
+  missingSections: string[];
+  sectionResults: Record<string, { ok: boolean; reason?: string }>;
+  createdAt: string;
+  createdBy: string;
+}
+
+export interface AdminAuditLogEntry {
+  id: string;
+  adminId: string;
+  action: string;
+  targetId: string;
+  oldValue: string | null;
+  newValue: string | null;
+  feedback: string | null;
+  timestamp: string;
+}
+
 export interface RuntimeDatabase {
   schemaVersion: string;
   users: StoredUser[];
@@ -243,6 +329,32 @@ export interface RuntimeDatabase {
   connections: StoredConnection[];
   /** Per-user migration candidate decisions keyed by connection and candidate id. */
   migrationDecisions?: StoredMigrationDecision[];
+  /** Per-session config bundle handling decisions. */
+  migrationConfigDecisions?: StoredMigrationConfigDecision[];
+  /** Per-session data movement strategy decisions. */
+  migrationDataDecisions?: StoredMigrationDataDecision[];
+  /** Append-only session run records for dry-run/apply/verify/report. */
+  migrationSessionRuns?: StoredMigrationSessionRun[];
+  /** Persisted Migrate pipeline sessions; keeps current step/state across refreshes. */
+  migrationSessions?: StoredMigrationSession[];
+  /**
+   * Persisted Environment Plans (P0 — Plan Store).
+   * One entry per plan; survives API restarts so review → apply → verify →
+   * rollback cycles can resume cleanly.
+   */
+  environmentPlans?: StoredEnvironmentPlan[];
+  /**
+   * ActionRunRecord stream (Managed Execution Hardening phase).
+   * Each plan apply / verify / rollback step produces one record.
+   * Capped to most-recent 1000 entries to bound disk usage.
+   */
+  actionRuns?: import("./action-runs.js").ActionRunRecord[];
+  /**
+   * Managed-capability markers (Managed Execution Hardening phase).
+   * Issued when EnvForge actually installs a capability so the Remove
+   * plan can decide whether automatic removal is safe.
+   */
+  managedCapabilities?: import("./action-runs.js").ManagedCapabilityRecord[];
   userProfiles: StoredUserProfile[];
   /** 任务历史（仅记录最近 200 条，老的自动清理） */
   tasks?: StoredTaskHistory[];
@@ -260,6 +372,14 @@ export interface RuntimeDatabase {
   apiTokens?: StoredApiToken[];
   /** Admin overrides on top of the static catalog baseline */
   catalogOverrides?: CatalogOverride[];
+  /** Online-maintained Full Migration standard profiles. */
+  capabilityStandardProfiles?: CapabilityStandardProfile[];
+  /** Editable per-capability requirement drafts. */
+  capabilityRequirementDrafts?: CapabilityRequirementDraft[];
+  /** Published per-capability requirement versions. */
+  capabilityRequirementVersions?: CapabilityRequirementVersion[];
+  /** Immutable certification simulation / publish run records. */
+  capabilityCertificationRuns?: CapabilityCertificationRun[];
   /**
    * Email delivery log (added by auth-and-ecosystem spec P1.4).
    * Auto-pruned to most recent 200 entries on each write to bound storage.
@@ -689,6 +809,11 @@ function createRuntimeDatabase(): RuntimeDatabase {
     sessions: [],
     connections: [],
     migrationDecisions: [],
+    migrationConfigDecisions: [],
+    migrationDataDecisions: [],
+    migrationSessionRuns: [],
+    migrationSessions: [],
+    environmentPlans: [],
     userProfiles: [],
     tasks: [],
     playbooks: []
@@ -723,6 +848,11 @@ function normalizeRuntimeDatabase(database: Partial<RuntimeDatabase>): RuntimeDa
       tags: c.tags ?? []
     })) as StoredConnection[],
     migrationDecisions: database.migrationDecisions ?? [],
+    migrationConfigDecisions: database.migrationConfigDecisions ?? [],
+    migrationDataDecisions: database.migrationDataDecisions ?? [],
+    migrationSessionRuns: database.migrationSessionRuns ?? [],
+    migrationSessions: database.migrationSessions ?? [],
+    environmentPlans: database.environmentPlans ?? [],
     userProfiles: (database.userProfiles ?? []).map((p) => ({
       ...p,
       visibility: p.visibility ?? ("public" as const)
@@ -1322,6 +1452,42 @@ export async function writeAdminAuditLog(
 
 // ── Catalog Suggestions CRUD ──────────────────────────────────────────────────
 
+export async function readAdminAuditLogs(input: {
+  targetId?: string;
+  action?: string;
+  limit?: number;
+}): Promise<AdminAuditLogEntry[]> {
+  const db = await initializeDatabase();
+  let query = `
+    SELECT id, admin_id, action, target_id, old_value, new_value, feedback, timestamp
+    FROM admin_audit_logs
+    WHERE 1 = 1
+  `;
+  const params: any[] = [];
+  if (input.targetId?.trim()) {
+    query += " AND target_id = ? ";
+    params.push(input.targetId.trim());
+  }
+  if (input.action?.trim()) {
+    query += " AND action = ? ";
+    params.push(input.action.trim());
+  }
+  const limit = Math.max(1, Math.min(input.limit ?? 50, 200));
+  query += " ORDER BY timestamp DESC, id DESC LIMIT ? ";
+  params.push(limit);
+  const rows = await db.all(query, ...params);
+  return rows.map((row) => ({
+    id: row.id,
+    adminId: row.admin_id,
+    action: row.action,
+    targetId: row.target_id,
+    oldValue: row.old_value ?? null,
+    newValue: row.new_value ?? null,
+    feedback: row.feedback ?? null,
+    timestamp: row.timestamp
+  }));
+}
+
 export async function addSuggestion(
   userId: string,
   input: {
@@ -1531,8 +1697,149 @@ export interface StoredMigrationDecision {
   userId: string;
   connectionId: string;
   candidateId: string;
-  decision: "pending" | "approved" | "skipped";
+  decision: "pending" | "approved" | "skipped" | "ignore" | "record-only" | "migrate-artifact" | "create-catalog-draft" | "add-to-plan" | "needs-manual-instruction";
   note?: string;
   updatedAt: string;
+}
+
+export type StoredConfigBundleStrategy =
+  | "omit-default"
+  | "copy-with-review"
+  | "template-with-vars"
+  | "secret-out-of-band"
+  | "manual-only"
+  | "blocked";
+
+export interface StoredMigrationConfigDecision {
+  id: string;
+  userId: string;
+  sessionId: string;
+  connectionId: string;
+  bundleId: string;
+  strategy: StoredConfigBundleStrategy;
+  status: "approved" | "blocked";
+  note?: string;
+  updatedAt: string;
+}
+
+export type StoredDataMigrationStrategy =
+  | "no-data"
+  | "backup-restore"
+  | "rsync-copy"
+  | "export-import"
+  | "manual"
+  | "external";
+
+export interface StoredMigrationDataDecision {
+  id: string;
+  userId: string;
+  sessionId: string;
+  connectionId: string;
+  candidateId: string;
+  strategy: StoredDataMigrationStrategy;
+  status: "confirmed" | "blocked";
+  paths: string[];
+  note?: string;
+  updatedAt: string;
+}
+
+export interface StoredMigrationSessionRun {
+  id: string;
+  userId: string;
+  sessionId: string;
+  connectionId: string;
+  targetConnectionId?: string;
+  kind: "dry-run" | "apply" | "verify" | "report";
+  status: "passed" | "failed" | "blocked" | "generated";
+  summary?: Record<string, number | boolean | string>;
+  result: unknown;
+  createdAt: string;
+}
+
+export interface StoredMigrationSession {
+  id: string;
+  userId: string;
+  connectionId: string;
+  targetConnectionId?: string;
+  status:
+    | "created"
+    | "source-connected"
+    | "snapshot-collected"
+    | "analysis-ready"
+    | "selection-in-progress"
+    | "config-review-required"
+    | "plan-ready"
+    | "target-connected"
+    | "dry-run-passed"
+    | "applying"
+    | "applied"
+    | "verified"
+    | "reported"
+    | "failed"
+    | "rolled-back";
+  currentStep: "source" | "analysis" | "select" | "unknown" | "config-data" | "plan" | "target" | "apply" | "report";
+  createdAt: string;
+  updatedAt: string;
+  lastSnapshotAt?: string;
+  lastAnalysisAt?: string;
+  lastPlanAt?: string;
+  lastDryRunAt?: string;
+  lastApplyAt?: string;
+  lastVerifyAt?: string;
+  lastReportAt?: string;
+  note?: string;
+}
+
+/**
+ * Persisted Environment Plan record (P0 — Plan Store).
+ *
+ * EnvForge's mutation contract requires Plans to outlive an API process so the
+ * full review → apply → verify → rollback cycle can survive restarts. We store
+ * the Plan JSON together with ownership, lifecycle metadata, the latest
+ * verify/rollback runs, and an append-only history log.
+ *
+ * `payload` keeps the Plan exactly as the planner produced it; `verifyResults`
+ * and `rollbackResults` capture the most recent checks so the UI can show what
+ * actually ran on the target.
+ */
+export interface StoredEnvironmentPlan {
+  id: string;
+  userId: string;
+  /** Plan type (migration / rebuild / change / remove / repair / imported-recipe). */
+  type: string;
+  status: string;
+  name: string;
+  sourceHost?: string;
+  targetConnectionId?: string;
+  /** ISO timestamps for lifecycle. */
+  createdAt: string;
+  updatedAt: string;
+  /** The full EnvironmentPlan structure (kept opaque to the runtime store). */
+  payload: unknown;
+  /** Most recent verify run results (one entry per validate action). */
+  verifyResults?: Array<{
+    actionId: string;
+    label: string;
+    status: "passed" | "warning" | "failed" | "skipped";
+    message?: string;
+    output?: string;
+    ranAt: string;
+  }>;
+  /** Most recent rollback run results (one entry per rollbackable action). */
+  rollbackResults?: Array<{
+    actionId: string;
+    label: string;
+    status: "passed" | "failed" | "skipped";
+    message?: string;
+    output?: string;
+    ranAt: string;
+  }>;
+  /** Append-only lifecycle log: created / reviewed / applied / verified / rolled-back. */
+  history?: Array<{
+    at: string;
+    event: "created" | "reviewed" | "applied" | "verified" | "rolled-back" | "imported";
+    actor: string;
+    note?: string;
+  }>;
 }
 

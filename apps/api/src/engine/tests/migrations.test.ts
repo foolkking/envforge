@@ -21,9 +21,8 @@ async function runInTempDb(seed: unknown, work: (dbPath: string) => Promise<void
 
   // Cache-bust: import a fresh module instance.
   const modUrl = `../../migrations.js?ts=${Date.now()}_${Math.random()}`;
-  const storeUrl = `../../runtime-store.js?ts=${Date.now()}_${Math.random()}`;
-  // Reset the singleton inside runtime-store by reimporting it FIRST.
-  await import(storeUrl);
+  const { _resetStoreForTests } = await import("../../runtime-store.js");
+  _resetStoreForTests();
   const { runMigrations } = await import(modUrl);
   await (runMigrations as () => Promise<void>)();
 
@@ -61,10 +60,11 @@ test("migrations: promotes existing fool user to admin (case-insensitive)", asyn
 
 test("migrations: leaves already-admin fool alone (idempotent)", async () => {
   const seed = {
-    schemaVersion: "0.3.0",
+    schemaVersion: "0.4.0",
     users: [
-      { id: "u1", name: "fool", email: "fool@example.com", passwordHash: "x", passwordSalt: "y", role: "admin", createdAt: "2026-01-01T00:00:00Z", updatedAt: "2026-01-01T00:00:00Z" }
+      { id: "u1", name: "fool", email: "fool@example.com", username: "fool", displayName: "fool", passwordHash: "x", passwordSalt: "y", role: "admin", createdAt: "2026-01-01T00:00:00Z", updatedAt: "2026-01-01T00:00:00Z" }
     ],
+    identities: [{ id: "ident_u1", userId: "u1", provider: "local", providerUserId: "u1", providerEmail: "fool@example.com", createdAt: "2026-01-01T00:00:00Z" }],
     sessions: [],
     connections: [],
     userProfiles: []

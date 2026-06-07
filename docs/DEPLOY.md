@@ -574,7 +574,7 @@ docker compose logs envforge
   docker compose up -d                   # 重新创建 volume，权限会自动修
   ```
 
-### 前端配置市场显示的 catalog 数量与代码不一致
+### 前端能力规则库显示的 catalog 数量与代码不一致
 
 新增 catalog 项后必须**重 build 镜像**，不是只 `up -d`：
 

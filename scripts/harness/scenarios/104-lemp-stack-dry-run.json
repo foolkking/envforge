@@ -1,0 +1,16 @@
+{
+  "id": "lemp-stack-dry-run",
+  "title": "LEMP stack - component migration dry run",
+  "destructive": false,
+  "planSource": { "kind": "capability-selection", "capabilityIds": ["lemp-stack"] },
+  "expected": {
+    "planType": "rebuild",
+    "items": [{ "id": "capability:lemp-stack", "capabilityKey": "catalog.lemp-stack", "supportLevel": "full-migration", "minActions": 7 }],
+    "conflictsBlock": 0,
+    "conflictsWarn": 0,
+    "remainingRisks": ["php-fpm pool"]
+  },
+  "approvalAcks": { "risksAck": "ALL", "approvalsAck": "ALL" },
+  "verify": { "actionRunStatuses": ["succeeded"], "auditChecks": ["nginx -t", "php-fpm pool validation", "MySQL dump strategy"] },
+  "notes": ["LEMP is certified by composing Nginx, MySQL, and PHP-FPM strategies with combo-level harness coverage."]
+}

@@ -1,6 +1,6 @@
 # Roadmap
 
-Last updated: 2026-05-27
+Last updated: 2026-05-28
 
 This roadmap aligns implementation work with EnvForge's new positioning as a Linux VM environment migration and rebuild platform.
 
@@ -54,15 +54,24 @@ Each should support:
 
 ## Phase 3: Package Intent Score MVP
 
+Status: implemented as an MVP; continue enriching evidence quality.
+
 Implement:
 
-- manual/auto package recognition;
-- service association;
-- config association;
-- port association;
-- catalog association;
-- base/dependency downranking;
-- high/medium/low/ignore UI grouping.
+- manual/auto package recognition: implemented through package trust signals when available;
+- service association: implemented by collecting enabled/running systemd service evidence and merging it into catalog capability candidates;
+- config association: partially implemented through catalog-owned config paths and checklist signals;
+- port association: implemented through snapshot network checklist port evidence;
+- catalog association: implemented through `catalog-rules.ts`;
+- base/dependency downranking: implemented for kernel, library, firmware, base image, and cloud-init style packages;
+- high/medium/low/ignore UI grouping: implemented in the migration candidate report.
+
+Remaining depth:
+
+- richer config ownership evidence;
+- data directory activity evidence;
+- Docker compose and bind mount evidence;
+- language runtime lockfile/project correlation.
 
 ## Phase 4: Config Governance MVP
 
@@ -106,16 +115,24 @@ Exports:
 
 ## Phase 6: Apply, Verify, Rollback
 
+Status: safe apply MVP implemented.
+
 Implement:
 
-- SSH executor;
-- safe sudo write;
-- file backup;
-- package install;
-- service enable/restart;
-- validate hooks;
-- rollback actions;
-- execution result report.
+- SSH executor: reused through the existing `Ssh2Executor`;
+- package install: implemented for approved plan items;
+- service restart: implemented as an explicit opt-in apply option;
+- validate hooks: implemented for catalog validation commands;
+- rollback actions: implemented for packages installed during the current apply run and basic service-state restoration;
+- execution result report: implemented through the migration apply result API.
+
+Remaining depth:
+
+- target-host selection for old VM to new VM migration;
+- reviewed config copy with source/target diff approval;
+- data migration actions;
+- full file snapshot restore;
+- package/service rollback policies for more action types.
 
 ## Phase 7: Review Queue and Catalog Feedback Loop
 

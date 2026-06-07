@@ -1,0 +1,17 @@
+{
+  "id": "ansible-tool-dry-run",
+  "title": "Ansible tool - vault and inventory dry run",
+  "destructive": false,
+  "planSource": { "kind": "capability-selection", "capabilityIds": ["ansible-tool"] },
+  "expected": {
+    "planType": "rebuild",
+    "items": [{ "id": "capability:ansible-tool", "capabilityKey": "developer.ansible", "supportLevel": "full-migration", "minActions": 3 }],
+    "conflictsBlock": 0,
+    "conflictsWarn": 0,
+    "approvalsRequired": [{ "kind": "secret-confirm" }],
+    "remainingRisks": ["Ansible inventories"]
+  },
+  "approvalAcks": { "risksAck": "ALL", "approvalsAck": "ALL" },
+  "verify": { "actionRunStatuses": ["succeeded"], "auditChecks": ["ansible --version", "vault password review", "private key redaction"] },
+  "notes": ["Ansible inventories, vault files, and playbook repos are reviewed but not copied automatically."]
+}

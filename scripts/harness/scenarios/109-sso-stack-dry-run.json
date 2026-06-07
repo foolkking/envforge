@@ -1,0 +1,17 @@
+{
+  "id": "sso-stack-dry-run",
+  "title": "SSO stack - identity and secret continuity dry run",
+  "destructive": false,
+  "planSource": { "kind": "capability-selection", "capabilityIds": ["sso-stack"] },
+  "expected": {
+    "planType": "rebuild",
+    "items": [{ "id": "capability:sso-stack", "capabilityKey": "catalog.sso-stack", "supportLevel": "full-migration", "minActions": 4 }],
+    "conflictsBlock": 0,
+    "conflictsWarn": 0,
+    "approvalsRequired": [{ "kind": "identity-provider-confirm" }, { "kind": "secret-confirm" }],
+    "remainingRisks": ["JWT_SECRET"]
+  },
+  "approvalAcks": { "risksAck": "ALL", "approvalsAck": "ALL" },
+  "verify": { "actionRunStatuses": ["succeeded"], "auditChecks": ["Authelia health", "Traefik forward-auth", "Redis session reset", "secret continuity"] },
+  "notes": ["SSO stack is certified with identity-provider and secret-continuity gates."]
+}

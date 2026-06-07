@@ -1,0 +1,16 @@
+{
+  "id": "onlyoffice-docs-dry-run",
+  "title": "OnlyOffice Docs - JWT and dependency dry run",
+  "destructive": false,
+  "planSource": { "kind": "capability-selection", "capabilityIds": ["onlyoffice-docs"] },
+  "expected": {
+    "planType": "rebuild",
+    "items": [{ "id": "capability:onlyoffice-docs", "capabilityKey": "app.office.onlyoffice", "supportLevel": "full-migration", "minActions": 5 }],
+    "conflictsBlock": 0,
+    "conflictsWarn": 0,
+    "remainingRisks": ["JWT_SECRET", "PostgreSQL"]
+  },
+  "approvalAcks": { "risksAck": "ALL", "approvalsAck": "ALL" },
+  "verify": { "actionRunStatuses": ["succeeded"], "auditChecks": ["OnlyOffice healthcheck", "JWT secret", "RabbitMQ"] },
+  "notes": ["OnlyOffice restore needs JWT continuity and PostgreSQL/RabbitMQ review."]
+}

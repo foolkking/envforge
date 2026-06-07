@@ -1,18 +1,25 @@
 /**
- * capture.ts — 从已连接 VM 反向生成 Ansible-Compatible Playbook
+ * capture.ts — Reverse-engineer evidence YAML from a connected VM.
  *
- * 采集策略（与 remote-collector.ts 保持一致）：
- * 1. apt 包：apt-mark showmanual 减去 /var/log/installer/initial-status.gz 的基线
- *    （来自 AskUbuntu 社区最佳实践：comm -23 manual base）
- *    + TypeScript 端 isSystemAptPackage() 二次过滤防止漏网
- * 2. 启用的 systemctl 服务（过滤系统服务）
- * 3. ~/.bashrc 中的非默认行（alias、export）
- * 4. 已安装的 npm 全局包
- * 5. 已安装的 pip 全局包
- * 6. Docker 容器（如果有 Docker）
- * 7. 关键配置文件
+ * EnvForge does not treat `capture` output as a deployment artifact. The
+ * generated YAML is **evidence** that must enter a Migration Plan or
+ * Imported Recipe Plan before it can change a target host.
  *
- * 输出：标准 Ansible Playbook YAML，可直接被 EnvForge 或 ansible-playbook 执行
+ * Collection strategy (mirrors remote-collector.ts):
+ * 1. apt packages: `apt-mark showmanual` minus the
+ *    `/var/log/installer/initial-status.gz` baseline (community best practice
+ *    from AskUbuntu) plus a TypeScript-side `isSystemAptPackage()` filter to
+ *    keep installer noise out.
+ * 2. enabled systemctl services (with isSystemService filter).
+ * 3. non-default lines in `~/.bashrc` (alias / export / source).
+ * 4. installed npm globals.
+ * 5. installed pip globals.
+ * 6. Docker containers (when present).
+ * 7. key configuration files.
+ *
+ * Output: an Ansible-compatible YAML document that we treat as evidence.
+ * The shape is preserved for tooling compatibility; the field name is
+ * `evidenceYaml` while `playbookYaml` remains as a deprecated alias.
  */
 
 import type { SshExecutor } from "./engine/types.js";
@@ -21,6 +28,20 @@ import { scanAndRedact, isPathBlacklisted, type RedactionHit } from "./sensitive
 import yaml from "yaml";
 
 export interface CaptureResult {
+  /**
+   * Structured evidence report for the captured environment.
+   * `evidenceReport.yaml` is the canonical YAML form the rest of the
+   * platform reads from. Older callers may still read `evidenceYaml` (the
+   * same string) and `playbookYaml` (deprecated alias).
+   */
+  evidenceReport: { yaml: string; capturedAt: string };
+  /** YAML representation of the captured evidence (alias of evidenceReport.yaml). */
+  evidenceYaml: string;
+  /**
+   * @deprecated Older clients may still read `playbookYaml`. New code should
+   * use `evidenceReport.yaml` (or `evidenceYaml`). All three fields point at
+   * the same string.
+   */
   playbookYaml: string;
   summary: {
     aptPackages: string[];
@@ -89,7 +110,8 @@ rm -rf "$TMPD" 2>/dev/null
       .filter((s) => s && !isSystemService(s));
   } catch { /* ignore */ }
 
-  // 3. ~/.bashrc 中的非默认行（也跑敏感扫描，防止 export TOKEN=... 进 Playbook）
+  // 3. Non-default lines in ~/.bashrc (also run secret scanner so e.g.
+  //    `export TOKEN=...` does not leak into the evidence YAML).
   try {
     const { stdout } = await executor.exec(
       "grep -E '^(export |alias |source )' ~/.bashrc 2>/dev/null || true"
@@ -180,24 +202,31 @@ rm -rf "$TMPD" 2>/dev/null
     summary.uptimeInfo = stdout.trim() || undefined;
   } catch { /* ignore */ }
 
-  const playbookYaml = generatePlaybook(summary, configContents);
-  return { playbookYaml, summary, redactions: allRedactions, skippedPaths };
+  const evidenceYaml = generateEvidenceYaml(summary, configContents);
+  return {
+    evidenceReport: { yaml: evidenceYaml, capturedAt: new Date().toISOString() },
+    evidenceYaml,
+    playbookYaml: evidenceYaml,
+    summary,
+    redactions: allRedactions,
+    skippedPaths
+  };
 }
 
-function generatePlaybook(
+function generateEvidenceYaml(
   summary: CaptureResult["summary"],
   configContents: Array<{ path: string; content: string }>
 ): string {
   const tasks: Array<Record<string, unknown>> = [];
 
-  // apt packages
+  // Captured packages are raw evidence. They must pass through the classifier
+  // and Package Intent Score before they become install actions.
   if (summary.aptPackages.length > 0) {
     tasks.push({
-      name: "Install captured apt packages",
-      module: "package",
+      name: "Review captured apt package evidence",
+      module: "shell",
       args: {
-        name: summary.aptPackages,
-        state: "present"
+        cmd: `echo ${JSON.stringify(`Captured apt package evidence: ${summary.aptPackages.join(", ")}`)}`
       }
     });
   }
@@ -205,26 +234,21 @@ function generatePlaybook(
   // enabled services
   if (summary.enabledServices.length > 0) {
     tasks.push({
-      name: "Enable captured services",
-      module: "service",
+      name: "Review captured service evidence",
+      module: "shell",
       args: {
-        name: "{{ item }}",
-        enabled: true,
-        state: "started"
-      },
-      loop: summary.enabledServices
+        cmd: `echo ${JSON.stringify(`Captured enabled service evidence: ${summary.enabledServices.join(", ")}`)}`
+      }
     });
   }
 
   // bashrc lines — let yaml lib handle quoting/escaping
   for (const line of summary.bashrcLines) {
     tasks.push({
-      name: "Restore bashrc line",
-      module: "lineinfile",
+      name: "Review captured shell profile evidence",
+      module: "shell",
       args: {
-        path: "~/.bashrc",
-        line,
-        create: true
+        cmd: `echo ${JSON.stringify(`Captured shell profile line: ${line}`)}`
       }
     });
   }
@@ -232,50 +256,58 @@ function generatePlaybook(
   // npm globals
   if (summary.npmGlobals.length > 0) {
     tasks.push({
-      name: "Install captured npm global packages",
+      name: "Review captured npm global package evidence",
       module: "shell",
       args: {
-        cmd: "sudo npm install -g {{ item }}"
-      },
-      loop: summary.npmGlobals
+        cmd: `echo ${JSON.stringify(`Captured npm global package evidence: ${summary.npmGlobals.join(", ")}`)}`
+      }
+    });
+  }
+
+  if (summary.pipGlobals.length > 0) {
+    tasks.push({
+      name: "Review captured pip package evidence",
+      module: "shell",
+      args: {
+        cmd: `echo ${JSON.stringify(`Captured pip package evidence: ${summary.pipGlobals.join(", ")}`)}`
+      }
     });
   }
 
   // config files — use base64 encoding to keep content safe regardless of contents
   for (const cfg of configContents) {
-    const b64 = Buffer.from(cfg.content, "utf8").toString("base64");
     tasks.push({
-      name: `Restore config ${cfg.path}`,
+      name: `Review captured config evidence: ${cfg.path}`,
       module: "shell",
       args: {
-        cmd: `echo '${b64}' | base64 -d | sudo tee ${cfg.path} > /dev/null`
+        cmd: `echo ${JSON.stringify(`Captured redacted config evidence for ${cfg.path}; create a Config Change Proposal before applying.`)}`
       }
     });
   }
 
   if (tasks.length === 0) {
     tasks.push({
-      name: "No custom packages or services detected",
+      name: "No migration evidence detected",
       module: "shell",
       args: {
-        cmd: "echo 'Nothing to restore'",
+        cmd: "echo 'No migration evidence to review'",
         creates: "/dev/null"
       }
     });
   }
 
-  const playbook = {
-    name: "Captured environment restore",
+  const evidence = {
+    name: "Captured environment evidence review",
     hosts: "all",
     tasks
   };
 
   const now = new Date().toISOString().slice(0, 10);
-  const body = yaml.stringify(playbook, {
+  const body = yaml.stringify(evidence, {
     lineWidth: 0,
     defaultKeyType: "PLAIN",
     defaultStringType: "QUOTE_DOUBLE"
   });
 
-  return `# Playbook captured from VM on ${now}\n# Generated by EnvForge — compatible with ansible-playbook\n${body}`;
+  return `# Captured environment evidence on ${now}\n# Generated by EnvForge — review and convert to a Migration Plan before applying\n${body}`;
 }

@@ -1,0 +1,17 @@
+{
+  "id": "keycloak-dry-run",
+  "title": "Keycloak - realm export dry run",
+  "destructive": false,
+  "planSource": { "kind": "capability-selection", "capabilityIds": ["keycloak"] },
+  "expected": {
+    "planType": "rebuild",
+    "items": [{ "id": "capability:keycloak", "capabilityKey": "security.sso.keycloak", "supportLevel": "full-migration", "minActions": 4 }],
+    "conflictsBlock": 0,
+    "conflictsWarn": 0,
+    "approvalsRequired": [{ "kind": "identity-provider-confirm" }, { "kind": "secret-confirm" }],
+    "remainingRisks": ["Realm exports", "Mutually exclusive"]
+  },
+  "approvalAcks": { "risksAck": "ALL", "approvalsAck": "ALL" },
+  "verify": { "actionRunStatuses": ["succeeded"], "auditChecks": ["realm export", "OIDC client secrets", "custom providers"] },
+  "notes": ["Keycloak state moves through realm export/import or an approved DB backup/restore."]
+}

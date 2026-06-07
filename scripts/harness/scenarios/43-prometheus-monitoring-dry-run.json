@@ -1,0 +1,17 @@
+{
+  "id": "prometheus-monitoring-dry-run",
+  "title": "Prometheus - TSDB and scrape credential dry run",
+  "destructive": false,
+  "planSource": { "kind": "capability-selection", "capabilityIds": ["prometheus-monitoring"] },
+  "expected": {
+    "planType": "rebuild",
+    "items": [{ "id": "capability:prometheus-monitoring", "capabilityKey": "observability.metrics.prometheus", "supportLevel": "full-migration", "minActions": 6 }],
+    "conflictsBlock": 0,
+    "conflictsWarn": 0,
+    "approvalsRequired": [{ "kind": "data-strategy-confirm" }, { "kind": "secret-confirm" }],
+    "remainingRisks": ["Long-term storage", "Scrape targets"]
+  },
+  "approvalAcks": { "risksAck": "ALL", "approvalsAck": "ALL" },
+  "verify": { "actionRunStatuses": ["succeeded"], "auditChecks": ["promtool check config", "TSDB snapshot/export", "scrape credential redaction"] },
+  "notes": ["Prometheus TSDB state is snapshot/export or rebuild only; scrape credentials are reviewed explicitly."]
+}

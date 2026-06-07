@@ -1,0 +1,30 @@
+{
+  "id": "nginx-config-postvalidate-failure-rollback",
+  "title": "nginx config write — post-validate failure rolls back",
+  "destructive": true,
+  "planSource": {
+    "kind": "config-change",
+    "path": "/etc/nginx/nginx.conf",
+    "content": "this is intentionally not valid nginx syntax {{}}\n"
+  },
+  "expected": {
+    "planType": "change",
+    "items": [
+      {
+        "type": "config-change",
+        "minActions": 3
+      }
+    ],
+    "approvalsRequired": []
+  },
+  "verify": {
+    "actionRunStatuses": ["rolled-back"],
+    "rollbackOk": true,
+    "postValidateRecovers": true
+  },
+  "notes": [
+    "Setup: scenario must ensure nginx is installed AND the original nginx.conf is syntactically valid before running.",
+    "After rollback, `nginx -t` must succeed against the restored backup.",
+    "Plan Report must record both the failed apply and the successful rollback action runs."
+  ]
+}

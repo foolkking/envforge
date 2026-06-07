@@ -1,0 +1,966 @@
+[
+  {
+    "theme": "light",
+    "viewport": "desktop",
+    "route": "build",
+    "screenshot": "E:\\1project\\EnvForge\\screenshots\\scheme-3-4-check2\\desktop-light-build.png",
+    "url": "/app/build",
+    "innerWidth": 1440,
+    "scrollWidth": 1440,
+    "clientWidth": 1440,
+    "nav": [
+      "总览资源状态、最近计划、待审队列、通知",
+      "迁移源主机、快照、分析与迁移候选",
+      "构建选择已认证能力，生成重建计划，进入审查和执行门禁",
+      "计划计划中心、配方、排程、漂移、外发通知、报告",
+      "报告迁移 / 重建 / 修复报告"
+    ],
+    "planTabs": [],
+    "catalogButtons": [
+      {
+        "text": "MD",
+        "right": 924,
+        "left": 884
+      },
+      {
+        "text": "配置",
+        "right": 978,
+        "left": 936
+      },
+      {
+        "text": "MD",
+        "right": 924,
+        "left": 884
+      },
+      {
+        "text": "配置",
+        "right": 978,
+        "left": 936
+      },
+      {
+        "text": "MD",
+        "right": 924,
+        "left": 884
+      },
+      {
+        "text": "配置",
+        "right": 978,
+        "left": 936
+      },
+      {
+        "text": "MD",
+        "right": 866,
+        "left": 826
+      },
+      {
+        "text": "编排",
+        "right": 924,
+        "left": 878
+      },
+      {
+        "text": "配置",
+        "right": 978,
+        "left": 936
+      },
+      {
+        "text": "MD",
+        "right": 866,
+        "left": 826
+      },
+      {
+        "text": "编排",
+        "right": 924,
+        "left": 878
+      },
+      {
+        "text": "配置",
+        "right": 978,
+        "left": 936
+      }
+    ],
+    "badZhTokens": [
+      "Compose"
+    ],
+    "lightPanels": [
+      {
+        "cls": "workflow-stepper",
+        "bg": "rgb(255, 255, 255)",
+        "color": "rgb(51, 65, 85)",
+        "w": 1120,
+        "h": 182
+      },
+      {
+        "cls": "build-workbench-rail",
+        "bg": "rgb(255, 255, 255)",
+        "color": "rgb(15, 23, 42)",
+        "w": 280,
+        "h": 456
+      },
+      {
+        "cls": "build-plan-inspector",
+        "bg": "rgb(255, 255, 255)",
+        "color": "rgb(15, 23, 42)",
+        "w": 388,
+        "h": 154
+      },
+      {
+        "cls": "build-catalog-surface",
+        "bg": "rgb(255, 255, 255)",
+        "color": "rgb(15, 23, 42)",
+        "w": 420,
+        "h": 23852
+      }
+    ]
+  },
+  {
+    "theme": "light",
+    "viewport": "desktop",
+    "route": "plans",
+    "screenshot": "E:\\1project\\EnvForge\\screenshots\\scheme-3-4-check2\\desktop-light-plans.png",
+    "url": "/app/plans",
+    "innerWidth": 1440,
+    "scrollWidth": 1440,
+    "clientWidth": 1440,
+    "nav": [
+      "总览资源状态、最近计划、待审队列、通知",
+      "迁移源主机、快照、分析与迁移候选",
+      "构建选择已认证能力，生成重建计划，进入审查和执行门禁",
+      "计划计划中心、配方、排程、漂移、外发通知、报告",
+      "报告迁移 / 重建 / 修复报告"
+    ],
+    "planTabs": [
+      "计划",
+      "执行记录",
+      "排程",
+      "漂移",
+      "外发通知",
+      "报告"
+    ],
+    "catalogButtons": [],
+    "badZhTokens": [],
+    "lightPanels": [
+      {
+        "cls": "settings-tabs plan-ops-tabs",
+        "bg": "rgb(255, 255, 255)",
+        "color": "rgb(15, 23, 42)",
+        "w": 1120,
+        "h": 56
+      },
+      {
+        "cls": "playbook-page",
+        "bg": "rgba(0, 0, 0, 0)",
+        "color": "rgb(15, 23, 42)",
+        "w": 1120,
+        "h": 780
+      },
+      {
+        "cls": "playbook-sidebar",
+        "bg": "rgb(248, 250, 252)",
+        "color": "rgb(15, 23, 42)",
+        "w": 260,
+        "h": 780
+      }
+    ]
+  },
+  {
+    "theme": "light",
+    "viewport": "desktop",
+    "route": "reports",
+    "screenshot": "E:\\1project\\EnvForge\\screenshots\\scheme-3-4-check2\\desktop-light-reports.png",
+    "url": "/app/reports",
+    "innerWidth": 1440,
+    "scrollWidth": 1440,
+    "clientWidth": 1440,
+    "nav": [
+      "总览资源状态、最近计划、待审队列、通知",
+      "迁移源主机、快照、分析与迁移候选",
+      "构建选择已认证能力，生成重建计划，进入审查和执行门禁",
+      "计划计划中心、配方、排程、漂移、外发通知、报告",
+      "报告迁移 / 重建 / 修复报告"
+    ],
+    "planTabs": [],
+    "catalogButtons": [],
+    "badZhTokens": [],
+    "lightPanels": [
+      {
+        "cls": "report-command-strip",
+        "bg": "rgb(255, 255, 255)",
+        "color": "rgb(15, 23, 42)",
+        "w": 1088,
+        "h": 115
+      },
+      {
+        "cls": "report-summary-card report-status-succeeded",
+        "bg": "rgb(236, 253, 245)",
+        "color": "rgb(22, 101, 52)",
+        "w": 208,
+        "h": 84
+      },
+      {
+        "cls": "report-summary-card report-status-partially-succeeded",
+        "bg": "rgb(255, 251, 235)",
+        "color": "rgb(146, 64, 14)",
+        "w": 208,
+        "h": 84
+      },
+      {
+        "cls": "report-summary-card report-status-failed",
+        "bg": "rgb(254, 242, 242)",
+        "color": "rgb(153, 27, 27)",
+        "w": 208,
+        "h": 84
+      },
+      {
+        "cls": "report-summary-card report-status-rolled-back",
+        "bg": "rgb(255, 251, 235)",
+        "color": "rgb(146, 64, 14)",
+        "w": 208,
+        "h": 84
+      },
+      {
+        "cls": "report-summary-card report-status-committed",
+        "bg": "rgb(236, 253, 245)",
+        "color": "rgb(22, 101, 52)",
+        "w": 208,
+        "h": 84
+      },
+      {
+        "cls": "report-list-panel",
+        "bg": "rgb(255, 255, 255)",
+        "color": "rgb(15, 23, 42)",
+        "w": 380,
+        "h": 166
+      },
+      {
+        "cls": "report-reader-panel",
+        "bg": "rgb(255, 255, 255)",
+        "color": "rgb(15, 23, 42)",
+        "w": 692,
+        "h": 157
+      }
+    ]
+  },
+  {
+    "theme": "light",
+    "viewport": "mobile",
+    "route": "build",
+    "screenshot": "E:\\1project\\EnvForge\\screenshots\\scheme-3-4-check2\\mobile-light-build.png",
+    "url": "/app/build",
+    "innerWidth": 390,
+    "scrollWidth": 390,
+    "clientWidth": 390,
+    "nav": [
+      "总览资源状态、最近计划、待审队列、通知",
+      "迁移源主机、快照、分析与迁移候选",
+      "构建选择已认证能力，生成重建计划，进入审查和执行门禁",
+      "计划计划中心、配方、排程、漂移、外发通知、报告",
+      "报告迁移 / 重建 / 修复报告"
+    ],
+    "planTabs": [],
+    "catalogButtons": [
+      {
+        "text": "MD",
+        "right": 144,
+        "left": 106
+      },
+      {
+        "text": "配置",
+        "right": 342,
+        "left": 302
+      },
+      {
+        "text": "MD",
+        "right": 144,
+        "left": 106
+      },
+      {
+        "text": "配置",
+        "right": 342,
+        "left": 302
+      },
+      {
+        "text": "MD",
+        "right": 144,
+        "left": 106
+      },
+      {
+        "text": "配置",
+        "right": 342,
+        "left": 302
+      },
+      {
+        "text": "MD",
+        "right": 144,
+        "left": 106
+      },
+      {
+        "text": "编排",
+        "right": 246,
+        "left": 200
+      },
+      {
+        "text": "配置",
+        "right": 342,
+        "left": 302
+      },
+      {
+        "text": "MD",
+        "right": 144,
+        "left": 106
+      },
+      {
+        "text": "编排",
+        "right": 246,
+        "left": 200
+      },
+      {
+        "text": "配置",
+        "right": 342,
+        "left": 302
+      }
+    ],
+    "badZhTokens": [
+      "Compose"
+    ],
+    "lightPanels": [
+      {
+        "cls": "workflow-stepper",
+        "bg": "rgb(255, 255, 255)",
+        "color": "rgb(51, 65, 85)",
+        "w": 354,
+        "h": 463
+      },
+      {
+        "cls": "build-workbench-rail",
+        "bg": "rgb(255, 255, 255)",
+        "color": "rgb(15, 23, 42)",
+        "w": 354,
+        "h": 440
+      },
+      {
+        "cls": "build-plan-inspector",
+        "bg": "rgb(255, 255, 255)",
+        "color": "rgb(15, 23, 42)",
+        "w": 354,
+        "h": 154
+      },
+      {
+        "cls": "build-catalog-surface",
+        "bg": "rgb(255, 255, 255)",
+        "color": "rgb(15, 23, 42)",
+        "w": 354,
+        "h": 27042
+      }
+    ]
+  },
+  {
+    "theme": "light",
+    "viewport": "mobile",
+    "route": "plans",
+    "screenshot": "E:\\1project\\EnvForge\\screenshots\\scheme-3-4-check2\\mobile-light-plans.png",
+    "url": "/app/plans",
+    "innerWidth": 390,
+    "scrollWidth": 390,
+    "clientWidth": 390,
+    "nav": [
+      "总览资源状态、最近计划、待审队列、通知",
+      "迁移源主机、快照、分析与迁移候选",
+      "构建选择已认证能力，生成重建计划，进入审查和执行门禁",
+      "计划计划中心、配方、排程、漂移、外发通知、报告",
+      "报告迁移 / 重建 / 修复报告"
+    ],
+    "planTabs": [
+      "计划",
+      "执行记录",
+      "排程",
+      "漂移",
+      "外发通知",
+      "报告"
+    ],
+    "catalogButtons": [],
+    "badZhTokens": [],
+    "lightPanels": [
+      {
+        "cls": "settings-tabs plan-ops-tabs",
+        "bg": "rgb(255, 255, 255)",
+        "color": "rgb(15, 23, 42)",
+        "w": 354,
+        "h": 100
+      },
+      {
+        "cls": "playbook-page",
+        "bg": "rgba(0, 0, 0, 0)",
+        "color": "rgb(15, 23, 42)",
+        "w": 354,
+        "h": 513
+      },
+      {
+        "cls": "playbook-sidebar",
+        "bg": "rgb(248, 250, 252)",
+        "color": "rgb(15, 23, 42)",
+        "w": 354,
+        "h": 162
+      }
+    ]
+  },
+  {
+    "theme": "light",
+    "viewport": "mobile",
+    "route": "reports",
+    "screenshot": "E:\\1project\\EnvForge\\screenshots\\scheme-3-4-check2\\mobile-light-reports.png",
+    "url": "/app/reports",
+    "innerWidth": 390,
+    "scrollWidth": 390,
+    "clientWidth": 390,
+    "nav": [
+      "总览资源状态、最近计划、待审队列、通知",
+      "迁移源主机、快照、分析与迁移候选",
+      "构建选择已认证能力，生成重建计划，进入审查和执行门禁",
+      "计划计划中心、配方、排程、漂移、外发通知、报告",
+      "报告迁移 / 重建 / 修复报告"
+    ],
+    "planTabs": [],
+    "catalogButtons": [],
+    "badZhTokens": [],
+    "lightPanels": [
+      {
+        "cls": "report-command-strip",
+        "bg": "rgb(255, 255, 255)",
+        "color": "rgb(15, 23, 42)",
+        "w": 322,
+        "h": 189
+      },
+      {
+        "cls": "report-summary-card report-status-succeeded",
+        "bg": "rgb(236, 253, 245)",
+        "color": "rgb(22, 101, 52)",
+        "w": 155,
+        "h": 84
+      },
+      {
+        "cls": "report-summary-card report-status-partially-succeeded",
+        "bg": "rgb(255, 251, 235)",
+        "color": "rgb(146, 64, 14)",
+        "w": 155,
+        "h": 84
+      },
+      {
+        "cls": "report-summary-card report-status-failed",
+        "bg": "rgb(254, 242, 242)",
+        "color": "rgb(153, 27, 27)",
+        "w": 155,
+        "h": 84
+      },
+      {
+        "cls": "report-summary-card report-status-rolled-back",
+        "bg": "rgb(255, 251, 235)",
+        "color": "rgb(146, 64, 14)",
+        "w": 155,
+        "h": 84
+      },
+      {
+        "cls": "report-summary-card report-status-committed",
+        "bg": "rgb(236, 253, 245)",
+        "color": "rgb(22, 101, 52)",
+        "w": 155,
+        "h": 84
+      },
+      {
+        "cls": "report-list-panel",
+        "bg": "rgb(255, 255, 255)",
+        "color": "rgb(15, 23, 42)",
+        "w": 322,
+        "h": 185
+      },
+      {
+        "cls": "report-reader-panel",
+        "bg": "rgb(255, 255, 255)",
+        "color": "rgb(15, 23, 42)",
+        "w": 322,
+        "h": 157
+      }
+    ]
+  },
+  {
+    "theme": "dark",
+    "viewport": "desktop",
+    "route": "build",
+    "screenshot": "E:\\1project\\EnvForge\\screenshots\\scheme-3-4-check2\\desktop-dark-build.png",
+    "url": "/app/build",
+    "innerWidth": 1440,
+    "scrollWidth": 1440,
+    "clientWidth": 1440,
+    "nav": [
+      "总览资源状态、最近计划、待审队列、通知",
+      "迁移源主机、快照、分析与迁移候选",
+      "构建选择已认证能力，生成重建计划，进入审查和执行门禁",
+      "计划计划中心、配方、排程、漂移、外发通知、报告",
+      "报告迁移 / 重建 / 修复报告"
+    ],
+    "planTabs": [],
+    "catalogButtons": [
+      {
+        "text": "MD",
+        "right": 924,
+        "left": 884
+      },
+      {
+        "text": "配置",
+        "right": 978,
+        "left": 936
+      },
+      {
+        "text": "MD",
+        "right": 924,
+        "left": 884
+      },
+      {
+        "text": "配置",
+        "right": 978,
+        "left": 936
+      },
+      {
+        "text": "MD",
+        "right": 924,
+        "left": 884
+      },
+      {
+        "text": "配置",
+        "right": 978,
+        "left": 936
+      },
+      {
+        "text": "MD",
+        "right": 866,
+        "left": 826
+      },
+      {
+        "text": "编排",
+        "right": 924,
+        "left": 878
+      },
+      {
+        "text": "配置",
+        "right": 978,
+        "left": 936
+      },
+      {
+        "text": "MD",
+        "right": 866,
+        "left": 826
+      },
+      {
+        "text": "编排",
+        "right": 924,
+        "left": 878
+      },
+      {
+        "text": "配置",
+        "right": 978,
+        "left": 936
+      }
+    ],
+    "badZhTokens": [
+      "Compose"
+    ],
+    "lightPanels": [
+      {
+        "cls": "workflow-stepper",
+        "bg": "rgb(16, 24, 38)",
+        "color": "rgb(230, 237, 247)",
+        "w": 1120,
+        "h": 182
+      },
+      {
+        "cls": "build-workbench-rail",
+        "bg": "rgb(16, 24, 38)",
+        "color": "rgb(230, 237, 247)",
+        "w": 280,
+        "h": 456
+      },
+      {
+        "cls": "build-plan-inspector",
+        "bg": "rgb(16, 24, 38)",
+        "color": "rgb(230, 237, 247)",
+        "w": 388,
+        "h": 154
+      },
+      {
+        "cls": "build-catalog-surface",
+        "bg": "rgb(16, 24, 38)",
+        "color": "rgb(230, 237, 247)",
+        "w": 420,
+        "h": 23852
+      }
+    ]
+  },
+  {
+    "theme": "dark",
+    "viewport": "desktop",
+    "route": "plans",
+    "screenshot": "E:\\1project\\EnvForge\\screenshots\\scheme-3-4-check2\\desktop-dark-plans.png",
+    "url": "/app/plans",
+    "innerWidth": 1440,
+    "scrollWidth": 1440,
+    "clientWidth": 1440,
+    "nav": [
+      "总览资源状态、最近计划、待审队列、通知",
+      "迁移源主机、快照、分析与迁移候选",
+      "构建选择已认证能力，生成重建计划，进入审查和执行门禁",
+      "计划计划中心、配方、排程、漂移、外发通知、报告",
+      "报告迁移 / 重建 / 修复报告"
+    ],
+    "planTabs": [
+      "计划",
+      "执行记录",
+      "排程",
+      "漂移",
+      "外发通知",
+      "报告"
+    ],
+    "catalogButtons": [],
+    "badZhTokens": [],
+    "lightPanels": [
+      {
+        "cls": "settings-tabs plan-ops-tabs",
+        "bg": "rgb(26, 38, 56)",
+        "color": "rgb(230, 237, 247)",
+        "w": 1120,
+        "h": 56
+      },
+      {
+        "cls": "playbook-page",
+        "bg": "rgba(0, 0, 0, 0)",
+        "color": "rgb(230, 237, 247)",
+        "w": 1120,
+        "h": 780
+      },
+      {
+        "cls": "playbook-sidebar",
+        "bg": "rgb(26, 38, 56)",
+        "color": "rgb(230, 237, 247)",
+        "w": 260,
+        "h": 780
+      }
+    ]
+  },
+  {
+    "theme": "dark",
+    "viewport": "desktop",
+    "route": "reports",
+    "screenshot": "E:\\1project\\EnvForge\\screenshots\\scheme-3-4-check2\\desktop-dark-reports.png",
+    "url": "/app/reports",
+    "innerWidth": 1440,
+    "scrollWidth": 1440,
+    "clientWidth": 1440,
+    "nav": [
+      "总览资源状态、最近计划、待审队列、通知",
+      "迁移源主机、快照、分析与迁移候选",
+      "构建选择已认证能力，生成重建计划，进入审查和执行门禁",
+      "计划计划中心、配方、排程、漂移、外发通知、报告",
+      "报告迁移 / 重建 / 修复报告"
+    ],
+    "planTabs": [],
+    "catalogButtons": [],
+    "badZhTokens": [],
+    "lightPanels": [
+      {
+        "cls": "report-command-strip",
+        "bg": "rgb(26, 38, 56)",
+        "color": "rgb(230, 237, 247)",
+        "w": 1088,
+        "h": 115
+      },
+      {
+        "cls": "report-summary-card report-status-succeeded",
+        "bg": "rgba(16, 185, 129, 0.15)",
+        "color": "rgb(187, 247, 208)",
+        "w": 208,
+        "h": 84
+      },
+      {
+        "cls": "report-summary-card report-status-partially-succeeded",
+        "bg": "rgba(251, 191, 36, 0.14)",
+        "color": "rgb(253, 230, 138)",
+        "w": 208,
+        "h": 84
+      },
+      {
+        "cls": "report-summary-card report-status-failed",
+        "bg": "rgba(248, 113, 113, 0.15)",
+        "color": "rgb(254, 202, 202)",
+        "w": 208,
+        "h": 84
+      },
+      {
+        "cls": "report-summary-card report-status-rolled-back",
+        "bg": "rgba(251, 191, 36, 0.14)",
+        "color": "rgb(253, 230, 138)",
+        "w": 208,
+        "h": 84
+      },
+      {
+        "cls": "report-summary-card report-status-committed",
+        "bg": "rgba(16, 185, 129, 0.15)",
+        "color": "rgb(187, 247, 208)",
+        "w": 208,
+        "h": 84
+      },
+      {
+        "cls": "report-list-panel",
+        "bg": "rgb(16, 24, 38)",
+        "color": "rgb(230, 237, 247)",
+        "w": 380,
+        "h": 166
+      },
+      {
+        "cls": "report-reader-panel",
+        "bg": "rgb(16, 24, 38)",
+        "color": "rgb(230, 237, 247)",
+        "w": 692,
+        "h": 157
+      }
+    ]
+  },
+  {
+    "theme": "dark",
+    "viewport": "mobile",
+    "route": "build",
+    "screenshot": "E:\\1project\\EnvForge\\screenshots\\scheme-3-4-check2\\mobile-dark-build.png",
+    "url": "/app/build",
+    "innerWidth": 390,
+    "scrollWidth": 390,
+    "clientWidth": 390,
+    "nav": [
+      "总览资源状态、最近计划、待审队列、通知",
+      "迁移源主机、快照、分析与迁移候选",
+      "构建选择已认证能力，生成重建计划，进入审查和执行门禁",
+      "计划计划中心、配方、排程、漂移、外发通知、报告",
+      "报告迁移 / 重建 / 修复报告"
+    ],
+    "planTabs": [],
+    "catalogButtons": [
+      {
+        "text": "MD",
+        "right": 144,
+        "left": 106
+      },
+      {
+        "text": "配置",
+        "right": 342,
+        "left": 302
+      },
+      {
+        "text": "MD",
+        "right": 144,
+        "left": 106
+      },
+      {
+        "text": "配置",
+        "right": 342,
+        "left": 302
+      },
+      {
+        "text": "MD",
+        "right": 144,
+        "left": 106
+      },
+      {
+        "text": "配置",
+        "right": 342,
+        "left": 302
+      },
+      {
+        "text": "MD",
+        "right": 144,
+        "left": 106
+      },
+      {
+        "text": "编排",
+        "right": 246,
+        "left": 200
+      },
+      {
+        "text": "配置",
+        "right": 342,
+        "left": 302
+      },
+      {
+        "text": "MD",
+        "right": 144,
+        "left": 106
+      },
+      {
+        "text": "编排",
+        "right": 246,
+        "left": 200
+      },
+      {
+        "text": "配置",
+        "right": 342,
+        "left": 302
+      }
+    ],
+    "badZhTokens": [
+      "Compose"
+    ],
+    "lightPanels": [
+      {
+        "cls": "workflow-stepper",
+        "bg": "rgb(16, 24, 38)",
+        "color": "rgb(230, 237, 247)",
+        "w": 354,
+        "h": 463
+      },
+      {
+        "cls": "build-workbench-rail",
+        "bg": "rgb(16, 24, 38)",
+        "color": "rgb(230, 237, 247)",
+        "w": 354,
+        "h": 440
+      },
+      {
+        "cls": "build-plan-inspector",
+        "bg": "rgb(16, 24, 38)",
+        "color": "rgb(230, 237, 247)",
+        "w": 354,
+        "h": 154
+      },
+      {
+        "cls": "build-catalog-surface",
+        "bg": "rgb(16, 24, 38)",
+        "color": "rgb(230, 237, 247)",
+        "w": 354,
+        "h": 27042
+      }
+    ]
+  },
+  {
+    "theme": "dark",
+    "viewport": "mobile",
+    "route": "plans",
+    "screenshot": "E:\\1project\\EnvForge\\screenshots\\scheme-3-4-check2\\mobile-dark-plans.png",
+    "url": "/app/plans",
+    "innerWidth": 390,
+    "scrollWidth": 390,
+    "clientWidth": 390,
+    "nav": [
+      "总览资源状态、最近计划、待审队列、通知",
+      "迁移源主机、快照、分析与迁移候选",
+      "构建选择已认证能力，生成重建计划，进入审查和执行门禁",
+      "计划计划中心、配方、排程、漂移、外发通知、报告",
+      "报告迁移 / 重建 / 修复报告"
+    ],
+    "planTabs": [
+      "计划",
+      "执行记录",
+      "排程",
+      "漂移",
+      "外发通知",
+      "报告"
+    ],
+    "catalogButtons": [],
+    "badZhTokens": [],
+    "lightPanels": [
+      {
+        "cls": "settings-tabs plan-ops-tabs",
+        "bg": "rgb(26, 38, 56)",
+        "color": "rgb(230, 237, 247)",
+        "w": 354,
+        "h": 100
+      },
+      {
+        "cls": "playbook-page",
+        "bg": "rgba(0, 0, 0, 0)",
+        "color": "rgb(230, 237, 247)",
+        "w": 354,
+        "h": 513
+      },
+      {
+        "cls": "playbook-sidebar",
+        "bg": "rgb(26, 38, 56)",
+        "color": "rgb(230, 237, 247)",
+        "w": 354,
+        "h": 162
+      }
+    ]
+  },
+  {
+    "theme": "dark",
+    "viewport": "mobile",
+    "route": "reports",
+    "screenshot": "E:\\1project\\EnvForge\\screenshots\\scheme-3-4-check2\\mobile-dark-reports.png",
+    "url": "/app/reports",
+    "innerWidth": 390,
+    "scrollWidth": 390,
+    "clientWidth": 390,
+    "nav": [
+      "总览资源状态、最近计划、待审队列、通知",
+      "迁移源主机、快照、分析与迁移候选",
+      "构建选择已认证能力，生成重建计划，进入审查和执行门禁",
+      "计划计划中心、配方、排程、漂移、外发通知、报告",
+      "报告迁移 / 重建 / 修复报告"
+    ],
+    "planTabs": [],
+    "catalogButtons": [],
+    "badZhTokens": [],
+    "lightPanels": [
+      {
+        "cls": "report-command-strip",
+        "bg": "rgb(26, 38, 56)",
+        "color": "rgb(230, 237, 247)",
+        "w": 322,
+        "h": 189
+      },
+      {
+        "cls": "report-summary-card report-status-succeeded",
+        "bg": "rgba(16, 185, 129, 0.15)",
+        "color": "rgb(187, 247, 208)",
+        "w": 155,
+        "h": 84
+      },
+      {
+        "cls": "report-summary-card report-status-partially-succeeded",
+        "bg": "rgba(251, 191, 36, 0.14)",
+        "color": "rgb(253, 230, 138)",
+        "w": 155,
+        "h": 84
+      },
+      {
+        "cls": "report-summary-card report-status-failed",
+        "bg": "rgba(248, 113, 113, 0.15)",
+        "color": "rgb(254, 202, 202)",
+        "w": 155,
+        "h": 84
+      },
+      {
+        "cls": "report-summary-card report-status-rolled-back",
+        "bg": "rgba(251, 191, 36, 0.14)",
+        "color": "rgb(253, 230, 138)",
+        "w": 155,
+        "h": 84
+      },
+      {
+        "cls": "report-summary-card report-status-committed",
+        "bg": "rgba(16, 185, 129, 0.15)",
+        "color": "rgb(187, 247, 208)",
+        "w": 155,
+        "h": 84
+      },
+      {
+        "cls": "report-list-panel",
+        "bg": "rgb(16, 24, 38)",
+        "color": "rgb(230, 237, 247)",
+        "w": 322,
+        "h": 185
+      },
+      {
+        "cls": "report-reader-panel",
+        "bg": "rgb(16, 24, 38)",
+        "color": "rgb(230, 237, 247)",
+        "w": 322,
+        "h": 157
+      }
+    ]
+  }
+]

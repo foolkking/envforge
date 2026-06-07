@@ -1,0 +1,16 @@
+{
+  "id": "nocodb-dry-run",
+  "title": "NocoDB - metadata database dry run",
+  "destructive": false,
+  "planSource": { "kind": "capability-selection", "capabilityIds": ["nocodb"] },
+  "expected": {
+    "planType": "rebuild",
+    "items": [{ "id": "capability:nocodb", "capabilityKey": "app.nocodb", "supportLevel": "full-migration", "minActions": 3 }],
+    "conflictsBlock": 0,
+    "conflictsWarn": 0,
+    "remainingRisks": ["Metadata DB", "JWT secret"]
+  },
+  "approvalAcks": { "risksAck": "ALL", "approvalsAck": "ALL" },
+  "verify": { "actionRunStatuses": ["succeeded"], "auditChecks": ["NocoDB health", "metadata DB", "external base credentials"] },
+  "notes": ["NocoDB migration requires metadata backup and external connection review."]
+}

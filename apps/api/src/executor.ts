@@ -7,9 +7,11 @@ import fs from "node:fs/promises";
 import { createId, readRuntimeDatabase, updateRuntimeDatabase, type StoredConnection, type StoredUserProfile, type StoredTaskHistory } from "./runtime-store.js";
 import { decryptStoredFields } from "./connections.js";
 import { readUserKey } from "./key-store.js";
-import { executePlaybook, executeBatchPlaybooks, loadPlaybookFromCatalog, hasPlaybook, parsePlaybook, type BatchItemProgress, type BatchRunOptions } from "./engine/index.js";
+import { executePlaybook, loadPlaybookFromCatalog, hasPlaybook, parsePlaybook, type BatchRunOptions } from "./engine/index.js";
 import type { TaskExecutionLog } from "./engine/types.js";
 import { enqueueTask, cancelQueuedTask, getQueuePosition, isConnectionBusy } from "./task-queue.js";
+import { listCatalogFromDatabase } from "./database.js";
+import { buildRebuildPlan } from "./environment-plan.js";
 
 // ── 任务数据结构 ──────────────────────────────────────────
 
@@ -88,85 +90,25 @@ export async function executeBatchCatalogTask(
   taskId?: string,
   userVarsByCatalogId?: Record<string, Record<string, unknown>>
 ): Promise<ExecutionTask> {
-  if (!taskId) taskId = registerBatchTask(userId, connection.id, items, dryRun);
-  const task = taskStore.get(taskId)!;
+  const resolvedTaskId = taskId ?? registerBatchTask(userId, connection.id, items, dryRun);
 
-  // Enqueue (per-connection FIFO). If another task is already running on this
-  // connection, this one will sit as "queued" until its turn.
-  const positionAhead = enqueueTask({
-    taskId: task.id,
-    userId,
-    connectionId: connection.id,
-    enqueuedAt: new Date().toISOString(),
-    onStart: () => {
-      task.status = "running";
-      task.queuePosition = undefined;
-      task.startedAt = new Date().toISOString();
-      notifySubscribers(task.id, task);
-      void persistTaskToHistory(task);
-    },
-    run: async () => {
-      try {
-        await executeBatchPlaybooks(items, connection, {
-          dryRun,
-          isCancelled: () => cancelFlags.get(task.id) === true,
-          userVarsByCatalogId,
-          onItemProgress: (progress: BatchItemProgress) => {
-            if (!task.items) return;
-            const slot = task.items[progress.itemIndex];
-            if (slot) { slot.status = progress.status; slot.error = progress.error; }
-            notifySubscribers(task.id, task);
-          },
-          onTaskProgress: (itemIndex, log) => {
-            const existing = task.steps.find((s) => s.itemIndex === itemIndex && s.label === log.taskName);
-            if (existing) {
-              existing.status = mapStatus(log.status);
-              existing.stdout = log.result?.stdout || log.result?.msg || "";
-              existing.stderr = log.result?.stderr ?? "";
-              existing.durationMs = log.durationMs ?? 0;
-              existing.exitCode = log.result?.failed ? 1 : 0;
-            } else {
-              task.steps.push({
-                id: createId("step"),
-                label: log.taskName,
-                command: log.command || log.moduleName,
-                stdout: log.result?.stdout || log.result?.msg || "",
-                stderr: log.result?.stderr ?? "",
-                exitCode: log.result?.failed ? 1 : 0,
-                status: mapStatus(log.status),
-                durationMs: log.durationMs ?? 0,
-                itemIndex
-              });
-            }
-            notifySubscribers(task.id, task);
-          }
-        });
-
-        const failed = task.items?.filter((i) => i.status === "failed").length ?? 0;
-        task.status = cancelFlags.get(task.id) ? "cancelled" : failed > 0 ? "failed" : "succeeded";
-        if (failed > 0) task.error = `${failed} of ${task.items?.length ?? 0} items failed`;
-      } catch (err) {
-        task.status = "failed";
-        task.error = err instanceof Error ? err.message : "Unknown error";
-      } finally {
-        cancelFlags.delete(task.id);
-      }
-
-      task.completedAt = new Date().toISOString();
-      notifySubscribers(task.id, task);
-      void persistTaskToHistory(task);
-    }
-  });
-
-  if (positionAhead > 0) {
-    task.status = "queued";
-    task.queuePosition = positionAhead;
+  // Compatibility wrapper: catalog execution is no longer a direct "install"
+  // path. It first resolves selected capabilities into a Rebuild Plan, then
+  // applies that plan through the same playbook runner used by reviewed plans.
+  const catalogItems = await listCatalogFromDatabase();
+  const selected = items
+    .map((item) => catalogItems.find((catalogItem) => catalogItem.id === item.catalogId))
+    .filter((item): item is NonNullable<typeof item> => Boolean(item));
+  if (selected.length !== items.length) {
+    const task = taskStore.get(resolvedTaskId)!;
+    task.status = "failed";
+    task.error = "One or more catalog capabilities could not be resolved into a Rebuild Plan.";
     notifySubscribers(task.id, task);
+    void persistTaskToHistory(task);
+    return task;
   }
-
-  void persistTaskToHistory(task);
-
-  return task;
+  const plan = buildRebuildPlan(selected, connection.id);
+  return executePlaybookTask(userId, connection, plan.export?.yaml ?? "", dryRun, resolvedTaskId, userVarsByCatalogId);
 }
 
 export async function executeCatalogTask(

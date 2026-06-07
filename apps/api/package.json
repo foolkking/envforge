@@ -4,11 +4,12 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "clean": "node -e \"const fs=require('node:fs');for (const p of ['dist']) try { fs.rmSync(p, { recursive: true, force: true }); } catch {}\"",
     "build": "tsc -p tsconfig.json && node ../../scripts/copy-email-templates.mjs",
     "dev": "npm run build && node --watch dist/server.js",
     "start": "node dist/server.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "npm run build && node --test dist/engine/tests/*.test.js"
+    "test": "npm run clean && npm run build && node --test dist/engine/tests"
   },
   "dependencies": {
     "@fool/collectors": "0.1.0",

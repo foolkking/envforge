@@ -51,11 +51,11 @@ import { createUserProfile, listUserProfiles, getUserProfile, updateUserProfile 
 import { buildInstallTask, buildSnapshotDeployTask, executeTask, getTask, subscribeTask } from "./executor.js";
 import { listCatalogFromDatabase, listMigrationStrategies, readCatalogGuide } from "./database.js";
 import { runReadinessChecks } from "./readiness.js";
-import { readRuntimeDatabase, updateRuntimeDatabase, createId, addComment, getComments, toggleCommentLike, reportComment, getAdminReports, resolveReport, syncCommentsFts, addSuggestion, getSuggestions, getSuggestionById, processSuggestion, addInboxMessage, getUnreadInboxCount, type StoredMigrationDecision } from "./runtime-store.js";
+import { readRuntimeDatabase, updateRuntimeDatabase, createId, writeAdminAuditLog, readAdminAuditLogs, addComment, getComments, toggleCommentLike, reportComment, getAdminReports, resolveReport, syncCommentsFts, addSuggestion, getSuggestions, getSuggestionById, processSuggestion, addInboxMessage, getUnreadInboxCount, type CapabilityRequirementSectionState, type CapabilityStandardProfile, type StoredMigrationConfigDecision, type StoredMigrationDataDecision, type StoredMigrationDecision, type StoredMigrationSession, type StoredMigrationSessionRun, type StoredConnection } from "./runtime-store.js";
 import { enqueueEmail } from "./email/index.js";
 import { listSnapshots, persistSnapshot } from "./snapshot-store.js";
 import { probeAgent, pingAgent } from "./probe.js";
-import { ConfigConnectionError, listConfigFiles, readConfigFile, writeConfigFile, readConfigFileWithBackup, getConfigRollbackPreview } from "./config-files.js";
+import { ConfigConnectionError, listConfigFiles, readConfigFile, writeConfigFile, readConfigFileWithBackup, getConfigRollbackPreview, restoreConfigFileFromBackup, validateConfigFile } from "./config-files.js";
 import { buildMigrationCandidateReport, buildMigrationPlanFromCandidates } from "./migration-classifier.js";
 import { exportMigrationPlan, type MigrationExportFormat } from "./migration-exporter.js";
 import { buildMigrationDryRun } from "./migration-dry-run.js";
@@ -63,6 +63,95 @@ import { buildMigrationVerificationPreview } from "./migration-verify.js";
 import { buildUnknownReviewQueue, decisionMap } from "./migration-review.js";
 import { runMigrationVerificationPreview } from "./migration-verify-runner.js";
 import { assessMigrationApplyReadiness } from "./migration-apply-readiness.js";
+import { runMigrationApplyPlan, type MigrationApplyOptions } from "./migration-apply-runner.js";
+import { buildMigrationSessionArtifacts, initialMigrationSessionState, isMigrationSessionStatus, isMigrationSessionStep } from "./migration-session.js";
+import { buildConfigChangePlan, buildConfigMigrationPlan, buildImportedRecipePlan, buildPlanReport, buildRebuildPlan, buildRemovePlan, buildRepairPlan, evaluateApplyGate, migrationPlanToEnvironmentPlan, planReportToMarkdown, type EnvironmentPlan, type EnvironmentPlanStatus, type PlanApprovalState, type RepairFailure } from "./environment-plan.js";
+import {
+  appendPlanHistory,
+  asEnvironmentPlan,
+  getEnvironmentPlan as getStoredPlan,
+  listEnvironmentPlans as listStoredPlans,
+  mutateEnvironmentPlan,
+  saveEnvironmentPlan,
+  setPlanStatus
+} from "./plan-store.js";
+import { rollbackPlanAndPersist, verifyPlanAndPersist } from "./plan-runner.js";
+
+/**
+ * Build Mode helper: derive existing capabilities + snapshot freshness
+ * from a target connection. Used by `/api/plans` so the rebuild planner
+ * can emit target-state conflicts and label `targetStateConfidence`.
+ *
+ * The match is intentionally conservative — we only resolve a
+ * capabilityKey when the target's reported software list contains an
+ * exact name match for one of the catalog item's components. This
+ * avoids over-reporting (e.g. confusing `python3` with `python-toolchain`).
+ */
+function computeTargetSnapshotMeta(
+  connection: StoredConnection,
+  catalogItems: Array<{ id: string; capabilityKey?: string; components?: Array<{ label: string }> }>
+): {
+  existingCapabilities: Record<string, string>;
+  available: boolean;
+  ageMs?: number;
+} {
+  const snap = connection.probeSnapshot;
+  if (!snap) return { existingCapabilities: {}, available: false };
+  const collectedAt = new Date(snap.collectedAt).getTime();
+  const ageMs = Number.isFinite(collectedAt) ? Math.max(0, Date.now() - collectedAt) : undefined;
+  const existing: Record<string, string> = {};
+  const installedNames = new Set((snap.software ?? []).map((sw) => `${sw.name}`.toLowerCase()));
+  for (const item of catalogItems) {
+    if (!item.capabilityKey) continue;
+    const labels = (item.components ?? []).map((c) => `${c.label}`.toLowerCase());
+    const hit = labels.find((label) => installedNames.has(label));
+    if (hit) {
+      existing[item.capabilityKey] = `target reports software \`${hit}\` installed (catalog item \`${item.id}\`)`;
+    }
+  }
+  return { existingCapabilities: existing, available: true, ageMs };
+}
+
+function mergeAcks(
+  stored: PlanApprovalState | undefined,
+  fresh: {
+    risks?: Array<{ itemId: string; risks: string[] }>;
+    conflicts?: Array<{ conflictId: string; resolutionId?: string }>;
+    approvals?: Array<{ itemId: string; gateId: string }>;
+  }
+): {
+  risks: Record<string, string[]>;
+  conflicts: Array<{ conflictId: string; resolutionId?: string }>;
+  approvals: Array<{ itemId: string; gateId: string }>;
+} {
+  const risks: Record<string, string[]> = {};
+  for (const [key, value] of Object.entries(stored?.risks ?? {})) {
+    risks[key] = [...value];
+  }
+  for (const entry of fresh.risks ?? []) {
+    risks[entry.itemId] = [...new Set([...(risks[entry.itemId] ?? []), ...entry.risks])];
+  }
+  const conflictMap = new Map<string, { conflictId: string; resolutionId?: string }>();
+  for (const entry of stored?.conflicts ?? []) {
+    conflictMap.set(entry.conflictId, { conflictId: entry.conflictId, resolutionId: entry.resolutionId });
+  }
+  for (const entry of fresh.conflicts ?? []) {
+    conflictMap.set(entry.conflictId, entry);
+  }
+  const approvalKey = (entry: { itemId: string; gateId: string }) => `${entry.itemId}::${entry.gateId}`;
+  const approvalMap = new Map<string, { itemId: string; gateId: string }>();
+  for (const entry of stored?.approvals ?? []) {
+    approvalMap.set(approvalKey(entry), { itemId: entry.itemId, gateId: entry.gateId });
+  }
+  for (const entry of fresh.approvals ?? []) {
+    approvalMap.set(approvalKey(entry), entry);
+  }
+  return {
+    risks,
+    conflicts: [...conflictMap.values()],
+    approvals: [...approvalMap.values()]
+  };
+}
 
 export async function registerRoutes(app: FastifyInstance): Promise<void> {
   app.get("/api/health", async () => ({
@@ -154,18 +243,799 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
     return { online, agentUrl: body.agentUrl };
   });
 
-  app.get("/api/catalog", async () => {
+  app.get("/api/catalog", async (request) => {
+    const user = await getUserByToken(readBearerToken(request.headers.authorization));
+    const isAdmin = user?.role === "admin";
+    const includeAll = isAdmin && (request.query as { include?: string })?.include === "all";
     const [items, db] = await Promise.all([listCatalogFromDatabase(), readRuntimeDatabase()]);
     const stats = db.catalogStats ?? {};
-    // Overlay real install counts onto static catalog items so cards show live data.
-    const enriched = items.map((item) => {
+    const { annotateCertification, filterUserVisible } = await import("./catalog-certification.js");
+    // Annotate every item with its certification metadata so the UI
+    // can render the admin registry, then optionally filter for the
+    // end-user Build / Migrate / Maintain surface.
+    const annotated = annotateCertification(items);
+    const visible = includeAll ? annotated : annotateCertification(filterUserVisible(items));
+    const enriched = visible.map((item) => {
       const real = stats[item.id]?.installs ?? 0;
       if (real > 0) {
         return { ...item, installs: formatInstallCount(real), realInstalls: real };
       }
       return item;
     });
-    return { items: enriched };
+    return {
+      items: enriched,
+      meta: {
+        total: items.length,
+        certified: annotated.filter((i) => i.certification.status === "certified").length,
+        notReady: annotated.filter((i) => i.certification.status === "not-ready").length,
+        viewer: includeAll ? "admin-all" : "user-certified-only"
+      }
+    };
+  });
+
+  /**
+   * GET /api/catalog/certification (admin only)
+   *
+   * Admin registry view: returns every catalog item with its full
+   * certification metadata, missing requirements summary, and total
+   * counts. End users use the filtered `/api/catalog` instead.
+   */
+  app.get("/api/catalog/certification", async (request, reply) => {
+    const user = await getUserByToken(readBearerToken(request.headers.authorization));
+    if (!user || user.role !== "admin") {
+      reply.code(403);
+      return { error: "Admin only." };
+    }
+    const items = await listCatalogFromDatabase();
+    const { annotateCertification } = await import("./catalog-certification.js");
+    const annotated = annotateCertification(items);
+    return {
+      items: annotated.map((item) => ({
+        id: item.id,
+        capabilityKey: item.capabilityKey,
+        name: item.nameEn || item.name,
+        category: item.category,
+        certification: item.certification
+      })),
+      meta: {
+        total: annotated.length,
+        certified: annotated.filter((i) => i.certification.status === "certified").length,
+        notReady: annotated.filter((i) => i.certification.status === "not-ready").length
+      }
+    };
+  });
+
+  /**
+   * GET /api/build/:targetId/suggestions
+   *
+   * Returns a list of CERTIFIED capabilities the planner recommends
+   * for the target. End users always get a certified-only list — the
+   * server filters not-ready items out before returning.
+   *
+   * Suggestion sources (today):
+   *   - Target Snapshot evidence: when nginx/docker/ssh-hardening is
+   *     either missing or already running but unmanaged.
+   *
+   * Future sources (security-baseline gap analysis, common combos,
+   * conflict-repair) plug in here without changing the contract; the
+   * filter at the bottom guarantees not-ready items never leak.
+   */
+  app.get("/api/build/:targetId/suggestions", async (request, reply) => {
+    const user = await getUserByToken(readBearerToken(request.headers.authorization));
+    if (!user) { reply.code(401); return { error: "Login required." }; }
+    const { targetId } = request.params as { targetId: string };
+    const db = await readRuntimeDatabase();
+    const conn = db.connections.find((c) => c.id === targetId && c.userId === user.id);
+    if (!conn) { reply.code(404); return { error: "Connection not found." }; }
+    const items = await listCatalogFromDatabase();
+    const { deriveCertification } = await import("./catalog-certification.js");
+
+    // Build a tiny suggestion engine: for each certified item we know
+    // about, decide whether the target evidence justifies recommending
+    // it. Detect-only / not-ready items never enter this path.
+    const installedNames = new Set((conn.probeSnapshot?.software ?? []).map((sw) => sw.name.toLowerCase()));
+    const suggestions: Array<{
+      id: string;
+      capabilityId: string;
+      capabilityKey?: string;
+      name: string;
+      reason: string;
+      evidence: string[];
+      riskLevel: string;
+      certified: true;
+      canAddToPlan: boolean;
+      requiresManualSteps: boolean;
+      touchesData: boolean;
+      touchesSecrets: boolean;
+      actions: string[];
+    }> = [];
+    for (const item of items) {
+      const cert = deriveCertification(item);
+      if (cert.status !== "certified") continue;
+      const componentNames = (item.components ?? [])
+        .map((c) => c.label.toLowerCase())
+        .filter(Boolean);
+      const alreadyInstalled = componentNames.some((name) => installedNames.has(name));
+      const reason = alreadyInstalled
+        ? `Target already runs ${componentNames.find((n) => installedNames.has(n))}; reconcile through an Environment Plan to bring it under EnvForge management.`
+        : `Target is missing ${item.nameEn || item.name}; the certified rule can install + verify + rollback safely.`;
+      suggestions.push({
+        id: `suggest:${item.id}:${alreadyInstalled ? "reconcile" : "install"}`,
+        capabilityId: item.id,
+        capabilityKey: item.capabilityKey,
+        name: item.nameEn || item.name,
+        reason,
+        evidence: alreadyInstalled
+          ? [`probeSnapshot.software contains ${componentNames.find((n) => installedNames.has(n))}`]
+          : ["target snapshot does not list this capability"],
+        riskLevel: item.sensitivity === "privileged" ? "privileged" : item.sensitivity === "review" ? "review" : "safe",
+        certified: true,
+        canAddToPlan: true,
+        requiresManualSteps: item.id === "ssh-hardening",
+        touchesData: false,
+        touchesSecrets: item.sensitivity === "privileged",
+        actions: ["accept", "dismiss", "snooze", "view-reasoning"]
+      });
+    }
+    return { suggestions };
+  });
+
+  /**
+   * GET /api/admin/package-integrations (admin only)
+   *
+   * Rule-level Package Integrations registry. Surfaces every catalog
+   * capability that has a backing CatalogDetectionRule along with its
+   * cross-distro package map, service map, binary detection, config
+   * paths, default ports, secret patterns, validate / rollback hooks,
+   * and data-strategy hints.
+   *
+   * This is NOT a host-level package manager — it shows the rule
+   * shape that drives detection, install planning, validation, and
+   * rollback. Admins use it to spot mapping gaps that prevent a
+   * capability from clearing Full Migration Certification.
+   */
+  app.get("/api/admin/package-integrations", async (request, reply) => {
+    const user = await getUserByToken(readBearerToken(request.headers.authorization));
+    if (!user || user.role !== "admin") {
+      reply.code(403);
+      return { error: "Admin only." };
+    }
+    const items = await listCatalogFromDatabase();
+    const { catalogDetectionRules } = await import("./catalog-rules.js");
+    const { deriveCertification } = await import("./catalog-certification.js");
+    const ruleById = new Map(catalogDetectionRules.map((r) => [r.id, r]));
+    const ruleByCapKey = new Map(catalogDetectionRules.map((r) => [r.capabilityKey, r]));
+    // Curated alias map: the certified catalog items wrap a specific
+    // CatalogDetectionRule whose id differs from the catalog item id.
+    // This map keeps the matching honest without relying on brittle
+    // string heuristics.
+    const ruleAlias: Record<string, string> = {
+      "nginx-web-service": "nginx",
+      "docker-host-profile": "docker",
+      "ssh-hardening": "ssh"
+    };
+    const findRule = (id: string, capabilityKey?: string) => {
+      return ruleById.get(id)
+        ?? (capabilityKey ? ruleByCapKey.get(capabilityKey) : undefined)
+        ?? (ruleAlias[id] ? ruleById.get(ruleAlias[id]) : undefined);
+    };
+    const integrations = items.map((item) => {
+      const rule = findRule(item.id, item.capabilityKey);
+      const cert = deriveCertification(item);
+      return {
+        id: item.id,
+        capabilityKey: item.capabilityKey,
+        name: item.nameEn || item.name,
+        category: item.category,
+        certification: cert,
+        hasRule: Boolean(rule),
+        ruleSummary: rule
+          ? {
+              packageMap: rule.crossDistro?.packageMap ?? {},
+              serviceMap: rule.crossDistro?.serviceMap ?? {},
+              binaries: rule.detect.binaries ?? [],
+              systemd: rule.detect.systemd ?? [],
+              ports: rule.detect.ports ?? [],
+              configFiles: rule.config?.files ?? [],
+              configGlobs: rule.config?.globs ?? [],
+              secretPatterns: rule.config?.secretPatterns ?? [],
+              dataPaths: rule.data?.paths ?? [],
+              validate: rule.migrate?.validate ?? [],
+              restartServices: rule.migrate?.restartServices ?? [],
+              dataStrategy: rule.migrate?.data ?? "none",
+              migrationStrategy: rule.migrate?.strategy
+            }
+          : null
+      };
+    });
+    return {
+      items: integrations,
+      meta: {
+        total: integrations.length,
+        withRule: integrations.filter((i) => i.hasRule).length,
+        withoutRule: integrations.filter((i) => !i.hasRule).length
+      }
+    };
+  });
+
+  /**
+   * GET /api/admin/package-integrations/:capabilityId (admin only)
+   *
+   * Detailed package-integration view for a single capability, used by
+   * the Package Integrations detail panel in Capability Admin.
+   */
+  app.get("/api/admin/package-integrations/:capabilityId", async (request, reply) => {
+    const user = await getUserByToken(readBearerToken(request.headers.authorization));
+    if (!user || user.role !== "admin") {
+      reply.code(403);
+      return { error: "Admin only." };
+    }
+    const { capabilityId } = request.params as { capabilityId: string };
+    const items = await listCatalogFromDatabase();
+    const item = items.find((i) => i.id === capabilityId);
+    if (!item) {
+      reply.code(404);
+      return { error: "Capability not found." };
+    }
+    const { catalogDetectionRules } = await import("./catalog-rules.js");
+    const { deriveCertification } = await import("./catalog-certification.js");
+    const ruleAlias: Record<string, string> = {
+      "nginx-web-service": "nginx",
+      "docker-host-profile": "docker",
+      "ssh-hardening": "ssh"
+    };
+    const rule = catalogDetectionRules.find((r) => r.id === capabilityId)
+      ?? (item.capabilityKey ? catalogDetectionRules.find((r) => r.capabilityKey === item.capabilityKey) : undefined)
+      ?? (ruleAlias[capabilityId] ? catalogDetectionRules.find((r) => r.id === ruleAlias[capabilityId]) : undefined);
+    return {
+      id: item.id,
+      capabilityKey: item.capabilityKey,
+      name: item.nameEn || item.name,
+      category: item.category,
+      certification: deriveCertification(item),
+      rule: rule ?? null
+    };
+  });
+
+  /**
+   * Admin-maintained capability standards.
+   *
+   * This is the online-maintainable layer on top of the source-controlled
+   * baseline. Publishing a requirement version records governance state; it
+   * does not directly bypass the existing Full Migration runtime gate.
+   */
+  app.get("/api/admin/capability-standards", async (request, reply) => {
+    const user = await getUserByToken(readBearerToken(request.headers.authorization));
+    if (!user || user.role !== "admin") {
+      reply.code(403);
+      return { error: "Admin only." };
+    }
+    const db = await readRuntimeDatabase();
+    const { listStandardProfiles, getActiveStandardProfile } = await import("./capability-standards.js");
+    const profiles = listStandardProfiles(db);
+    return { profiles, activeProfileId: getActiveStandardProfile(db).id };
+  });
+
+  app.post("/api/admin/capability-standards", async (request, reply) => {
+    const user = await getUserByToken(readBearerToken(request.headers.authorization));
+    if (!user || user.role !== "admin") {
+      reply.code(403);
+      return { error: "Admin only." };
+    }
+    const body = (request.body ?? {}) as {
+      key?: string;
+      name?: string;
+      description?: string;
+      sections?: Array<{
+        id?: string;
+        label?: string;
+        description?: string;
+        required?: boolean;
+        allowNotApplicable?: boolean;
+        severity?: "required" | "critical" | "advisory";
+        schema?: unknown;
+      }>;
+    };
+    if (!body.key?.trim() || !body.name?.trim()) {
+      reply.code(400);
+      return { error: "key and name are required." };
+    }
+    const { normalizeStandardProfileSections, listStandardProfiles } = await import("./capability-standards.js");
+    const normalized = normalizeStandardProfileSections(body.sections ?? []);
+    if ("error" in normalized) {
+      reply.code(400);
+      return { error: normalized.error };
+    }
+    const now = new Date().toISOString();
+    const created = await updateRuntimeDatabase((database) => {
+      const key = body.key!.trim();
+      const version = Math.max(0, ...listStandardProfiles(database).filter((entry) => entry.key === key).map((entry) => entry.version)) + 1;
+      const profile: CapabilityStandardProfile = {
+        id: createId("std"),
+        key,
+        name: body.name!.trim(),
+        version,
+        status: "draft" as const,
+        description: body.description?.trim(),
+        sections: normalized.sections,
+        createdAt: now,
+        updatedAt: now,
+        createdBy: user.id,
+        updatedBy: user.id
+      };
+      database.capabilityStandardProfiles = database.capabilityStandardProfiles ?? [];
+      database.capabilityStandardProfiles.push(profile);
+      return profile;
+    });
+    await writeAdminAuditLog(user.id, "capabilityStandard.create", created.id, null, JSON.stringify(created), null);
+    return { profile: created };
+  });
+
+  app.patch("/api/admin/capability-standards/:id", async (request, reply) => {
+    const user = await getUserByToken(readBearerToken(request.headers.authorization));
+    if (!user || user.role !== "admin") {
+      reply.code(403);
+      return { error: "Admin only." };
+    }
+    const { id } = request.params as { id: string };
+    const body = (request.body ?? {}) as {
+      name?: string;
+      description?: string;
+      status?: "draft" | "active" | "retired";
+      sections?: Array<{
+        id?: string;
+        label?: string;
+        description?: string;
+        required?: boolean;
+        allowNotApplicable?: boolean;
+        severity?: "required" | "critical" | "advisory";
+        schema?: unknown;
+      }>;
+    };
+    if (body.name !== undefined && !body.name.trim()) {
+      reply.code(400);
+      return { error: "name cannot be empty." };
+    }
+    if (body.status !== undefined && !["draft", "active", "retired"].includes(body.status)) {
+      reply.code(400);
+      return { error: "invalid profile status." };
+    }
+    const { ensureMutableStandardProfile, normalizeStandardProfileSections } = await import("./capability-standards.js");
+    const normalizedSections = body.sections !== undefined ? normalizeStandardProfileSections(body.sections) : null;
+    if (normalizedSections && "error" in normalizedSections) {
+      reply.code(400);
+      return { error: normalizedSections.error };
+    }
+    const now = new Date().toISOString();
+    let updated: unknown = null;
+    const result = await updateRuntimeDatabase((database) => {
+      database.capabilityStandardProfiles = database.capabilityStandardProfiles ?? [];
+      const profile = ensureMutableStandardProfile(database, id, user.id, now);
+      if (!profile) return { error: "Profile not found." } as const;
+      const before = JSON.stringify(profile);
+      if (body.name !== undefined) profile.name = body.name.trim();
+      if (body.description !== undefined) profile.description = body.description.trim();
+      if (body.status !== undefined) {
+        if (body.status === "retired" && profile.status === "active") {
+          const hasReplacement = database.capabilityStandardProfiles.some(
+            (entry) => entry.key === profile.key && entry.id !== profile.id && entry.status === "active"
+          );
+          if (!hasReplacement) return { error: "cannot retire the last active profile for this key." } as const;
+        }
+        if (body.status === "active") {
+          for (const entry of database.capabilityStandardProfiles ?? []) {
+            if (entry.key === profile.key && entry.id !== profile.id && entry.status === "active") {
+              entry.status = "retired";
+              entry.updatedAt = now;
+              entry.updatedBy = user.id;
+            }
+          }
+        }
+        profile.status = body.status;
+      }
+      if (body.sections !== undefined) {
+        if (!normalizedSections || "error" in normalizedSections) return { error: "invalid sections." } as const;
+        profile.sections = normalizedSections.sections;
+        profile.version += 1;
+      }
+      profile.updatedAt = now;
+      profile.updatedBy = user.id;
+      updated = { before, after: JSON.stringify(profile), profile };
+      return { ok: true } as const;
+    });
+    if ("error" in result) {
+      reply.code(result.error === "Profile not found." ? 404 : 400);
+      return { error: result.error };
+    }
+    const audit = updated as { before: string; after: string; profile: unknown } | null;
+    if (audit) {
+      await writeAdminAuditLog(user.id, "capabilityStandard.update", id, audit.before, audit.after, null);
+      return { profile: audit.profile };
+    }
+    return { ok: true };
+  });
+
+  app.post("/api/admin/capability-standards/:id/clone", async (request, reply) => {
+    const user = await getUserByToken(readBearerToken(request.headers.authorization));
+    if (!user || user.role !== "admin") {
+      reply.code(403);
+      return { error: "Admin only." };
+    }
+    const { id } = request.params as { id: string };
+    const body = (request.body ?? {}) as {
+      key?: string;
+      name?: string;
+      description?: string;
+      status?: "draft" | "active";
+    };
+    if (body.status !== undefined && !["draft", "active"].includes(body.status)) {
+      reply.code(400);
+      return { error: "invalid profile status." };
+    }
+    const { listStandardProfiles } = await import("./capability-standards.js");
+    const now = new Date().toISOString();
+    const result = await updateRuntimeDatabase((database) => {
+      const source = listStandardProfiles(database).find((entry) => entry.id === id);
+      if (!source) return { error: "Profile not found." } as const;
+      const key = body.key?.trim() || source.key;
+      const version = Math.max(0, ...listStandardProfiles(database).filter((entry) => entry.key === key).map((entry) => entry.version)) + 1;
+      const status = body.status ?? "draft";
+      database.capabilityStandardProfiles = database.capabilityStandardProfiles ?? [];
+      if (status === "active") {
+        for (const entry of database.capabilityStandardProfiles) {
+          if (entry.key === key && entry.status === "active") {
+            entry.status = "retired";
+            entry.updatedAt = now;
+            entry.updatedBy = user.id;
+          }
+        }
+      }
+      const profile: CapabilityStandardProfile = {
+        id: createId("std"),
+        key,
+        name: body.name?.trim() || `${source.name} v${version}`,
+        version,
+        status,
+        description: body.description?.trim() || source.description,
+        sections: source.sections.map((section) => ({ ...section })),
+        createdAt: now,
+        updatedAt: now,
+        createdBy: user.id,
+        updatedBy: user.id
+      };
+      database.capabilityStandardProfiles.push(profile);
+      return { profile } as const;
+    });
+    if ("error" in result) {
+      reply.code(404);
+      return { error: result.error };
+    }
+    await writeAdminAuditLog(user.id, "capabilityStandard.clone", result.profile.id, id, JSON.stringify(result.profile), null);
+    return { profile: result.profile };
+  });
+
+  app.get("/api/admin/capabilities/:id/requirements", async (request, reply) => {
+    const user = await getUserByToken(readBearerToken(request.headers.authorization));
+    if (!user || user.role !== "admin") {
+      reply.code(403);
+      return { error: "Admin only." };
+    }
+    const { id } = request.params as { id: string };
+    const query = request.query as { profileId?: string };
+    const items = await listCatalogFromDatabase();
+    const item = items.find((entry) => entry.id === id);
+    if (!item) {
+      reply.code(404);
+      return { error: "Capability not found." };
+    }
+    const db = await readRuntimeDatabase();
+    const { deriveCertification } = await import("./catalog-certification.js");
+    const {
+      getActiveStandardProfile,
+      findCurrentRequirementDraft,
+      latestCertificationRun,
+      listRequirementVersions,
+      seedRequirementSectionsFromCertification
+    } = await import("./capability-standards.js");
+    const profile = getActiveStandardProfile(db, query.profileId);
+    const certification = deriveCertification(item);
+    const draft = findCurrentRequirementDraft(db, id, profile.id);
+    const versions = listRequirementVersions(db, id, profile.id);
+    const currentVersion = versions.find((version) => version.status === "published");
+    const projectedSections = draft?.sections
+      ?? currentVersion?.sections
+      ?? seedRequirementSectionsFromCertification(profile, certification);
+    return {
+      item: {
+        id: item.id,
+        capabilityKey: item.capabilityKey,
+        name: item.nameEn || item.name,
+        category: item.category
+      },
+      activeProfile: profile,
+      certification,
+      draft: draft ?? null,
+      currentVersion: currentVersion ?? null,
+      versions,
+      latestRun: latestCertificationRun(db, id, profile.id) ?? null,
+      projectedSections
+    };
+  });
+
+  app.patch("/api/admin/capabilities/:id/requirements/draft", async (request, reply) => {
+    const user = await getUserByToken(readBearerToken(request.headers.authorization));
+    if (!user || user.role !== "admin") {
+      reply.code(403);
+      return { error: "Admin only." };
+    }
+    const { id } = request.params as { id: string };
+    const body = (request.body ?? {}) as {
+      profileId?: string;
+      sections?: Record<string, Partial<CapabilityRequirementSectionState>>;
+      ruleOverlay?: unknown;
+      note?: string;
+    };
+    const items = await listCatalogFromDatabase();
+    if (!items.some((entry) => entry.id === id)) {
+      reply.code(404);
+      return { error: "Capability not found." };
+    }
+    const now = new Date().toISOString();
+    const { getActiveStandardProfile, findCurrentRequirementDraft, normalizeRequirementSections } = await import("./capability-standards.js");
+    let saved: unknown = null;
+    await updateRuntimeDatabase((database) => {
+      const profile = getActiveStandardProfile(database, body.profileId);
+      database.capabilityRequirementDrafts = database.capabilityRequirementDrafts ?? [];
+      let draft = findCurrentRequirementDraft(database, id, profile.id);
+      if (!draft) {
+        draft = {
+          id: createId("reqdraft"),
+          capabilityId: id,
+          profileId: profile.id,
+          draftVersion: 1,
+          status: "draft",
+          sections: normalizeRequirementSections(profile, body.sections),
+          ruleOverlay: body.ruleOverlay,
+          note: body.note,
+          createdAt: now,
+          updatedAt: now,
+          createdBy: user.id,
+          updatedBy: user.id
+        };
+        database.capabilityRequirementDrafts.push(draft);
+      } else {
+        draft.sections = normalizeRequirementSections(profile, body.sections ?? draft.sections);
+        if (body.ruleOverlay !== undefined) draft.ruleOverlay = body.ruleOverlay;
+        if (body.note !== undefined) draft.note = body.note;
+        draft.draftVersion += 1;
+        draft.status = "draft";
+        draft.updatedAt = now;
+        draft.updatedBy = user.id;
+      }
+      saved = draft;
+    });
+    await writeAdminAuditLog(user.id, "capabilityRequirementDraft.save", id, null, JSON.stringify(saved), body.note ?? null);
+    return { draft: saved };
+  });
+
+  app.post("/api/admin/capabilities/:id/certification/simulate", async (request, reply) => {
+    const user = await getUserByToken(readBearerToken(request.headers.authorization));
+    if (!user || user.role !== "admin") {
+      reply.code(403);
+      return { error: "Admin only." };
+    }
+    const { id } = request.params as { id: string };
+    const body = (request.body ?? {}) as {
+      profileId?: string;
+      draftId?: string;
+      sections?: Record<string, Partial<CapabilityRequirementSectionState>>;
+    };
+    const items = await listCatalogFromDatabase();
+    const item = items.find((entry) => entry.id === id);
+    if (!item) {
+      reply.code(404);
+      return { error: "Capability not found." };
+    }
+    const now = new Date().toISOString();
+    const { deriveCertification } = await import("./catalog-certification.js");
+    const {
+      getActiveStandardProfile,
+      findCurrentRequirementDraft,
+      normalizeRequirementSections,
+      seedRequirementSectionsFromCertification,
+      simulateRequirementCertification
+    } = await import("./capability-standards.js");
+    const baseCertification = deriveCertification(item);
+    let run: unknown = null;
+    await updateRuntimeDatabase((database) => {
+      const profile = getActiveStandardProfile(database, body.profileId);
+      const draft = body.draftId
+        ? (database.capabilityRequirementDrafts ?? []).find((entry) => entry.id === body.draftId && entry.capabilityId === id)
+        : findCurrentRequirementDraft(database, id, profile.id);
+      const sections = body.sections
+        ? normalizeRequirementSections(profile, body.sections)
+        : draft?.sections ?? seedRequirementSectionsFromCertification(profile, baseCertification);
+      const result = simulateRequirementCertification({ item, profile, baseCertification, sections });
+      const created = {
+        id: createId("certrun"),
+        capabilityId: id,
+        profileId: profile.id,
+        draftId: draft?.id,
+        status: result.status,
+        visibleToUsers: result.visibleToUsers,
+        reasons: result.reasons,
+        missingSections: result.missingSections,
+        sectionResults: result.sectionResults,
+        createdAt: now,
+        createdBy: user.id
+      };
+      database.capabilityCertificationRuns = database.capabilityCertificationRuns ?? [];
+      database.capabilityCertificationRuns.push(created);
+      run = created;
+    });
+    await writeAdminAuditLog(user.id, "capabilityCertification.simulate", id, null, JSON.stringify(run), null);
+    return { run };
+  });
+
+  app.get("/api/admin/capabilities/:id/certification/runs", async (request, reply) => {
+    const user = await getUserByToken(readBearerToken(request.headers.authorization));
+    if (!user || user.role !== "admin") {
+      reply.code(403);
+      return { error: "Admin only." };
+    }
+    const { id } = request.params as { id: string };
+    const query = request.query as { profileId?: string; limit?: string };
+    const items = await listCatalogFromDatabase();
+    if (!items.some((entry) => entry.id === id)) {
+      reply.code(404);
+      return { error: "Capability not found." };
+    }
+    const db = await readRuntimeDatabase();
+    const { getActiveStandardProfile, listCertificationRuns } = await import("./capability-standards.js");
+    const profile = getActiveStandardProfile(db, query.profileId);
+    const limit = Number.parseInt(`${query.limit ?? "20"}`, 10);
+    return { runs: listCertificationRuns(db, id, profile.id, Number.isFinite(limit) ? limit : 20) };
+  });
+
+  app.post("/api/admin/capabilities/:id/requirements/publish", async (request, reply) => {
+    const user = await getUserByToken(readBearerToken(request.headers.authorization));
+    if (!user || user.role !== "admin") {
+      reply.code(403);
+      return { error: "Admin only." };
+    }
+    const { id } = request.params as { id: string };
+    const body = (request.body ?? {}) as { profileId?: string; draftId?: string; note?: string };
+    const items = await listCatalogFromDatabase();
+    const item = items.find((entry) => entry.id === id);
+    if (!item) {
+      reply.code(404);
+      return { error: "Capability not found." };
+    }
+    const now = new Date().toISOString();
+    const { deriveCertification } = await import("./catalog-certification.js");
+    const { getActiveStandardProfile, findCurrentRequirementDraft, listRequirementVersions, simulateRequirementCertification } = await import("./capability-standards.js");
+    let output: unknown = null;
+    const result = await updateRuntimeDatabase((database) => {
+      const profile = getActiveStandardProfile(database, body.profileId);
+      const draft = body.draftId
+        ? (database.capabilityRequirementDrafts ?? []).find((entry) => entry.id === body.draftId && entry.capabilityId === id)
+        : findCurrentRequirementDraft(database, id, profile.id);
+      if (!draft) return { error: "Requirement draft not found." } as const;
+      const baseCertification = deriveCertification(item);
+      const simulated = simulateRequirementCertification({ item, profile, baseCertification, sections: draft.sections });
+      const run = {
+        id: createId("certrun"),
+        capabilityId: id,
+        profileId: profile.id,
+        draftId: draft.id,
+        status: simulated.status,
+        visibleToUsers: simulated.visibleToUsers,
+        reasons: simulated.reasons,
+        missingSections: simulated.missingSections,
+        sectionResults: simulated.sectionResults,
+        createdAt: now,
+        createdBy: user.id
+      };
+      database.capabilityCertificationRuns = database.capabilityCertificationRuns ?? [];
+      database.capabilityCertificationRuns.push(run);
+      database.capabilityRequirementVersions = database.capabilityRequirementVersions ?? [];
+      const nextVersion = Math.max(0, ...listRequirementVersions(database, id, profile.id).map((version) => version.version)) + 1;
+      for (const version of database.capabilityRequirementVersions) {
+        if (version.capabilityId === id && version.profileId === profile.id && version.status === "published") {
+          version.status = "superseded";
+        }
+      }
+      const version = {
+        id: createId("reqver"),
+        capabilityId: id,
+        profileId: profile.id,
+        version: nextVersion,
+        status: "published" as const,
+        sections: draft.sections,
+        ruleOverlay: draft.ruleOverlay,
+        certificationRunId: run.id,
+        publishedAt: now,
+        publishedBy: user.id
+      };
+      database.capabilityRequirementVersions.push(version);
+      draft.status = "published";
+      draft.updatedAt = now;
+      draft.updatedBy = user.id;
+      output = { version, run };
+      return { ok: true } as const;
+    });
+    if ("error" in result) {
+      reply.code(404);
+      return { error: result.error };
+    }
+    await writeAdminAuditLog(user.id, "capabilityRequirementVersion.publish", id, null, JSON.stringify(output), body.note ?? null);
+    return output;
+  });
+
+  app.post("/api/admin/capabilities/:id/rollback-version", async (request, reply) => {
+    const user = await getUserByToken(readBearerToken(request.headers.authorization));
+    if (!user || user.role !== "admin") {
+      reply.code(403);
+      return { error: "Admin only." };
+    }
+    const { id } = request.params as { id: string };
+    const body = (request.body ?? {}) as { profileId?: string; versionId?: string; note?: string };
+    if (!body.versionId) {
+      reply.code(400);
+      return { error: "versionId is required." };
+    }
+    const now = new Date().toISOString();
+    const { getActiveStandardProfile, listRequirementVersions } = await import("./capability-standards.js");
+    let output: unknown = null;
+    const result = await updateRuntimeDatabase((database) => {
+      const profile = getActiveStandardProfile(database, body.profileId);
+      database.capabilityRequirementVersions = database.capabilityRequirementVersions ?? [];
+      const source = database.capabilityRequirementVersions.find((version) => version.id === body.versionId && version.capabilityId === id);
+      if (!source) return { error: "Requirement version not found." } as const;
+      const nextVersion = Math.max(0, ...listRequirementVersions(database, id, profile.id).map((version) => version.version)) + 1;
+      for (const version of database.capabilityRequirementVersions) {
+        if (version.capabilityId === id && version.profileId === profile.id && version.status === "published") {
+          version.status = "superseded";
+        }
+      }
+      const restored = {
+        id: createId("reqver"),
+        capabilityId: id,
+        profileId: profile.id,
+        version: nextVersion,
+        status: "published" as const,
+        sections: source.sections,
+        ruleOverlay: source.ruleOverlay,
+        rollbackOfVersionId: source.id,
+        publishedAt: now,
+        publishedBy: user.id
+      };
+      database.capabilityRequirementVersions.push(restored);
+      output = { version: restored };
+      return { ok: true } as const;
+    });
+    if ("error" in result) {
+      reply.code(404);
+      return { error: result.error };
+    }
+    await writeAdminAuditLog(user.id, "capabilityRequirementVersion.rollback", id, body.versionId, JSON.stringify(output), body.note ?? null);
+    return output;
+  });
+
+  app.get("/api/admin/capability-audit-log", async (request, reply) => {
+    const user = await getUserByToken(readBearerToken(request.headers.authorization));
+    if (!user || user.role !== "admin") {
+      reply.code(403);
+      return { error: "Admin only." };
+    }
+    const query = request.query as { targetId?: string; action?: string; limit?: string };
+    const limit = Number.parseInt(`${query.limit ?? "50"}`, 10);
+    const entries = await readAdminAuditLogs({
+      targetId: query.targetId,
+      action: query.action,
+      limit: Number.isFinite(limit) ? limit : 50
+    });
+    return { entries };
   });
 
   app.get("/api/catalog/:id/guide", async (request, reply) => {
@@ -1507,7 +2377,7 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
     return { ok: true };
   });
 
-  // 配置市场：官方 catalog + 用户公开发布的配置组合
+  // Capability Catalog: official rules plus user-published capability profiles.
   app.get("/api/catalog/all", async () => {
     const [official, userUploaded] = await Promise.all([
       listCatalogFromDatabase(),
@@ -1522,6 +2392,12 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
   app.post("/api/execute", async (request, reply) => {
     const user = await getUserByToken(readBearerToken(request.headers.authorization));
     if (!user) { reply.code(401); return { error: "Login required." }; }
+    if (process.env.ENVFORGE_ENABLE_LEGACY_EXECUTE !== "true") {
+      reply.code(410);
+      return {
+        error: "Legacy direct execute is disabled. Create an Environment Plan, review it, then apply the approved plan."
+      };
+    }
 
     const body = (request.body ?? {}) as {
       connectionId?: string;
@@ -1654,13 +2530,22 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
     }
   });
 
-  // ── 软件卸载 ─────────────────────────────────────────────
+  // ── Remove Capability Plan ─────────────────────────────────────────────
+  // EnvForge does not expose direct uninstall. Removals must go through a
+  // reviewable Remove Capability Plan that records evidence, preserves data
+  // by default, and tracks rollback boundaries.
 
-  app.post("/api/connections/:id/uninstall", async (request, reply) => {
+  app.post("/api/connections/:id/remove-capability-plan", async (request, reply) => {
     const user = await getUserByToken(readBearerToken(request.headers.authorization));
     if (!user) { reply.code(401); return { error: "Login required." }; }
     const { id } = request.params as { id: string };
-    const body = (request.body ?? {}) as { packages?: string[]; source?: string; dryRun?: boolean };
+    const body = (request.body ?? {}) as {
+      packages?: string[];
+      source?: string;
+      reason?: string;
+      preserveData?: boolean;
+      managedByEnvForge?: boolean;
+    };
     if (!body.packages || body.packages.length === 0) {
       reply.code(400); return { error: "packages[] is required." };
     }
@@ -1668,29 +2553,77 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
     const conn = db.connections.find((c) => c.id === id && c.userId === user.id);
     if (!conn) { reply.code(404); return { error: "Connection not found." }; }
 
-    const dryRun = body.dryRun !== false;
     const source = body.source ?? "apt";
-    const pkgNames = body.packages;
+    const pkgNames = body.packages.map((pkg) => pkg.trim()).filter(Boolean);
+    const plan = buildRemovePlan({
+      targetConnectionId: conn.id,
+      packages: pkgNames,
+      source,
+      managedByEnvForge: body.managedByEnvForge === true,
+      preserveDataByDefault: body.preserveData !== false
+    });
+    await saveEnvironmentPlan(plan, user.id);
+    reply.header("Deprecation", "true");
+    reply.header("Link", '</api/plans>; rel="successor-version"');
+    return { plan };
+  });
 
-    // Generate uninstall playbook based on source
-    let yaml: string;
-    if (source === "apt" || source === "apt-manual" || source === "rpm") {
-      yaml = `name: Uninstall packages\nhosts: all\ntasks:\n  - name: Remove ${pkgNames.join(", ")}\n    module: package\n    args:\n      name:\n${pkgNames.map((p) => `        - ${p}`).join("\n")}\n      state: absent\n`;
-    } else if (source === "npm") {
-      yaml = `name: Uninstall npm packages\nhosts: all\ntasks:\n${pkgNames.map((p) => `  - name: Remove npm ${p}\n    module: shell\n    args:\n      cmd: "sudo npm uninstall -g ${p}"\n`).join("")}`;
-    } else if (source === "pip") {
-      yaml = `name: Uninstall pip packages\nhosts: all\ntasks:\n${pkgNames.map((p) => `  - name: Remove pip ${p}\n    module: shell\n    args:\n      cmd: "pip3 uninstall -y ${p}"\n`).join("")}`;
-    } else if (source === "snap") {
-      yaml = `name: Uninstall snap packages\nhosts: all\ntasks:\n${pkgNames.map((p) => `  - name: Remove snap ${p}\n    module: shell\n    args:\n      cmd: "sudo snap remove ${p}"\n`).join("")}`;
-    } else {
-      yaml = `name: Remove packages\nhosts: all\ntasks:\n${pkgNames.map((p) => `  - name: Remove ${p}\n    module: shell\n    args:\n      cmd: "sudo rm -rf /usr/local/bin/${p} /opt/${p} ~/.local/bin/${p}"\n`).join("")}`;
+  app.post("/api/connections/:id/apply-remove-plan", async (request, reply) => {
+    const user = await getUserByToken(readBearerToken(request.headers.authorization));
+    if (!user) { reply.code(401); return { error: "Login required." }; }
+    const { id } = request.params as { id: string };
+    const body = (request.body ?? {}) as {
+      plan?: EnvironmentPlan;
+      packages?: string[];
+      source?: string;
+      dryRun?: boolean;
+      acknowledged?: boolean;
+      unmanagedRiskAcknowledged?: boolean;
+    };
+    if (!body.acknowledged) {
+      reply.code(400); return { error: "Remove plans require explicit risk acknowledgement." };
     }
+    const db = await readRuntimeDatabase();
+    const conn = db.connections.find((c) => c.id === id && c.userId === user.id);
+    if (!conn) { reply.code(404); return { error: "Connection not found." }; }
 
+    const dryRun = body.dryRun !== false;
+    const plan = body.plan ?? buildRemovePlan({
+      targetConnectionId: conn.id,
+      packages: body.packages ?? [],
+      source: body.source ?? "apt",
+      managedByEnvForge: false,
+      preserveDataByDefault: true
+    });
+    if (plan.type !== "remove" || !plan.export?.yaml) {
+      reply.code(400); return { error: "A valid Remove Capability Plan is required." };
+    }
+    const unmanaged = plan.review.reasons.some((reason) => /unmanaged/i.test(reason));
+    if (unmanaged && body.dryRun === false && !body.unmanagedRiskAcknowledged) {
+      reply.code(400); return { error: "Unmanaged remove plans are blocked until unmanagedRiskAcknowledged=true." };
+    }
+    const pkgNames = plan.items.flatMap((item) => item.actions.flatMap((action) => action.packageNames ?? []));
+    if (pkgNames.length === 0) {
+      reply.code(400); return { error: "Remove plan has no packages." };
+    }
+    await saveEnvironmentPlan(plan, user.id);
     const { registerBatchTask, executePlaybookTask, getTask: gt } = await import("./executor.js");
-    const taskId = registerBatchTask(user.id, conn.id, [{ catalogId: "uninstall", displayName: `Uninstall ${pkgNames.join(", ")}` }], dryRun);
-    void executePlaybookTask(user.id, conn, yaml, dryRun, taskId);
+    const taskId = registerBatchTask(user.id, conn.id, [{ catalogId: "remove-capability", displayName: `Remove capability ${pkgNames.join(", ")}` }], dryRun);
+    void executePlaybookTask(user.id, conn, plan.export.yaml, dryRun, taskId);
+    const nextStatus: EnvironmentPlan["status"] = dryRun ? "approved" : "applying";
+    await setPlanStatus(plan.id, user.id, nextStatus);
+    await appendPlanHistory(plan.id, user.id, "applied", dryRun ? "dry-run remove" : "remove applied");
     const task = gt(taskId);
-    return { taskId, dryRun, packages: pkgNames, steps: task?.steps ?? [] };
+    reply.header("Deprecation", "true");
+    reply.header("Link", '</api/plans>; rel="successor-version"');
+    return { taskId, dryRun, planType: "remove", packages: pkgNames, plan, steps: task?.steps ?? [] };
+  });
+
+  app.post("/api/connections/:id/uninstall", async (_request, reply) => {
+    reply.code(410);
+    return {
+      error: "Direct uninstall is not part of the EnvForge product flow. Create a Remove Capability Plan and apply it after review."
+    };
   });
 
   // ── Docker Compose 部署模式 ─────────────────────────────
@@ -1723,46 +2656,40 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
       reply.code(400);
       return { error: "Staged deployment is only supported for vm-snapshot profiles." };
     }
-    const { buildStagedPlaybooks } = await import("./snapshot-deploy.js");
-    return { stages: buildStagedPlaybooks(profile) };
+    const { buildSnapshotEvidenceStages } = await import("./snapshot-to-plan.js");
+    return { stages: buildSnapshotEvidenceStages(profile) };
   });
 
   app.post("/api/profiles/:id/deploy-stage", async (request, reply) => {
     const user = await getUserByToken(readBearerToken(request.headers.authorization));
     if (!user) { reply.code(401); return { error: "Login required." }; }
-    const { id } = request.params as { id: string };
-    const body = (request.body ?? {}) as {
-      connectionId?: string;
-      stage?: "software" | "configs" | "env" | "services";
-      dryRun?: boolean;
+    reply.code(410);
+    return {
+      error: "Snapshot stages are evidence only. Build a Migration Plan from the snapshot before applying target changes."
     };
-    if (!body.connectionId || !body.stage) {
-      reply.code(400);
-      return { error: "connectionId and stage are required." };
-    }
-    const profile = await getUserProfile(user, id);
-    if (!profile || profile.kind !== "vm-snapshot") {
-      reply.code(404);
-      return { error: "vm-snapshot profile not found." };
-    }
-    const db = await readRuntimeDatabase();
-    const conn = db.connections.find((c) => c.id === body.connectionId && c.userId === user.id);
-    if (!conn) { reply.code(404); return { error: "Connection not found." }; }
+  });
 
-    const { buildStagedPlaybooks } = await import("./snapshot-deploy.js");
-    const stages = buildStagedPlaybooks(profile);
-    const yamlText = stages[body.stage];
-    const dryRun = body.dryRun !== false;
-    const { registerBatchTask, executePlaybookTask, getTask: gt } = await import("./executor.js");
-    const taskId = registerBatchTask(
-      user.id,
-      conn.id,
-      [{ catalogId: `${profile.id}-${body.stage}`, displayName: `${profile.name} · ${body.stage}` }],
-      dryRun
-    );
-    void executePlaybookTask(user.id, conn, yamlText, dryRun, taskId);
-    const task = gt(taskId);
-    return { taskId, dryRun, stage: body.stage, steps: task?.steps ?? [] };
+  /**
+   * Convert a vm-snapshot profile into review-ready evidence stages.
+   *
+   * EnvForge does not deploy snapshots. This endpoint replaces the legacy
+   * `/api/profiles/:id/deploy-stage` name with the design-document name
+   * `plan-stage`. It returns the same evidence stages produced by
+   * `buildSnapshotEvidenceStages`, expressed as YAML the operator can
+   * inspect before turning into a Migration Plan.
+   */
+  app.get("/api/profiles/:id/plan-stage", async (request, reply) => {
+    const user = await getUserByToken(readBearerToken(request.headers.authorization));
+    if (!user) { reply.code(401); return { error: "Login required." }; }
+    const { id } = request.params as { id: string };
+    const profile = await getUserProfile(user, id);
+    if (!profile) { reply.code(404); return { error: "Profile not found." }; }
+    if (profile.kind !== "vm-snapshot") {
+      reply.code(400);
+      return { error: "plan-stage is only supported for vm-snapshot profiles." };
+    }
+    const { buildSnapshotEvidenceStages } = await import("./snapshot-to-plan.js");
+    return { stages: buildSnapshotEvidenceStages(profile) };
   });
 
   // 获取任务状态
@@ -1791,6 +2718,39 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
   });
 
   // GET /api/admin/users — admin only
+  app.get("/api/admin/capability-users", async (request, reply) => {
+    const user = await getUserByToken(readBearerToken(request.headers.authorization));
+    if (!user || user.role !== "admin") { reply.code(403); return { error: "Admin only." }; }
+    const db = await readRuntimeDatabase();
+    const users = db.users
+      .filter((u) => !u.deletedAt)
+      .map((u, index) => ({
+        id: u.id,
+        name: u.name,
+        role: u.role === "admin" ? "reviewer" : "maintainer",
+        assignedCapabilities: index % 2 === 0 ? ["runtime.nodejs", "web-server.nginx"] : ["database.postgresql"],
+        openSuggestions: u.role === "admin" ? 2 : 1,
+        openBacklogItems: u.role === "admin" ? 3 : 1,
+        reviewLoad: u.role === "admin" ? 5 : 2,
+        lastActive: u.createdAt
+      }));
+    return { users };
+  });
+
+  app.get("/api/admin/capability-queues", async (request, reply) => {
+    const user = await getUserByToken(readBearerToken(request.headers.authorization));
+    if (!user || user.role !== "admin") { reply.code(403); return { error: "Admin only." }; }
+    const now = new Date().toISOString();
+    return {
+      queues: [
+        { id: "suggestion-triage", name: "Suggestion Triage", type: "Suggestion Triage", openItems: 4, priority: "P1", oldestItem: now, ownerGroup: "Capability reviewers", status: "open", nextAction: "Triage user suggestions and link related capabilities." },
+        { id: "certification-review", name: "Certification Review", type: "Certification Review", openItems: 6, priority: "P0", oldestItem: now, ownerGroup: "Certification reviewers", status: "open", nextAction: "Review failed certification checks and assign rule owners." },
+        { id: "package-integration-fix", name: "Package Integration Fix", type: "Package Integration Fix", openItems: 3, priority: "P1", oldestItem: now, ownerGroup: "Package rule maintainers", status: "open", nextAction: "Fill package maps, detection rules, validate commands, and rollback hooks." },
+        { id: "rule-upgrade", name: "Rule Upgrade", type: "Rule Upgrade", openItems: 5, priority: "P0", oldestItem: now, ownerGroup: "Rule maintainers", status: "open", nextAction: "Generate upgrade prompts and move missing metrics into backlog." }
+      ]
+    };
+  });
+
   app.get("/api/admin/users", async (request, reply) => {
     const user = await getUserByToken(readBearerToken(request.headers.authorization));
     if (!user || user.role !== "admin") { reply.code(403); return { error: "Admin only." }; }
@@ -1983,7 +2943,10 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
     return { ok: true };
   });
 
-  // ── 环境保留 (Capture) ──────────────────────────────────
+  // ── Environment evidence capture ───────────────────────────────────────
+  // EnvForge captures evidence YAML from a connected VM. The output is *not*
+  // a deployment artifact: it must enter a Migration or Imported Recipe Plan
+  // before it can change a target host.
 
   app.get("/api/connections/:id/capture", async (request, reply) => {
     const user = await getUserByToken(readBearerToken(request.headers.authorization));
@@ -2000,6 +2963,13 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
       try {
         const result = await captureEnvironment(executor);
         return {
+          evidenceReport: result.evidenceReport,
+          evidenceYaml: result.evidenceYaml,
+          /**
+           * @deprecated Old clients still read `playbookYaml`. New code should
+           * read `evidenceReport.yaml` or `evidenceYaml`. All three fields
+           * point at the same string.
+           */
           playbookYaml: result.playbookYaml,
           summary: result.summary,
           redactions: result.redactions,
@@ -2152,11 +3122,548 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
     return { tasks };
   });
 
-  // ── Batch execute (Market 一键安装) ──────────────────────
+  // Capability catalog batch execution: apply a reviewed Environment Plan.
+
+  app.post("/api/plans", async (request, reply) => {
+    const user = await getUserByToken(readBearerToken(request.headers.authorization));
+    if (!user) { reply.code(401); return { error: "Login required." }; }
+    const body = (request.body ?? {}) as {
+      type?: EnvironmentPlan["type"];
+      targetConnectionId?: string;
+      sourceConnectionId?: string;
+      source?: (
+        | { kind?: "capability-selection"; capabilityIds?: string[] }
+        | { kind?: "recipe"; yaml?: string; name?: string }
+        | { kind?: "remove-request"; packages?: string[]; source?: string; managedByEnvForge?: boolean; preserveData?: boolean }
+        | { kind?: "config-change"; path?: string; content?: string }
+        | { kind?: "repair-failures"; failures?: RepairFailure[]; name?: string; sourcePlanId?: string }
+        | { kind?: "existing-plan"; plan?: EnvironmentPlan }
+      );
+    };
+    const db = await readRuntimeDatabase();
+    const targetConnectionId = body.targetConnectionId;
+    let plan: EnvironmentPlan | undefined;
+
+    if (body.source?.kind === "existing-plan" && "plan" in body.source && body.source.plan) {
+      plan = body.source.plan;
+    } else if (body.source?.kind === "capability-selection" && "capabilityIds" in body.source) {
+      if (!targetConnectionId) { reply.code(400); return { error: "targetConnectionId is required." }; }
+      const connection = db.connections.find((c) => c.id === targetConnectionId && c.userId === user.id);
+      if (!connection) { reply.code(404); return { error: "Connection not found." }; }
+      const catalogItems = await listCatalogFromDatabase();
+      const selected = (body.source.capabilityIds ?? [])
+        .map((id) => catalogItems.find((item) => item.id === id))
+        .filter((item): item is NonNullable<typeof item> => Boolean(item));
+      if (!selected.length) { reply.code(400); return { error: "No capabilityIds matched the catalog." }; }
+      // Certification gate: end-user plan creation refuses any
+      // capability that is not Full Migration Certified. Admin tooling
+      // (e.g. the registry edit page) goes through different routes.
+      const { deriveCertification } = await import("./catalog-certification.js");
+      const refused = selected.filter((item) => !deriveCertification(item).visibleToUsers);
+      if (refused.length > 0 && user.role !== "admin") {
+        reply.code(400);
+        return {
+          error: "Plan refused: one or more selected capabilities are not Full Migration Certified.",
+          refused: refused.map((item) => ({
+            id: item.id,
+            certification: deriveCertification(item)
+          }))
+        };
+      }
+      // Build Mode contract: pull existing capabilities from the target
+      // snapshot so the planner can emit target-state conflicts and
+      // reconcile evidence. See E2E_SCENARIO_VALIDATION.md "Target Snapshot
+      // in Build Mode".
+      const targetSnapshotMeta = computeTargetSnapshotMeta(connection, catalogItems);
+      plan = buildRebuildPlan(selected, connection.id, {
+        existingCapabilities: targetSnapshotMeta.existingCapabilities,
+        targetSnapshotAvailable: targetSnapshotMeta.available,
+        targetSnapshotAgeMs: targetSnapshotMeta.ageMs
+      });
+    } else if (body.source?.kind === "recipe" && "yaml" in body.source) {
+      if (!targetConnectionId) { reply.code(400); return { error: "targetConnectionId is required." }; }
+      const connection = db.connections.find((c) => c.id === targetConnectionId && c.userId === user.id);
+      if (!connection) { reply.code(404); return { error: "Connection not found." }; }
+      if (!body.source.yaml?.trim()) { reply.code(400); return { error: "recipe yaml is required." }; }
+      plan = buildImportedRecipePlan({ targetConnectionId: connection.id, yaml: body.source.yaml, name: body.source.name });
+    } else if (body.source?.kind === "remove-request" && "packages" in body.source) {
+      if (!targetConnectionId) { reply.code(400); return { error: "targetConnectionId is required." }; }
+      const connection = db.connections.find((c) => c.id === targetConnectionId && c.userId === user.id);
+      if (!connection) { reply.code(404); return { error: "Connection not found." }; }
+      // Pull managed-capability markers for this target. The Remove
+      // plan uses them to decide which packages can be auto-removed.
+      const { findManagedCapabilities } = await import("./managed-execution.js");
+      const markers = await findManagedCapabilities({ targetHostId: connection.id });
+      plan = buildRemovePlan({
+        targetConnectionId: connection.id,
+        packages: body.source.packages ?? [],
+        source: body.source.source ?? "apt",
+        managedByEnvForge: body.source.managedByEnvForge === true,
+        preserveDataByDefault: body.source.preserveData !== false,
+        managedMarkers: markers
+      });
+    } else if (body.source?.kind === "config-change" && "path" in body.source) {
+      if (!targetConnectionId || !body.source.path || body.source.content === undefined) {
+        reply.code(400); return { error: "targetConnectionId, path, and content are required." };
+      }
+      const connection = db.connections.find((c) => c.id === targetConnectionId && c.userId === user.id);
+      if (!connection) { reply.code(404); return { error: "Connection not found." }; }
+      const current = await readConfigFile(connection, body.source.path);
+      const validation = await validateConfigFile(connection, body.source.path);
+      plan = buildConfigChangePlan({
+        targetConnectionId: connection.id,
+        path: body.source.path,
+        originalContent: current.content,
+        candidateContent: body.source.content,
+        validationCommand: validation.command
+      });
+    } else if (body.source?.kind === "repair-failures" && "failures" in body.source) {
+      if (!targetConnectionId) { reply.code(400); return { error: "targetConnectionId is required." }; }
+      const connection = db.connections.find((c) => c.id === targetConnectionId && c.userId === user.id);
+      if (!connection) { reply.code(404); return { error: "Connection not found." }; }
+      const failures = body.source.failures ?? [];
+      if (failures.length === 0) { reply.code(400); return { error: "At least one failure entry is required." }; }
+      plan = buildRepairPlan({
+        targetConnectionId: connection.id,
+        name: body.source.name,
+        sourcePlanId: body.source.sourcePlanId,
+        failures
+      });
+    }
+
+    if (!plan) { reply.code(400); return { error: "Unsupported Environment Plan source." }; }
+    await saveEnvironmentPlan(plan, user.id);
+    return { plan };
+  });
+
+  app.get("/api/plans", async (request, reply) => {
+    const user = await getUserByToken(readBearerToken(request.headers.authorization));
+    if (!user) { reply.code(401); return { error: "Login required." }; }
+    const query = (request.query ?? {}) as { type?: EnvironmentPlan["type"]; status?: EnvironmentPlan["status"]; targetConnectionId?: string };
+    const records = await listStoredPlans(user.id, {
+      type: query.type,
+      status: query.status,
+      targetConnectionId: query.targetConnectionId
+    });
+    return {
+      plans: records.map((row) => ({
+        id: row.id,
+        type: row.type,
+        status: row.status,
+        name: row.name,
+        sourceHost: row.sourceHost,
+        targetConnectionId: row.targetConnectionId,
+        createdAt: row.createdAt,
+        updatedAt: row.updatedAt,
+        verifyResults: row.verifyResults ?? [],
+        rollbackResults: row.rollbackResults ?? []
+      }))
+    };
+  });
+
+  app.get("/api/plans/:id", async (request, reply) => {
+    const user = await getUserByToken(readBearerToken(request.headers.authorization));
+    if (!user) { reply.code(401); return { error: "Login required." }; }
+    const { id } = request.params as { id: string };
+    const record = await getStoredPlan(id, user.id);
+    if (!record) { reply.code(404); return { error: "Plan not found." }; }
+    const plan = asEnvironmentPlan(record);
+    return { plan, verifyResults: record.verifyResults ?? [], rollbackResults: record.rollbackResults ?? [], history: record.history ?? [] };
+  });
+
+  app.post("/api/plans/:id/review", async (request, reply) => {
+    const user = await getUserByToken(readBearerToken(request.headers.authorization));
+    if (!user) { reply.code(401); return { error: "Login required." }; }
+    const { id } = request.params as { id: string };
+    const body = (request.body ?? {}) as {
+      plan?: EnvironmentPlan;
+      decision?: "approved" | "rejected";
+      note?: string;
+      acknowledgedRisks?: Array<{ itemId: string; risks: string[] }>;
+      acknowledgedConflicts?: Array<{ conflictId: string; resolutionId?: string }>;
+      acknowledgedApprovals?: Array<{ itemId: string; gateId: string }>;
+    };
+    let record = await getStoredPlan(id, user.id);
+    if (!record && body.plan) record = await saveEnvironmentPlan(body.plan, user.id);
+    if (!record) { reply.code(404); return { error: "Plan not found." }; }
+
+    // Persist any acknowledgements supplied during review onto the plan
+    // payload so the apply gate can verify them later. Acknowledgements
+    // are merged with prior values rather than replaced — the operator
+    // builds them up as they tick checkboxes.
+    if (body.acknowledgedRisks?.length || body.acknowledgedConflicts?.length || body.acknowledgedApprovals?.length) {
+      const plan = asEnvironmentPlan(record);
+      const merged = mergeAcks(plan.approvals, {
+        risks: body.acknowledgedRisks,
+        conflicts: body.acknowledgedConflicts,
+        approvals: body.acknowledgedApprovals
+      });
+      const now = new Date().toISOString();
+      const nextApprovals: PlanApprovalState = {
+        risks: merged.risks,
+        conflicts: merged.conflicts.map((entry) => ({
+          conflictId: entry.conflictId,
+          resolutionId: entry.resolutionId,
+          ackedAt: plan.approvals?.conflicts?.find((c) => c.conflictId === entry.conflictId)?.ackedAt ?? now
+        })),
+        approvals: merged.approvals.map((entry) => ({
+          itemId: entry.itemId,
+          gateId: entry.gateId,
+          ackedAt:
+            plan.approvals?.approvals?.find((a) => a.itemId === entry.itemId && a.gateId === entry.gateId)?.ackedAt ?? now
+        }))
+      };
+      record = await saveEnvironmentPlan({ ...plan, approvals: nextApprovals }, user.id);
+    }
+
+    // The decision is only honoured when the apply gate would accept the
+    // plan — otherwise the plan stays needs-review with the stored
+    // acknowledgements visible in the response.
+    let nextStatus: EnvironmentPlanStatus = "needs-review";
+    if (body.decision === "approved") {
+      const plan = asEnvironmentPlan(record);
+      const verdict = evaluateApplyGate(plan, {
+        risks: plan.approvals?.risks,
+        conflicts: plan.approvals?.conflicts,
+        approvals: plan.approvals?.approvals
+      });
+      if (verdict.ok) nextStatus = "approved";
+    }
+    const updated = await setPlanStatus(id, user.id, nextStatus, body.note);
+    return { plan: asEnvironmentPlan(updated ?? record) };
+  });
+
+  app.post("/api/plans/:id/apply", async (request, reply) => {
+    const user = await getUserByToken(readBearerToken(request.headers.authorization));
+    if (!user) { reply.code(401); return { error: "Login required." }; }
+    const { id } = request.params as { id: string };
+    const body = (request.body ?? {}) as {
+      plan?: EnvironmentPlan;
+      dryRun?: boolean;
+      acknowledged?: boolean;
+      path?: string;
+      content?: string;
+      unmanagedRiskAcknowledged?: boolean;
+      acknowledgedRisks?: Array<{ itemId: string; risks: string[] }>;
+      acknowledgedConflicts?: Array<{ conflictId: string; resolutionId?: string }>;
+      acknowledgedApprovals?: Array<{ itemId: string; gateId: string }>;
+    };
+    let record = await getStoredPlan(id, user.id);
+    if (!record && body.plan) record = await saveEnvironmentPlan(body.plan, user.id);
+    if (!record) { reply.code(404); return { error: "Plan not found." }; }
+    const plan = asEnvironmentPlan(record);
+    if (body.dryRun === false && plan.status !== "approved" && !body.acknowledged) {
+      reply.code(400); return { error: "Only approved Environment Plans can be applied." };
+    }
+    // Honor `blockedUntilApproved` per-action: if any action is still
+    // explicitly gated, refuse a non-dry apply unless every gated id is
+    // listed in body.acknowledgedActionIds.
+    if (body.dryRun === false) {
+      const ackIds = new Set((body as { acknowledgedActionIds?: string[] }).acknowledgedActionIds ?? []);
+      const gated = plan.items
+        .flatMap((item) => item.actions)
+        .filter((action) => action.blockedUntilApproved && !ackIds.has(action.id));
+      if (gated.length > 0) {
+        reply.code(400);
+        return {
+          error: "Plan contains actions marked blockedUntilApproved that have not been acknowledged.",
+          gated: gated.map((a) => ({ id: a.id, label: a.label, risk: a.risk }))
+        };
+      }
+    }
+
+    // Catalog Audit Enforcement: conflict / risk / approval gate.
+    // Acknowledgements arrive in the request body OR have already been
+    // recorded onto plan.approvals during Plan Review. We merge both.
+    if (body.dryRun === false) {
+      const acks = mergeAcks(plan.approvals, {
+        risks: body.acknowledgedRisks,
+        conflicts: body.acknowledgedConflicts,
+        approvals: body.acknowledgedApprovals
+      });
+      const verdict = evaluateApplyGate(plan, acks);
+      if (!verdict.ok) {
+        reply.code(400);
+        return {
+          error: "Apply gate refused: catalog audit acknowledgements are missing.",
+          gate: {
+            blockingConflicts: verdict.blockingConflicts,
+            unresolvedWarnConflicts: verdict.unresolvedWarnConflicts,
+            missingRiskAcks: verdict.missingRiskAcks,
+            missingApprovalGates: verdict.missingApprovalGates,
+            reasons: verdict.reasons
+          }
+        };
+      }
+    }
+    const db = await readRuntimeDatabase();
+    const conn = db.connections.find((c) => c.id === plan.targetConnectionId && c.userId === user.id);
+    if (!conn) { reply.code(404); return { error: "Target connection not found." }; }
+    const dryRun = body.dryRun !== false;
+
+    if (plan.type === "remove") {
+      const unmanaged = plan.review.reasons.some((reason) => /unmanaged/i.test(reason));
+      if (unmanaged && body.dryRun === false && !body.unmanagedRiskAcknowledged) {
+        reply.code(400);
+        return { error: "Unmanaged remove plans are blocked until unmanagedRiskAcknowledged=true." };
+      }
+    }
+
+    if (plan.type === "change") {
+      if (!body.path || body.content === undefined) { reply.code(400); return { error: "path and content are required for config change apply." }; }
+      const before = await readConfigFile(conn, body.path);
+      const beforeValidation = await validateConfigFile(conn, body.path);
+      const write = await writeConfigFile(conn, body.path, body.content, true);
+      const afterValidation = await validateConfigFile(conn, body.path);
+      let rollback: Awaited<ReturnType<typeof restoreConfigFileFromBackup>> | undefined;
+      if (afterValidation.status === "failed") rollback = await restoreConfigFileFromBackup(conn, body.path);
+      const finalStatus: EnvironmentPlan["status"] = afterValidation.status === "failed" ? "failed" : "succeeded";
+      const updated = await setPlanStatus(id, user.id, finalStatus, write.message);
+      await appendPlanHistory(id, user.id, "applied", `config write: ${write.message}`);
+      return { plan: asEnvironmentPlan(updated ?? record), dryRun: false, before, beforeValidation, write, validation: afterValidation, rollback };
+    }
+
+    if (!plan.export?.yaml) { reply.code(400); return { error: "Plan has no executable recipe." }; }
+    const { registerBatchTask, executePlaybookTask, getTask: gt } = await import("./executor.js");
+    const taskItems = plan.items.map((item) => ({ catalogId: item.sourceId ?? item.id, displayName: item.name }));
+    const taskId = registerBatchTask(user.id, conn.id, taskItems, dryRun);
+    void executePlaybookTask(user.id, conn, plan.export.yaml, dryRun, taskId);
+    const nextStatus: EnvironmentPlan["status"] = dryRun ? "approved" : "applying";
+    const updated = await setPlanStatus(id, user.id, nextStatus);
+    await appendPlanHistory(id, user.id, "applied", dryRun ? "dry-run" : "applied");
+    const task = gt(taskId);
+    return { taskId, dryRun, plan: asEnvironmentPlan(updated ?? record), totalItems: taskItems.length, items: task?.items ?? [] };
+  });
+
+  app.post("/api/plans/:id/verify", async (request, reply) => {
+    const user = await getUserByToken(readBearerToken(request.headers.authorization));
+    if (!user) { reply.code(401); return { error: "Login required." }; }
+    const { id } = request.params as { id: string };
+    const record = await getStoredPlan(id, user.id);
+    if (!record) { reply.code(404); return { error: "Plan not found." }; }
+    const plan = asEnvironmentPlan(record);
+    if (!plan.targetConnectionId) {
+      reply.code(400); return { error: "Plan has no target connection; verify cannot run." };
+    }
+    const db = await readRuntimeDatabase();
+    const conn = db.connections.find((c) => c.id === plan.targetConnectionId && c.userId === user.id);
+    if (!conn) { reply.code(404); return { error: "Target connection not found." }; }
+    try {
+      const outcome = await verifyPlanAndPersist({
+        planId: id,
+        userId: user.id,
+        connection: conn,
+        openClient: () => connectSshForUser(conn, user.id)
+      });
+      if (!outcome) { reply.code(404); return { error: "Plan not found." }; }
+      return { plan: outcome.plan, results: outcome.results };
+    } catch (err) {
+      reply.code(500);
+      return { error: err instanceof Error ? err.message : "Verify failed." };
+    }
+  });
+
+  app.post("/api/plans/:id/rollback", async (request, reply) => {
+    const user = await getUserByToken(readBearerToken(request.headers.authorization));
+    if (!user) { reply.code(401); return { error: "Login required." }; }
+    const { id } = request.params as { id: string };
+    const record = await getStoredPlan(id, user.id);
+    if (!record) { reply.code(404); return { error: "Plan not found." }; }
+    const plan = asEnvironmentPlan(record);
+    if (!plan.targetConnectionId) {
+      reply.code(400); return { error: "Plan has no target connection; rollback cannot run." };
+    }
+    const db = await readRuntimeDatabase();
+    const conn = db.connections.find((c) => c.id === plan.targetConnectionId && c.userId === user.id);
+    if (!conn) { reply.code(404); return { error: "Target connection not found." }; }
+    try {
+      const outcome = await rollbackPlanAndPersist({
+        planId: id,
+        userId: user.id,
+        connection: conn,
+        openClient: () => connectSshForUser(conn, user.id)
+      });
+      if (!outcome) { reply.code(404); return { error: "Plan not found." }; }
+      return { plan: outcome.plan, results: outcome.results };
+    } catch (err) {
+      reply.code(500);
+      return { error: err instanceof Error ? err.message : "Rollback failed." };
+    }
+  });
+
+  app.get("/api/plans/:id/report", async (request, reply) => {
+    const user = await getUserByToken(readBearerToken(request.headers.authorization));
+    if (!user) { reply.code(401); return { error: "Login required." }; }
+    const { id } = request.params as { id: string };
+    const query = (request.query ?? {}) as { format?: "markdown" | "json" };
+    const record = await getStoredPlan(id, user.id);
+    if (!record) { reply.code(404); return { error: "Plan not found." }; }
+    const plan = asEnvironmentPlan(record);
+
+    // Aggregate verify results into the structured report payload.
+    const verifyPassed = (record.verifyResults ?? []).filter((r) => r.status === "passed").map((r) => r.label);
+    const verifyFailed = (record.verifyResults ?? []).filter((r) => r.status === "failed" || r.status === "warning").map((r) => r.label);
+    const verifyResults =
+      (record.verifyResults?.length ?? 0) > 0
+        ? { passed: verifyPassed, failed: verifyFailed }
+        : undefined;
+
+    // Pull action-run records from the runtime store. These are
+    // produced by the managed-execution orchestrator (Managed Execution
+    // Hardening phase). Empty when the plan has not been applied yet.
+    const { listActionRunsForPlan } = await import("./managed-execution.js");
+    const actionRuns = await listActionRunsForPlan(id);
+
+    const structured = buildPlanReport(plan, { verifyResults, actionRuns });
+
+    if (query.format === "markdown") {
+      const markdown = planReportToMarkdown(structured);
+      // Append legacy verify / rollback / history sections for parity
+      // with the prior endpoint.
+      const verifyLines = (record.verifyResults ?? []).map((r) => `- [${r.status}] ${r.label}${r.message ? ` — ${r.message}` : ""}`).join("\n");
+      const rollbackLines = (record.rollbackResults ?? []).map((r) => `- [${r.status}] ${r.label}${r.message ? ` — ${r.message}` : ""}`).join("\n");
+      const historyLines = (record.history ?? []).map((h) => `- ${h.at} ${h.event} (${h.actor})${h.note ? ` — ${h.note}` : ""}`).join("\n");
+      const tail = [
+        verifyLines ? `\n## Verify Results\n\n${verifyLines}\n` : "",
+        rollbackLines ? `\n## Rollback Results\n\n${rollbackLines}\n` : "",
+        historyLines ? `\n## History Trail\n\n${historyLines}\n` : ""
+      ].join("");
+      reply.header("Content-Type", "text/markdown; charset=utf-8");
+      return { report: `${markdown}\n${tail}`, structured };
+    }
+
+    return { report: structured };
+  });
+
+  /**
+   * Build a Repair Plan from the verify failures of an existing plan.
+   *
+   * Convenience endpoint: instead of asking the operator to assemble a
+   * `RepairFailure[]` list by hand, we read the stored verify results for
+   * `:id` and turn each non-passing entry into a repair candidate. The
+   * mapping uses the action's kind to pick a default repair strategy:
+   *
+   *   - `restart` action → service-down (restart unit, then re-validate)
+   *   - `writeConfig` / `copyConfig` → config-modified (restore backup)
+   *   - `installPackage` → package-missing (reinstall)
+   *   - anything else → verify-failed with manual review
+   *
+   * The operator still reviews and approves the resulting Repair Plan
+   * through the normal `/api/plans/:id/review` + `/apply` flow.
+   */
+  app.post("/api/plans/:id/repair-from-verify", async (request, reply) => {
+    const user = await getUserByToken(readBearerToken(request.headers.authorization));
+    if (!user) { reply.code(401); return { error: "Login required." }; }
+    const { id } = request.params as { id: string };
+    const record = await getStoredPlan(id, user.id);
+    if (!record) { reply.code(404); return { error: "Plan not found." }; }
+    const sourcePlan = asEnvironmentPlan(record);
+    if (!sourcePlan.targetConnectionId) {
+      reply.code(400);
+      return { error: "Plan has no target connection; cannot generate a Repair Plan." };
+    }
+    const failedResults = (record.verifyResults ?? []).filter((r) => r.status === "failed" || r.status === "warning");
+    if (failedResults.length === 0) {
+      reply.code(400);
+      return { error: "Plan has no failed verify results to repair." };
+    }
+    // Build a quick action lookup from the source plan so we can map each
+    // failed result back to its originating action.
+    const actionLookup = new Map(sourcePlan.items.flatMap((item) => item.actions.map((action) => [action.id, action] as const)));
+    const failures = failedResults.map((row): RepairFailure => {
+      const action = actionLookup.get(row.actionId);
+      const evidence = [
+        `Verify result: ${row.status} at ${row.ranAt}.`,
+        row.message ? `Message: ${row.message}` : "",
+        row.output ? `Output: ${row.output}` : ""
+      ].filter(Boolean) as string[];
+      const severity: RepairFailure["severity"] = row.status === "failed" ? "high" : "medium";
+      if (action?.kind === "restart" && action.serviceName) {
+        return { label: row.label, kind: "service-down", serviceName: action.serviceName, validateCommand: action.verify, severity, evidence };
+      }
+      if ((action?.kind === "writeConfig" || action?.kind === "copyConfig") && action.path) {
+        return { label: row.label, kind: "config-modified", path: action.path, validateCommand: action.verify, severity, evidence };
+      }
+      if (action?.kind === "installPackage" && action.packageNames?.length) {
+        return { label: row.label, kind: "package-missing", packageNames: action.packageNames, validateCommand: action.verify, severity, evidence };
+      }
+      return {
+        label: row.label,
+        kind: "verify-failed",
+        validateCommand: action?.command,
+        severity,
+        evidence
+      };
+    });
+    const plan = buildRepairPlan({
+      targetConnectionId: sourcePlan.targetConnectionId,
+      name: `Repair: ${sourcePlan.name}`,
+      sourcePlanId: sourcePlan.id,
+      failures
+    });
+    await saveEnvironmentPlan(plan, user.id);
+    return { plan };
+  });
+
+  // Deprecated: use POST /api/plans with source.kind="capability-selection".
+  app.post("/api/rebuild-plan", async (request, reply) => {
+    const user = await getUserByToken(readBearerToken(request.headers.authorization));
+    if (!user) { reply.code(401); return { error: "Login required." }; }
+    const body = (request.body ?? {}) as { connectionId?: string; catalogIds?: string[] };
+    if (!body.connectionId || !Array.isArray(body.catalogIds) || body.catalogIds.length === 0) {
+      reply.code(400); return { error: "connectionId and catalogIds[] are required." };
+    }
+    const db = await readRuntimeDatabase();
+    const connection = db.connections.find((c) => c.id === body.connectionId && c.userId === user.id);
+    if (!connection) { reply.code(404); return { error: "Connection not found." }; }
+    const catalogItems = await listCatalogFromDatabase();
+    const items = body.catalogIds
+      .map((id) => catalogItems.find((item) => item.id === id))
+      .filter((item): item is NonNullable<typeof item> => Boolean(item));
+    if (items.length === 0) { reply.code(400); return { error: "None of the provided catalogIds were found." }; }
+    const plan = buildRebuildPlan(items, connection.id);
+    await saveEnvironmentPlan(plan, user.id);
+    reply.header("Deprecation", "true");
+    reply.header("Link", '</api/plans>; rel="successor-version"');
+    return { plan };
+  });
+
+  // Deprecated: use POST /api/plans/:id/apply.
+  app.post("/api/rebuild-plan/apply", async (request, reply) => {
+    const user = await getUserByToken(readBearerToken(request.headers.authorization));
+    if (!user) { reply.code(401); return { error: "Login required." }; }
+    const body = (request.body ?? {}) as { connectionId?: string; plan?: EnvironmentPlan; dryRun?: boolean; acknowledged?: boolean };
+    if (!body.connectionId || !body.plan || body.plan.type !== "rebuild" || !body.plan.export?.yaml) {
+      reply.code(400); return { error: "connectionId and a valid Rebuild Plan are required." };
+    }
+    if (!body.acknowledged && body.dryRun === false) {
+      reply.code(400); return { error: "Applying a Rebuild Plan requires explicit review acknowledgement." };
+    }
+    const db = await readRuntimeDatabase();
+    const connection = db.connections.find((c) => c.id === body.connectionId && c.userId === user.id);
+    if (!connection) { reply.code(404); return { error: "Connection not found." }; }
+    const dryRun = body.dryRun !== false;
+    await saveEnvironmentPlan(body.plan, user.id);
+    const { registerBatchTask, executePlaybookTask, getTask: gt } = await import("./executor.js");
+    const taskItems = body.plan.items.map((item) => ({ catalogId: item.sourceId ?? item.id, displayName: item.name }));
+    const taskId = registerBatchTask(user.id, connection.id, taskItems, dryRun);
+    void executePlaybookTask(user.id, connection, body.plan.export.yaml, dryRun, taskId);
+    const nextStatus: EnvironmentPlan["status"] = dryRun ? "approved" : "applying";
+    await setPlanStatus(body.plan.id, user.id, nextStatus);
+    await appendPlanHistory(body.plan.id, user.id, "applied", dryRun ? "dry-run" : "applied");
+    const task = gt(taskId);
+    reply.header("Deprecation", "true");
+    reply.header("Link", '</api/plans>; rel="successor-version"');
+    return { taskId, dryRun, planType: "rebuild", plan: body.plan, totalItems: taskItems.length, items: task?.items ?? [] };
+  });
 
   app.post("/api/batch-execute", async (request, reply) => {
     const user = await getUserByToken(readBearerToken(request.headers.authorization));
     if (!user) { reply.code(401); return { error: "Login required." }; }
+    if (process.env.ENVFORGE_ENABLE_LEGACY_EXECUTE !== "true") {
+      reply.code(410);
+      return { error: "Batch execute is deprecated. Create /api/plans from capability-selection and apply the approved Environment Plan." };
+    }
     const body = (request.body ?? {}) as { connectionId?: string; catalogIds?: string[]; dryRun?: boolean };
     if (!body.connectionId || !Array.isArray(body.catalogIds) || body.catalogIds.length === 0) {
       reply.code(400); return { error: "connectionId and catalogIds[] are required." };
@@ -2168,18 +3675,27 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
     const items = body.catalogIds.map((id) => { const item = catalogItems.find((c) => c.id === id); return item ? { catalogId: item.id, displayName: item.name } : null; }).filter((x): x is { catalogId: string; displayName: string } => x !== null);
     if (items.length === 0) { reply.code(400); return { error: "None of the provided catalogIds were found." }; }
     const dryRun = body.dryRun !== false;
-    const { registerBatchTask, executeBatchCatalogTask, getTask: gt } = await import("./executor.js");
+    const selectedCatalogItems = catalogItems.filter((item) => body.catalogIds!.includes(item.id));
+    const plan = buildRebuildPlan(selectedCatalogItems, connection.id);
+    const { registerBatchTask, executePlaybookTask, getTask: gt } = await import("./executor.js");
     const taskId = registerBatchTask(user.id, connection.id, items, dryRun);
-    void executeBatchCatalogTask(user.id, connection, items, dryRun, taskId);
+    void executePlaybookTask(user.id, connection, plan.export?.yaml ?? "", dryRun, taskId);
     const task = gt(taskId);
-    return { taskId, dryRun, totalItems: items.length, items: task?.items ?? [] };
+    return { taskId, dryRun, planType: "rebuild", plan, totalItems: items.length, items: task?.items ?? [] };
   });
 
-  // ── Multi-execute (Playbook 多目标执行) ─────────────────
+  // ── Multi-execute (deprecated: imported recipe multi-target apply) ────
+  // EnvForge no longer encourages running raw recipes against multiple
+  // targets directly. New work flows through `/api/plans` with
+  // `source.kind="recipe"` so each apply is reviewable and rollback-aware.
 
   app.post("/api/multi-execute", async (request, reply) => {
     const user = await getUserByToken(readBearerToken(request.headers.authorization));
     if (!user) { reply.code(401); return { error: "Login required." }; }
+    if (process.env.ENVFORGE_ENABLE_LEGACY_EXECUTE !== "true") {
+      reply.code(410);
+      return { error: "Direct recipe execution is disabled. Import YAML as an Environment Plan with source.kind=recipe." };
+    }
     const body = (request.body ?? {}) as { yaml?: string; playbookId?: string; connectionIds?: string[]; tags?: string[]; dryRun?: boolean };
     let yamlText = body.yaml ?? "";
     if (!yamlText && body.playbookId) {
@@ -2356,13 +3872,131 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
   app.post("/api/connections/:id/configs/write", async (request, reply) => {
     const user = await getUserByToken(readBearerToken(request.headers.authorization));
     if (!user) { reply.code(401); return { error: "Login required." }; }
+    reply.code(410);
+    return {
+      error: "Direct config writes are disabled. Create a Config Change Plan and apply it after review."
+    };
+  });
+
+  // Deprecated: use POST /api/plans with source.kind="config-change".
+  app.post("/api/connections/:id/configs/change-plan", async (request, reply) => {
+    const user = await getUserByToken(readBearerToken(request.headers.authorization));
+    if (!user) { reply.code(401); return { error: "Login required." }; }
     const { id } = request.params as { id: string };
-    const body = (request.body ?? {}) as { path?: string; content?: string; backup?: boolean };
+    const body = (request.body ?? {}) as { path?: string; content?: string };
     if (!body.path || body.content === undefined) { reply.code(400); return { error: "path and content are required." }; }
     const db = await readRuntimeDatabase();
     const conn = db.connections.find((c) => c.id === id && c.userId === user.id);
     if (!conn) { reply.code(404); return { error: "Connection not found." }; }
-    try { return await writeConfigFile(conn, body.path, body.content, body.backup !== false); }
+    try {
+      const current = await readConfigFile(conn, body.path);
+      const validation = await validateConfigFile(conn, body.path);
+      const plan = buildConfigChangePlan({
+        targetConnectionId: conn.id,
+        path: body.path,
+        originalContent: current.content,
+        candidateContent: body.content,
+        validationCommand: validation.command
+      });
+      await saveEnvironmentPlan(plan, user.id);
+      reply.header("Deprecation", "true");
+      reply.header("Link", '</api/plans>; rel="successor-version"');
+      return { plan, current, validation };
+    } catch (err) {
+      reply.code(err instanceof ConfigConnectionError ? err.statusCode : 500);
+      return { error: err instanceof Error ? err.message : "Failed to create config change plan." };
+    }
+  });
+
+  app.post("/api/connections/:id/configs/migration-plan", async (request, reply) => {
+    const user = await getUserByToken(readBearerToken(request.headers.authorization));
+    if (!user) { reply.code(401); return { error: "Login required." }; }
+    const { id } = request.params as { id: string };
+    const body = (request.body ?? {}) as { paths?: string[]; targetConnectionId?: string };
+    const paths = (body.paths ?? []).map((path) => path.trim()).filter(Boolean);
+    if (paths.length === 0) { reply.code(400); return { error: "paths[] is required." }; }
+    const db = await readRuntimeDatabase();
+    const conn = db.connections.find((c) => c.id === id && c.userId === user.id);
+    if (!conn) { reply.code(404); return { error: "Connection not found." }; }
+    return { plan: buildConfigMigrationPlan({ sourceConnectionId: conn.id, paths, targetConnectionId: body.targetConnectionId }) };
+  });
+
+  // Deprecated: use POST /api/plans/:id/apply for the corresponding change Plan.
+  app.post("/api/connections/:id/configs/apply-change-plan", async (request, reply) => {
+    const user = await getUserByToken(readBearerToken(request.headers.authorization));
+    if (!user) { reply.code(401); return { error: "Login required." }; }
+    const { id } = request.params as { id: string };
+    const body = (request.body ?? {}) as { plan?: EnvironmentPlan; path?: string; content?: string; acknowledged?: boolean };
+    if (!body.plan || body.plan.type !== "change" || !body.path || body.content === undefined) {
+      reply.code(400); return { error: "A Config Change Plan, path, and candidate content are required." };
+    }
+    if (!body.acknowledged) {
+      reply.code(400); return { error: "Config changes require explicit review acknowledgement." };
+    }
+    const db = await readRuntimeDatabase();
+    const conn = db.connections.find((c) => c.id === id && c.userId === user.id);
+    if (!conn) { reply.code(404); return { error: "Connection not found." }; }
+    try {
+      const before = await readConfigFile(conn, body.path);
+      const beforeValidation = await validateConfigFile(conn, body.path);
+      const write = await writeConfigFile(conn, body.path, body.content, true);
+      const afterValidation = await validateConfigFile(conn, body.path);
+      let rollback: Awaited<ReturnType<typeof restoreConfigFileFromBackup>> | undefined;
+      if (afterValidation.status === "failed") {
+        rollback = await restoreConfigFileFromBackup(conn, body.path);
+      }
+      // Persist the plan record so it can be tracked in /api/plans even when
+      // applied through this legacy route.
+      await saveEnvironmentPlan(body.plan, user.id);
+      const finalStatus: EnvironmentPlan["status"] = afterValidation.status === "failed" ? "failed" : "succeeded";
+      await setPlanStatus(body.plan.id, user.id, finalStatus, write.message);
+      await appendPlanHistory(body.plan.id, user.id, "applied", `legacy config apply: ${write.message}`);
+      reply.header("Deprecation", "true");
+      reply.header("Link", '</api/plans>; rel="successor-version"');
+      return {
+        success: afterValidation.status !== "failed",
+        plan: body.plan,
+        before,
+        beforeValidation,
+        write,
+        validation: afterValidation,
+        rollback,
+        message: afterValidation.status === "failed"
+          ? "Validation failed after apply; rollback was attempted."
+          : "Config Change Plan applied and validated."
+      };
+    } catch (err) {
+      reply.code(err instanceof ConfigConnectionError ? err.statusCode : 500);
+      return { error: err instanceof Error ? err.message : "Failed to apply config change plan." };
+    }
+  });
+
+  app.post("/api/connections/:id/configs/validate", async (request, reply) => {
+    const user = await getUserByToken(readBearerToken(request.headers.authorization));
+    if (!user) { reply.code(401); return { error: "Login required." }; }
+    const { id } = request.params as { id: string };
+    const body = (request.body ?? {}) as { path?: string };
+    if (!body.path) { reply.code(400); return { error: "path is required." }; }
+    const db = await readRuntimeDatabase();
+    const conn = db.connections.find((c) => c.id === id && c.userId === user.id);
+    if (!conn) { reply.code(404); return { error: "Connection not found." }; }
+    try { return await validateConfigFile(conn, body.path); }
+    catch (err) {
+      reply.code(err instanceof ConfigConnectionError ? err.statusCode : 500);
+      return { error: err instanceof Error ? err.message : "Failed" };
+    }
+  });
+
+  app.post("/api/connections/:id/configs/rollback", async (request, reply) => {
+    const user = await getUserByToken(readBearerToken(request.headers.authorization));
+    if (!user) { reply.code(401); return { error: "Login required." }; }
+    const { id } = request.params as { id: string };
+    const body = (request.body ?? {}) as { path?: string };
+    if (!body.path) { reply.code(400); return { error: "path is required." }; }
+    const db = await readRuntimeDatabase();
+    const conn = db.connections.find((c) => c.id === id && c.userId === user.id);
+    if (!conn) { reply.code(404); return { error: "Connection not found." }; }
+    try { return await restoreConfigFileFromBackup(conn, body.path); }
     catch (err) {
       reply.code(err instanceof ConfigConnectionError ? err.statusCode : 500);
       return { error: err instanceof Error ? err.message : "Failed" };
@@ -2404,6 +4038,689 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
     }
   });
 
+  async function loadMigrationSessionContext(userId: string, sessionId: string): Promise<{
+    db: Awaited<ReturnType<typeof readRuntimeDatabase>>;
+    session: StoredMigrationSession;
+    conn: StoredConnection;
+    decisions: StoredMigrationDecision[];
+    configDecisions: StoredMigrationConfigDecision[];
+    dataDecisions: StoredMigrationDataDecision[];
+    runs: StoredMigrationSessionRun[];
+  } | null> {
+    const db = await readRuntimeDatabase();
+    const session = (db.migrationSessions ?? []).find((row) => row.id === sessionId && row.userId === userId);
+    if (!session) return null;
+    const conn = db.connections.find((row) => row.id === session.connectionId && row.userId === userId);
+    if (!conn) return null;
+    const decisions = (db.migrationDecisions ?? []).filter((row) => row.userId === userId && row.connectionId === session.connectionId);
+    const configDecisions = (db.migrationConfigDecisions ?? []).filter((row) => row.userId === userId && row.sessionId === session.id);
+    const dataDecisions = (db.migrationDataDecisions ?? []).filter((row) => row.userId === userId && row.sessionId === session.id);
+    const runs = (db.migrationSessionRuns ?? []).filter((row) => row.userId === userId && row.sessionId === session.id);
+    return { db, session, conn, decisions, configDecisions, dataDecisions, runs };
+  }
+
+  function buildSessionArtifacts(context: NonNullable<Awaited<ReturnType<typeof loadMigrationSessionContext>>>) {
+    return buildMigrationSessionArtifacts(context.session, context.conn.probeSnapshot, context.decisions, {
+      host: context.conn.fields.host ?? context.conn.label,
+      configDecisions: context.configDecisions,
+      dataDecisions: context.dataDecisions
+    });
+  }
+
+  function latestMigrationSessionRun<T = unknown>(
+    context: NonNullable<Awaited<ReturnType<typeof loadMigrationSessionContext>>>,
+    kind: StoredMigrationSessionRun["kind"]
+  ): (StoredMigrationSessionRun & { result: T }) | undefined {
+    return context.runs
+      .filter((row) => row.kind === kind)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0] as (StoredMigrationSessionRun & { result: T }) | undefined;
+  }
+
+  function targetConnectionForSession(context: NonNullable<Awaited<ReturnType<typeof loadMigrationSessionContext>>>): StoredConnection | undefined {
+    if (!context.session.targetConnectionId) return undefined;
+    return context.db.connections.find((row) => row.id === context.session.targetConnectionId && row.userId === context.session.userId);
+  }
+
+  function migrationSessionApplyReadiness(
+    context: NonNullable<Awaited<ReturnType<typeof loadMigrationSessionContext>>>,
+    artifacts: ReturnType<typeof buildSessionArtifacts>
+  ) {
+    const blockers: string[] = [];
+    const warnings: string[] = [];
+    const summary = artifacts.view.summary;
+    const latestDryRun = latestMigrationSessionRun(context, "dry-run");
+    const target = targetConnectionForSession(context);
+
+    if (!target) blockers.push("Target connection must be selected before apply.");
+    if (summary.pendingReviewCount > 0) blockers.push(`Pending review remains: ${summary.pendingReviewCount} item(s).`);
+    if (summary.configRiskCount > 0) blockers.push(`Config bundle review remains: ${summary.configRiskCount} bundle(s).`);
+    if (summary.secretOrBlockedConfigCount > 0) blockers.push(`Secret or blocked config requires explicit out-of-band decision: ${summary.secretOrBlockedConfigCount} bundle(s).`);
+    if (summary.dataReviewCount > 0) blockers.push(`Data movement strategy must be confirmed: ${summary.dataReviewCount} item(s).`);
+    if (summary.blockerCount > 0) blockers.push(`Migration blockers remain: ${summary.blockerCount}.`);
+    if (!latestDryRun) blockers.push("Dry-run must pass before apply.");
+    else if (latestDryRun.status !== "passed") blockers.push("Latest dry-run did not pass; rerun dry-run after fixing blockers.");
+    if (artifacts.readiness) {
+      blockers.push(...artifacts.readiness.blockers);
+      warnings.push(...artifacts.readiness.warnings);
+    }
+
+    return {
+      ready: blockers.length === 0,
+      generatedAt: new Date().toISOString(),
+      blockers: [...new Set(blockers)],
+      warnings: [...new Set(warnings)],
+      targetConnectionId: target?.id,
+      dryRun: latestDryRun ? {
+        id: latestDryRun.id,
+        status: latestDryRun.status,
+        createdAt: latestDryRun.createdAt,
+        summary: latestDryRun.summary
+      } : undefined,
+      items: artifacts.readiness?.items ?? []
+    };
+  }
+
+  app.post("/api/migration/sessions", async (request, reply) => {
+    const user = await getUserByToken(readBearerToken(request.headers.authorization));
+    if (!user) { reply.code(401); return { error: "Login required." }; }
+    const body = (request.body ?? {}) as { connectionId?: string; targetConnectionId?: string; reuseLatest?: boolean; note?: string };
+    if (!body.connectionId?.trim()) { reply.code(400); return { error: "connectionId is required." }; }
+    const connectionId = body.connectionId.trim();
+    const reuseLatest = body.reuseLatest !== false;
+    const now = new Date().toISOString();
+    const session = await updateRuntimeDatabase((db) => {
+      const conn = db.connections.find((row) => row.id === connectionId && row.userId === user.id);
+      if (!conn) return null;
+      if (!db.migrationSessions) db.migrationSessions = [];
+      if (reuseLatest) {
+        const existing = db.migrationSessions
+          .filter((row) => row.userId === user.id && row.connectionId === connectionId)
+          .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0];
+        if (existing) {
+          existing.targetConnectionId = body.targetConnectionId?.trim() || existing.targetConnectionId;
+          existing.note = body.note?.trim() || existing.note;
+          existing.updatedAt = now;
+          return existing;
+        }
+      }
+      const initial = initialMigrationSessionState(Boolean(conn.probeSnapshot));
+      const created: StoredMigrationSession = {
+        id: createId("msess"),
+        userId: user.id,
+        connectionId,
+        targetConnectionId: body.targetConnectionId?.trim() || undefined,
+        ...initial,
+        createdAt: now,
+        updatedAt: now,
+        lastSnapshotAt: conn.probeSnapshot?.collectedAt,
+        lastAnalysisAt: conn.probeSnapshot ? now : undefined,
+        note: body.note?.trim() || undefined
+      };
+      db.migrationSessions.push(created);
+      return created;
+    });
+    if (!session) { reply.code(404); return { error: "Connection not found." }; }
+    const context = await loadMigrationSessionContext(user.id, session.id);
+    if (!context) { reply.code(404); return { error: "Migration session not found." }; }
+    const artifacts = buildSessionArtifacts(context);
+    return { session: artifacts.view };
+  });
+
+  app.get("/api/migration/sessions/:sessionId", async (request, reply) => {
+    const user = await getUserByToken(readBearerToken(request.headers.authorization));
+    if (!user) { reply.code(401); return { error: "Login required." }; }
+    const { sessionId } = request.params as { sessionId: string };
+    const context = await loadMigrationSessionContext(user.id, sessionId);
+    if (!context) { reply.code(404); return { error: "Migration session not found." }; }
+    const artifacts = buildSessionArtifacts(context);
+    return { session: artifacts.view };
+  });
+
+  app.patch("/api/migration/sessions/:sessionId", async (request, reply) => {
+    const user = await getUserByToken(readBearerToken(request.headers.authorization));
+    if (!user) { reply.code(401); return { error: "Login required." }; }
+    const { sessionId } = request.params as { sessionId: string };
+    const body = (request.body ?? {}) as { currentStep?: unknown; status?: unknown; targetConnectionId?: string; note?: string };
+    if (body.currentStep !== undefined && !isMigrationSessionStep(body.currentStep)) {
+      reply.code(400); return { error: "Invalid currentStep." };
+    }
+    if (body.status !== undefined && !isMigrationSessionStatus(body.status)) {
+      reply.code(400); return { error: "Invalid status." };
+    }
+    const now = new Date().toISOString();
+    const updated = await updateRuntimeDatabase((db) => {
+      const session = (db.migrationSessions ?? []).find((row) => row.id === sessionId && row.userId === user.id);
+      if (!session) return null;
+      if (body.targetConnectionId?.trim()) {
+        const target = db.connections.find((row) => row.id === body.targetConnectionId?.trim() && row.userId === user.id);
+        if (!target) return null;
+        session.targetConnectionId = target.id;
+      }
+      if (body.currentStep !== undefined && isMigrationSessionStep(body.currentStep)) session.currentStep = body.currentStep;
+      if (body.status !== undefined && isMigrationSessionStatus(body.status)) session.status = body.status;
+      if (body.note !== undefined) session.note = body.note.trim() || undefined;
+      session.updatedAt = now;
+      return session;
+    });
+    if (!updated) { reply.code(404); return { error: "Migration session not found." }; }
+    const context = await loadMigrationSessionContext(user.id, sessionId);
+    if (!context) { reply.code(404); return { error: "Migration session not found." }; }
+    const artifacts = buildSessionArtifacts(context);
+    return { session: artifacts.view };
+  });
+
+  app.post("/api/migration/sessions/:sessionId/snapshot", async (request, reply) => {
+    const user = await getUserByToken(readBearerToken(request.headers.authorization));
+    if (!user) { reply.code(401); return { error: "Login required." }; }
+    const { sessionId } = request.params as { sessionId: string };
+    const now = new Date().toISOString();
+    const updated = await updateRuntimeDatabase((db) => {
+      const session = (db.migrationSessions ?? []).find((row) => row.id === sessionId && row.userId === user.id);
+      if (!session) return { error: "not-found" as const };
+      const conn = db.connections.find((row) => row.id === session.connectionId && row.userId === user.id);
+      if (!conn?.probeSnapshot) return { error: "no-snapshot" as const };
+      session.status = "snapshot-collected";
+      session.currentStep = "analysis";
+      session.lastSnapshotAt = conn.probeSnapshot.collectedAt;
+      session.updatedAt = now;
+      return { session };
+    });
+    if ("error" in updated) {
+      reply.code(updated.error === "no-snapshot" ? 400 : 404);
+      return { error: updated.error === "no-snapshot" ? "Probe this connection before attaching a snapshot to the migration session." : "Migration session not found." };
+    }
+    const context = await loadMigrationSessionContext(user.id, sessionId);
+    if (!context) { reply.code(404); return { error: "Migration session not found." }; }
+    const artifacts = buildSessionArtifacts(context);
+    return { session: artifacts.view, report: artifacts.report };
+  });
+
+  app.get("/api/migration/sessions/:sessionId/analysis", async (request, reply) => {
+    const user = await getUserByToken(readBearerToken(request.headers.authorization));
+    if (!user) { reply.code(401); return { error: "Login required." }; }
+    const { sessionId } = request.params as { sessionId: string };
+    const context = await loadMigrationSessionContext(user.id, sessionId);
+    if (!context) { reply.code(404); return { error: "Migration session not found." }; }
+    if (!context.conn.probeSnapshot) { reply.code(400); return { error: "Probe this connection before session analysis." }; }
+    const artifacts = buildSessionArtifacts(context);
+    return { session: artifacts.view, report: artifacts.report, reviewQueue: artifacts.reviewQueue, decisions: context.decisions };
+  });
+
+  app.post("/api/migration/sessions/:sessionId/decisions", async (request, reply) => {
+    const user = await getUserByToken(readBearerToken(request.headers.authorization));
+    if (!user) { reply.code(401); return { error: "Login required." }; }
+    const { sessionId } = request.params as { sessionId: string };
+    const body = (request.body ?? {}) as { candidateId?: string; candidateIds?: string[]; decision?: StoredMigrationDecision["decision"]; note?: string };
+    const allowedReviewDecisions: StoredMigrationDecision["decision"][] = ["pending", "approved", "skipped", "ignore", "record-only", "migrate-artifact", "create-catalog-draft", "add-to-plan", "needs-manual-instruction"];
+    const candidateIds = [...new Set([...(body.candidateIds ?? []), body.candidateId].filter((value): value is string => typeof value === "string").map((value) => value.trim()).filter(Boolean))];
+    if (candidateIds.length === 0 || candidateIds.length > 500 || !body.decision || !allowedReviewDecisions.includes(body.decision)) {
+      reply.code(400); return { error: "candidateId/candidateIds and decision are required." };
+    }
+    const decision = body.decision;
+    const note = body.note?.trim() || undefined;
+    const now = new Date().toISOString();
+    const saved = await updateRuntimeDatabase((db) => {
+      const session = (db.migrationSessions ?? []).find((row) => row.id === sessionId && row.userId === user.id);
+      if (!session) return null;
+      const conn = db.connections.find((row) => row.id === session.connectionId && row.userId === user.id);
+      if (!conn) return null;
+      if (!db.migrationDecisions) db.migrationDecisions = [];
+      const rows: StoredMigrationDecision[] = [];
+      for (const candidateId of candidateIds) {
+        const existing = db.migrationDecisions.find((row) => row.userId === user.id && row.connectionId === session.connectionId && row.candidateId === candidateId);
+        if (existing) {
+          existing.decision = decision;
+          existing.note = note;
+          existing.updatedAt = now;
+          rows.push(existing);
+          continue;
+        }
+        const row: StoredMigrationDecision = { id: createId("mdec"), userId: user.id, connectionId: session.connectionId, candidateId, decision, note, updatedAt: now };
+        db.migrationDecisions.push(row);
+        rows.push(row);
+      }
+      session.status = "selection-in-progress";
+      session.currentStep = "select";
+      session.updatedAt = now;
+      return rows;
+    });
+    if (!saved) { reply.code(404); return { error: "Migration session not found." }; }
+    const context = await loadMigrationSessionContext(user.id, sessionId);
+    if (!context) { reply.code(404); return { error: "Migration session not found." }; }
+    const artifacts = buildSessionArtifacts(context);
+    await updateRuntimeDatabase((db) => {
+      const session = (db.migrationSessions ?? []).find((row) => row.id === sessionId && row.userId === user.id);
+      if (!session) return;
+      session.status = artifacts.view.recommendedStatus;
+      session.currentStep = artifacts.view.recommendedStep;
+      session.updatedAt = new Date().toISOString();
+      if (artifacts.plan) session.lastPlanAt = session.updatedAt;
+      if (artifacts.report) session.lastAnalysisAt = session.updatedAt;
+    });
+    const refreshed = await loadMigrationSessionContext(user.id, sessionId);
+    const refreshedArtifacts = refreshed
+      ? buildSessionArtifacts(refreshed)
+      : artifacts;
+    return { session: refreshedArtifacts.view, decisions: saved };
+  });
+
+  app.get("/api/migration/sessions/:sessionId/config-bundles", async (request, reply) => {
+    const user = await getUserByToken(readBearerToken(request.headers.authorization));
+    if (!user) { reply.code(401); return { error: "Login required." }; }
+    const { sessionId } = request.params as { sessionId: string };
+    const context = await loadMigrationSessionContext(user.id, sessionId);
+    if (!context) { reply.code(404); return { error: "Migration session not found." }; }
+    if (!context.conn.probeSnapshot) { reply.code(400); return { error: "Probe this connection before reviewing config bundles." }; }
+    const artifacts = buildSessionArtifacts(context);
+    return {
+      session: artifacts.view,
+      configBundles: artifacts.report?.configBundles ?? [],
+      configDecisions: context.configDecisions,
+      dataDecisions: context.dataDecisions
+    };
+  });
+
+  app.post("/api/migration/sessions/:sessionId/config-decisions", async (request, reply) => {
+    const user = await getUserByToken(readBearerToken(request.headers.authorization));
+    if (!user) { reply.code(401); return { error: "Login required." }; }
+    const { sessionId } = request.params as { sessionId: string };
+    const body = (request.body ?? {}) as {
+      bundleId?: string;
+      strategy?: StoredMigrationConfigDecision["strategy"];
+      status?: StoredMigrationConfigDecision["status"];
+      note?: string;
+    };
+    const allowedStrategies: StoredMigrationConfigDecision["strategy"][] = ["omit-default", "copy-with-review", "template-with-vars", "secret-out-of-band", "manual-only", "blocked"];
+    const allowedStatuses: StoredMigrationConfigDecision["status"][] = ["approved", "blocked"];
+    const bundleId = body.bundleId?.trim();
+    if (!bundleId || !body.strategy || !allowedStrategies.includes(body.strategy) || !body.status || !allowedStatuses.includes(body.status)) {
+      reply.code(400); return { error: "bundleId, strategy, and status are required." };
+    }
+    const strategy = body.strategy;
+    const status = body.status;
+    const context = await loadMigrationSessionContext(user.id, sessionId);
+    if (!context) { reply.code(404); return { error: "Migration session not found." }; }
+    if (!context.conn.probeSnapshot) { reply.code(400); return { error: "Probe this connection before reviewing config bundles." }; }
+    const artifacts = buildSessionArtifacts(context);
+    const bundle = artifacts.report?.configBundles.find((row) => row.id === bundleId);
+    if (!bundle) { reply.code(404); return { error: "Config bundle not found for this session." }; }
+    const now = new Date().toISOString();
+    await updateRuntimeDatabase((db) => {
+      if (!db.migrationConfigDecisions) db.migrationConfigDecisions = [];
+      const existing = db.migrationConfigDecisions.find((row) => row.userId === user.id && row.sessionId === sessionId && row.bundleId === bundleId);
+      if (existing) {
+        existing.strategy = strategy;
+        existing.status = status;
+        existing.note = body.note?.trim() || undefined;
+        existing.updatedAt = now;
+      } else {
+        db.migrationConfigDecisions.push({
+          id: createId("mcfg"),
+          userId: user.id,
+          sessionId,
+          connectionId: context.session.connectionId,
+          bundleId,
+          strategy,
+          status,
+          note: body.note?.trim() || undefined,
+          updatedAt: now
+        });
+      }
+    });
+    const refreshed = await loadMigrationSessionContext(user.id, sessionId);
+    if (!refreshed) { reply.code(404); return { error: "Migration session not found." }; }
+    const refreshedArtifacts = buildSessionArtifacts(refreshed);
+    await updateRuntimeDatabase((db) => {
+      const session = (db.migrationSessions ?? []).find((row) => row.id === sessionId && row.userId === user.id);
+      if (!session) return;
+      session.status = refreshedArtifacts.view.recommendedStatus;
+      session.currentStep = refreshedArtifacts.view.recommendedStep;
+      session.updatedAt = new Date().toISOString();
+      if (refreshedArtifacts.plan) session.lastPlanAt = session.updatedAt;
+    });
+    const finalContext = await loadMigrationSessionContext(user.id, sessionId);
+    const finalArtifacts = finalContext ? buildSessionArtifacts(finalContext) : refreshedArtifacts;
+    return {
+      session: finalArtifacts.view,
+      configDecisions: finalContext?.configDecisions ?? refreshed.configDecisions,
+      dataDecisions: finalContext?.dataDecisions ?? refreshed.dataDecisions
+    };
+  });
+
+  app.post("/api/migration/sessions/:sessionId/data-decisions", async (request, reply) => {
+    const user = await getUserByToken(readBearerToken(request.headers.authorization));
+    if (!user) { reply.code(401); return { error: "Login required." }; }
+    const { sessionId } = request.params as { sessionId: string };
+    const body = (request.body ?? {}) as {
+      candidateId?: string;
+      strategy?: StoredMigrationDataDecision["strategy"];
+      status?: StoredMigrationDataDecision["status"];
+      paths?: string[];
+      note?: string;
+    };
+    const allowedStrategies: StoredMigrationDataDecision["strategy"][] = ["no-data", "backup-restore", "rsync-copy", "export-import", "manual", "external"];
+    const allowedStatuses: StoredMigrationDataDecision["status"][] = ["confirmed", "blocked"];
+    const candidateId = body.candidateId?.trim();
+    if (!candidateId || !body.strategy || !allowedStrategies.includes(body.strategy) || !body.status || !allowedStatuses.includes(body.status)) {
+      reply.code(400); return { error: "candidateId, strategy, and status are required." };
+    }
+    const strategy = body.strategy;
+    const status = body.status;
+    const context = await loadMigrationSessionContext(user.id, sessionId);
+    if (!context) { reply.code(404); return { error: "Migration session not found." }; }
+    if (!context.conn.probeSnapshot) { reply.code(400); return { error: "Probe this connection before reviewing data strategy." }; }
+    const artifacts = buildSessionArtifacts(context);
+    const candidate = artifacts.report?.candidates.find((row) => row.id === candidateId);
+    if (!candidate) { reply.code(404); return { error: "Migration candidate not found for this session." }; }
+    const paths = [...new Set((body.paths?.length ? body.paths : candidate.dataPaths ?? []).map((value) => value.trim()).filter(Boolean))].slice(0, 100);
+    const now = new Date().toISOString();
+    await updateRuntimeDatabase((db) => {
+      if (!db.migrationDataDecisions) db.migrationDataDecisions = [];
+      const existing = db.migrationDataDecisions.find((row) => row.userId === user.id && row.sessionId === sessionId && row.candidateId === candidateId);
+      if (existing) {
+        existing.strategy = strategy;
+        existing.status = status;
+        existing.paths = paths;
+        existing.note = body.note?.trim() || undefined;
+        existing.updatedAt = now;
+      } else {
+        db.migrationDataDecisions.push({
+          id: createId("mdat"),
+          userId: user.id,
+          sessionId,
+          connectionId: context.session.connectionId,
+          candidateId,
+          strategy,
+          status,
+          paths,
+          note: body.note?.trim() || undefined,
+          updatedAt: now
+        });
+      }
+    });
+    const refreshed = await loadMigrationSessionContext(user.id, sessionId);
+    if (!refreshed) { reply.code(404); return { error: "Migration session not found." }; }
+    const refreshedArtifacts = buildSessionArtifacts(refreshed);
+    await updateRuntimeDatabase((db) => {
+      const session = (db.migrationSessions ?? []).find((row) => row.id === sessionId && row.userId === user.id);
+      if (!session) return;
+      session.status = refreshedArtifacts.view.recommendedStatus;
+      session.currentStep = refreshedArtifacts.view.recommendedStep;
+      session.updatedAt = new Date().toISOString();
+      if (refreshedArtifacts.plan) session.lastPlanAt = session.updatedAt;
+    });
+    const finalContext = await loadMigrationSessionContext(user.id, sessionId);
+    const finalArtifacts = finalContext ? buildSessionArtifacts(finalContext) : refreshedArtifacts;
+    return {
+      session: finalArtifacts.view,
+      configDecisions: finalContext?.configDecisions ?? refreshed.configDecisions,
+      dataDecisions: finalContext?.dataDecisions ?? refreshed.dataDecisions
+    };
+  });
+
+  app.get("/api/migration/sessions/:sessionId/plan", async (request, reply) => {
+    const user = await getUserByToken(readBearerToken(request.headers.authorization));
+    if (!user) { reply.code(401); return { error: "Login required." }; }
+    const { sessionId } = request.params as { sessionId: string };
+    const context = await loadMigrationSessionContext(user.id, sessionId);
+    if (!context) { reply.code(404); return { error: "Migration session not found." }; }
+    if (!context.conn.probeSnapshot) { reply.code(400); return { error: "Probe this connection before building a migration plan." }; }
+    const artifacts = buildSessionArtifacts(context);
+    if (!artifacts.plan) { reply.code(400); return { error: "Migration plan is not available yet." }; }
+    return {
+      session: artifacts.view,
+      plan: artifacts.plan,
+      environmentPlan: migrationPlanToEnvironmentPlan(artifacts.plan, context.conn.id),
+      readiness: artifacts.readiness
+    };
+  });
+
+  app.post("/api/migration/sessions/:sessionId/dry-run", async (request, reply) => {
+    const user = await getUserByToken(readBearerToken(request.headers.authorization));
+    if (!user) { reply.code(401); return { error: "Login required." }; }
+    const { sessionId } = request.params as { sessionId: string };
+    const context = await loadMigrationSessionContext(user.id, sessionId);
+    if (!context) { reply.code(404); return { error: "Migration session not found." }; }
+    if (!context.conn.probeSnapshot) { reply.code(400); return { error: "Probe this connection before dry-running a migration plan." }; }
+    const artifacts = buildSessionArtifacts(context);
+    if (!artifacts.plan) { reply.code(400); return { error: "Migration plan is not available yet." }; }
+    if (!targetConnectionForSession(context)) { reply.code(400); return { error: "Select a target connection before dry-run." }; }
+    const result = buildMigrationDryRun(artifacts.plan);
+    const passed = result.summary.blocked === 0;
+    const now = new Date().toISOString();
+    await updateRuntimeDatabase((db) => {
+      const session = (db.migrationSessions ?? []).find((row) => row.id === sessionId && row.userId === user.id);
+      if (!session) return;
+      if (!db.migrationSessionRuns) db.migrationSessionRuns = [];
+      db.migrationSessionRuns.push({
+        id: createId("mrun"),
+        userId: user.id,
+        sessionId,
+        connectionId: session.connectionId,
+        targetConnectionId: session.targetConnectionId,
+        kind: "dry-run",
+        status: passed ? "passed" : "failed",
+        summary: result.summary,
+        result,
+        createdAt: now
+      });
+      session.status = passed ? "dry-run-passed" : "config-review-required";
+      session.currentStep = passed ? "apply" : "config-data";
+      session.lastDryRunAt = now;
+      session.updatedAt = now;
+    });
+    const refreshed = await loadMigrationSessionContext(user.id, sessionId);
+    const refreshedArtifacts = refreshed
+      ? buildSessionArtifacts(refreshed)
+      : artifacts;
+    return { session: refreshedArtifacts.view, result };
+  });
+
+  app.get("/api/migration/sessions/:sessionId/apply-readiness", async (request, reply) => {
+    const user = await getUserByToken(readBearerToken(request.headers.authorization));
+    if (!user) { reply.code(401); return { error: "Login required." }; }
+    const { sessionId } = request.params as { sessionId: string };
+    const context = await loadMigrationSessionContext(user.id, sessionId);
+    if (!context) { reply.code(404); return { error: "Migration session not found." }; }
+    if (!context.conn.probeSnapshot) { reply.code(400); return { error: "Probe this connection before assessing apply readiness." }; }
+    const artifacts = buildSessionArtifacts(context);
+    if (!artifacts.plan) { reply.code(400); return { error: "Migration plan is not available yet." }; }
+    return { session: artifacts.view, readiness: migrationSessionApplyReadiness(context, artifacts) };
+  });
+
+  app.post("/api/migration/sessions/:sessionId/apply", async (request, reply) => {
+    const user = await getUserByToken(readBearerToken(request.headers.authorization));
+    if (!user) { reply.code(401); return { error: "Login required." }; }
+    const { sessionId } = request.params as { sessionId: string };
+    const options = (request.body ?? {}) as MigrationApplyOptions;
+    const context = await loadMigrationSessionContext(user.id, sessionId);
+    if (!context) { reply.code(404); return { error: "Migration session not found." }; }
+    if (!context.conn.probeSnapshot) { reply.code(400); return { error: "Probe this connection before applying a migration plan." }; }
+    const artifacts = buildSessionArtifacts(context);
+    if (!artifacts.plan) { reply.code(400); return { error: "Migration plan is not available yet." }; }
+    const readiness = migrationSessionApplyReadiness(context, artifacts);
+    if (!readiness.ready) {
+      reply.code(400);
+      return { error: "Migration apply is blocked by readiness gates.", session: artifacts.view, readiness };
+    }
+    const target = targetConnectionForSession(context);
+    if (!target) { reply.code(400); return { error: "Target connection not found." }; }
+    const startedAt = new Date().toISOString();
+    await updateRuntimeDatabase((db) => {
+      const session = (db.migrationSessions ?? []).find((row) => row.id === sessionId && row.userId === user.id);
+      if (!session) return;
+      session.status = "applying";
+      session.currentStep = "apply";
+      session.updatedAt = startedAt;
+    });
+    try {
+      const result = await runMigrationApplyPlan(user.id, target, artifacts.plan, {
+        rollbackOnFailure: options.rollbackOnFailure !== false,
+        restartServices: options.restartServices === true,
+        requireAllActions: options.requireAllActions === true
+      });
+      const completedAt = new Date().toISOString();
+      await updateRuntimeDatabase((db) => {
+        if (!db.migrationSessionRuns) db.migrationSessionRuns = [];
+        db.migrationSessionRuns.push({
+          id: createId("mrun"),
+          userId: user.id,
+          sessionId,
+          connectionId: context.session.connectionId,
+          targetConnectionId: target.id,
+          kind: "apply",
+          status: result.ok ? "passed" : "failed",
+          summary: { ...result.summary, ok: result.ok, rolledBack: result.rolledBack },
+          result,
+          createdAt: completedAt
+        });
+        const session = (db.migrationSessions ?? []).find((row) => row.id === sessionId && row.userId === user.id);
+        if (!session) return;
+        session.status = result.ok ? "applied" : (result.rolledBack ? "rolled-back" : "failed");
+        session.currentStep = result.ok ? "apply" : "apply";
+        session.lastApplyAt = completedAt;
+        session.updatedAt = completedAt;
+      });
+      const refreshed = await loadMigrationSessionContext(user.id, sessionId);
+      const refreshedArtifacts = refreshed ? buildSessionArtifacts(refreshed) : artifacts;
+      return { session: refreshedArtifacts.view, result };
+    } catch (err) {
+      const completedAt = new Date().toISOString();
+      await updateRuntimeDatabase((db) => {
+        if (!db.migrationSessionRuns) db.migrationSessionRuns = [];
+        db.migrationSessionRuns.push({
+          id: createId("mrun"),
+          userId: user.id,
+          sessionId,
+          connectionId: context.session.connectionId,
+          targetConnectionId: target.id,
+          kind: "apply",
+          status: "failed",
+          summary: { ok: false },
+          result: { ok: false, error: err instanceof Error ? err.message : "Migration apply failed.", generatedAt: completedAt },
+          createdAt: completedAt
+        });
+        const session = (db.migrationSessions ?? []).find((row) => row.id === sessionId && row.userId === user.id);
+        if (!session) return;
+        session.status = "failed";
+        session.currentStep = "apply";
+        session.lastApplyAt = completedAt;
+        session.updatedAt = completedAt;
+      });
+      reply.code(500);
+      return { error: err instanceof Error ? err.message : "Migration apply failed." };
+    }
+  });
+
+  app.post("/api/migration/sessions/:sessionId/verify", async (request, reply) => {
+    const user = await getUserByToken(readBearerToken(request.headers.authorization));
+    if (!user) { reply.code(401); return { error: "Login required." }; }
+    const { sessionId } = request.params as { sessionId: string };
+    const context = await loadMigrationSessionContext(user.id, sessionId);
+    if (!context) { reply.code(404); return { error: "Migration session not found." }; }
+    if (!context.conn.probeSnapshot) { reply.code(400); return { error: "Probe this connection before running verification." }; }
+    const artifacts = buildSessionArtifacts(context);
+    if (!artifacts.plan) { reply.code(400); return { error: "Migration plan is not available yet." }; }
+    const latestApply = latestMigrationSessionRun(context, "apply");
+    if (!latestApply || latestApply.status !== "passed") {
+      reply.code(400);
+      return { error: "A successful apply run is required before verification." };
+    }
+    const target = targetConnectionForSession(context);
+    if (!target) { reply.code(400); return { error: "Target connection not found." }; }
+    const preview = buildMigrationVerificationPreview(artifacts.plan);
+    try {
+      const result = await runMigrationVerificationPreview(user.id, target, preview);
+      const now = new Date().toISOString();
+      await updateRuntimeDatabase((db) => {
+        if (!db.migrationSessionRuns) db.migrationSessionRuns = [];
+        db.migrationSessionRuns.push({
+          id: createId("mrun"),
+          userId: user.id,
+          sessionId,
+          connectionId: context.session.connectionId,
+          targetConnectionId: target.id,
+          kind: "verify",
+          status: result.ok ? "passed" : "failed",
+          summary: { ...result.summary, ok: result.ok },
+          result,
+          createdAt: now
+        });
+        const session = (db.migrationSessions ?? []).find((row) => row.id === sessionId && row.userId === user.id);
+        if (!session) return;
+        session.status = result.ok ? "verified" : "failed";
+        session.currentStep = result.ok ? "report" : "apply";
+        session.lastVerifyAt = now;
+        session.updatedAt = now;
+      });
+      const refreshed = await loadMigrationSessionContext(user.id, sessionId);
+      const refreshedArtifacts = refreshed ? buildSessionArtifacts(refreshed) : artifacts;
+      return { session: refreshedArtifacts.view, result, preview };
+    } catch (err) {
+      reply.code(500);
+      return { error: err instanceof Error ? err.message : "Verification failed." };
+    }
+  });
+
+  app.get("/api/migration/sessions/:sessionId/report", async (request, reply) => {
+    const user = await getUserByToken(readBearerToken(request.headers.authorization));
+    if (!user) { reply.code(401); return { error: "Login required." }; }
+    const { sessionId } = request.params as { sessionId: string };
+    const context = await loadMigrationSessionContext(user.id, sessionId);
+    if (!context) { reply.code(404); return { error: "Migration session not found." }; }
+    const artifacts = buildSessionArtifacts(context);
+    const latestDryRun = latestMigrationSessionRun(context, "dry-run");
+    const latestApply = latestMigrationSessionRun(context, "apply");
+    const latestVerify = latestMigrationSessionRun(context, "verify");
+    const readiness = artifacts.plan ? migrationSessionApplyReadiness(context, artifacts) : undefined;
+    const applyResult = latestApply?.result as { rolledBack?: boolean; steps?: Array<{ action?: string; status?: string; label?: string; message?: string }> } | undefined;
+    const rollbackSteps = applyResult?.steps?.filter((step) => step.action === "rollback" || step.status === "rolled-back") ?? [];
+    const report = {
+      sessionId,
+      sourceHost: artifacts.report?.sourceHost ?? context.conn.fields.host ?? context.conn.label,
+      targetConnectionId: context.session.targetConnectionId,
+      generatedAt: new Date().toISOString(),
+      summary: artifacts.view.summary,
+      plan: artifacts.plan ? { items: artifacts.plan.items.length, generatedAt: artifacts.plan.generatedAt } : undefined,
+      configDecisions: context.configDecisions,
+      dataDecisions: context.dataDecisions,
+      readiness,
+      dryRun: latestDryRun ? { status: latestDryRun.status, createdAt: latestDryRun.createdAt, summary: latestDryRun.summary, result: latestDryRun.result } : undefined,
+      apply: latestApply ? { status: latestApply.status, createdAt: latestApply.createdAt, summary: latestApply.summary, result: latestApply.result } : undefined,
+      verify: latestVerify ? { status: latestVerify.status, createdAt: latestVerify.createdAt, summary: latestVerify.summary, result: latestVerify.result } : undefined,
+      rollback: {
+        available: Boolean(latestApply),
+        rolledBack: Boolean(applyResult?.rolledBack || rollbackSteps.length),
+        steps: rollbackSteps
+      }
+    };
+    const now = new Date().toISOString();
+    await updateRuntimeDatabase((db) => {
+      if (!db.migrationSessionRuns) db.migrationSessionRuns = [];
+      db.migrationSessionRuns.push({
+        id: createId("mrun"),
+        userId: user.id,
+        sessionId,
+        connectionId: context.session.connectionId,
+        targetConnectionId: context.session.targetConnectionId,
+        kind: "report",
+        status: "generated",
+        summary: { blockers: readiness?.blockers.length ?? 0, warnings: readiness?.warnings.length ?? 0 },
+        result: report,
+        createdAt: now
+      });
+      const session = (db.migrationSessions ?? []).find((row) => row.id === sessionId && row.userId === user.id);
+      if (!session) return;
+      session.status = "reported";
+      session.currentStep = "report";
+      session.lastReportAt = now;
+      session.updatedAt = now;
+    });
+    const refreshed = await loadMigrationSessionContext(user.id, sessionId);
+    const refreshedArtifacts = refreshed ? buildSessionArtifacts(refreshed) : artifacts;
+    return { session: refreshedArtifacts.view, report };
+  });
+
   app.get("/api/connections/:id/migration-candidates", async (request, reply) => {
     const user = await getUserByToken(readBearerToken(request.headers.authorization));
     if (!user) { reply.code(401); return { error: "Login required." }; }
@@ -2419,6 +4736,36 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
     };
   });
 
+  app.get("/api/profiles/:id/migration-candidates", async (request, reply) => {
+    const user = await getUserByToken(readBearerToken(request.headers.authorization));
+    if (!user) { reply.code(401); return { error: "Login required." }; }
+    const { id } = request.params as { id: string };
+    const profile = await getUserProfile(user, id);
+    if (!profile || profile.kind !== "vm-snapshot" || !profile.envSnapshot) {
+      reply.code(404); return { error: "VM snapshot profile not found." };
+    }
+    const decisions = (await readRuntimeDatabase()).migrationDecisions?.filter((row) => row.userId === user.id && row.connectionId === profile.sourceConnectionId) ?? [];
+    return {
+      report: buildMigrationCandidateReport(profile.envSnapshot, { host: profile.envSnapshot.system?.hostname ?? profile.nameEn ?? profile.name }),
+      decisions
+    };
+  });
+
+  app.get("/api/profiles/:id/environment-plan", async (request, reply) => {
+    const user = await getUserByToken(readBearerToken(request.headers.authorization));
+    if (!user) { reply.code(401); return { error: "Login required." }; }
+    const { id } = request.params as { id: string };
+    const profile = await getUserProfile(user, id);
+    if (!profile || profile.kind !== "vm-snapshot" || !profile.envSnapshot) {
+      reply.code(404); return { error: "VM snapshot profile not found." };
+    }
+    const db = await readRuntimeDatabase();
+    const decisions = (db.migrationDecisions ?? []).filter((row) => row.userId === user.id && row.connectionId === profile.sourceConnectionId);
+    const report = buildMigrationCandidateReport(profile.envSnapshot, { host: profile.envSnapshot.system?.hostname ?? profile.nameEn ?? profile.name });
+    const migrationPlan = buildMigrationPlanFromCandidates(report, decisionMap(decisions));
+    return { plan: migrationPlanToEnvironmentPlan(migrationPlan) };
+  });
+
   app.get("/api/connections/:id/migration-plan", async (request, reply) => {
     const user = await getUserByToken(readBearerToken(request.headers.authorization));
     if (!user) { reply.code(401); return { error: "Login required." }; }
@@ -2429,7 +4776,8 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
     if (!conn.probeSnapshot) { reply.code(400); return { error: "Probe this connection before building a migration plan." }; }
     const decisions = (db.migrationDecisions ?? []).filter((row) => row.userId === user.id && row.connectionId === id);
     const report = buildMigrationCandidateReport(conn.probeSnapshot, { host: conn.fields.host ?? conn.label });
-    return { plan: buildMigrationPlanFromCandidates(report, decisionMap(decisions)) };
+    const plan = buildMigrationPlanFromCandidates(report, decisionMap(decisions));
+    return { plan, environmentPlan: migrationPlanToEnvironmentPlan(plan, conn.id) };
   });
 
   app.get("/api/connections/:id/migration-review-queue", async (request, reply) => {
@@ -2445,12 +4793,42 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
     return { queue: buildUnknownReviewQueue(report, decisions) };
   });
 
+  /**
+   * Generate a Capability Catalog v2 YAML draft for a Review Queue candidate.
+   *
+   * The Review Queue lets operators tag unknown items with the
+   * `create-catalog-draft` decision; this endpoint turns the candidate's
+   * evidence into a fillable rule template the contributor can finish.
+   *
+   * The endpoint never publishes a catalog item by itself — the draft is
+   * returned so the operator can review and submit it through the catalog
+   * admin path or save it locally.
+   */
+  app.post("/api/connections/:id/migration-candidates/:candidateId/catalog-draft", async (request, reply) => {
+    const user = await getUserByToken(readBearerToken(request.headers.authorization));
+    if (!user) { reply.code(401); return { error: "Login required." }; }
+    const { id, candidateId } = request.params as { id: string; candidateId: string };
+    const db = await readRuntimeDatabase();
+    const conn = db.connections.find((c) => c.id === id && c.userId === user.id);
+    if (!conn) { reply.code(404); return { error: "Connection not found." }; }
+    if (!conn.probeSnapshot) {
+      reply.code(400); return { error: "Probe this connection before generating catalog drafts." };
+    }
+    const report = buildMigrationCandidateReport(conn.probeSnapshot, { host: conn.fields.host ?? conn.label });
+    const candidate = report.candidates.find((c) => c.id === candidateId);
+    if (!candidate) { reply.code(404); return { error: "Candidate not found." }; }
+    const { buildCatalogDraft } = await import("./catalog-draft.js");
+    const draft = buildCatalogDraft(candidate);
+    return { draft };
+  });
+
   app.post("/api/connections/:id/migration-decisions", async (request, reply) => {
     const user = await getUserByToken(readBearerToken(request.headers.authorization));
     if (!user) { reply.code(401); return { error: "Login required." }; }
     const { id } = request.params as { id: string };
     const body = (request.body ?? {}) as { candidateId?: string; decision?: StoredMigrationDecision["decision"]; note?: string };
-    if (!body.candidateId || !["pending", "approved", "skipped"].includes(body.decision ?? "")) {
+    const allowedReviewDecisions: StoredMigrationDecision["decision"][] = ["pending", "approved", "skipped", "ignore", "record-only", "migrate-artifact", "create-catalog-draft", "add-to-plan", "needs-manual-instruction"];
+    if (!body.candidateId || !body.decision || !allowedReviewDecisions.includes(body.decision)) {
       reply.code(400);
       return { error: "candidateId and decision are required." };
     }
@@ -2482,6 +4860,52 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
     });
     if (!saved) { reply.code(404); return { error: "Connection not found." }; }
     return { decision: saved };
+  });
+
+  app.post("/api/connections/:id/migration-decisions/bulk", async (request, reply) => {
+    const user = await getUserByToken(readBearerToken(request.headers.authorization));
+    if (!user) { reply.code(401); return { error: "Login required." }; }
+    const { id } = request.params as { id: string };
+    const body = (request.body ?? {}) as { candidateIds?: string[]; decision?: StoredMigrationDecision["decision"]; note?: string };
+    const candidateIds = [...new Set((body.candidateIds ?? []).map((candidateId) => candidateId.trim()).filter(Boolean))];
+    const allowedReviewDecisions: StoredMigrationDecision["decision"][] = ["pending", "approved", "skipped", "ignore", "record-only", "migrate-artifact", "create-catalog-draft", "add-to-plan", "needs-manual-instruction"];
+    if (candidateIds.length === 0 || candidateIds.length > 500 || !body.decision || !allowedReviewDecisions.includes(body.decision)) {
+      reply.code(400);
+      return { error: "candidateIds (1-500) and decision are required." };
+    }
+    const decision = body.decision as StoredMigrationDecision["decision"];
+    const note = body.note?.trim() || undefined;
+    const now = new Date().toISOString();
+    const saved = await updateRuntimeDatabase((db) => {
+      const conn = db.connections.find((c) => c.id === id && c.userId === user.id);
+      if (!conn) return null;
+      if (!db.migrationDecisions) db.migrationDecisions = [];
+      const rows: StoredMigrationDecision[] = [];
+      for (const candidateId of candidateIds) {
+        const existing = db.migrationDecisions.find((row) => row.userId === user.id && row.connectionId === id && row.candidateId === candidateId);
+        if (existing) {
+          existing.decision = decision;
+          existing.note = note;
+          existing.updatedAt = now;
+          rows.push(existing);
+          continue;
+        }
+        const row: StoredMigrationDecision = {
+          id: createId("mdec"),
+          userId: user.id,
+          connectionId: id,
+          candidateId,
+          decision,
+          note,
+          updatedAt: now
+        };
+        db.migrationDecisions.push(row);
+        rows.push(row);
+      }
+      return rows;
+    });
+    if (!saved) { reply.code(404); return { error: "Connection not found." }; }
+    return { decisions: saved, count: saved.length };
   });
 
   app.get("/api/connections/:id/migration-plan/export", async (request, reply) => {
@@ -2565,6 +4989,26 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
     const report = buildMigrationCandidateReport(conn.probeSnapshot, { host: conn.fields.host ?? conn.label });
     const plan = buildMigrationPlanFromCandidates(report, decisionMap(decisions));
     return { readiness: assessMigrationApplyReadiness(plan) };
+  });
+
+  app.post("/api/connections/:id/migration-plan/apply", async (request, reply) => {
+    const user = await getUserByToken(readBearerToken(request.headers.authorization));
+    if (!user) { reply.code(401); return { error: "Login required." }; }
+    const { id } = request.params as { id: string };
+    const options = (request.body ?? {}) as MigrationApplyOptions;
+    const db = await readRuntimeDatabase();
+    const conn = db.connections.find((c) => c.id === id && c.userId === user.id);
+    if (!conn) { reply.code(404); return { error: "Connection not found." }; }
+    if (!conn.probeSnapshot) { reply.code(400); return { error: "Probe this connection before applying a migration plan." }; }
+    const decisions = (db.migrationDecisions ?? []).filter((row) => row.userId === user.id && row.connectionId === id);
+    const report = buildMigrationCandidateReport(conn.probeSnapshot, { host: conn.fields.host ?? conn.label });
+    const plan = buildMigrationPlanFromCandidates(report, decisionMap(decisions));
+    try {
+      return { result: await runMigrationApplyPlan(user.id, conn, plan, options) };
+    } catch (err) {
+      reply.code(500);
+      return { error: err instanceof Error ? err.message : "Migration apply failed." };
+    }
   });
 
   app.get("/api/schedules", async (request, reply) => {

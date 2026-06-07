@@ -1,0 +1,16 @@
+{
+  "id": "freshrss-dry-run",
+  "title": "FreshRSS - feed export dry run",
+  "destructive": false,
+  "planSource": { "kind": "capability-selection", "capabilityIds": ["freshrss"] },
+  "expected": {
+    "planType": "rebuild",
+    "items": [{ "id": "capability:freshrss", "capabilityKey": "app.rss.freshrss", "supportLevel": "full-migration", "minActions": 4 }],
+    "conflictsBlock": 0,
+    "conflictsWarn": 0,
+    "remainingRisks": ["Users, OPML", "API tokens"]
+  },
+  "approvalAcks": { "risksAck": "ALL", "approvalsAck": "ALL" },
+  "verify": { "actionRunStatuses": ["succeeded"], "auditChecks": ["FreshRSS web", "OPML export", "API tokens"] },
+  "notes": ["FreshRSS migration uses DB backup or OPML export/import plus feed credential review."]
+}

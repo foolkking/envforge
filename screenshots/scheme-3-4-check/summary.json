@@ -1,0 +1,290 @@
+[
+  {
+    "route": "/app/dashboard",
+    "viewport": "desktop",
+    "theme": "light",
+    "file": "E:\\1project\\EnvForge\\screenshots\\scheme-3-4-check\\desktop-light-app-dashboard.png",
+    "info": {
+      "href": "http://127.0.0.1:5173/app/dashboard",
+      "theme": "light",
+      "text": "E\nEnvForge\nLinux 环境重建与迁移平台\n总览\n资源状态、最近计划、待审队列、通知\n迁移\n源主机、快照、分析与迁移候选\n构建\n选择已认证能力，生成重建计划，进入审查和执行门禁\n计划\n计划中心、配方、排程、漂移、外发通知、报告\n报告\n迁移 / 重建 / 修复报告\n总览\n返回首页\nC\n更多\n\n资源控制台\n\n从源环境到可审计报告的当前状态\n\n控制台只保留工作流和资源状态；个人资料、安全和通知偏好已移入右上角更多菜单。\n\n运行正常\n打开迁移\n源环境\n未连接\n从迁移页连接 Linux 主机\n证据快照\n待采集\n主机快照尚未生成\n计划队列\n0 待审\n还没有计划\n报告\n0\n等待执行结果\n\n运维流水线\n\n迁移 / 构建 / 审查 / 执行 / 验证 / 报告\n0/6\n1\n连接源主机\n还没有可用连接\n下一步\n0\n2\n采集快照\n等待主机快照\n等待\n0\n3\n生成计划\n从已认证能力生成重建计划\n等待\n0\n4\n审查与批准\n没有待审计划\n等待\n0\n5\n执行与验证\n等待批准后执行\n等待\n0\n6\n报告沉淀\n完成后生成迁移/修复报告\n等待\n0\n运行队列\n尚未连接源主机\n\n先从迁移页建立连接，再采集主机快照。\n\n最近计划活动\n\n暂无计划。\n\n当前工作区\n身份\nuser\n连接数\n0\n证据项\n0\n未读通知\n0\n快照与报告\n\n暂无快照。\n\n暂无报告。",
+      "whiteish": [],
+      "viewport": {
+        "w": 1440,
+        "h": 900,
+        "scrollW": 1425,
+        "scrollH": 1135
+      }
+    }
+  },
+  {
+    "route": "/app/build",
+    "viewport": "desktop",
+    "theme": "light",
+    "file": "E:\\1project\\EnvForge\\screenshots\\scheme-3-4-check\\desktop-light-app-build.png",
+    "info": {
+      "href": "http://127.0.0.1:5173/app/build",
+      "theme": "light",
+      "text": "E\nEnvForge\nLinux 环境重建与迁移平台\n总览\n资源状态、最近计划、待审队列、通知\n迁移\n源主机、快照、分析与迁移候选\n构建\n选择已认证能力，生成重建计划，进入审查和执行门禁\n计划\n计划中心、配方、排程、漂移、外发通知、报告\n报告\n迁移 / 重建 / 修复报告\n构建\n返回首页\nC\n更多\n构建模式流程\n1\n目标主机\n连接干净的目标机器\n!\n目标快照\n只读读取目标主机当前状态\n!\n已认证能力\n选择已认证能力\n!\n处理冲突\n处理兼容性冲突\n!\n重建计划\n生成可审查的重建计划\n!\n审查\n审查动作、风险与回滚\n!\n执行\n执行已审查的计划\n!\n验证\n运行规则库验证检查\n9\n报告\n查看 Markdown 报告\n构建\n\n105 items · 0 selected\n\n生成重建计划（0）\n已认证能力 · 105 构建页仅展示通过完整迁移认证的能力。所有操作仍需进入计划审查和执行门禁。\n全部\n运行时\n数据库\n安全\n网络\n容器\n开发\n服务\n\n计划检查器\n\n等待能力选择\n\n选择已认证能力后，这里会显示批量影响、预检查、重建计划和审查门禁。\n\nNode.js 运行时配置\nMD\nConfigure\n\nNode.js 运行时能力：包含 Node.js、npm、registry 配置和常见环境变量模板，纳入 Environment Plan 后再应用。\n\n已认证\n通过环境计划应用\n2\nREVIEW\nnodejs\nnpm\n设置 npm registry\nDocker 容器引擎\nMD\nConfigure\n\nDocker Engine 安装、compose 插件、镜像加速和服务自启动。\n\n已认证\n通过环境计划应用\n8.9k\nPRIVILEGED\ndocker.io\ndocker-compose-plugin\n启动 Docker 服务\n启动 Docker\nSSH 安全加固\nMD\nConfigure\n\n端口修改、禁用 Root 登录、公钥认证、连接限制和审计。\n\n已认证\n通过环境计划应用\n6.2k\nPRIVILEGED\nCAPABILITY\nopenssh-server\nCOMMAND\n重启 sshd\nNginx Web 服务\nMD\nCompose\nConfigure\n\nNginx 安装、反向代理模板、日志目录和服务管理。\n\n已认证\n通过环境计划应用\n10.1k\nREVIEW\nnginx\n启动 Nginx\n启动服务\nPostgreSQL 数据库\nMD\nCompose\nConfigure\n\nPostgreSQL 安装、端口策略、备份目录、基础安全配置。\n\n已认证\n通过环境计划应用\n4.8k\nPRIVILEGED\npostgresql\npostgresql-contrib\n启动 PostgreSQL\n启动服务\n防火墙基线\nMD\nConfigure\n\nUFW 防火墙、常见入站端口、出站策略和服务分组。\n\n已认证\n通过环境计划应用\n7.3k\nPRIVILEGED\nCAPABILITY\nufw\nCOMMAND\n启用 UFW\nPython 工具链\nMD\nConfigure\n\nPython3、pip、虚拟环境、镜像源和常用 CLI 工具。\n\n已认证\n通过环境计划应用\n9.6k\nSAFE\npython3\npython3-pip\npython3-venv\nRedis 内存数据库\nMD\nCompose\nConfigure\n\nRedis 安装、持久化配置、内存策略和服务管理。\n\n已认证\n通过环境计划应用\n11.2k\nREVIEW\nredis-server\n启动 Redis\n启动服务\nMySQL 数据库\nMD\nCompose\nConfigure\n\nMySQL Server 安装、安全初始化、字符集配置和服务管理。\n\n已认证\n通过环境计划应用\n9.8k\nPRIVILEGED\nmysql-server\n启动 MySQL\n启动服务\nGo 语言运行时\nMD\nConfigure\n\nGo 编译器安装、GOPATH 配置、模块代理和常用工具。\n\n已认证\n通过环境计划应用\n7.3k\nSAFE\ngolang-go\n设置 GOPATH\n设置 PATH\nJava / OpenJDK 运行时\nMD\nConfigure\n\nOpenJDK 安装、JAVA_HOME 配置、Maven 支持。\n\n已认证\n通过环境计划应用\n8.1k\nSAFE\ndefault-jdk\nmaven\nRust 工具链\nMD\nConfigure\n\nRust 编译器（rustup）、Cargo 包管理器和常用开发工具。\n\n已认证\n通过环境计划应用\n5.4k\nSAFE\ncurl\nbuild-essential\nGit 版本控制\nMD\nConfigure\n\nGit 安装、全局配置、凭据管理和常用 alias。\n\n已认证\n通过环境计划应用\n15.6k\nSAFE\ngit\ngit-lfs\nCertbot / Let's Encrypt SSL\nMD\nConfigure\n\n免费 SSL 证书自动申请、续期和 Nginx 集成。\n\n已认证\n通过环境计划应用\n8.7k\nREVIEW\ncertbot\npython3-certbot-nginx\nFail2Ban 入侵防护\nMD\nConfigure\n\n自动封禁暴力破解 IP、SSH 防护、自定义 ja",
+      "whiteish": [],
+      "viewport": {
+        "w": 1440,
+        "h": 900,
+        "scrollW": 1425,
+        "scrollH": 25298
+      }
+    }
+  },
+  {
+    "route": "/app/plans",
+    "viewport": "desktop",
+    "theme": "light",
+    "file": "E:\\1project\\EnvForge\\screenshots\\scheme-3-4-check\\desktop-light-app-plans.png",
+    "info": {
+      "href": "http://127.0.0.1:5173/app/plans",
+      "theme": "light",
+      "text": "E\nEnvForge\nLinux 环境重建与迁移平台\n总览\n资源状态、最近计划、待审队列、通知\n迁移\n源主机、快照、分析与迁移候选\n构建\n选择已认证能力，生成重建计划，进入审查和执行门禁\n计划\n计划中心、配方、排程、漂移、外发通知、报告\n报告\n迁移 / 重建 / 修复报告\n计划\n返回首页\nC\n更多\n计划\n执行记录\n排程\n漂移\n外发通知\n报告\n环境计划\n刷新\n全部\n(0)\n迁移\n(0)\n重建\n(0)\n变更\n(0)\n移除\n(0)\n修复\n(0)\n导入配方\n(0)\n尚未创建环境计划。先在迁移或构建模式生成计划。\n\n选择左侧计划查看详情、动作、验证结果与回滚结果。\n\n+ 新建计划草稿\n导入配方\n\n暂无计划草稿\n\n选择或新建环境计划\n\n计划用于审查迁移、重建、配置变更和移除能力。所有目标机器变更都应先进入计划。\n\n+ 新建计划草稿",
+      "whiteish": [],
+      "viewport": {
+        "w": 1440,
+        "h": 900,
+        "scrollW": 1425,
+        "scrollH": 1192
+      }
+    }
+  },
+  {
+    "route": "/app/reports",
+    "viewport": "desktop",
+    "theme": "light",
+    "file": "E:\\1project\\EnvForge\\screenshots\\scheme-3-4-check\\desktop-light-app-reports.png",
+    "info": {
+      "href": "http://127.0.0.1:5173/app/reports",
+      "theme": "light",
+      "text": "E\nEnvForge\nLinux 环境重建与迁移平台\n总览\n资源状态、最近计划、待审队列、通知\n迁移\n源主机、快照、分析与迁移候选\n构建\n选择已认证能力，生成重建计划，进入审查和执行门禁\n计划\n计划中心、配方、排程、漂移、外发通知、报告\n报告\n迁移 / 重建 / 修复报告\n报告\n返回首页\nC\n更多\n\n报告中心\n\n迁移、重建与修复报告\n\n报告是终态计划的证据出口，只提供查看、复制和下载，不在这里重新执行变更。\n\n刷新报告\n成功\n0\n部分成功\n0\n失败\n0\n已回滚\n0\n已归档\n0\n\n终态计划\n\n报告索引\n0\n\n尚无终态计划，执行或验证一些计划后再来。\n\nMARKDOWN 报告\n\n选择一个报告查看证据内容\n\n左侧列表只展示已进入终态的计划。",
+      "whiteish": [],
+      "viewport": {
+        "w": 1440,
+        "h": 900,
+        "scrollW": 1440,
+        "scrollH": 900
+      }
+    }
+  },
+  {
+    "route": "/app/dashboard",
+    "viewport": "desktop",
+    "theme": "dark",
+    "file": "E:\\1project\\EnvForge\\screenshots\\scheme-3-4-check\\desktop-dark-app-dashboard.png",
+    "info": {
+      "href": "http://127.0.0.1:5173/app/dashboard",
+      "theme": "dark",
+      "text": "E\nEnvForge\nLinux 环境重建与迁移平台\n总览\n资源状态、最近计划、待审队列、通知\n迁移\n源主机、快照、分析与迁移候选\n构建\n选择已认证能力，生成重建计划，进入审查和执行门禁\n计划\n计划中心、配方、排程、漂移、外发通知、报告\n报告\n迁移 / 重建 / 修复报告\n总览\n返回首页\nC\n更多\n\n资源控制台\n\n从源环境到可审计报告的当前状态\n\n控制台只保留工作流和资源状态；个人资料、安全和通知偏好已移入右上角更多菜单。\n\n运行正常\n打开迁移\n源环境\n未连接\n从迁移页连接 Linux 主机\n证据快照\n待采集\n主机快照尚未生成\n计划队列\n0 待审\n还没有计划\n报告\n0\n等待执行结果\n\n运维流水线\n\n迁移 / 构建 / 审查 / 执行 / 验证 / 报告\n0/6\n1\n连接源主机\n还没有可用连接\n下一步\n0\n2\n采集快照\n等待主机快照\n等待\n0\n3\n生成计划\n从已认证能力生成重建计划\n等待\n0\n4\n审查与批准\n没有待审计划\n等待\n0\n5\n执行与验证\n等待批准后执行\n等待\n0\n6\n报告沉淀\n完成后生成迁移/修复报告\n等待\n0\n运行队列\n尚未连接源主机\n\n先从迁移页建立连接，再采集主机快照。\n\n最近计划活动\n\n暂无计划。\n\n当前工作区\n身份\nuser\n连接数\n0\n证据项\n0\n未读通知\n0\n快照与报告\n\n暂无快照。\n\n暂无报告。",
+      "whiteish": [],
+      "viewport": {
+        "w": 1440,
+        "h": 900,
+        "scrollW": 1425,
+        "scrollH": 1135
+      }
+    }
+  },
+  {
+    "route": "/app/build",
+    "viewport": "desktop",
+    "theme": "dark",
+    "file": "E:\\1project\\EnvForge\\screenshots\\scheme-3-4-check\\desktop-dark-app-build.png",
+    "info": {
+      "href": "http://127.0.0.1:5173/app/build",
+      "theme": "dark",
+      "text": "E\nEnvForge\nLinux 环境重建与迁移平台\n总览\n资源状态、最近计划、待审队列、通知\n迁移\n源主机、快照、分析与迁移候选\n构建\n选择已认证能力，生成重建计划，进入审查和执行门禁\n计划\n计划中心、配方、排程、漂移、外发通知、报告\n报告\n迁移 / 重建 / 修复报告\n构建\n返回首页\nC\n更多\n构建模式流程\n1\n目标主机\n连接干净的目标机器\n!\n目标快照\n只读读取目标主机当前状态\n!\n已认证能力\n选择已认证能力\n!\n处理冲突\n处理兼容性冲突\n!\n重建计划\n生成可审查的重建计划\n!\n审查\n审查动作、风险与回滚\n!\n执行\n执行已审查的计划\n!\n验证\n运行规则库验证检查\n9\n报告\n查看 Markdown 报告\n构建\n\n105 items · 0 selected\n\n生成重建计划（0）\n已认证能力 · 105 构建页仅展示通过完整迁移认证的能力。所有操作仍需进入计划审查和执行门禁。\n全部\n运行时\n数据库\n安全\n网络\n容器\n开发\n服务\n\n计划检查器\n\n等待能力选择\n\n选择已认证能力后，这里会显示批量影响、预检查、重建计划和审查门禁。\n\nNode.js 运行时配置\nMD\nConfigure\n\nNode.js 运行时能力：包含 Node.js、npm、registry 配置和常见环境变量模板，纳入 Environment Plan 后再应用。\n\n已认证\n通过环境计划应用\n2\nREVIEW\nnodejs\nnpm\n设置 npm registry\nDocker 容器引擎\nMD\nConfigure\n\nDocker Engine 安装、compose 插件、镜像加速和服务自启动。\n\n已认证\n通过环境计划应用\n8.9k\nPRIVILEGED\ndocker.io\ndocker-compose-plugin\n启动 Docker 服务\n启动 Docker\nSSH 安全加固\nMD\nConfigure\n\n端口修改、禁用 Root 登录、公钥认证、连接限制和审计。\n\n已认证\n通过环境计划应用\n6.2k\nPRIVILEGED\nCAPABILITY\nopenssh-server\nCOMMAND\n重启 sshd\nNginx Web 服务\nMD\nCompose\nConfigure\n\nNginx 安装、反向代理模板、日志目录和服务管理。\n\n已认证\n通过环境计划应用\n10.1k\nREVIEW\nnginx\n启动 Nginx\n启动服务\nPostgreSQL 数据库\nMD\nCompose\nConfigure\n\nPostgreSQL 安装、端口策略、备份目录、基础安全配置。\n\n已认证\n通过环境计划应用\n4.8k\nPRIVILEGED\npostgresql\npostgresql-contrib\n启动 PostgreSQL\n启动服务\n防火墙基线\nMD\nConfigure\n\nUFW 防火墙、常见入站端口、出站策略和服务分组。\n\n已认证\n通过环境计划应用\n7.3k\nPRIVILEGED\nCAPABILITY\nufw\nCOMMAND\n启用 UFW\nPython 工具链\nMD\nConfigure\n\nPython3、pip、虚拟环境、镜像源和常用 CLI 工具。\n\n已认证\n通过环境计划应用\n9.6k\nSAFE\npython3\npython3-pip\npython3-venv\nRedis 内存数据库\nMD\nCompose\nConfigure\n\nRedis 安装、持久化配置、内存策略和服务管理。\n\n已认证\n通过环境计划应用\n11.2k\nREVIEW\nredis-server\n启动 Redis\n启动服务\nMySQL 数据库\nMD\nCompose\nConfigure\n\nMySQL Server 安装、安全初始化、字符集配置和服务管理。\n\n已认证\n通过环境计划应用\n9.8k\nPRIVILEGED\nmysql-server\n启动 MySQL\n启动服务\nGo 语言运行时\nMD\nConfigure\n\nGo 编译器安装、GOPATH 配置、模块代理和常用工具。\n\n已认证\n通过环境计划应用\n7.3k\nSAFE\ngolang-go\n设置 GOPATH\n设置 PATH\nJava / OpenJDK 运行时\nMD\nConfigure\n\nOpenJDK 安装、JAVA_HOME 配置、Maven 支持。\n\n已认证\n通过环境计划应用\n8.1k\nSAFE\ndefault-jdk\nmaven\nRust 工具链\nMD\nConfigure\n\nRust 编译器（rustup）、Cargo 包管理器和常用开发工具。\n\n已认证\n通过环境计划应用\n5.4k\nSAFE\ncurl\nbuild-essential\nGit 版本控制\nMD\nConfigure\n\nGit 安装、全局配置、凭据管理和常用 alias。\n\n已认证\n通过环境计划应用\n15.6k\nSAFE\ngit\ngit-lfs\nCertbot / Let's Encrypt SSL\nMD\nConfigure\n\n免费 SSL 证书自动申请、续期和 Nginx 集成。\n\n已认证\n通过环境计划应用\n8.7k\nREVIEW\ncertbot\npython3-certbot-nginx\nFail2Ban 入侵防护\nMD\nConfigure\n\n自动封禁暴力破解 IP、SSH 防护、自定义 ja",
+      "whiteish": [],
+      "viewport": {
+        "w": 1440,
+        "h": 900,
+        "scrollW": 1425,
+        "scrollH": 25298
+      }
+    }
+  },
+  {
+    "route": "/app/plans",
+    "viewport": "desktop",
+    "theme": "dark",
+    "file": "E:\\1project\\EnvForge\\screenshots\\scheme-3-4-check\\desktop-dark-app-plans.png",
+    "info": {
+      "href": "http://127.0.0.1:5173/app/plans",
+      "theme": "dark",
+      "text": "E\nEnvForge\nLinux 环境重建与迁移平台\n总览\n资源状态、最近计划、待审队列、通知\n迁移\n源主机、快照、分析与迁移候选\n构建\n选择已认证能力，生成重建计划，进入审查和执行门禁\n计划\n计划中心、配方、排程、漂移、外发通知、报告\n报告\n迁移 / 重建 / 修复报告\n计划\n返回首页\nC\n更多\n计划\n执行记录\n排程\n漂移\n外发通知\n报告\n环境计划\n刷新\n全部\n(0)\n迁移\n(0)\n重建\n(0)\n变更\n(0)\n移除\n(0)\n修复\n(0)\n导入配方\n(0)\n尚未创建环境计划。先在迁移或构建模式生成计划。\n\n选择左侧计划查看详情、动作、验证结果与回滚结果。\n\n+ 新建计划草稿\n导入配方\n\n暂无计划草稿\n\n选择或新建环境计划\n\n计划用于审查迁移、重建、配置变更和移除能力。所有目标机器变更都应先进入计划。\n\n+ 新建计划草稿",
+      "whiteish": [],
+      "viewport": {
+        "w": 1440,
+        "h": 900,
+        "scrollW": 1425,
+        "scrollH": 1192
+      }
+    }
+  },
+  {
+    "route": "/app/reports",
+    "viewport": "desktop",
+    "theme": "dark",
+    "file": "E:\\1project\\EnvForge\\screenshots\\scheme-3-4-check\\desktop-dark-app-reports.png",
+    "info": {
+      "href": "http://127.0.0.1:5173/app/reports",
+      "theme": "dark",
+      "text": "E\nEnvForge\nLinux 环境重建与迁移平台\n总览\n资源状态、最近计划、待审队列、通知\n迁移\n源主机、快照、分析与迁移候选\n构建\n选择已认证能力，生成重建计划，进入审查和执行门禁\n计划\n计划中心、配方、排程、漂移、外发通知、报告\n报告\n迁移 / 重建 / 修复报告\n报告\n返回首页\nC\n更多\n\n报告中心\n\n迁移、重建与修复报告\n\n报告是终态计划的证据出口，只提供查看、复制和下载，不在这里重新执行变更。\n\n刷新报告\n成功\n0\n部分成功\n0\n失败\n0\n已回滚\n0\n已归档\n0\n\n终态计划\n\n报告索引\n0\n\n尚无终态计划，执行或验证一些计划后再来。\n\nMARKDOWN 报告\n\n选择一个报告查看证据内容\n\n左侧列表只展示已进入终态的计划。",
+      "whiteish": [],
+      "viewport": {
+        "w": 1440,
+        "h": 900,
+        "scrollW": 1440,
+        "scrollH": 900
+      }
+    }
+  },
+  {
+    "route": "/app/dashboard",
+    "viewport": "mobile",
+    "theme": "light",
+    "file": "E:\\1project\\EnvForge\\screenshots\\scheme-3-4-check\\mobile-light-app-dashboard.png",
+    "info": {
+      "href": "http://127.0.0.1:5173/app/dashboard",
+      "theme": "light",
+      "text": "E\nEnvForge\nLinux 环境重建与迁移平台\n总览\n资源状态、最近计划、待审队列、通知\n迁移\n源主机、快照、分析与迁移候选\n构建\n选择已认证能力，生成重建计划，进入审查和执行门禁\n计划\n计划中心、配方、排程、漂移、外发通知、报告\n报告\n迁移 / 重建 / 修复报告\n总览\n返回首页\nC\n更多\n\n资源控制台\n\n从源环境到可审计报告的当前状态\n\n控制台只保留工作流和资源状态；个人资料、安全和通知偏好已移入右上角更多菜单。\n\n运行正常\n打开迁移\n源环境\n未连接\n从迁移页连接 Linux 主机\n证据快照\n待采集\n主机快照尚未生成\n计划队列\n0 待审\n还没有计划\n报告\n0\n等待执行结果\n\n运维流水线\n\n迁移 / 构建 / 审查 / 执行 / 验证 / 报告\n0/6\n1\n连接源主机\n还没有可用连接\n下一步\n0\n2\n采集快照\n等待主机快照\n等待\n0\n3\n生成计划\n从已认证能力生成重建计划\n等待\n0\n4\n审查与批准\n没有待审计划\n等待\n0\n5\n执行与验证\n等待批准后执行\n等待\n0\n6\n报告沉淀\n完成后生成迁移/修复报告\n等待\n0\n运行队列\n尚未连接源主机\n\n先从迁移页建立连接，再采集主机快照。\n\n最近计划活动\n\n暂无计划。\n\n当前工作区\n身份\nuser\n连接数\n0\n证据项\n0\n未读通知\n0\n快照与报告\n\n暂无快照。\n\n暂无报告。",
+      "whiteish": [],
+      "viewport": {
+        "w": 449,
+        "h": 972,
+        "scrollW": 449,
+        "scrollH": 3045
+      }
+    }
+  },
+  {
+    "route": "/app/build",
+    "viewport": "mobile",
+    "theme": "light",
+    "file": "E:\\1project\\EnvForge\\screenshots\\scheme-3-4-check\\mobile-light-app-build.png",
+    "info": {
+      "href": "http://127.0.0.1:5173/app/build",
+      "theme": "light",
+      "text": "E\nEnvForge\nLinux 环境重建与迁移平台\n总览\n资源状态、最近计划、待审队列、通知\n迁移\n源主机、快照、分析与迁移候选\n构建\n选择已认证能力，生成重建计划，进入审查和执行门禁\n计划\n计划中心、配方、排程、漂移、外发通知、报告\n报告\n迁移 / 重建 / 修复报告\n构建\n返回首页\nC\n更多\n构建模式流程\n1\n目标主机\n连接干净的目标机器\n!\n目标快照\n只读读取目标主机当前状态\n!\n已认证能力\n选择已认证能力\n!\n处理冲突\n处理兼容性冲突\n!\n重建计划\n生成可审查的重建计划\n!\n审查\n审查动作、风险与回滚\n!\n执行\n执行已审查的计划\n!\n验证\n运行规则库验证检查\n9\n报告\n查看 Markdown 报告\n构建\n\n105 items · 0 selected\n\n生成重建计划（0）\n已认证能力 · 105 构建页仅展示通过完整迁移认证的能力。所有操作仍需进入计划审查和执行门禁。\n全部\n运行时\n数据库\n安全\n网络\n容器\n开发\n服务\n\n计划检查器\n\n等待能力选择\n\n选择已认证能力后，这里会显示批量影响、预检查、重建计划和审查门禁。\n\nNode.js 运行时配置\nMD\nConfigure\n\nNode.js 运行时能力：包含 Node.js、npm、registry 配置和常见环境变量模板，纳入 Environment Plan 后再应用。\n\n已认证\n通过环境计划应用\n2\nREVIEW\nnodejs\nnpm\n设置 npm registry\nDocker 容器引擎\nMD\nConfigure\n\nDocker Engine 安装、compose 插件、镜像加速和服务自启动。\n\n已认证\n通过环境计划应用\n8.9k\nPRIVILEGED\ndocker.io\ndocker-compose-plugin\n启动 Docker 服务\n启动 Docker\nSSH 安全加固\nMD\nConfigure\n\n端口修改、禁用 Root 登录、公钥认证、连接限制和审计。\n\n已认证\n通过环境计划应用\n6.2k\nPRIVILEGED\nCAPABILITY\nopenssh-server\nCOMMAND\n重启 sshd\nNginx Web 服务\nMD\nCompose\nConfigure\n\nNginx 安装、反向代理模板、日志目录和服务管理。\n\n已认证\n通过环境计划应用\n10.1k\nREVIEW\nnginx\n启动 Nginx\n启动服务\nPostgreSQL 数据库\nMD\nCompose\nConfigure\n\nPostgreSQL 安装、端口策略、备份目录、基础安全配置。\n\n已认证\n通过环境计划应用\n4.8k\nPRIVILEGED\npostgresql\npostgresql-contrib\n启动 PostgreSQL\n启动服务\n防火墙基线\nMD\nConfigure\n\nUFW 防火墙、常见入站端口、出站策略和服务分组。\n\n已认证\n通过环境计划应用\n7.3k\nPRIVILEGED\nCAPABILITY\nufw\nCOMMAND\n启用 UFW\nPython 工具链\nMD\nConfigure\n\nPython3、pip、虚拟环境、镜像源和常用 CLI 工具。\n\n已认证\n通过环境计划应用\n9.6k\nSAFE\npython3\npython3-pip\npython3-venv\nRedis 内存数据库\nMD\nCompose\nConfigure\n\nRedis 安装、持久化配置、内存策略和服务管理。\n\n已认证\n通过环境计划应用\n11.2k\nREVIEW\nredis-server\n启动 Redis\n启动服务\nMySQL 数据库\nMD\nCompose\nConfigure\n\nMySQL Server 安装、安全初始化、字符集配置和服务管理。\n\n已认证\n通过环境计划应用\n9.8k\nPRIVILEGED\nmysql-server\n启动 MySQL\n启动服务\nGo 语言运行时\nMD\nConfigure\n\nGo 编译器安装、GOPATH 配置、模块代理和常用工具。\n\n已认证\n通过环境计划应用\n7.3k\nSAFE\ngolang-go\n设置 GOPATH\n设置 PATH\nJava / OpenJDK 运行时\nMD\nConfigure\n\nOpenJDK 安装、JAVA_HOME 配置、Maven 支持。\n\n已认证\n通过环境计划应用\n8.1k\nSAFE\ndefault-jdk\nmaven\nRust 工具链\nMD\nConfigure\n\nRust 编译器（rustup）、Cargo 包管理器和常用开发工具。\n\n已认证\n通过环境计划应用\n5.4k\nSAFE\ncurl\nbuild-essential\nGit 版本控制\nMD\nConfigure\n\nGit 安装、全局配置、凭据管理和常用 alias。\n\n已认证\n通过环境计划应用\n15.6k\nSAFE\ngit\ngit-lfs\nCertbot / Let's Encrypt SSL\nMD\nConfigure\n\n免费 SSL 证书自动申请、续期和 Nginx 集成。\n\n已认证\n通过环境计划应用\n8.7k\nREVIEW\ncertbot\npython3-certbot-nginx\nFail2Ban 入侵防护\nMD\nConfigure\n\n自动封禁暴力破解 IP、SSH 防护、自定义 ja",
+      "whiteish": [],
+      "viewport": {
+        "w": 449,
+        "h": 972,
+        "scrollW": 449,
+        "scrollH": 25889
+      }
+    }
+  },
+  {
+    "route": "/app/plans",
+    "viewport": "mobile",
+    "theme": "light",
+    "file": "E:\\1project\\EnvForge\\screenshots\\scheme-3-4-check\\mobile-light-app-plans.png",
+    "info": {
+      "href": "http://127.0.0.1:5173/app/plans",
+      "theme": "light",
+      "text": "E\nEnvForge\nLinux 环境重建与迁移平台\n总览\n资源状态、最近计划、待审队列、通知\n迁移\n源主机、快照、分析与迁移候选\n构建\n选择已认证能力，生成重建计划，进入审查和执行门禁\n计划\n计划中心、配方、排程、漂移、外发通知、报告\n报告\n迁移 / 重建 / 修复报告\n计划\n返回首页\nC\n更多\n计划\n执行记录\n排程\n漂移\n外发通知\n报告\n环境计划\n刷新\n全部\n(0)\n迁移\n(0)\n重建\n(0)\n变更\n(0)\n移除\n(0)\n修复\n(0)\n导入配方\n(0)\n尚未创建环境计划。先在迁移或构建模式生成计划。\n\n选择左侧计划查看详情、动作、验证结果与回滚结果。\n\n+ 新建计划草稿\n导入配方\n\n暂无计划草稿\n\n选择或新建环境计划\n\n计划用于审查迁移、重建、配置变更和移除能力。所有目标机器变更都应先进入计划。\n\n+ 新建计划草稿",
+      "whiteish": [],
+      "viewport": {
+        "w": 449,
+        "h": 972,
+        "scrollW": 449,
+        "scrollH": 1194
+      }
+    }
+  },
+  {
+    "route": "/app/reports",
+    "viewport": "mobile",
+    "theme": "light",
+    "file": "E:\\1project\\EnvForge\\screenshots\\scheme-3-4-check\\mobile-light-app-reports.png",
+    "info": {
+      "href": "http://127.0.0.1:5173/app/reports",
+      "theme": "light",
+      "text": "E\nEnvForge\nLinux 环境重建与迁移平台\n总览\n资源状态、最近计划、待审队列、通知\n迁移\n源主机、快照、分析与迁移候选\n构建\n选择已认证能力，生成重建计划，进入审查和执行门禁\n计划\n计划中心、配方、排程、漂移、外发通知、报告\n报告\n迁移 / 重建 / 修复报告\n报告\n返回首页\nC\n更多\n\n报告中心\n\n迁移、重建与修复报告\n\n报告是终态计划的证据出口，只提供查看、复制和下载，不在这里重新执行变更。\n\n刷新报告\n成功\n0\n部分成功\n0\n失败\n0\n已回滚\n0\n已归档\n0\n\n终态计划\n\n报告索引\n0\n\n尚无终态计划，执行或验证一些计划后再来。\n\nMARKDOWN 报告\n\n选择一个报告查看证据内容\n\n左侧列表只展示已进入终态的计划。",
+      "whiteish": [],
+      "viewport": {
+        "w": 449,
+        "h": 972,
+        "scrollW": 449,
+        "scrollH": 1182
+      }
+    }
+  },
+  {
+    "route": "/app/dashboard",
+    "viewport": "mobile",
+    "theme": "dark",
+    "file": "E:\\1project\\EnvForge\\screenshots\\scheme-3-4-check\\mobile-dark-app-dashboard.png",
+    "info": {
+      "href": "http://127.0.0.1:5173/app/dashboard",
+      "theme": "dark",
+      "text": "E\nEnvForge\nLinux 环境重建与迁移平台\n总览\n资源状态、最近计划、待审队列、通知\n迁移\n源主机、快照、分析与迁移候选\n构建\n选择已认证能力，生成重建计划，进入审查和执行门禁\n计划\n计划中心、配方、排程、漂移、外发通知、报告\n报告\n迁移 / 重建 / 修复报告\n总览\n返回首页\nC\n更多\n\n资源控制台\n\n从源环境到可审计报告的当前状态\n\n控制台只保留工作流和资源状态；个人资料、安全和通知偏好已移入右上角更多菜单。\n\n运行正常\n打开迁移\n源环境\n未连接\n从迁移页连接 Linux 主机\n证据快照\n待采集\n主机快照尚未生成\n计划队列\n0 待审\n还没有计划\n报告\n0\n等待执行结果\n\n运维流水线\n\n迁移 / 构建 / 审查 / 执行 / 验证 / 报告\n0/6\n1\n连接源主机\n还没有可用连接\n下一步\n0\n2\n采集快照\n等待主机快照\n等待\n0\n3\n生成计划\n从已认证能力生成重建计划\n等待\n0\n4\n审查与批准\n没有待审计划\n等待\n0\n5\n执行与验证\n等待批准后执行\n等待\n0\n6\n报告沉淀\n完成后生成迁移/修复报告\n等待\n0\n运行队列\n尚未连接源主机\n\n先从迁移页建立连接，再采集主机快照。\n\n最近计划活动\n\n暂无计划。\n\n当前工作区\n身份\nuser\n连接数\n0\n证据项\n0\n未读通知\n0\n快照与报告\n\n暂无快照。\n\n暂无报告。",
+      "whiteish": [],
+      "viewport": {
+        "w": 449,
+        "h": 972,
+        "scrollW": 449,
+        "scrollH": 3045
+      }
+    }
+  },
+  {
+    "route": "/app/build",
+    "viewport": "mobile",
+    "theme": "dark",
+    "file": "E:\\1project\\EnvForge\\screenshots\\scheme-3-4-check\\mobile-dark-app-build.png",
+    "info": {
+      "href": "http://127.0.0.1:5173/app/build",
+      "theme": "dark",
+      "text": "E\nEnvForge\nLinux 环境重建与迁移平台\n总览\n资源状态、最近计划、待审队列、通知\n迁移\n源主机、快照、分析与迁移候选\n构建\n选择已认证能力，生成重建计划，进入审查和执行门禁\n计划\n计划中心、配方、排程、漂移、外发通知、报告\n报告\n迁移 / 重建 / 修复报告\n构建\n返回首页\nC\n更多\n构建模式流程\n1\n目标主机\n连接干净的目标机器\n!\n目标快照\n只读读取目标主机当前状态\n!\n已认证能力\n选择已认证能力\n!\n处理冲突\n处理兼容性冲突\n!\n重建计划\n生成可审查的重建计划\n!\n审查\n审查动作、风险与回滚\n!\n执行\n执行已审查的计划\n!\n验证\n运行规则库验证检查\n9\n报告\n查看 Markdown 报告\n构建\n\n105 items · 0 selected\n\n生成重建计划（0）\n已认证能力 · 105 构建页仅展示通过完整迁移认证的能力。所有操作仍需进入计划审查和执行门禁。\n全部\n运行时\n数据库\n安全\n网络\n容器\n开发\n服务\n\n计划检查器\n\n等待能力选择\n\n选择已认证能力后，这里会显示批量影响、预检查、重建计划和审查门禁。\n\nNode.js 运行时配置\nMD\nConfigure\n\nNode.js 运行时能力：包含 Node.js、npm、registry 配置和常见环境变量模板，纳入 Environment Plan 后再应用。\n\n已认证\n通过环境计划应用\n2\nREVIEW\nnodejs\nnpm\n设置 npm registry\nDocker 容器引擎\nMD\nConfigure\n\nDocker Engine 安装、compose 插件、镜像加速和服务自启动。\n\n已认证\n通过环境计划应用\n8.9k\nPRIVILEGED\ndocker.io\ndocker-compose-plugin\n启动 Docker 服务\n启动 Docker\nSSH 安全加固\nMD\nConfigure\n\n端口修改、禁用 Root 登录、公钥认证、连接限制和审计。\n\n已认证\n通过环境计划应用\n6.2k\nPRIVILEGED\nCAPABILITY\nopenssh-server\nCOMMAND\n重启 sshd\nNginx Web 服务\nMD\nCompose\nConfigure\n\nNginx 安装、反向代理模板、日志目录和服务管理。\n\n已认证\n通过环境计划应用\n10.1k\nREVIEW\nnginx\n启动 Nginx\n启动服务\nPostgreSQL 数据库\nMD\nCompose\nConfigure\n\nPostgreSQL 安装、端口策略、备份目录、基础安全配置。\n\n已认证\n通过环境计划应用\n4.8k\nPRIVILEGED\npostgresql\npostgresql-contrib\n启动 PostgreSQL\n启动服务\n防火墙基线\nMD\nConfigure\n\nUFW 防火墙、常见入站端口、出站策略和服务分组。\n\n已认证\n通过环境计划应用\n7.3k\nPRIVILEGED\nCAPABILITY\nufw\nCOMMAND\n启用 UFW\nPython 工具链\nMD\nConfigure\n\nPython3、pip、虚拟环境、镜像源和常用 CLI 工具。\n\n已认证\n通过环境计划应用\n9.6k\nSAFE\npython3\npython3-pip\npython3-venv\nRedis 内存数据库\nMD\nCompose\nConfigure\n\nRedis 安装、持久化配置、内存策略和服务管理。\n\n已认证\n通过环境计划应用\n11.2k\nREVIEW\nredis-server\n启动 Redis\n启动服务\nMySQL 数据库\nMD\nCompose\nConfigure\n\nMySQL Server 安装、安全初始化、字符集配置和服务管理。\n\n已认证\n通过环境计划应用\n9.8k\nPRIVILEGED\nmysql-server\n启动 MySQL\n启动服务\nGo 语言运行时\nMD\nConfigure\n\nGo 编译器安装、GOPATH 配置、模块代理和常用工具。\n\n已认证\n通过环境计划应用\n7.3k\nSAFE\ngolang-go\n设置 GOPATH\n设置 PATH\nJava / OpenJDK 运行时\nMD\nConfigure\n\nOpenJDK 安装、JAVA_HOME 配置、Maven 支持。\n\n已认证\n通过环境计划应用\n8.1k\nSAFE\ndefault-jdk\nmaven\nRust 工具链\nMD\nConfigure\n\nRust 编译器（rustup）、Cargo 包管理器和常用开发工具。\n\n已认证\n通过环境计划应用\n5.4k\nSAFE\ncurl\nbuild-essential\nGit 版本控制\nMD\nConfigure\n\nGit 安装、全局配置、凭据管理和常用 alias。\n\n已认证\n通过环境计划应用\n15.6k\nSAFE\ngit\ngit-lfs\nCertbot / Let's Encrypt SSL\nMD\nConfigure\n\n免费 SSL 证书自动申请、续期和 Nginx 集成。\n\n已认证\n通过环境计划应用\n8.7k\nREVIEW\ncertbot\npython3-certbot-nginx\nFail2Ban 入侵防护\nMD\nConfigure\n\n自动封禁暴力破解 IP、SSH 防护、自定义 ja",
+      "whiteish": [],
+      "viewport": {
+        "w": 449,
+        "h": 972,
+        "scrollW": 449,
+        "scrollH": 25889
+      }
+    }
+  },
+  {
+    "route": "/app/plans",
+    "viewport": "mobile",
+    "theme": "dark",
+    "file": "E:\\1project\\EnvForge\\screenshots\\scheme-3-4-check\\mobile-dark-app-plans.png",
+    "info": {
+      "href": "http://127.0.0.1:5173/app/plans",
+      "theme": "dark",
+      "text": "E\nEnvForge\nLinux 环境重建与迁移平台\n总览\n资源状态、最近计划、待审队列、通知\n迁移\n源主机、快照、分析与迁移候选\n构建\n选择已认证能力，生成重建计划，进入审查和执行门禁\n计划\n计划中心、配方、排程、漂移、外发通知、报告\n报告\n迁移 / 重建 / 修复报告\n计划\n返回首页\nC\n更多\n计划\n执行记录\n排程\n漂移\n外发通知\n报告\n环境计划\n刷新\n全部\n(0)\n迁移\n(0)\n重建\n(0)\n变更\n(0)\n移除\n(0)\n修复\n(0)\n导入配方\n(0)\n尚未创建环境计划。先在迁移或构建模式生成计划。\n\n选择左侧计划查看详情、动作、验证结果与回滚结果。\n\n+ 新建计划草稿\n导入配方\n\n暂无计划草稿\n\n选择或新建环境计划\n\n计划用于审查迁移、重建、配置变更和移除能力。所有目标机器变更都应先进入计划。\n\n+ 新建计划草稿",
+      "whiteish": [],
+      "viewport": {
+        "w": 449,
+        "h": 972,
+        "scrollW": 449,
+        "scrollH": 1194
+      }
+    }
+  },
+  {
+    "route": "/app/reports",
+    "viewport": "mobile",
+    "theme": "dark",
+    "file": "E:\\1project\\EnvForge\\screenshots\\scheme-3-4-check\\mobile-dark-app-reports.png",
+    "info": {
+      "href": "http://127.0.0.1:5173/app/reports",
+      "theme": "dark",
+      "text": "E\nEnvForge\nLinux 环境重建与迁移平台\n总览\n资源状态、最近计划、待审队列、通知\n迁移\n源主机、快照、分析与迁移候选\n构建\n选择已认证能力，生成重建计划，进入审查和执行门禁\n计划\n计划中心、配方、排程、漂移、外发通知、报告\n报告\n迁移 / 重建 / 修复报告\n报告\n返回首页\nC\n更多\n\n报告中心\n\n迁移、重建与修复报告\n\n报告是终态计划的证据出口，只提供查看、复制和下载，不在这里重新执行变更。\n\n刷新报告\n成功\n0\n部分成功\n0\n失败\n0\n已回滚\n0\n已归档\n0\n\n终态计划\n\n报告索引\n0\n\n尚无终态计划，执行或验证一些计划后再来。\n\nMARKDOWN 报告\n\n选择一个报告查看证据内容\n\n左侧列表只展示已进入终态的计划。",
+      "whiteish": [],
+      "viewport": {
+        "w": 449,
+        "h": 972,
+        "scrollW": 449,
+        "scrollH": 1182
+      }
+    }
+  }
+]

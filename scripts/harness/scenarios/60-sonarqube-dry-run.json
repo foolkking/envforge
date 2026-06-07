@@ -1,0 +1,17 @@
+{
+  "id": "sonarqube-dry-run",
+  "title": "SonarQube - backup and credential dry run",
+  "destructive": false,
+  "planSource": { "kind": "capability-selection", "capabilityIds": ["sonarqube"] },
+  "expected": {
+    "planType": "rebuild",
+    "items": [{ "id": "capability:sonarqube", "capabilityKey": "developer.sonarqube", "supportLevel": "full-migration", "minActions": 3 }],
+    "conflictsBlock": 0,
+    "conflictsWarn": 0,
+    "approvalsRequired": [{ "kind": "data-strategy-confirm" }, { "kind": "secret-confirm" }],
+    "remainingRisks": ["Project history", "Default admin"]
+  },
+  "approvalAcks": { "risksAck": "ALL", "approvalsAck": "ALL" },
+  "verify": { "actionRunStatuses": ["succeeded"], "auditChecks": ["api/system/status", "JDBC credential review", "plugin compatibility review"] },
+  "notes": ["SonarQube data moves through database backup/restore; raw Docker volume migration is blocked."]
+}
