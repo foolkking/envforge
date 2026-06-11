@@ -83,7 +83,7 @@ function statusLabel(status: WorkflowStepStatus, locale: Locale): string {
 /**
  * Build the canonical Migrate Mode pipeline.
  *
- * The pipeline matches docs/PRODUCT.md and docs/MIGRATION_SYSTEM.md:
+ * The pipeline matches docs/product.md and docs/system-design.md:
  *
  *   Source VM -> Snapshot -> Analysis -> Review Queue -> Migration Plan
  *   -> Target VM -> Apply & Verify -> Report

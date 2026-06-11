@@ -1081,17 +1081,6 @@ button svg,
   width: 20px;
 }
 
-.app-shell {
-  display: grid;
-  grid-template-columns: 320px minmax(0, 1fr);
-  min-height: 100vh;
-}
-
-.sidebar {
-  border-right: 1px solid #e5e7eb;
-  padding: 34px 28px;
-}
-
 .brand {
   align-items: center;
   display: flex;
@@ -1115,10 +1104,6 @@ button svg,
 .brand div:last-child {
   display: grid;
   gap: 4px;
-}
-
-.brand strong {
-  font-size: 21px;
 }
 
 .brand span,
@@ -1148,21 +1133,10 @@ button svg,
   transition: background 0.12s, color 0.12s;
 }
 
-.main-nav button:hover {
-  background: #f1f5f9;
-  color: #0f172a;
-}
-
 .main-nav button.active {
   background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
   color: #065f46;
   font-weight: 700;
-}
-
-.workspace {
-  background: #ffffff;
-  min-width: 0;
-  padding: 26px 48px 48px;
 }
 
 button:disabled {
@@ -8362,6 +8336,21 @@ button:disabled {
   --ef-shadow: 0 1px 2px rgba(15, 23, 42, 0.06), 0 10px 28px rgba(15, 23, 42, 0.06);
 }
 
+/* ── Shared UI primitives (components/ui) ─────────────────────────────
+   Button reuses existing button classes (no CSS needed here). Card and
+   Badge below are built on the --ef-* tokens so new code has one
+   consistent surface/pill instead of a dozen bespoke variants. */
+.ui-card { background: var(--ef-surface); border: 1px solid var(--ef-border); border-radius: var(--ef-radius); padding: 14px; }
+.ui-card-ok { border-color: #86efac; }
+.ui-card-warn { border-color: #fcd34d; }
+.ui-card-danger { border-color: #fecaca; }
+.ui-badge { align-items: center; border-radius: 999px; display: inline-flex; font-size: 12px; font-weight: 700; gap: 6px; padding: 3px 10px; white-space: nowrap; }
+.ui-badge-ok { background: #dcfce7; color: #166534; }
+.ui-badge-warn { background: #fef3c7; color: #92400e; }
+.ui-badge-danger { background: #fee2e2; color: #b42318; }
+.ui-badge-neutral { background: #f1f5f9; color: #334155; }
+.ui-badge-info { background: #e0f2fe; color: #075985; }
+
 body {
   background: var(--ef-bg);
   color: var(--ef-text);
@@ -11890,6 +11879,27 @@ body {
   grid-template-columns: minmax(220px, 280px) minmax(420px, 1fr) minmax(320px, 400px);
 }
 
+/* Two-phase Build: "select" shows rail + catalog, "review" shows the
+   plan inspector full-width. Toggled by the phase-* class from React. */
+.build-workbench-grid.phase-select {
+  grid-template-areas: "rail catalog";
+  grid-template-columns: minmax(220px, 280px) minmax(420px, 1fr);
+}
+
+.build-workbench-grid.phase-select .build-plan-inspector {
+  display: none;
+}
+
+.build-workbench-grid.phase-review {
+  grid-template-areas: "inspector";
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.build-workbench-grid.phase-review .build-workbench-rail,
+.build-workbench-grid.phase-review .build-catalog-surface {
+  display: none;
+}
+
 .build-workbench-rail,
 .build-catalog-surface,
 .build-plan-inspector,
@@ -12650,3 +12660,154 @@ body {
     display: none;
   }
 }
+
+/* ── Module B: build-page overlays rendered as right-side drawers ──────
+   Converts the centered ConfigureRunPanel / MarkdownOverlay (.markdown-overlay)
+   and the inline Docker Compose modal into slide-in drawers, matching the
+   existing .drawer-overlay pattern. Appended in the refresh layer so it wins
+   by cascade; only overrides layout props, inner content untouched. */
+.markdown-overlay {
+  align-items: stretch;
+  justify-content: flex-end;
+  padding: 0;
+}
+
+.markdown-overlay .markdown-reader,
+.markdown-overlay .configure-run-panel {
+  border-radius: 0;
+  height: 100vh;
+  max-height: 100vh;
+  max-width: 100vw;
+  box-shadow: -24px 0 60px rgba(15, 23, 42, 0.22);
+}
+
+.markdown-overlay .markdown-reader {
+  width: min(860px, 100vw);
+}
+
+.markdown-overlay .configure-run-panel {
+  width: min(1100px, 100vw);
+}
+
+@media (max-width: 720px) {
+  .markdown-overlay .markdown-reader,
+  .markdown-overlay .configure-run-panel {
+    width: 100vw;
+  }
+}
+
+/* ── Module C: grouped sidebar nav (workspace / workflow / governance) ── */
+.nav-group {
+  display: grid;
+  gap: 4px;
+}
+
+.nav-group + .nav-group {
+  margin-top: 14px;
+}
+
+.nav-group-label {
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 0 12px 2px;
+}
+
+:root[data-theme="dark"] .nav-group-label {
+  color: #94a3b8;
+}
+
+/* ── Module C: persistent global workflow bar (six-step mainline) ────── */
+.pipeline-bar {
+  align-items: center;
+  background: #ffffff;
+  border-bottom: 1px solid var(--ef-border, #e2e8f0);
+  display: flex;
+  gap: 14px;
+  overflow-x: auto;
+  padding: 10px 20px;
+}
+
+.pipeline-bar-eyebrow {
+  color: #64748b;
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.pipeline-bar-track {
+  align-items: center;
+  display: flex;
+  gap: 6px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.pipeline-bar-item {
+  display: flex;
+}
+
+.pipeline-bar-item:not(:last-child)::after {
+  color: #cbd5e1;
+  content: "›";
+  margin: 0 2px;
+}
+
+.pipeline-bar-step {
+  align-items: center;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  color: #475569;
+  cursor: pointer;
+  display: inline-flex;
+  font-size: 13px;
+  gap: 6px;
+  padding: 5px 12px;
+  white-space: nowrap;
+}
+
+.pipeline-bar-step:hover {
+  background: #f1f5f9;
+}
+
+.pipeline-bar-step .pipeline-bar-index {
+  background: #e2e8f0;
+  border-radius: 999px;
+  color: #475569;
+  font-size: 11px;
+  font-weight: 700;
+  height: 18px;
+  line-height: 18px;
+  text-align: center;
+  width: 18px;
+}
+
+.pipeline-bar-step svg {
+  height: 15px;
+  width: 15px;
+}
+
+.pipeline-bar-step.state-done { color: #15803d; }
+.pipeline-bar-step.state-done .pipeline-bar-index { background: #bbf7d0; color: #14532d; }
+.pipeline-bar-step.state-active { color: #1d4ed8; }
+.pipeline-bar-step.state-active .pipeline-bar-index { background: #bfdbfe; color: #1e3a8a; }
+.pipeline-bar-step.state-blocked { color: #b91c1c; }
+.pipeline-bar-step.state-blocked .pipeline-bar-index { background: #fecaca; color: #7f1d1d; }
+.pipeline-bar-step.state-idle { color: #94a3b8; }
+
+.pipeline-bar-step.is-current {
+  border-color: currentColor;
+  font-weight: 700;
+}
+
+:root[data-theme="dark"] .pipeline-bar {
+  background: #0f172a;
+  border-bottom-color: #1e293b;
+}
+:root[data-theme="dark"] .pipeline-bar-step:hover { background: #1e293b; }

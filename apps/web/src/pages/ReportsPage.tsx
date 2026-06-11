@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { fetchEnvironmentPlanReport, listEnvironmentPlans, type PlanListEntry } from "../api";
 import type { Locale } from "../lib/types";
+import { Button } from "../components/ui/Button";
+import { Badge } from "../components/ui/Badge";
 
 /**
  * ReportsPage — read-only access to plan reports.
@@ -70,9 +72,9 @@ export function ReportsPage({ authToken, locale }: { authToken: string; locale: 
               : "Reports are evidence exports for terminal plans. This page only supports viewing, copying, and downloading."}
           </p>
         </div>
-        <button type="button" className="primary-action" onClick={() => void load()} disabled={loading}>
+        <Button variant="primary" onClick={() => void load()} disabled={loading}>
           {loading ? (locale === "zh" ? "刷新中..." : "Refreshing...") : (locale === "zh" ? "刷新报告" : "Refresh reports")}
-        </button>
+        </Button>
       </section>
 
       <section className="report-summary-grid" aria-label={locale === "zh" ? "报告状态摘要" : "Report status summary"}>
@@ -110,7 +112,7 @@ export function ReportsPage({ authToken, locale }: { authToken: string; locale: 
                     <strong>{plan.name}</strong>
                     <small>{plan.type} · {new Date(plan.updatedAt).toLocaleString()}</small>
                   </span>
-                  <code className={`report-status-chip report-status-${plan.status ?? "draft"}`}>{statusLabel(plan.status ?? "draft", locale)}</code>
+                  <Badge tone={statusTone(plan.status ?? "draft")}>{statusLabel(plan.status ?? "draft", locale)}</Badge>
                 </button>
               </li>
             ))}
@@ -170,6 +172,14 @@ function statusLabel(status: NonNullable<PlanListEntry["status"]> | "draft", loc
     committed: "已归档"
   };
   return locale === "zh" ? zh[status] ?? status : status;
+}
+
+function statusTone(status: string): "ok" | "warn" | "danger" | "neutral" | "info" {
+  if (status === "succeeded") return "ok";
+  if (status === "failed") return "danger";
+  if (status === "rolled-back" || status === "partially-succeeded") return "warn";
+  if (status === "committed") return "info";
+  return "neutral";
 }
 
 function downloadReport(activeId: string, report: string) {

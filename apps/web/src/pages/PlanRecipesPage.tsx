@@ -18,7 +18,11 @@ import {
 import { PlaybookEditor } from "../components/PlaybookEditor";
 import { PlansCenterPanel } from "../components/PlansCenterPanel";
 import { DriftPanel, SchedulesPanel, WebhooksPanel } from "./SettingsPage";
+import { RunsPanel } from "../components/RunsPanel";
+import { ReportsPage } from "./ReportsPage";
 import type { Locale } from "../lib/types";
+import { Button } from "../components/ui/Button";
+import { Badge } from "../components/ui/Badge";
 
 const EMPTY_YAML = `# EnvForge Environment Plan
 name: Reviewable Environment Plan
@@ -31,6 +35,8 @@ tasks:
       cmd: "echo Review this plan before applying it to a target VM"
 `;
 
+type OpsTab = "plans" | "runs" | "schedules" | "drift" | "webhooks" | "reports";
+
 export function PlanRecipesPage({
   locale,
   authToken,
@@ -38,7 +44,8 @@ export function PlanRecipesPage({
   playbooks: schedulePlaybooks,
   catalog,
   activeTask,
-  onTaskUpdate
+  onTaskUpdate,
+  initialOpsTab
 }: {
   locale: Locale;
   authToken: string;
@@ -47,8 +54,12 @@ export function PlanRecipesPage({
   catalog: CatalogItem[];
   activeTask: ExecutionTask | null;
   onTaskUpdate: (task: ExecutionTask) => void;
+  initialOpsTab?: OpsTab | null;
 }) {
-  const [opsTab, setOpsTab] = useState<"plans" | "runs" | "schedules" | "drift" | "webhooks" | "reports">("plans");
+  const [opsTab, setOpsTab] = useState<OpsTab>(initialOpsTab ?? "plans");
+  useEffect(() => {
+    if (initialOpsTab) setOpsTab(initialOpsTab);
+  }, [initialOpsTab]);
   const [playbooks, setPlaybooks] = useState<StoredPlaybook[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -213,15 +224,26 @@ export function PlanRecipesPage({
         ))}
       </nav>
 
+      {(opsTab === "schedules" || opsTab === "drift" || opsTab === "webhooks") ? (
+        <div className="plan-ops-section-note" style={{ display: "flex", flexDirection: "column", gap: 2, margin: "10px 0 4px" }}>
+          <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase", opacity: 0.6 }}>
+            {locale === "zh" ? "自动化设置" : "Automation settings"}
+          </span>
+          <strong style={{ fontSize: 14 }}>
+            {locale === "zh" ? "排程 · 漂移检测 · 外发通知（Webhook）" : "Schedules · Drift detection · Webhooks"}
+          </strong>
+        </div>
+      ) : null}
+
       {opsTab === "plans" ? (
         <>
       <PlansCenterPanel authToken={authToken} locale={locale} />
       <div className="playbook-page" style={{ marginTop: 12 }}>
         <div className="playbook-sidebar">
         <div className="playbook-sidebar-header">
-          <button className="primary-action" type="button" style={{ flex: 1, fontSize: 13, minHeight: 34, padding: "0 14px" }} onClick={startCreate}>
+          <Button variant="primary" style={{ flex: 1, fontSize: 13, minHeight: 34, padding: "0 14px" }} onClick={startCreate}>
             + {locale === "zh" ? "新建计划草稿" : "New plan draft"}
-          </button>
+          </Button>
           <label className="conn-btn conn-btn-ghost" style={{ flex: 1, justifyContent: "center", fontSize: 13, minHeight: 34, padding: "0 14px", cursor: "pointer" }}>
             <Upload style={{ width: 14, height: 14 }} />
             {locale === "zh" ? "导入配方" : "Import recipe"}
@@ -257,7 +279,7 @@ export function PlanRecipesPage({
                   <div className="playbook-list-name">{playbook.name}</div>
                   <div className="playbook-list-meta">{new Date(playbook.updatedAt).toLocaleDateString()}</div>
                 </div>
-                <span className="playbook-list-badge">v{playbook.version}</span>
+                <Badge tone="neutral">v{playbook.version}</Badge>
               </button>
             ))}
           </div>
@@ -273,20 +295,20 @@ export function PlanRecipesPage({
                 <input className="playbook-desc-input" placeholder={locale === "zh" ? "说明（可选）" : "Description (optional)"} value={editorDesc} onChange={(event) => setEditorDesc(event.target.value)} />
               </div>
               <div className="playbook-editor-actions">
-                {editingPlaybook ? <span className="playbook-version-badge">v{editingPlaybook.version}</span> : null}
-                <button className="ghost-action" type="button" style={{ fontSize: 13, minHeight: 34 }} onClick={() => setShowHistory((value) => !value)} disabled={!editingPlaybook}>
+                {editingPlaybook ? <Badge tone="neutral">v{editingPlaybook.version}</Badge> : null}
+                <Button variant="ghost" style={{ fontSize: 13, minHeight: 34 }} onClick={() => setShowHistory((value) => !value)} disabled={!editingPlaybook}>
                   <History style={{ width: 14, height: 14 }} /> {locale === "zh" ? "版本历史" : "History"}
-                </button>
-                <button className="ghost-action" type="button" style={{ fontSize: 13, minHeight: 34 }} onClick={() => setShowMultiTarget((value) => !value)}>
+                </Button>
+                <Button variant="ghost" style={{ fontSize: 13, minHeight: 34 }} onClick={() => setShowMultiTarget((value) => !value)}>
                   {locale === "zh" ? "选择目标" : "Targets"}
-                </button>
-                <button className={`primary-action ${saving ? "btn-loading" : ""}`} type="button" style={{ fontSize: 13, minHeight: 34 }} disabled={saving || !editorYaml.trim()} onClick={() => void handleSave()}>
+                </Button>
+                <Button variant="primary" loading={saving} style={{ fontSize: 13, minHeight: 34 }} disabled={saving || !editorYaml.trim()} onClick={() => void handleSave()}>
                   {saving ? (locale === "zh" ? "保存中..." : "Saving...") : (locale === "zh" ? "保存计划草稿" : "Save plan draft")}
-                </button>
+                </Button>
                 {editingPlaybook ? (
-                  <button className="ghost-action" type="button" style={{ fontSize: 13, minHeight: 34, color: "#b42318" }} onClick={() => void handleDelete(editingPlaybook.id)}>
+                  <Button variant="ghost" style={{ fontSize: 13, minHeight: 34, color: "#b42318" }} onClick={() => void handleDelete(editingPlaybook.id)}>
                     {locale === "zh" ? "删除" : "Delete"}
-                  </button>
+                  </Button>
                 ) : null}
               </div>
             </div>
@@ -297,20 +319,20 @@ export function PlanRecipesPage({
               <div className="playbook-history-panel">
                 <div className="playbook-history-header">
                   <strong>{locale === "zh" ? "版本历史" : "Version history"}</strong>
-                  <button className="ghost-action icon-action" type="button" onClick={() => setShowHistory(false)}><X style={{ width: 14, height: 14 }} /></button>
+                  <Button variant="ghost" className="icon-action" onClick={() => setShowHistory(false)}><X style={{ width: 14, height: 14 }} /></Button>
                 </div>
                 <div className="playbook-history-list">
                   {editingPlaybook.history.map((historyItem) => (
                     <div key={historyItem.version} className="playbook-history-item">
                       <div className="playbook-history-item-meta">
-                        <span className="playbook-version-badge">v{historyItem.version}</span>
+                        <Badge tone="neutral">v{historyItem.version}</Badge>
                         <span style={{ color: "#64748b", fontSize: 12 }}>{new Date(historyItem.savedAt).toLocaleString()}</span>
                         {historyItem.comment ? <span style={{ color: "#475569", fontSize: 12 }}>{historyItem.comment}</span> : null}
                       </div>
                       {historyItem.version !== editingPlaybook.version ? (
-                        <button className="secondary-action" type="button" style={{ fontSize: 12, minHeight: 28, padding: "0 10px" }} onClick={() => void handleRestoreVersion(historyItem.version)}>
+                        <Button variant="secondary" style={{ fontSize: 12, minHeight: 28, padding: "0 10px" }} onClick={() => void handleRestoreVersion(historyItem.version)}>
                           {locale === "zh" ? "恢复" : "Restore"}
-                        </button>
+                        </Button>
                       ) : (
                         <span style={{ color: "#0f766e", fontSize: 12, fontWeight: 700 }}>{locale === "zh" ? "当前版本" : "Current"}</span>
                       )}
@@ -324,19 +346,19 @@ export function PlanRecipesPage({
               <div className="multi-target-panel">
                 <div className="multi-target-header">
                   <strong>{locale === "zh" ? "选择目标虚拟机" : "Select target VMs"}</strong>
-                  <button className="ghost-action icon-action" type="button" onClick={() => setShowMultiTarget(false)}><X style={{ width: 14, height: 14 }} /></button>
+                  <Button variant="ghost" className="icon-action" onClick={() => setShowMultiTarget(false)}><X style={{ width: 14, height: 14 }} /></Button>
                 </div>
                 {allTags.length > 0 ? (
                   <div className="multi-target-tags">
                     <p style={{ color: "#475569", fontSize: 12, fontWeight: 700, margin: "0 0 6px" }}>{locale === "zh" ? "按标签选择" : "Select by tag"}</p>
                     <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
                       {allTags.map((tag) => (
-                        <button key={tag} type="button" className={selectedTags.has(tag) ? "selected-action" : "ghost-action"} style={{ fontSize: 12, minHeight: 28, padding: "0 10px" }} onClick={() => setSelectedTags((prev) => {
+                        <Button key={tag} variant={selectedTags.has(tag) ? "selected" : "ghost"} style={{ fontSize: 12, minHeight: 28, padding: "0 10px" }} onClick={() => setSelectedTags((prev) => {
                           const next = new Set(prev);
                           if (next.has(tag)) next.delete(tag);
                           else next.add(tag);
                           return next;
-                        })}>#{tag}</button>
+                        })}>#{tag}</Button>
                       ))}
                     </div>
                   </div>
@@ -357,7 +379,7 @@ export function PlanRecipesPage({
                           })} style={{ accentColor: "#0f766e" }} />
                           <span style={{ fontWeight: 600 }}>{connection.label}</span>
                           <span style={{ color: "#64748b" }}>{connection.fields.host}</span>
-                          {connection.tags?.map((tag) => <span key={tag} className="chip-method">#{tag}</span>)}
+                          {connection.tags?.map((tag) => <Badge key={tag} tone="neutral">#{tag}</Badge>)}
                         </label>
                       ))}
                     </div>
@@ -371,13 +393,13 @@ export function PlanRecipesPage({
                   </div>
                 ) : null}
                 <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
-                  <button className="secondary-action" type="button" disabled={!hasTargets || executing} onClick={() => void handleMultiExecute(true)}>
+                  <Button variant="secondary" disabled={!hasTargets || executing} onClick={() => void handleMultiExecute(true)}>
                     {locale === "zh" ? "预演" : "Dry-run"}
-                  </button>
-                  <button className="primary-action" type="button" disabled={!hasTargets || executing} onClick={() => void handleMultiExecute(false)}>
+                  </Button>
+                  <Button variant="primary" disabled={!hasTargets || executing} onClick={() => void handleMultiExecute(false)}>
                     <Play style={{ width: 14, height: 14 }} />
                     {executing ? (locale === "zh" ? "应用中..." : "Applying...") : (locale === "zh" ? "应用已审查计划" : "Apply reviewed plan")}
-                  </button>
+                  </Button>
                 </div>
               </div>
             ) : null}
@@ -393,7 +415,7 @@ export function PlanRecipesPage({
                 ? "计划用于审查迁移、重建、配置变更和移除能力。所有目标机器变更都应先进入计划。"
                 : "Plans review migration, rebuild, config change, and remove flows. Target changes should enter a plan first."}
             </p>
-            <button className="primary-action" type="button" onClick={startCreate}>+ {locale === "zh" ? "新建计划草稿" : "New plan draft"}</button>
+            <Button variant="primary" onClick={startCreate}>+ {locale === "zh" ? "新建计划草稿" : "New plan draft"}</Button>
           </div>
         )}
       </div>
@@ -402,7 +424,7 @@ export function PlanRecipesPage({
       ) : null}
 
       {opsTab === "runs" ? (
-        <PlanOpsPanel id="runs" title={locale === "zh" ? "执行记录" : "Runs"} body={locale === "zh" ? "查看环境计划执行记录、失败检查、重试决策和修复计划入口。" : "Review Environment Plan runs, failed checks, retry decisions, and repair-plan entry points."} />
+        <RunsPanel authToken={authToken} locale={locale} />
       ) : null}
       {opsTab === "schedules" ? (
         <SchedulesPanel locale={locale} authToken={authToken} connections={connections} playbooks={schedulePlaybooks} catalog={catalog} />
@@ -414,19 +436,8 @@ export function PlanRecipesPage({
         <WebhooksPanel locale={locale} authToken={authToken} />
       ) : null}
       {opsTab === "reports" ? (
-        <PlanOpsPanel id="reports" title={locale === "zh" ? "报告" : "Reports"} body={locale === "zh" ? "打开已审查环境计划、漂移检查和认证检查生成的报告。" : "Open reports generated by reviewed Environment Plans, drift checks, and certification checks."} />
+        <ReportsPage authToken={authToken} locale={locale} />
       ) : null}
     </div>
-  );
-}
-
-function PlanOpsPanel({ id, title, body }: { id: string; title: string; body: string }) {
-  return (
-    <section className="settings-section" data-testid={`plans-${id}-tab`}>
-      <div className="settings-section-header">
-        <h3>{title}</h3>
-      </div>
-      <p className="settings-help">{body}</p>
-    </section>
   );
 }

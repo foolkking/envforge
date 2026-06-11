@@ -38,6 +38,8 @@ import {
   type UserProfile
 } from "./api";
 import { text, navItems, navItemsForRole, type Locale, type Page } from "./lib/types";
+import { navGroupsForRole } from "./lib/nav";
+import { PipelineBar } from "./components/PipelineBar";
 import { MachinePage } from "./pages/MachinePage";
 import { CapabilityCatalogPage } from "./pages/CapabilityCatalogPage";
 import { CapabilityRulesAdminPage } from "./pages/CapabilityRulesAdminPage";
@@ -55,10 +57,10 @@ type ConnectionMethod = "ssh-password" | "ssh-key";
 
 const pageRoutes: Record<Page, string> = {
   dashboard: "dashboard",
-  machine: "migrate",
-  market: "build",
+  migrate: "migrate",
+  build: "build",
   catalog: "admin",
-  playbooks: "plans",
+  plans: "plans",
   reports: "reports"
 };
 
@@ -67,14 +69,14 @@ function pageFromPathname(pathname: string): Page {
   const route = segments[0] === "app" ? segments[1] : segments[0];
   const routeMap: Record<string, Page> = {
     dashboard: "dashboard",
-    migrate: "machine",
-    machine: "machine",
-    build: "market",
-    market: "market",
+    migrate: "migrate",
+    machine: "migrate",
+    build: "build",
+    market: "build",
     admin: "catalog",
     catalog: "catalog",
-    plans: "playbooks",
-    playbooks: "playbooks",
+    plans: "plans",
+    playbooks: "plans",
     reports: "reports"
   };
   return routeMap[route ?? ""] ?? "dashboard";
@@ -95,6 +97,7 @@ function App() {
   const [locale, setLocale] = useState<Locale>("zh");
   const [shellMode, setShellMode] = useState<"public" | "app">(() => isAppPath(window.location.pathname) ? "app" : "public");
   const [page, setPage] = useState<Page>(() => pageFromPathname(window.location.pathname));
+  const [requestedView, setRequestedView] = useState<string | null>(null);
   const [catalog, setCatalog] = useState<CatalogItem[]>([]);
   const [userPlaybooks, setUserPlaybooks] = useState<StoredPlaybook[]>([]);
   const [showOnboarding, setShowOnboarding] = useState(false);
@@ -169,8 +172,8 @@ function App() {
   // as a belt-and-braces fallback.
   useEffect(() => {
     if (page === "catalog" && authUser?.role !== "admin") {
-      setPage("market");
-      if (shellMode === "app") window.history.replaceState(null, "", `/app/${pageRoutes.market}`);
+      setPage("build");
+      if (shellMode === "app") window.history.replaceState(null, "", `/app/${pageRoutes.build}`);
     }
   }, [page, authUser, shellMode]);
 
@@ -210,15 +213,16 @@ function App() {
     window.history.pushState(null, "", safePath);
   }
 
-  function navigateApp(target: Page = page) {
+  function navigateApp(target: Page = page, view?: string) {
     setMoreMenuOpen(false);
+    setRequestedView(view ?? null);
     if (!authToken) {
       setShellMode("public");
       setAuthDialog("login");
       window.history.pushState(null, "", "/login");
       return;
     }
-    const safeTarget = target === "catalog" && authUser?.role !== "admin" ? "market" : target;
+    const safeTarget = target === "catalog" && authUser?.role !== "admin" ? "build" : target;
     setPage(safeTarget);
     setShellMode("app");
     if (authDialog !== "twofa") setAuthDialog(null);
@@ -684,24 +688,29 @@ function App() {
         </div>
 
         <nav className="main-nav">
-          {navItemsForRole(authUser?.role).map((item) => {
-            const Icon = item.icon;
-            return (
-              <button
-                className={page === item.id ? "active" : ""}
-                key={item.id}
-                type="button"
-                title={item.description[locale]}
-                onClick={() => navigateApp(item.id)}
-              >
-                <Icon aria-hidden />
-                <span className="nav-item-copy">
-                  <span className="nav-item-label">{t[item.id]}</span>
-                  <span className="nav-item-description">{item.description[locale]}</span>
-                </span>
-              </button>
-            );
-          })}
+          {navGroupsForRole(authUser?.role).map((group) => (
+            <div className="nav-group" key={group.id}>
+              <span className="nav-group-label">{group.label[locale]}</span>
+              {group.items.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <button
+                    className={page === item.id ? "active" : ""}
+                    key={item.id}
+                    type="button"
+                    title={item.description[locale]}
+                    onClick={() => navigateApp(item.id)}
+                  >
+                    <Icon aria-hidden />
+                    <span className="nav-item-copy">
+                      <span className="nav-item-label">{t[item.id]}</span>
+                      <span className="nav-item-description">{item.description[locale]}</span>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          ))}
         </nav>
       </aside>
 
@@ -712,7 +721,7 @@ function App() {
           </div>
 
           <div className="topbar-middle-slot">
-            {page === "market" ? (
+            {page === "build" ? (
             <label className="search-box topbar-search">
               <Search aria-hidden />
               <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t.search} />
@@ -741,6 +750,18 @@ function App() {
             />
           </div>
         </header>
+
+        {authToken && (page === "migrate" || page === "build" || page === "plans" || page === "reports") ? (
+          <PipelineBar
+            authToken={authToken}
+            locale={locale}
+            connections={connections}
+            activeConnection={activeConnection}
+            activeProbe={activeProbe ?? null}
+            currentPage={page}
+            onNavigate={(target, view) => navigateApp(target, view)}
+          />
+        ) : null}
 
         {inboxOpen ? (
           <div className="inbox-drawer" role="dialog" aria-label={locale === "zh" ? "站内信" : "Inbox"}>
@@ -795,6 +816,7 @@ function App() {
             userProfiles={userProfiles}
             inboxUnreadCount={inboxUnreadCount}
             onJump={(target) => navigateApp(target as Page)}
+            onAccount={() => setAccountModalOpen(true)}
           />
         ) : null}
 
@@ -816,7 +838,7 @@ function App() {
               <button
                 type="button"
                 className="primary-action"
-                onClick={() => navigateApp("market")}
+                onClick={() => navigateApp("build")}
                 style={{ marginTop: 8 }}
               >
                 {locale === "zh" ? "去构建页使用已认证能力" : "Go to Build (certified capabilities)"}
@@ -829,7 +851,7 @@ function App() {
           <ReportsPage authToken={authToken} locale={locale} />
         ) : null}
 
-        {page === "machine" ? (
+        {page === "migrate" ? (
           <MachinePage
             t={t}
             locale={locale}
@@ -867,7 +889,7 @@ function App() {
           />
         ) : null}
 
-        {page === "market" ? (
+        {page === "build" ? (
           <CapabilityCatalogPage
             t={t}
             locale={locale}
@@ -882,7 +904,7 @@ function App() {
           />
         ) : null}
 
-        {page === "playbooks" ? (
+        {page === "plans" ? (
           <PlanRecipesPage
             locale={locale}
             authToken={authToken}
@@ -891,6 +913,7 @@ function App() {
             catalog={catalog}
             activeTask={activeTask}
             onTaskUpdate={setActiveTask}
+            initialOpsTab={page === "plans" ? (requestedView as "plans" | "runs" | "schedules" | "drift" | "webhooks" | "reports" | null) : null}
           />
         ) : null}
 
@@ -991,7 +1014,7 @@ function TopbarMoreMenu({
           {authUser && onAccount ? (
             <button type="button" role="menuitem" onClick={onAccount}>
               <UserRound aria-hidden />
-              <span>{zh ? "个人资料与安全" : "Profile and security"}</span>
+              <span>{zh ? "账号与安全" : "Account & security"}</span>
             </button>
           ) : null}
           {onInbox ? (
@@ -1001,6 +1024,7 @@ function TopbarMoreMenu({
               {inboxUnreadCount ? <b>{inboxUnreadCount > 99 ? "99+" : inboxUnreadCount}</b> : null}
             </button>
           ) : null}
+          <div role="separator" aria-hidden style={{ height: 1, margin: "4px 10px", background: "rgba(148,163,184,0.25)" }} />
           <button type="button" role="menuitem" onClick={() => { onLocale(); onClose(); }}>
             <Languages aria-hidden />
             <span>{nextLanguage}</span>
@@ -1457,5 +1481,3 @@ function AuthDialog({
     </div>
   );
 }
-
-createRoot(document.getElementById("root")!).render(<App />);

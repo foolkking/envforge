@@ -13,13 +13,14 @@ import {
 } from "../api";
 import type { Locale } from "../lib/types";
 import { connectionFields, connectionFieldKeys } from "../lib/types";
-import { MigratePipelinePage } from "../components/MigratePipelinePage";
+import { MigratePipelinePage } from "./MigratePipelinePage";
+import { Button } from "../components/ui/Button";
 
 type TextDict = {
   appName: string;
   subtitle: string;
-  machine: string;
-  market: string;
+  migrate: string;
+  build: string;
   search: string;
   filter: string;
   connectTitle: string;
@@ -234,12 +235,12 @@ export function MachinePage({
           <span><strong>{locale === "zh" ? "快照" : "Snapshot"}</strong>{snapshotTime(activeConn, activeProbe)}</span>
         </div>
         <div className="host-context-actions">
-          <button className="secondary-action" type="button" onClick={() => setConnectionManagerOpen(true)}>
+          <Button variant="secondary" onClick={() => setConnectionManagerOpen(true)}>
             {locale === "zh" ? "管理连接" : "Manage connections"}
-          </button>
-          <button className="primary-action" type="button" onClick={() => setShowNewForm((value) => !value)}>
+          </Button>
+          <Button variant="primary" onClick={() => setShowNewForm((value) => !value)}>
             {showNewForm ? (locale === "zh" ? "收起新建" : "Collapse") : (locale === "zh" ? "+ 新建连接" : "+ New connection")}
-          </button>
+          </Button>
         </div>
       </section>
 
@@ -265,9 +266,9 @@ export function MachinePage({
                         {sshKeys.map((sshKey) => <option key={sshKey.id} value={sshKey.id}>{sshKey.label}</option>)}
                       </select>
                     ) : null}
-                    <button className="ghost-action" type="button" style={{ fontSize: 13, minHeight: 38, padding: "0 12px" }} onClick={() => setShowKeyUpload((value) => !value)}>
+                    <Button variant="ghost" style={{ fontSize: 13, minHeight: 38, padding: "0 12px" }} onClick={() => setShowKeyUpload((value) => !value)}>
                       {showKeyUpload ? (locale === "zh" ? "收起" : "Collapse") : (locale === "zh" ? "+ 上传密钥" : "+ Upload key")}
-                    </button>
+                    </Button>
                   </div>
                 );
               }
@@ -287,9 +288,8 @@ export function MachinePage({
               <p className="eyebrow" style={{ color: "#475569", margin: "0 0 8px" }}>{locale === "zh" ? "粘贴 SSH 私钥内容" : "Paste SSH private key"}</p>
               <input placeholder={locale === "zh" ? "密钥标签（可选）" : "Key label (optional)"} value={keyUploadLabel} onChange={(event) => setKeyUploadLabel(event.target.value)} style={{ marginBottom: 8, width: "100%", border: "1px solid #d7dde4", borderRadius: 8, minHeight: 36, padding: "0 10px", font: "inherit" }} />
               <textarea placeholder="-----BEGIN OPENSSH PRIVATE KEY-----" value={keyUploadText} onChange={(event) => setKeyUploadText(event.target.value)} rows={6} style={{ width: "100%", fontFamily: "monospace", fontSize: 12, border: "1px solid #d7dde4", borderRadius: 8, padding: 10, resize: "vertical" }} />
-              <button
-                className="primary-action"
-                type="button"
+              <Button
+                variant="primary"
                 disabled={!keyUploadText.trim() || keyUploading || !authToken}
                 onClick={async () => {
                   if (!authToken) return;
@@ -310,7 +310,7 @@ export function MachinePage({
                 style={{ marginTop: 8, fontSize: 13, minHeight: 36 }}
               >
                 {keyUploading ? (locale === "zh" ? "上传中..." : "Uploading...") : (locale === "zh" ? "保存密钥" : "Save key")}
-              </button>
+              </Button>
             </div>
           ) : null}
           {connectionProfile?.status === "probed" ? <p className="connection-note success-note"><CheckCircle2 aria-hidden />{locale === "zh" ? "SSH 已连接，真实系统信息已采集。" : "SSH connected. Real system data collected."}</p> : null}
@@ -318,10 +318,10 @@ export function MachinePage({
           {connectionProfile && connectionProfile.status !== "probed" && connectionProfile.status !== "ssh_failed" ? <p className="connection-note">{locale === "zh" ? "连接档案已保存。" : "Connection profile saved."}</p> : null}
           {connectionError ? <p className="connection-error">{connectionError}</p> : null}
           {probing ? <p className="connection-note probing-note">{locale === "zh" ? "正在通过 SSH 连接并采集主机快照..." : "Connecting via SSH and collecting HostSnapshot..."}</p> : null}
-          <button className="primary-action" type="button" onClick={connect} disabled={probing}>
+          <Button variant="primary" onClick={connect} disabled={probing}>
             {probing ? <span className="spinning">...</span> : <KeyRound aria-hidden />}
             {probing ? (locale === "zh" ? "连接中..." : "Connecting...") : t.connectBtn}
-          </button>
+          </Button>
         </section>
       ) : null}
 
@@ -346,9 +346,9 @@ export function MachinePage({
                 <p className="eyebrow">{locale === "zh" ? "连接上下文" : "Connection context"}</p>
                 <h2>{locale === "zh" ? "管理连接" : "Manage connections"}</h2>
               </div>
-              <button className="ghost-action icon-action" type="button" onClick={() => setConnectionManagerOpen(false)} aria-label="Close">
+              <Button variant="ghost" className="icon-action" onClick={() => setConnectionManagerOpen(false)} aria-label="Close">
                 <X aria-hidden />
-              </button>
+              </Button>
             </header>
             <div className="connection-manager-toolbar">
               <input
@@ -356,9 +356,9 @@ export function MachinePage({
                 onChange={(event) => setConnectionSearch(event.target.value)}
                 placeholder={locale === "zh" ? "搜索主机名、IP、标签或状态" : "Search hostname, IP, tag, or status"}
               />
-              <button className="primary-action" type="button" onClick={() => { setShowNewForm(true); setConnectionManagerOpen(false); }}>
+              <Button variant="primary" onClick={() => { setShowNewForm(true); setConnectionManagerOpen(false); }}>
                 {locale === "zh" ? "+ 新建连接" : "+ New connection"}
-              </button>
+              </Button>
             </div>
             <div className="connection-manager-list">
               {filteredConnections.length === 0 ? (
@@ -380,7 +380,7 @@ export function MachinePage({
                   <div className="connection-manager-actions">
                     <button className="conn-btn conn-btn-ghost" type="button" onClick={() => startEditConnection(connection)}>{locale === "zh" ? "编辑" : "Edit"}</button>
                     <button className="conn-btn conn-btn-ghost" type="button" onClick={() => void onReprobe(connection.id)}>{locale === "zh" ? "重新采集主机快照" : "Collect HostSnapshot"}</button>
-                    <button className="conn-btn conn-btn-danger" type="button" onClick={() => void deleteManagedConnection(connection)}>{locale === "zh" ? "删除" : "Delete"}</button>
+                    <Button variant="danger" onClick={() => void deleteManagedConnection(connection)}>{locale === "zh" ? "删除" : "Delete"}</Button>
                   </div>
                   {editingConnId === connection.id ? (
                     <div className="connection-manager-edit">
@@ -393,8 +393,8 @@ export function MachinePage({
                         <input value={editTags} onChange={(event) => setEditTags(event.target.value)} />
                       </label>
                       <div>
-                        <button className="primary-action" type="button" onClick={() => void saveManagedConnection(connection)}>{locale === "zh" ? "保存" : "Save"}</button>
-                        <button className="ghost-action" type="button" onClick={() => setEditingConnId(null)}>{locale === "zh" ? "取消" : "Cancel"}</button>
+                        <Button variant="primary" onClick={() => void saveManagedConnection(connection)}>{locale === "zh" ? "保存" : "Save"}</Button>
+                        <Button variant="ghost" onClick={() => setEditingConnId(null)}>{locale === "zh" ? "取消" : "Cancel"}</Button>
                       </div>
                     </div>
                   ) : null}
@@ -413,9 +413,9 @@ export function MachinePage({
                 <p className="eyebrow">{locale === "zh" ? "主机详情" : "Host details"}</p>
                 <h2>{connectionHostName(activeConn)}</h2>
               </div>
-              <button className="ghost-action icon-action" type="button" onClick={() => setHostDetailsOpen(false)} aria-label="Close">
+              <Button variant="ghost" className="icon-action" onClick={() => setHostDetailsOpen(false)} aria-label="Close">
                 <X aria-hidden />
-              </button>
+              </Button>
             </header>
             <dl className="host-details-list">
               <div><dt>{locale === "zh" ? "地址" : "Address"}</dt><dd>{connectionAddress(activeConn)}</dd></div>

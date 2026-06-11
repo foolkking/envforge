@@ -49,6 +49,7 @@ import {
   type ReviewDecision
 } from "../api";
 import type { Locale } from "../lib/types";
+import { Button } from "../components/ui/Button";
 
 const selectedDecisions = new Set<ReviewDecision>(["approved", "add-to-plan", "migrate-artifact"]);
 const stepOrder: MigrationSessionStep[] = ["source", "analysis", "select", "unknown", "config-data", "plan", "target", "apply", "report"];
@@ -543,8 +544,8 @@ function StagedPlanBar({
         <Metric label={zh ? "计划项" : "Plan items"} value={summary?.planItemCount ?? 0} />
       </div>
       <div className="staged-plan-actions">
-        <button type="button" className="secondary-action" disabled={!session} onClick={onPlan}><FileText aria-hidden />{zh ? "查看计划" : "View plan"}</button>
-        <button type="button" className="primary-action" disabled={!session} onClick={onRecommended}>{zh ? "继续" : "Continue"}<ArrowRight aria-hidden /></button>
+        <Button variant="secondary" disabled={!session} onClick={onPlan}><FileText aria-hidden />{zh ? "查看计划" : "View plan"}</Button>
+        <Button variant="primary" disabled={!session} onClick={onRecommended}>{zh ? "继续" : "Continue"}<ArrowRight aria-hidden /></Button>
       </div>
     </div>
   );
@@ -597,11 +598,11 @@ function SourceStep({
       <aside className="source-action-panel">
         <h3>{zh ? "只读采集" : "Read-only collection"}</h3>
         <p>{zh ? "采集 OS、包、服务、端口和配置清单；不会修改源主机。" : "Collect OS, packages, services, ports, and config inventory without mutating the source host."}</p>
-        <button type="button" className="primary-action" disabled={!connected || loading} onClick={onCollect}>
+        <Button variant="primary" disabled={!connected || loading} onClick={onCollect}>
           {loading ? <RefreshCw className="spinning" aria-hidden /> : <MonitorCog aria-hidden />}
           {loading ? (zh ? "采集中" : "Collecting") : (probe ? (zh ? "重新采集并分析" : "Recollect and analyze") : (zh ? "采集主机快照" : "Collect HostSnapshot"))}
-        </button>
-        <button type="button" className="secondary-action" disabled={!connection} onClick={onOpenHostDetails}><Eye aria-hidden />{zh ? "主机详情" : "Host details"}</button>
+        </Button>
+        <Button variant="secondary" disabled={!connection} onClick={onOpenHostDetails}><Eye aria-hidden />{zh ? "主机详情" : "Host details"}</Button>
       </aside>
     </div>
   );
@@ -617,7 +618,7 @@ function AnalysisStep({ locale, session, analysis, onRefresh, onContinue }: { lo
           <p className="eyebrow">{zh ? "分析摘要" : "Analysis summary"}</p>
           <h3>{zh ? "系统识别到的迁移能力" : "Detected migration capabilities"}</h3>
         </div>
-        <button type="button" className="secondary-action" onClick={onRefresh}><RefreshCw aria-hidden />{zh ? "刷新分析" : "Refresh"}</button>
+        <Button variant="secondary" onClick={onRefresh}><RefreshCw aria-hidden />{zh ? "刷新分析" : "Refresh"}</Button>
       </div>
       <div className="analysis-metric-grid">
         <MetricCard icon={<PackagePlus aria-hidden />} label={zh ? "候选能力" : "Candidates"} value={summary?.totalCandidates ?? 0} />
@@ -629,7 +630,7 @@ function AnalysisStep({ locale, session, analysis, onRefresh, onContinue }: { lo
       </div>
       <div className="analysis-callout">
         <p>{analysis?.report ? (zh ? "下一步按 capability 选择迁移项；包、服务、端口和配置只作为证据。" : "Next, select by capability. Packages, services, ports, and configs stay as evidence.") : (zh ? "当前还没有可分析的快照。" : "No analyzable snapshot is available yet.")}</p>
-        <button type="button" className="primary-action" disabled={!analysis?.report} onClick={onContinue}>{zh ? "开始选择迁移项" : "Start selection"}<ArrowRight aria-hidden /></button>
+        <Button variant="primary" disabled={!analysis?.report} onClick={onContinue}>{zh ? "开始选择迁移项" : "Start selection"}<ArrowRight aria-hidden /></Button>
       </div>
     </div>
   );
@@ -692,10 +693,10 @@ function CapabilitySelectionStep({
       {selected.size > 0 ? (
         <div className="selection-bulk-bar">
           <strong>{zh ? `已选择 ${selected.size} 项同类 ${groupLabel(selectedGroup ?? "all", locale)}` : `${selected.size} ${groupLabel(selectedGroup ?? "all", locale)} item(s) selected`}</strong>
-          <button type="button" className="secondary-action" disabled={loading} onClick={() => void bulk("add-to-plan")}>{zh ? "批量加入计划" : "Add to plan"}</button>
-          <button type="button" className="secondary-action" disabled={loading} onClick={() => void bulk("record-only")}>{zh ? "仅记录" : "Record only"}</button>
-          <button type="button" className="secondary-action" disabled={loading} onClick={() => void bulk("skipped")}>{zh ? "跳过" : "Skip"}</button>
-          <button type="button" className="ghost-action" onClick={() => setSelected(new Set())}>{zh ? "清空" : "Clear"}</button>
+          <Button variant="secondary" disabled={loading} onClick={() => void bulk("add-to-plan")}>{zh ? "批量加入计划" : "Add to plan"}</Button>
+          <Button variant="secondary" disabled={loading} onClick={() => void bulk("record-only")}>{zh ? "仅记录" : "Record only"}</Button>
+          <Button variant="secondary" disabled={loading} onClick={() => void bulk("skipped")}>{zh ? "跳过" : "Skip"}</Button>
+          <Button variant="ghost" onClick={() => setSelected(new Set())}>{zh ? "清空" : "Clear"}</Button>
         </div>
       ) : null}
       <div className="capability-card-grid">
@@ -723,10 +724,10 @@ function CapabilitySelectionStep({
                 <span className={`risk-chip risk-${candidate.riskLevel}`}>{riskLabel(candidate.riskLevel, locale)}</span>
               </div>
               <div className="capability-actions">
-                <button type="button" className="primary-action" disabled={loading} onClick={() => void onDecision({ candidateId: candidate.id, decision: "add-to-plan" })}>{zh ? "加入迁移" : "Add"}</button>
-                <button type="button" className="secondary-action" disabled={loading} onClick={() => void onDecision({ candidateId: candidate.id, decision: "record-only" })}>{zh ? "仅记录" : "Record"}</button>
-                <button type="button" className="secondary-action" disabled={loading} onClick={() => void onDecision({ candidateId: candidate.id, decision: "skipped" })}>{zh ? "跳过" : "Skip"}</button>
-                <button type="button" className="ghost-action" onClick={() => setDrawer(candidate)}><Eye aria-hidden />{zh ? "证据" : "Evidence"}</button>
+                <Button variant="primary" disabled={loading} onClick={() => void onDecision({ candidateId: candidate.id, decision: "add-to-plan" })}>{zh ? "加入迁移" : "Add"}</Button>
+                <Button variant="secondary" disabled={loading} onClick={() => void onDecision({ candidateId: candidate.id, decision: "record-only" })}>{zh ? "仅记录" : "Record"}</Button>
+                <Button variant="secondary" disabled={loading} onClick={() => void onDecision({ candidateId: candidate.id, decision: "skipped" })}>{zh ? "跳过" : "Skip"}</Button>
+                <Button variant="ghost" onClick={() => setDrawer(candidate)}><Eye aria-hidden />{zh ? "证据" : "Evidence"}</Button>
               </div>
             </article>
           );
@@ -760,10 +761,10 @@ function UnknownReviewStep({ locale, queue, decisions, loading, onDecision }: { 
                 <small>{item.candidate.source} · {item.candidate.version || "-"} · {decisionLabel(decision, locale)}</small>
               </div>
               <div>
-                <button type="button" className="secondary-action" disabled={loading} onClick={() => void onDecision({ candidateId: item.candidate.id, decision: "migrate-artifact" })}>{zh ? "手工迁移" : "Manual item"}</button>
-                <button type="button" className="secondary-action" disabled={loading} onClick={() => void onDecision({ candidateId: item.candidate.id, decision: "create-catalog-draft" })}>{zh ? "生成草稿" : "Catalog draft"}</button>
-                <button type="button" className="secondary-action" disabled={loading} onClick={() => void onDecision({ candidateId: item.candidate.id, decision: "record-only" })}>{zh ? "仅记录" : "Record"}</button>
-                <button type="button" className="ghost-action" disabled={loading} onClick={() => void onDecision({ candidateId: item.candidate.id, decision: "skipped" })}>{zh ? "跳过" : "Skip"}</button>
+                <Button variant="secondary" disabled={loading} onClick={() => void onDecision({ candidateId: item.candidate.id, decision: "migrate-artifact" })}>{zh ? "手工迁移" : "Manual item"}</Button>
+                <Button variant="secondary" disabled={loading} onClick={() => void onDecision({ candidateId: item.candidate.id, decision: "create-catalog-draft" })}>{zh ? "生成草稿" : "Catalog draft"}</Button>
+                <Button variant="secondary" disabled={loading} onClick={() => void onDecision({ candidateId: item.candidate.id, decision: "record-only" })}>{zh ? "仅记录" : "Record"}</Button>
+                <Button variant="ghost" disabled={loading} onClick={() => void onDecision({ candidateId: item.candidate.id, decision: "skipped" })}>{zh ? "跳过" : "Skip"}</Button>
               </div>
             </article>
           );
@@ -797,7 +798,7 @@ function ConfigDataReviewStep({ locale, analysis, configBundles, configDecisions
           <p className="eyebrow">{zh ? "配置与数据审核" : "Config and data review"}</p>
           <h3>{zh ? "按 ConfigBundle 审核，不展示整机文件树" : "Review ConfigBundles, not the whole file tree"}</h3>
         </div>
-        <button type="button" className="secondary-action" disabled={loading} onClick={onRefresh}><RefreshCw aria-hidden />{zh ? "刷新" : "Refresh"}</button>
+        <Button variant="secondary" disabled={loading} onClick={onRefresh}><RefreshCw aria-hidden />{zh ? "刷新" : "Refresh"}</Button>
       </div>
       {unresolvedSecrets.length > 0 ? (
         <div className="pipeline-warning"><ShieldAlert aria-hidden />{zh ? `仍有 ${unresolvedSecrets.length} 个 secret/blocked bundle 未显式确认，apply 会被阻断。` : `${unresolvedSecrets.length} secret/blocked bundle(s) still block apply until explicitly confirmed.`}</div>
@@ -823,12 +824,12 @@ function ConfigDataReviewStep({ locale, analysis, configBundles, configDecisions
               </dl>
               <p>{bundle.rollbackStrategy ?? (zh ? "应用前需要目标备份和回滚点。" : "Target backup and rollback checkpoint required before apply.")}</p>
               <div className="bundle-decision-actions">
-                <button type="button" className="secondary-action" disabled={loading} onClick={() => void onConfigDecision({ bundleId: bundle.id, strategy: bundle.migrationStrategy, status: "approved", note: "ConfigBundle strategy reviewed." })}>{zh ? "确认策略" : "Confirm"}</button>
+                <Button variant="secondary" disabled={loading} onClick={() => void onConfigDecision({ bundleId: bundle.id, strategy: bundle.migrationStrategy, status: "approved", note: "ConfigBundle strategy reviewed." })}>{zh ? "确认策略" : "Confirm"}</Button>
                 {(bundle.sensitivity === "secret" || bundle.migrationStrategy === "secret-out-of-band") ? (
-                  <button type="button" className="secondary-action" disabled={loading} onClick={() => void onConfigDecision({ bundleId: bundle.id, strategy: "secret-out-of-band", status: "approved", note: "Secret handled out of band; raw value will not be copied." })}>{zh ? "Secret 线下处理" : "Secret out-of-band"}</button>
+                  <Button variant="secondary" disabled={loading} onClick={() => void onConfigDecision({ bundleId: bundle.id, strategy: "secret-out-of-band", status: "approved", note: "Secret handled out of band; raw value will not be copied." })}>{zh ? "Secret 线下处理" : "Secret out-of-band"}</Button>
                 ) : null}
-                <button type="button" className="ghost-action" disabled={loading} onClick={() => void onConfigDecision({ bundleId: bundle.id, strategy: "blocked", status: "blocked", note: "Blocked by operator." })}>{zh ? "阻断" : "Block"}</button>
-                <button type="button" className="ghost-action" onClick={() => setDrawer(bundle)}><Eye aria-hidden />{zh ? "Diff / Raw" : "Diff / Raw"}</button>
+                <Button variant="ghost" disabled={loading} onClick={() => void onConfigDecision({ bundleId: bundle.id, strategy: "blocked", status: "blocked", note: "Blocked by operator." })}>{zh ? "阻断" : "Block"}</Button>
+                <Button variant="ghost" onClick={() => setDrawer(bundle)}><Eye aria-hidden />{zh ? "Diff / Raw" : "Diff / Raw"}</Button>
               </div>
             </article>
           );
@@ -855,10 +856,10 @@ function ConfigDataReviewStep({ locale, analysis, configBundles, configDecisions
                 </header>
                 <p>{paths.length ? paths.join(" · ") : (zh ? "规则要求确认数据迁移方式。" : "The rule requires a data movement strategy.")}</p>
                 <div className="bundle-decision-actions">
-                  <button type="button" className="secondary-action" disabled={loading} onClick={() => void onDataDecision({ candidateId: candidate.id, strategy: "backup-restore", status: "confirmed", paths, note: "Backup/restore strategy confirmed." })}>{zh ? "备份恢复" : "Backup/restore"}</button>
-                  <button type="button" className="secondary-action" disabled={loading} onClick={() => void onDataDecision({ candidateId: candidate.id, strategy: "rsync-copy", status: "confirmed", paths, note: "Rsync/copy strategy confirmed." })}>{zh ? "同步复制" : "Rsync/copy"}</button>
-                  <button type="button" className="secondary-action" disabled={loading} onClick={() => void onDataDecision({ candidateId: candidate.id, strategy: "manual", status: "confirmed", paths, note: "Manual data migration confirmed." })}>{zh ? "手工迁移" : "Manual"}</button>
-                  <button type="button" className="ghost-action" disabled={loading} onClick={() => void onDataDecision({ candidateId: candidate.id, strategy: "manual", status: "blocked", paths, note: "Data strategy blocked by operator." })}>{zh ? "阻断" : "Block"}</button>
+                  <Button variant="secondary" disabled={loading} onClick={() => void onDataDecision({ candidateId: candidate.id, strategy: "backup-restore", status: "confirmed", paths, note: "Backup/restore strategy confirmed." })}>{zh ? "备份恢复" : "Backup/restore"}</Button>
+                  <Button variant="secondary" disabled={loading} onClick={() => void onDataDecision({ candidateId: candidate.id, strategy: "rsync-copy", status: "confirmed", paths, note: "Rsync/copy strategy confirmed." })}>{zh ? "同步复制" : "Rsync/copy"}</Button>
+                  <Button variant="secondary" disabled={loading} onClick={() => void onDataDecision({ candidateId: candidate.id, strategy: "manual", status: "confirmed", paths, note: "Manual data migration confirmed." })}>{zh ? "手工迁移" : "Manual"}</Button>
+                  <Button variant="ghost" disabled={loading} onClick={() => void onDataDecision({ candidateId: candidate.id, strategy: "manual", status: "blocked", paths, note: "Data strategy blocked by operator." })}>{zh ? "阻断" : "Block"}</Button>
                 </div>
               </article>
             );
@@ -875,7 +876,7 @@ function ConfigDataReviewStep({ locale, analysis, configBundles, configDecisions
           <p className="eyebrow">{zh ? "配置与数据审查" : "Config and data review"}</p>
           <h3>{zh ? "按 bundle 审查，不展示整机文件树" : "Review bundles, not the whole file tree"}</h3>
         </div>
-        <button type="button" className="secondary-action" disabled={loading} onClick={onRefresh}><RefreshCw aria-hidden />{zh ? "刷新" : "Refresh"}</button>
+        <Button variant="secondary" disabled={loading} onClick={onRefresh}><RefreshCw aria-hidden />{zh ? "刷新" : "Refresh"}</Button>
       </div>
       <div className="config-bundle-grid">
         {relevant.length === 0 ? <EmptyPipelineState title={zh ? "没有需要审查的 bundle" : "No bundles require review"} body={zh ? "已选择项暂未关联配置或数据 bundle。" : "Selected items do not currently expose config or data bundles."} /> : null}
@@ -919,7 +920,7 @@ function ConfigBundleDrawer({ locale, bundle, decision, onClose }: { locale: Loc
             <p className="eyebrow">ConfigBundle</p>
             <h2>{bundle.ownerDisplayName ?? bundle.ownerRuleId ?? bundle.id}</h2>
           </div>
-          <button type="button" className="ghost-action icon-action" onClick={onClose} aria-label="Close"><X aria-hidden /></button>
+          <Button variant="ghost" className="icon-action" onClick={onClose} aria-label="Close"><X aria-hidden /></Button>
         </header>
         <section>
           <h3>{zh ? "审核摘要" : "Review summary"}</h3>
@@ -951,7 +952,7 @@ function PlanPreviewStep({ locale, session, plan, loading, onRefresh }: { locale
           <p className="eyebrow">{zh ? "Migration Plan 预览" : "Migration Plan preview"}</p>
           <h3>{zh ? "完整计划只在这里显示" : "The full plan appears here"}</h3>
         </div>
-        <button type="button" className="secondary-action" disabled={loading} onClick={onRefresh}><RefreshCw aria-hidden />{zh ? "刷新计划" : "Refresh plan"}</button>
+        <Button variant="secondary" disabled={loading} onClick={onRefresh}><RefreshCw aria-hidden />{zh ? "刷新计划" : "Refresh plan"}</Button>
       </div>
       {blocked ? <div className="pipeline-warning"><AlertTriangle aria-hidden />{zh ? "仍有待审查项，不能继续执行。" : "Pending review remains; execution is blocked."}</div> : null}
       {!plan ? <EmptyPipelineState title={zh ? "计划尚未生成" : "Plan is not ready"} body={zh ? "选择迁移项并清理阻塞后刷新计划。" : "Select migration items and clear blockers, then refresh the plan."} /> : null}
@@ -986,7 +987,7 @@ function TargetDryRunStep({ locale, sourceConnectionId, session, connections, dr
           <option value="">{zh ? "选择目标连接" : "Select target connection"}</option>
           {targets.map((connection) => <option key={connection.id} value={connection.id}>{connection.label} · {connection.fields.host ?? "-"}</option>)}
         </select>
-        <button type="button" className="primary-action" disabled={!session || loading} onClick={onDryRun}><Play aria-hidden />{zh ? "运行 dry-run" : "Run dry-run"}</button>
+        <Button variant="primary" disabled={!session || loading} onClick={onDryRun}><Play aria-hidden />{zh ? "运行 dry-run" : "Run dry-run"}</Button>
       </section>
       <section className="dryrun-result-panel">
         <h4>{zh ? "Dry-run 结果" : "Dry-run result"}</h4>
@@ -1020,7 +1021,7 @@ function ApplyReportStep({ locale, mode, session, dryRun, readiness, applyResult
           <p className="eyebrow">{mode === "report" ? (zh ? "验证与报告" : "Verify and report") : (zh ? "执行门禁" : "Apply readiness")}</p>
           <h3>{zh ? "先看 readiness，再执行 apply / verify / report 闭环" : "Check readiness before apply, then verify and report"}</h3>
         </div>
-        <button type="button" className="secondary-action" disabled={loading} onClick={onRefreshReadiness}><RefreshCw aria-hidden />{zh ? "刷新门禁" : "Refresh readiness"}</button>
+        <Button variant="secondary" disabled={loading} onClick={onRefreshReadiness}><RefreshCw aria-hidden />{zh ? "刷新门禁" : "Refresh readiness"}</Button>
       </div>
       <div className="apply-readiness-grid">
         <article className={`apply-readiness-card ${readiness?.ready ? "ready" : "blocked"}`}>
@@ -1048,9 +1049,9 @@ function ApplyReportStep({ locale, mode, session, dryRun, readiness, applyResult
         </article>
       </div>
       <div className="apply-command-row">
-        <button type="button" className="primary-action" disabled={!canApply} onClick={onApply}><Play aria-hidden />{zh ? "执行 apply" : "Apply"}</button>
-        <button type="button" className="secondary-action" disabled={!canVerify} onClick={onVerify}><CheckCircle2 aria-hidden />{zh ? "执行 verify" : "Verify"}</button>
-        <button type="button" className="secondary-action" disabled={!session || loading} onClick={onReport}><FileText aria-hidden />{zh ? "生成报告" : "Report"}</button>
+        <Button variant="primary" disabled={!canApply} onClick={onApply}><Play aria-hidden />{zh ? "执行 apply" : "Apply"}</Button>
+        <Button variant="secondary" disabled={!canVerify} onClick={onVerify}><CheckCircle2 aria-hidden />{zh ? "执行 verify" : "Verify"}</Button>
+        <Button variant="secondary" disabled={!session || loading} onClick={onReport}><FileText aria-hidden />{zh ? "生成报告" : "Report"}</Button>
       </div>
       <div className="apply-run-grid">
         <RunSummaryCard title="Apply" ok={applyResult?.ok} total={applyResult?.summary.total ?? Number(report?.apply?.summary?.total ?? 0)} failed={applyResult?.summary.failed ?? Number(report?.apply?.summary?.failed ?? 0)} />
@@ -1105,7 +1106,7 @@ function EvidenceDrawer({ locale, candidate, onClose }: { locale: Locale; candid
             <p className="eyebrow">{zh ? "原始证据" : "Raw evidence"}</p>
             <h2>{candidate.catalogRuleName ?? candidate.name}</h2>
           </div>
-          <button type="button" className="ghost-action icon-action" onClick={onClose} aria-label="Close"><X aria-hidden /></button>
+          <Button variant="ghost" className="icon-action" onClick={onClose} aria-label="Close"><X aria-hidden /></Button>
         </header>
         <section>
           <h3>{zh ? "证据摘要" : "Evidence summary"}</h3>

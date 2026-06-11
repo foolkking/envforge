@@ -410,7 +410,7 @@ function RiskCallout({
  * cannot tick the checkbox alone, they must type a confirmation phrase
  * before the gate is recorded as acknowledged.
  *
- * Mirrors the contract in E2E_SCENARIO_VALIDATION.md scenario 4.
+ * Mirrors the SSH hardening contract in docs/validation.md.
  */
 const DANGEROUS_APPROVAL_KINDS = new Set<PlanRequiredApproval["kind"]>([
   "ssh-lockout-confirm",

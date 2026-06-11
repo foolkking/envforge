@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 
 export type Locale = "zh" | "en";
-export type Page = "dashboard" | "machine" | "market" | "catalog" | "playbooks" | "reports";
+export type Page = "dashboard" | "migrate" | "build" | "catalog" | "plans" | "reports";
 export type ConnectionMethod = "ssh-password" | "ssh-key";
 
 export const text = {
@@ -23,10 +23,10 @@ export const text = {
     appName: "EnvForge",
     subtitle: "Linux 环境重建与迁移平台",
     dashboard: "总览",
-    machine: "迁移",
-    market: "构建",
+    migrate: "迁移",
+    build: "构建",
     catalog: "能力管理",
-    playbooks: "计划",
+    plans: "计划",
     reports: "报告",
     search: "搜索能力、配置和迁移规则",
     filter: "筛选",
@@ -65,10 +65,10 @@ export const text = {
     appName: "EnvForge",
     subtitle: "Linux environment rebuild and migration platform",
     dashboard: "Dashboard",
-    machine: "Migrate",
-    market: "Build",
+    migrate: "Migrate",
+    build: "Build",
     catalog: "Capability Admin",
-    playbooks: "Plans",
+    plans: "Plans",
     reports: "Reports",
     search: "Search capabilities, configs, and migration rules",
     filter: "Filter",
@@ -109,9 +109,9 @@ export type TextDict = typeof text.zh;
 
 export const navItems: Array<{ id: Page; icon: LucideIcon; adminOnly?: boolean; description: Record<Locale, string> }> = [
   { id: "dashboard", icon: LayoutDashboard, description: { zh: "资源状态、最近计划、待审队列、通知", en: "Overview, recent plans, review queue, account and notifications" } },
-  { id: "machine", icon: MonitorCog, description: { zh: "源主机、快照、分析与迁移候选", en: "Source VM, snapshot, analysis, candidates" } },
-  { id: "market", icon: PackagePlus, description: { zh: "选择已认证能力，生成重建计划，进入审查和执行门禁", en: "Build: pick certified capabilities, generate a Rebuild Plan; flows through Plan Review and the Apply Gate" } },
-  { id: "playbooks", icon: Server, description: { zh: "计划中心、配方、排程、漂移、外发通知、报告", en: "Plans center, recipes, schedules, drift, webhooks, reports" } },
+  { id: "migrate", icon: MonitorCog, description: { zh: "源主机、快照、分析与迁移候选", en: "Source VM, snapshot, analysis, candidates" } },
+  { id: "build", icon: PackagePlus, description: { zh: "选择已认证能力，生成重建计划，进入审查和执行门禁", en: "Build: pick certified capabilities, generate a Rebuild Plan; flows through Plan Review and the Apply Gate" } },
+  { id: "plans", icon: Server, description: { zh: "计划中心、配方、排程、漂移、外发通知、报告", en: "Plans center, recipes, schedules, drift, webhooks, reports" } },
   { id: "reports", icon: FileText, description: { zh: "迁移 / 重建 / 修复报告", en: "Migration / rebuild / repair reports" } },
   { id: "catalog", icon: Box, adminOnly: true, description: { zh: "管理员能力规则工作台：规则治理、认证升级、用户建议、软件支持映射、用户与队列", en: "Admin capability rules workbench: rule governance, certification, suggestions, package integrations, users & queues" } }
 ];

@@ -11,7 +11,8 @@ import {
   PackageCheck,
   PlayCircle,
   Server,
-  ShieldCheck
+  ShieldCheck,
+  UserRound
 } from "lucide-react";
 import {
   listEnvironmentPlans,
@@ -22,8 +23,10 @@ import {
   type UserProfile
 } from "../api";
 import type { Locale } from "../lib/types";
+import { Button } from "../components/ui/Button";
+import { Badge } from "../components/ui/Badge";
 
-type JumpTarget = "machine" | "market" | "playbooks" | "reports" | "catalog";
+type JumpTarget = "migrate" | "build" | "plans" | "reports" | "catalog";
 type PipelineState = "done" | "active" | "blocked" | "idle";
 type NoticeTone = "danger" | "warning" | "neutral";
 
@@ -36,7 +39,8 @@ export function DashboardPage({
   activeProbe,
   userProfiles,
   inboxUnreadCount,
-  onJump
+  onJump,
+  onAccount
 }: {
   authToken: string;
   locale: Locale;
@@ -47,6 +51,7 @@ export function DashboardPage({
   userProfiles: UserProfile[];
   inboxUnreadCount: number;
   onJump?: (page: JumpTarget) => void;
+  onAccount?: () => void;
 }) {
   const [plans, setPlans] = useState<PlanListEntry[]>([]);
   const [loading, setLoading] = useState(false);
@@ -132,7 +137,7 @@ export function DashboardPage({
       body: activeConnection ? `${activeConnection.label} · ${activeConnection.fields.host ?? "-"}` : (zh ? "还没有可用连接" : "No source connection yet"),
       metric: String(connections.length),
       state: activeConnection ? "done" : "active",
-      target: "machine",
+      target: "migrate",
       icon: <Server aria-hidden />,
       action: zh ? "打开迁移" : "Open Migrate"
     },
@@ -142,7 +147,7 @@ export function DashboardPage({
       body: snapshotTime ? new Date(snapshotTime).toLocaleString() : (zh ? "等待主机快照" : "Waiting for HostSnapshot"),
       metric: evidenceCount ? `${evidenceCount}` : "0",
       state: evidenceCount > 0 ? "done" : activeConnection ? "active" : "idle",
-      target: "machine",
+      target: "migrate",
       icon: <Database aria-hidden />,
       action: zh ? "采集证据" : "Collect evidence"
     },
@@ -152,7 +157,7 @@ export function DashboardPage({
       body: latestPlan ? latestPlan.name : (zh ? "从已认证能力生成重建计划" : "Create a Rebuild Plan from certified capabilities"),
       metric: String(plans.length),
       state: latestPlan ? "done" : evidenceCount > 0 ? "active" : "idle",
-      target: "market",
+      target: "build",
       icon: <PackageCheck aria-hidden />,
       action: zh ? "打开构建" : "Open Build"
     },
@@ -162,7 +167,7 @@ export function DashboardPage({
       body: pendingPlans.length ? (zh ? `${pendingPlans.length} 个计划等待处理` : `${pendingPlans.length} plan(s) waiting`) : (zh ? "没有待审计划" : "No review backlog"),
       metric: String(pendingPlans.length),
       state: pendingPlans.length ? "active" : latestPlan ? "done" : "idle",
-      target: "playbooks",
+      target: "plans",
       icon: <ShieldCheck aria-hidden />,
       action: zh ? "打开审查" : "Open review"
     },
@@ -172,7 +177,7 @@ export function DashboardPage({
       body: failedPlans.length ? (zh ? "存在失败验证，需要修复" : "Failed verification needs repair") : approvedPlans.length ? (zh ? "有已批准计划可执行" : "Approved plans can be applied") : (zh ? "等待批准后执行" : "Waiting for approval"),
       metric: failedPlans.length ? String(failedPlans.length) : String(approvedPlans.length),
       state: failedPlans.length ? "blocked" : approvedPlans.length ? "active" : latestPlan ? "idle" : "idle",
-      target: "playbooks",
+      target: "plans",
       icon: <PlayCircle aria-hidden />,
       action: zh ? "查看执行" : "View runs"
     },
@@ -199,7 +204,7 @@ export function DashboardPage({
       meta: activeConnection?.fields.host ?? (zh ? "从迁移页连接 Linux 主机" : "Connect a Linux VM from Migrate"),
       icon: <Server aria-hidden />,
       action: zh ? "管理连接" : "Manage",
-      target: "machine" as JumpTarget
+      target: "migrate" as JumpTarget
     },
     {
       title: zh ? "证据快照" : "Evidence",
@@ -207,7 +212,7 @@ export function DashboardPage({
       meta: snapshotTime ? new Date(snapshotTime).toLocaleString() : (zh ? "主机快照尚未生成" : "HostSnapshot has not been captured"),
       icon: <Database aria-hidden />,
       action: zh ? "采集" : "Collect",
-      target: "machine" as JumpTarget
+      target: "migrate" as JumpTarget
     },
     {
       title: zh ? "计划队列" : "Plan queue",
@@ -215,7 +220,7 @@ export function DashboardPage({
       meta: latestPlan?.name ?? (zh ? "还没有计划" : "No plans yet"),
       icon: <ClipboardList aria-hidden />,
       action: zh ? "审查" : "Review",
-      target: "playbooks" as JumpTarget
+      target: "plans" as JumpTarget
     },
     {
       title: zh ? "报告" : "Reports",
@@ -227,6 +232,34 @@ export function DashboardPage({
     }
   ];
 
+  const settingsShortcuts: Array<{ title: string; value: string; meta: string; icon: React.ReactNode; onClick: () => void }> = [
+    ...(onAccount
+      ? [{
+          title: zh ? "账号与安全" : "Account & security",
+          value: authUser?.displayName || authUser?.name || (zh ? "当前账号" : "Current account"),
+          meta: zh ? "资料 / 密码 / 2FA / API Token" : "Profile / password / 2FA / API tokens",
+          icon: <UserRound aria-hidden />,
+          onClick: onAccount
+        }]
+      : []),
+    {
+      title: zh ? "自动化" : "Automation",
+      value: zh ? "排程 / 漂移 / Webhook" : "Schedules / Drift / Webhooks",
+      meta: zh ? "在计划页配置排程、漂移检测与外发通知" : "Configure schedules, drift, and webhooks in Plans",
+      icon: <Activity aria-hidden />,
+      onClick: () => onJump?.("plans")
+    },
+    ...(authUser?.role === "admin"
+      ? [{
+          title: zh ? "用户与队列" : "Users & queues",
+          value: zh ? "治理" : "Governance",
+          meta: zh ? "在能力管理页管理用户、角色与执行队列" : "Manage users, roles, and queues in Capability Admin",
+          icon: <ShieldCheck aria-hidden />,
+          onClick: () => onJump?.("catalog")
+        }]
+      : [])
+  ];
+
   return (
     <div className="dashboard-page console-dashboard">
       <section className="console-command-strip">
@@ -235,16 +268,16 @@ export function DashboardPage({
           <h2>{zh ? "从源环境到可审计报告的当前状态" : "Current state from source host to audited report"}</h2>
           <p>
             {zh
-      ? "控制台只保留工作流和资源状态；个人资料、安全和通知偏好已移入右上角更多菜单。"
-              : "Dashboard now focuses on resources and workflow state. Profile, security, and notification settings live in the profile modal."}
+              ? "控制台聚焦工作流与资源状态；账号安全、自动化与治理入口见下方「账号与设置」，也可从右上角头像菜单进入。"
+              : "Dashboard focuses on resources and workflow. Account security, automation, and governance shortcuts are in the section below, and also in the avatar menu."}
           </p>
         </div>
         <div className="console-command-actions">
           <StatusBadge tone={healthTone} label={failedPlans.length ? (zh ? "需要处理" : "Action needed") : (zh ? "运行正常" : "Operational")} />
-          <button type="button" className="primary-action" onClick={() => onJump?.(nextStep.target)}>
+          <Button variant="primary" onClick={() => onJump?.(nextStep.target)}>
             {nextStep.icon}
             {nextStep.action}
-          </button>
+          </Button>
         </div>
       </section>
 
@@ -283,6 +316,28 @@ export function DashboardPage({
                 <StatusBadge tone={stateToTone(step.state)} label={stateLabel(step.state, zh)} />
                 <b>{step.metric}</b>
               </span>
+            </button>
+          ))}
+        </div>
+      </section>
+
+      <section className="operations-pipeline-panel account-settings-shortcuts">
+        <div className="dashboard-section-heading">
+          <div>
+            <p className="eyebrow">{zh ? "账号与设置" : "Account & settings"}</p>
+            <h3>{zh ? "账号安全 · 自动化 · 治理" : "Account security · Automation · Governance"}</h3>
+          </div>
+        </div>
+        <div className="resource-overview-grid">
+          {settingsShortcuts.map((shortcut) => (
+            <button className="resource-status-card" type="button" key={shortcut.title} onClick={shortcut.onClick}>
+              <span className="resource-status-icon">{shortcut.icon}</span>
+              <span>
+                <small>{shortcut.title}</small>
+                <strong>{shortcut.value}</strong>
+                <em>{shortcut.meta}</em>
+              </span>
+              <ArrowRight aria-hidden />
             </button>
           ))}
         </div>
@@ -372,7 +427,7 @@ function ListEmpty<T>({ items, empty, children }: { items: T[]; empty: string; c
 }
 
 function StatusBadge({ tone, label }: { tone: NoticeTone; label: string }) {
-  return <span className={`status-badge badge-${tone}`}>{label}</span>;
+  return <Badge tone={tone === "warning" ? "warn" : tone}>{label}</Badge>;
 }
 
 function stateToTone(state: PipelineState): NoticeTone {
