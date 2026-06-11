@@ -132,7 +132,7 @@ It must not become a host install/uninstall manager.
 Current shared components:
 
 - `components/ui/Button.tsx`
-- `components/ui/Badge.tsx`
+- `components/ui/Badge.tsx` (`tone`, `size`, and `title`)
 - `components/ui/Card.tsx`
 - `components/ui/StatusPill.tsx`
 
@@ -147,7 +147,22 @@ Conversion rules:
 
 ## CSS rules
 
-`apps/web/src/styles.css` has two layers:
+`apps/web/src/styles.css` imports modular CSS files first, then retains the
+legacy monolith while rules are moved gradually:
+
+```text
+styles/tokens.css
+styles/base.css
+styles/components.css
+styles/shell.css
+styles/public.css
+styles/pages-build.css
+styles/pages-migrate.css
+styles/pages-plans-reports.css
+styles/pages-governance.css
+```
+
+The remaining monolith has two layers:
 
 1. legacy layer;
 2. operations-console refresh layer.
@@ -156,21 +171,29 @@ The refresh layer wins by cascade, but layers merge by property. Do not delete
 legacy rules until old-only properties have been folded into the new layer.
 Append targeted overrides at the end when needed.
 
-Long-term CSS split:
+New dark-mode work should prefer `--ef-*` tokens over page-specific patches.
 
-```text
-styles/
-  tokens.css
-  base.css
-  shell.css
-  public.css
-  components/*.css
-  pages/*.css
-```
+## i18n rules
+
+- `i18next` / `react-i18next` are the runtime i18n foundation.
+- New visible UI copy must be added to `apps/web/src/i18n/locales/{zh,en}.ts`.
+- Do not add new inline `locale === "zh" ? ... : ...` branches unless the value
+  is a temporary compatibility bridge for an unmigrated child component.
+- Mojibake user-visible text should be replaced only when the intended text is
+  clear from existing English, product docs, or UI context.
+
+## UI smoke
+
+- Run `npm run smoke:web` for major shell, navigation, CSS, i18n, or dark-mode
+  changes.
+- Default smoke checks public, login/register, user app routes, admin route,
+  desktop/mobile, zh/en, light/dark.
+- Visual screenshots are opt-in with `PW_SNAPSHOT=1`; default smoke avoids
+  baseline churn.
 
 ## Current known UI backlog
 
-1. i18n consolidation into dictionaries.
-2. CSS split and dark-mode token cleanup.
+1. Continue migrating deep page i18n into dictionaries.
+2. Move legacy/refresh CSS rules into the modular files by domain.
 3. Design system deepening beyond clean Button/Badge cases.
-4. Browser verification for major layout changes across desktop/mobile.
+4. Expand Playwright assertions as pages stabilize.

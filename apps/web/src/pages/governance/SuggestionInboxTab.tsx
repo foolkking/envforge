@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from "react";
 import type { AdminSuggestionRecord } from "../../api";
 import type { Locale } from "../../lib/types";
+import { Badge } from "../../components/ui/Badge";
 import { FilterPills, Th, Td } from "./shared";
 
 // ── Suggestion Inbox tab ──────────────────────────────────────────────
@@ -107,16 +108,11 @@ export function SuggestionInboxTab({
 }
 
 function SuggestionStatusBadge({ status, locale, testId }: { status: string; locale: Locale; testId: string }): JSX.Element {
-  const map: Record<string, { bg: string; fg: string; border: string; zh: string; en: string }> = {
-    pending: { bg: "#fef3c7", fg: "#92400e", border: "#fcd34d", zh: "待处理", en: "Pending" },
-    accepted: { bg: "#dcfce7", fg: "#166534", border: "#86efac", zh: "已接受", en: "Accepted" },
-    rejected: { bg: "#fee2e2", fg: "#991b1b", border: "#fecaca", zh: "已拒绝", en: "Rejected" }
+  const map: Record<string, { tone: "ok" | "warn" | "danger" | "neutral"; zh: string; en: string }> = {
+    pending: { tone: "warn", zh: "???", en: "Pending" },
+    accepted: { tone: "ok", zh: "???", en: "Accepted" },
+    rejected: { tone: "danger", zh: "???", en: "Rejected" }
   };
-  const colors = map[status] ?? { bg: "#f1f5f9", fg: "#475569", border: "#cbd5e1", zh: status, en: status };
-  return (
-    <span data-testid={testId}
-      style={{ background: colors.bg, color: colors.fg, border: `1px solid ${colors.border}`, padding: "2px 8px", borderRadius: 999, fontSize: 11 }}>
-      {locale === "zh" ? colors.zh : colors.en}
-    </span>
-  );
+  const item = map[status] ?? { tone: "neutral", zh: status, en: status };
+  return <span data-testid={testId}><Badge tone={item.tone} size="sm">{locale === "zh" ? item.zh : item.en}</Badge></span>;
 }

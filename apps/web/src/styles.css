@@ -1,3 +1,13 @@
+@import "./styles/tokens.css";
+@import "./styles/base.css";
+@import "./styles/components.css";
+@import "./styles/shell.css";
+@import "./styles/public.css";
+@import "./styles/pages-build.css";
+@import "./styles/pages-migrate.css";
+@import "./styles/pages-plans-reports.css";
+@import "./styles/pages-governance.css";
+
 /* Public marketing shell. Keep this separate from the authenticated app shell so
    user data, plans, reports, and admin state never bleed into /. */
 .public-shell {

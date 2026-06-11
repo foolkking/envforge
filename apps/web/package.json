@@ -7,20 +7,24 @@
     "build": "vite build",
     "dev": "vite --host 127.0.0.1",
     "preview": "vite preview --host 127.0.0.1",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test:ui": "playwright test"
   },
   "dependencies": {
     "@vitejs/plugin-react": "^4.3.1",
     "github-markdown-css": "^5.9.0",
     "highlight.js": "^11.11.1",
+    "i18next": "^26.3.1",
     "lucide-react": "^0.468.0",
     "marked": "^18.0.4",
     "marked-highlight": "^2.2.4",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
+    "react-i18next": "^17.0.8",
     "vite": "^5.3.5"
   },
   "devDependencies": {
+    "@playwright/test": "^1.60.0",
     "@types/react": "^18.2.79",
     "@types/react-dom": "^18.3.0",
     "typescript": "^5.5.4"

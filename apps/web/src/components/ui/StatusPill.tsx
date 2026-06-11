@@ -1,11 +1,6 @@
 import type { Locale } from "../../lib/types";
 import { Badge } from "./Badge";
 
-/**
- * StatusPill — renders a pipeline/step state as a localized Badge.
- * Extracted from the inline StatusBadge logic in DashboardPage so the
- * four-state semantics (done / active / blocked / idle) are shared.
- */
 type PillState = "done" | "active" | "blocked" | "idle";
 
 const STATE_MAP: Record<PillState, { tone: "ok" | "warn" | "danger" | "neutral"; zh: string; en: string }> = {
@@ -15,7 +10,7 @@ const STATE_MAP: Record<PillState, { tone: "ok" | "warn" | "danger" | "neutral";
   idle: { tone: "neutral", zh: "等待", en: "Idle" }
 };
 
-export function StatusPill({ state, locale }: { state: PillState; locale: Locale }) {
-  const s = STATE_MAP[state];
-  return <Badge tone={s.tone}>{locale === "zh" ? s.zh : s.en}</Badge>;
+export function StatusPill({ state, locale, title }: { state: PillState; locale: Locale; title?: string }) {
+  const status = STATE_MAP[state];
+  return <Badge tone={status.tone} title={title}>{locale === "zh" ? status.zh : status.en}</Badge>;
 }

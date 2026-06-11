@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
+import { useTranslation } from "react-i18next";
 import { Bell, CheckCircle2, Home, Languages, LogOut, Moon, MoreHorizontal, Search, Sun, Trash2, UserRound, X } from "lucide-react";
 import {
   connectServer,
@@ -51,6 +52,7 @@ import { TerminalPanel } from "./components/TerminalPanel";
 import { MarkdownOverlay } from "./components/MarkdownOverlay";
 import { OnboardingWizard } from "./components/OnboardingWizard";
 import { AccountPanel } from "./components/AccountPanel";
+import { i18n as appI18n, normalizeLanguage } from "./i18n";
 import "./styles.css";
 
 type ConnectionMethod = "ssh-password" | "ssh-key";
@@ -94,7 +96,8 @@ function normalizePublicPath(pathname: string): string {
 }
 
 function App() {
-  const [locale, setLocale] = useState<Locale>("zh");
+  const { i18n } = useTranslation();
+  const [locale, setLocale] = useState<Locale>(() => normalizeLanguage(appI18n.language));
   const [shellMode, setShellMode] = useState<"public" | "app">(() => isAppPath(window.location.pathname) ? "app" : "public");
   const [page, setPage] = useState<Page>(() => pageFromPathname(window.location.pathname));
   const [requestedView, setRequestedView] = useState<string | null>(null);
@@ -165,6 +168,26 @@ function App() {
     document.documentElement.dataset.theme = themeMode;
     localStorage.setItem("envforge_theme", themeMode);
   }, [themeMode]);
+
+  useEffect(() => {
+    const syncLanguage = (language: string) => {
+      const next = normalizeLanguage(language);
+      setLocale(next);
+      localStorage.setItem("envforge_locale", next);
+    };
+    syncLanguage(i18n.language);
+    i18n.on("languageChanged", syncLanguage);
+    return () => {
+      i18n.off("languageChanged", syncLanguage);
+    };
+  }, [i18n]);
+
+  async function toggleLocale() {
+    const next = locale === "zh" ? "en" : "zh";
+    localStorage.setItem("envforge_locale", next);
+    setLocale(next);
+    await i18n.changeLanguage(next);
+  }
 
   // Capability Admin (catalog) is admin-only. If a non-admin lands on
   // /catalog (stale localStorage, deep link, or role downgrade), send
@@ -621,7 +644,7 @@ function App() {
           authUser={authUser}
           themeMode={themeMode}
           moreMenuOpen={moreMenuOpen}
-          onLocale={() => setLocale(locale === "zh" ? "en" : "zh")}
+          onLocale={() => void toggleLocale()}
           onTheme={() => setThemeMode((value) => value === "dark" ? "light" : "dark")}
           onToggleMore={() => setMoreMenuOpen((value) => !value)}
           onCloseMore={() => setMoreMenuOpen(false)}
@@ -744,7 +767,7 @@ function App() {
               onClose={() => setMoreMenuOpen(false)}
               onAccount={() => { setAccountModalOpen(true); setMoreMenuOpen(false); }}
               onInbox={authUser ? () => { setMoreMenuOpen(false); setInboxOpen(true); void reloadInbox(); } : undefined}
-              onLocale={() => setLocale(locale === "zh" ? "en" : "zh")}
+              onLocale={() => void toggleLocale()}
               onTheme={() => setThemeMode((value) => value === "dark" ? "light" : "dark")}
               onLogout={authUser ? handleLogout : undefined}
             />
@@ -1000,27 +1023,27 @@ function TopbarMoreMenu({
 }) {
   const zh = locale === "zh";
   const accountInitial = (authUser?.displayName || authUser?.name || "U").slice(0, 1).toUpperCase();
-  const nextLanguage = zh ? "English" : "中文";
-  const nextTheme = themeMode === "dark" ? (zh ? "浅色模式" : "Light mode") : (zh ? "深色模式" : "Dark mode");
+  const nextLanguage = zh ? "English" : "??";
+  const nextTheme = themeMode === "dark" ? (zh ? "????" : "Light mode") : (zh ? "????" : "Dark mode");
 
   return (
     <div className="topbar-more-wrap">
       <button className="ghost-action more-action" type="button" onClick={onToggleOpen} aria-expanded={open} aria-haspopup="menu">
         {authUser ? <span className="more-avatar">{accountInitial}</span> : <MoreHorizontal aria-hidden />}
-        <span>{zh ? "更多" : "More"}</span>
+        <span>{zh ? "??" : "More"}</span>
       </button>
       {open ? (
         <div className="topbar-more-menu" role="menu">
           {authUser && onAccount ? (
             <button type="button" role="menuitem" onClick={onAccount}>
               <UserRound aria-hidden />
-              <span>{zh ? "账号与安全" : "Account & security"}</span>
+              <span>{zh ? "?????" : "Account & security"}</span>
             </button>
           ) : null}
           {onInbox ? (
             <button type="button" role="menuitem" onClick={onInbox}>
               <Bell aria-hidden />
-              <span>{zh ? "通知" : "Notifications"}</span>
+              <span>{zh ? "??" : "Notifications"}</span>
               {inboxUnreadCount ? <b>{inboxUnreadCount > 99 ? "99+" : inboxUnreadCount}</b> : null}
             </button>
           ) : null}
@@ -1036,7 +1059,7 @@ function TopbarMoreMenu({
           {onLogout ? (
             <button type="button" role="menuitem" onClick={onLogout}>
               <LogOut aria-hidden />
-              <span>{zh ? "退出登录" : "Sign out"}</span>
+              <span>{zh ? "????" : "Sign out"}</span>
             </button>
           ) : null}
         </div>
@@ -1078,23 +1101,24 @@ function PublicLanding({
   onAccount: () => void;
   onLogout: () => void;
 }) {
-  const zh = locale === "zh";
+  const { t } = useTranslation();
   const workflow = [
-    { step: zh ? "迁移" : "Migrate", title: zh ? "采集源环境" : "Capture source", body: zh ? "连接 Linux 主机，生成只读主机快照，保留迁移证据。" : "Connect Linux hosts and capture read-only HostSnapshot evidence." },
-    { step: zh ? "构建" : "Build", title: zh ? "选择已认证能力" : "Select certified capabilities", body: zh ? "普通用户只看到已通过完整迁移认证的能力。" : "Users only see Full Migration Certified capabilities." },
-    { step: zh ? "审查" : "Review", title: zh ? "审查风险和冲突" : "Review risks", body: zh ? "计划进入风险确认、冲突处理和审批门禁。" : "Plans pass through risk, conflict, and approval gates." },
-    { step: zh ? "执行" : "Apply", title: zh ? "受控执行" : "Controlled apply", body: zh ? "真实变更必须经过执行门禁并记录审计。" : "Real changes require Apply Gate approval and audit records." },
-    { step: zh ? "验证" : "Verify", title: zh ? "验证结果" : "Verify results", body: zh ? "执行后运行验证，失败项可转为修复计划。" : "Post-apply checks can generate Repair Plans from failures." },
-    { step: zh ? "报告" : "Report", title: zh ? "沉淀报告" : "Report evidence", body: zh ? "输出迁移、重建、修复报告，供复盘和审计。" : "Produce migration, rebuild, and repair evidence reports." }
+    [t("public.workflow.migrate.0"), t("public.workflow.migrate.1"), t("public.workflow.migrate.2")],
+    [t("public.workflow.build.0"), t("public.workflow.build.1"), t("public.workflow.build.2")],
+    [t("public.workflow.review.0"), t("public.workflow.review.1"), t("public.workflow.review.2")],
+    [t("public.workflow.apply.0"), t("public.workflow.apply.1"), t("public.workflow.apply.2")],
+    [t("public.workflow.verify.0"), t("public.workflow.verify.1"), t("public.workflow.verify.2")],
+    [t("public.workflow.report.0"), t("public.workflow.report.1"), t("public.workflow.report.2")]
   ];
   const matrix = [
-    { title: zh ? "迁移" : "Migrate", body: zh ? "连接、采集、上传快照。" : "Connect, collect, and upload snapshots." },
-    { title: zh ? "构建" : "Build", body: zh ? "生成仅包含已认证能力的重建计划。" : "Create certified-only Rebuild Plans." },
-    { title: zh ? "计划" : "Plans", body: zh ? "审查、执行、验证、回滚。" : "Review, apply, verify, and rollback." },
-    { title: zh ? "报告" : "Reports", body: zh ? "报告证据与审计出口。" : "Evidence and audit reporting." },
-    { title: zh ? "能力管理" : "Capability Admin", body: zh ? "管理员维护规则、标准、队列。" : "Admin rule, standard, and queue governance." },
-    { title: zh ? "文档" : "Docs", body: zh ? "公共文档和快速开始。" : "Public docs and quick start." }
+    [t("public.matrix.migrate.0"), t("public.matrix.migrate.1")],
+    [t("public.matrix.build.0"), t("public.matrix.build.1")],
+    [t("public.matrix.plans.0"), t("public.matrix.plans.1")],
+    [t("public.matrix.reports.0"), t("public.matrix.reports.1")],
+    [t("public.matrix.admin.0"), t("public.matrix.admin.1")],
+    [t("public.matrix.docs.0"), t("public.matrix.docs.1")]
   ];
+  const navPreview = [t("nav.pages.dashboard"), t("nav.pages.migrate"), t("nav.pages.build"), t("nav.pages.plans"), t("nav.pages.reports"), t("nav.pages.catalog")];
 
   return (
     <main className="public-shell">
@@ -1103,28 +1127,26 @@ function PublicLanding({
           <button className="public-brand" type="button" onClick={() => onNavigatePublic("/")}>
             <span className="brand-mark">E</span>
             <span>
-              <strong>EnvForge</strong>
-              <small>{zh ? "Linux 环境重建与迁移平台" : "Linux rebuild and migration platform"}</small>
+              <strong>{t("app.name")}</strong>
+              <small>{t("app.subtitle")}</small>
             </span>
           </button>
         </div>
         <nav aria-label="Public sections">
-          <a href="#workflow">{zh ? "核心流程" : "Workflow"}</a>
-          <a href="#matrix">{zh ? "功能矩阵" : "Matrix"}</a>
-          <a href="#security">{zh ? "安全门禁" : "Safety"}</a>
-          <button className="public-link-button" type="button" onClick={() => onNavigatePublic("/docs")}>{zh ? "文档" : "Docs"}</button>
+          <a href="#workflow">{t("public.nav.workflow")}</a>
+          <a href="#matrix">{t("public.nav.matrix")}</a>
+          <a href="#security">{t("public.nav.safety")}</a>
+          <button className="public-link-button" type="button" onClick={() => onNavigatePublic("/docs")}>{t("public.nav.docs")}</button>
           <button className="public-link-button" type="button" onClick={() => onNavigatePublic("/demo")}>Demo</button>
-          <a href="#quickstart">{zh ? "快速开始" : "Quick start"}</a>
+          <a href="#quickstart">{t("public.nav.quickstart")}</a>
         </nav>
         <div className="public-actions">
           {isAuthenticated ? (
-            <>
-              <button className="primary-action topbar-route-action" type="button" onClick={onEnterApp}>{zh ? "控制台" : "Console"}</button>
-            </>
+            <button className="primary-action topbar-route-action" type="button" onClick={onEnterApp}>{t("shell.console")}</button>
           ) : (
             <>
-              <button className="ghost-action" type="button" onClick={onLogin}>{zh ? "登录" : "Sign in"}</button>
-              <button className="primary-action" type="button" onClick={onRegister}>{zh ? "注册" : "Create account"}</button>
+              <button className="ghost-action" type="button" onClick={onLogin}>{t("shell.signIn")}</button>
+              <button className="primary-action" type="button" onClick={onRegister}>{t("shell.register")}</button>
             </>
           )}
           <TopbarMoreMenu
@@ -1144,37 +1166,33 @@ function PublicLanding({
 
       <section className="public-hero" id="home">
         <div className="public-hero-copy">
-          <span className="public-kicker">{zh ? "从源环境证据到可审计重建" : "From source evidence to audited rebuilds"}</span>
-          <h1>{zh ? "EnvForge 让 Linux 迁移和重建可验证、可回滚、可治理" : "EnvForge makes Linux migration verifiable, reversible, and governed"}</h1>
-          <p>
-            {zh
-              ? "公共首页只展示产品介绍、流程、文档和登录入口；连接、计划、报告、通知、账号安全和管理员数据全部保留在登录后的 /app 工作台。"
-              : "The public site shows product context, workflows, docs, and auth CTAs. Connections, plans, reports, notifications, account security, and admin data stay inside /app."}
-          </p>
+          <span className="public-kicker">{t("public.kicker")}</span>
+          <h1>{t("public.headline")}</h1>
+          <p>{t("public.intro")}</p>
           <div className="public-hero-actions">
             <button className="primary-action" type="button" onClick={isAuthenticated ? onEnterApp : onLogin}>
-              {isAuthenticated ? (zh ? "进入控制台" : "Open console") : (zh ? "开始使用" : "Get started")}
+              {isAuthenticated ? t("public.openConsole") : t("public.getStarted")}
             </button>
-            <a className="public-doc-link" href="#quickstart">{zh ? "查看快速开始" : "View quick start"}</a>
+            <a className="public-doc-link" href="#quickstart">{t("public.viewQuickstart")}</a>
           </div>
         </div>
-        <div className="public-product-shot" aria-label={zh ? "产品界面预览" : "Product interface preview"}>
+        <div className="public-product-shot" aria-label={t("public.productPreview")}>
           <div className="shot-sidebar">
-            <strong>EnvForge</strong>
-            {(zh ? ["总览", "迁移", "构建", "计划", "报告", "管理"] : ["Dashboard", "Migrate", "Build", "Plans", "Reports", "Admin"]).map((item) => <span key={item}>{item}</span>)}
+            <strong>{t("app.name")}</strong>
+            {navPreview.map((item) => <span key={item}>{item}</span>)}
           </div>
           <div className="shot-main">
             <div className="shot-topline" />
-            <h2>{zh ? "能力管理" : "Capability Admin"}</h2>
-            <p>{zh ? "版本化标准层" : "Versioned standards layer"}</p>
+            <h2>{t("nav.pages.catalog")}</h2>
+            <p>{t("public.standardsLayer")}</p>
             <div className="shot-tabs">
-              <span>{zh ? "概览" : "Overview"}</span>
-              <span>{zh ? "规则库" : "Rule Registry"}</span>
-              <strong>{zh ? "标准" : "Standards"}</strong>
+              <span>{t("public.overview")}</span>
+              <span>{t("public.ruleRegistry")}</span>
+              <strong>{t("public.standards")}</strong>
             </div>
             <div className="shot-table">
-              {(zh ? ["完整迁移认证 v1", "完整迁移认证 v2", "需求草稿"] : ["Full Migration Certified v1", "Full Migration Certified v2", "Requirement draft"]).map((row, index) => (
-                <div key={row}><span>{row}</span><small>{index === 0 ? (zh ? "生效" : "active") : (zh ? "草稿" : "draft")}</small><b>13/13</b></div>
+              {[t("public.certifiedV1"), t("public.certifiedV2"), t("public.requirementDraft")].map((row, index) => (
+                <div key={row}><span>{row}</span><small>{index === 0 ? t("public.active") : t("public.draft")}</small><b>13/13</b></div>
               ))}
             </div>
           </div>
@@ -1183,15 +1201,15 @@ function PublicLanding({
 
       <section className="public-section" id="workflow">
         <div className="public-section-heading">
-          <span>{zh ? "核心流程" : "Workflow"}</span>
-          <h2>{zh ? "迁移 → 构建 → 审查 → 执行 → 验证 → 报告" : "Migrate → Build → Review → Apply → Verify → Report"}</h2>
+          <span>{t("public.nav.workflow")}</span>
+          <h2>{t("public.workflowTitle")}</h2>
         </div>
         <div className="workflow-grid">
-          {workflow.map((item) => (
-            <article key={item.step} className="workflow-card">
-              <strong>{item.step}</strong>
-              <h3>{item.title}</h3>
-              <p>{item.body}</p>
+          {workflow.map(([step, title, body]) => (
+            <article key={step} className="workflow-card">
+              <strong>{step}</strong>
+              <h3>{title}</h3>
+              <p>{body}</p>
             </article>
           ))}
         </div>
@@ -1199,15 +1217,15 @@ function PublicLanding({
 
       <section className="public-section" id="matrix">
         <div className="public-section-heading">
-          <span>{zh ? "功能矩阵" : "Capability matrix"}</span>
-          <h2>{zh ? "公共介绍和登录后工作台严格分离" : "Public content and authenticated workspace are separated"}</h2>
+          <span>{t("public.nav.matrix")}</span>
+          <h2>{t("public.matrixTitle")}</h2>
         </div>
         <div className="matrix-grid">
-          {matrix.map((item) => (
-            <article key={item.title} className="matrix-card">
+          {matrix.map(([title, body]) => (
+            <article key={title} className="matrix-card">
               <CheckCircle2 aria-hidden />
-              <h3>{item.title}</h3>
-              <p>{item.body}</p>
+              <h3>{title}</h3>
+              <p>{body}</p>
             </article>
           ))}
         </div>
@@ -1215,24 +1233,24 @@ function PublicLanding({
 
       <section className="public-section public-safety" id="security">
         <div>
-          <span>{zh ? "安全门禁" : "Safety gates"}</span>
-          <h2>{zh ? "公共页面不注入任何用户或密钥数据" : "No user or secret data is injected into the public site"}</h2>
+          <span>{t("public.nav.safety")}</span>
+          <h2>{t("public.safetyTitle")}</h2>
         </div>
         <ul>
-          <li>{zh ? "匿名用户只能访问 /、/login、/register、/docs、/demo。" : "Anonymous users can only access /, /login, /register, /docs, and /demo."}</li>
-          <li>{zh ? "安装脚本必须登录后生成短期令牌，默认脱敏，点击显示后才展示。" : "Install scripts use authenticated short-lived tokens, masked by default."}</li>
-          <li>{zh ? "所有删除、发布、回滚、真实执行动作必须二次确认并写入审计日志。" : "Delete, publish, rollback, and real apply actions require confirmation and audit logs."}</li>
+          <li>{t("public.safety.anonymous")}</li>
+          <li>{t("public.safety.tokens")}</li>
+          <li>{t("public.safety.destructive")}</li>
         </ul>
       </section>
 
       <section className="public-section quickstart-band" id="quickstart">
         <div>
-          <span>{zh ? "快速开始" : "Quick start"}</span>
-          <h2>{zh ? "登录后进入控制台开始工作" : "Sign in to start from /app/dashboard"}</h2>
-          <p>{zh ? "连接源主机，采集主机快照，选择已认证能力，审查计划，然后再执行。" : "Connect a host, capture evidence, select certified capabilities, review the plan, then apply."}</p>
+          <span>{t("public.nav.quickstart")}</span>
+          <h2>{t("public.quickstartTitle")}</h2>
+          <p>{t("public.quickstartBody")}</p>
         </div>
         <button className="primary-action" type="button" onClick={isAuthenticated ? onEnterApp : onLogin}>
-          {isAuthenticated ? (zh ? "进入控制台" : "Open console") : (zh ? "登录开始" : "Sign in")}
+          {isAuthenticated ? t("public.openConsole") : t("shell.signIn")}
         </button>
       </section>
     </main>
@@ -1252,16 +1270,17 @@ function PasswordResetModal({
   onCancel: () => void;
   onConfirm: () => void;
 }) {
+  const { t } = useTranslation();
   void token;
   return (
     <div className="modal-overlay" style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 9999, display: "flex", justifyContent: "center", alignItems: "center" }}>
       <div className="modal-content" style={{ background: "#fff", padding: "24px", borderRadius: "8px", minWidth: "320px", boxShadow: "0 4px 6px rgba(0,0,0,0.1)" }}>
-        <h3 style={{ marginTop: 0, marginBottom: "16px", fontSize: "18px" }}>Enter new password</h3>
-        <p style={{ fontSize: "14px", color: "#64748b", marginBottom: "12px" }}>At least 8 characters</p>
-        <input type="password" value={value} onChange={(e) => onChange(e.target.value)} placeholder="New password..." style={{ width: "100%", padding: "10px", marginBottom: "20px", border: "1px solid #cbd5e1", borderRadius: "4px", boxSizing: "border-box" }} />
+        <h3 style={{ marginTop: 0, marginBottom: "16px", fontSize: "18px" }}>{t("auth.titleLogin")}</h3>
+        <p style={{ fontSize: "14px", color: "#64748b", marginBottom: "12px" }}>{t("auth.passwordTooShort")}</p>
+        <input type="password" value={value} onChange={(event) => onChange(event.target.value)} placeholder="New password..." style={{ width: "100%", padding: "10px", marginBottom: "20px", border: "1px solid #cbd5e1", borderRadius: "4px", boxSizing: "border-box" }} />
         <div style={{ display: "flex", gap: "12px", justifyContent: "flex-end" }}>
-          <button type="button" className="ghost-action" onClick={onCancel}>Cancel</button>
-          <button type="button" className="primary-action" onClick={onConfirm}>Confirm Reset</button>
+          <button type="button" className="ghost-action" onClick={onCancel}>{t("shell.close")}</button>
+          <button type="button" className="primary-action" onClick={onConfirm}>{t("auth.verify")}</button>
         </div>
       </div>
     </div>
@@ -1277,15 +1296,16 @@ function AccountSettingsModal({
   authToken: string;
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
   return (
     <div className="modal-overlay account-modal-overlay" role="dialog" aria-modal="true" onClick={(event) => { if (event.target === event.currentTarget) onClose(); }}>
       <section className="profile-modal account-settings-modal">
         <header>
           <div>
-            <p className="eyebrow">{locale === "zh" ? "账户" : "Account"}</p>
-            <h2>{locale === "zh" ? "个人资料与安全" : "Profile and security"}</h2>
+            <p className="eyebrow">{t("shell.account")}</p>
+            <h2>{t("shell.profileSecurity")}</h2>
           </div>
-          <button className="ghost-action icon-action" type="button" onClick={onClose} aria-label="Close account settings">
+          <button className="ghost-action icon-action" type="button" onClick={onClose} aria-label={t("shell.close")}>
             <X aria-hidden />
           </button>
         </header>
@@ -1310,6 +1330,7 @@ function AuthDialog({
   onClose: () => void;
   onSuccess: (result: { token: string; user: AuthUser }) => void;
 }) {
+  const { t } = useTranslation();
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
   const [password, setPassword] = useState("");
@@ -1321,6 +1342,7 @@ function AuthDialog({
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [providers, setProviders] = useState<{ github: boolean; google: boolean }>({ github: false, google: false });
+  void locale;
 
   useEffect(() => {
     fetchAuthProviders().then(setProviders).catch(() => setProviders({ github: false, google: false }));
@@ -1341,7 +1363,7 @@ function AuthDialog({
         if ("needs2FA" in result) {
           localStorage.setItem("envforge_pending_2fa", result.intermediateToken);
           setPending2FA(result.intermediateToken);
-          setMessage(locale === "zh" ? "请输入双因素认证代码。" : "Enter your two-factor authentication code.");
+          setMessage(t("auth.enterTwoFactor"));
           onMode("twofa");
           return;
         }
@@ -1355,7 +1377,7 @@ function AuthDialog({
           const result = await startRegistration({ name, email, password });
           setPendingId(result.pendingId);
           setDevHint(result.devCode ? `Dev code: ${result.devCode}` : "");
-          setMessage(locale === "zh" ? "验证码已发送，请输入验证码完成注册。" : "Verification code sent. Enter it to finish registration.");
+          setMessage(t("auth.verificationSent"));
           return;
         }
         const result = await verifyRegistration({ pendingId, code });
@@ -1375,7 +1397,7 @@ function AuthDialog({
 
   async function resetPassword() {
     if (!email.trim()) {
-      setError(locale === "zh" ? "请先输入邮箱。" : "Enter your email first.");
+      setError(t("auth.enterEmail"));
       return;
     }
     setError("");
@@ -1391,20 +1413,20 @@ function AuthDialog({
   }
 
   const title = mode === "login"
-    ? (locale === "zh" ? "登录 EnvForge" : "Sign in to EnvForge")
+    ? t("auth.titleLogin")
     : mode === "register"
-      ? (locale === "zh" ? "注册账号" : "Create account")
-      : (locale === "zh" ? "双因素认证" : "Two-factor authentication");
+      ? t("auth.titleRegister")
+      : t("auth.titleTwoFactor");
 
   return (
     <div className="modal-overlay" role="dialog" aria-modal="true" onClick={(event) => { if (event.target === event.currentTarget) onClose(); }}>
       <section className="profile-modal auth-dialog">
         <header>
           <div>
-            <p className="eyebrow">{locale === "zh" ? "账户" : "Account"}</p>
+            <p className="eyebrow">{t("shell.account")}</p>
             <h2>{title}</h2>
           </div>
-          <button className="ghost-action icon-action" type="button" onClick={onClose} aria-label="Close">
+          <button className="ghost-action icon-action" type="button" onClick={onClose} aria-label={t("shell.close")}>
             <X aria-hidden />
           </button>
         </header>
@@ -1412,7 +1434,7 @@ function AuthDialog({
         <form className="modal-form" onSubmit={submit}>
           {mode === "register" && !pendingId ? (
             <label>
-              <span>{locale === "zh" ? "姓名" : "Name"}</span>
+              <span>{t("auth.name")}</span>
               <input value={name} onChange={(event) => setName(event.target.value)} autoComplete="name" required />
             </label>
           ) : null}
@@ -1420,11 +1442,11 @@ function AuthDialog({
           {mode !== "twofa" && !pendingId ? (
             <>
               <label>
-                <span>{locale === "zh" ? "邮箱" : "Email"}</span>
+                <span>{t("auth.email")}</span>
                 <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" required />
               </label>
               <label>
-                <span>{locale === "zh" ? "密码" : "Password"}</span>
+                <span>{t("auth.password")}</span>
                 <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete={mode === "login" ? "current-password" : "new-password"} required />
               </label>
             </>
@@ -1432,14 +1454,14 @@ function AuthDialog({
 
           {mode === "register" && pendingId ? (
             <label>
-              <span>{locale === "zh" ? "邮箱验证码" : "Email verification code"}</span>
+              <span>{t("auth.codeEmail")}</span>
               <input value={code} onChange={(event) => setCode(event.target.value)} inputMode="numeric" required />
             </label>
           ) : null}
 
           {mode === "twofa" ? (
             <label>
-              <span>{locale === "zh" ? "TOTP 或恢复码" : "TOTP or recovery code"}</span>
+              <span>{t("auth.codeTotp")}</span>
               <input value={code} onChange={(event) => setCode(event.target.value)} autoComplete="one-time-code" required />
             </label>
           ) : null}
@@ -1451,15 +1473,15 @@ function AuthDialog({
           <footer>
             {mode === "login" ? (
               <button className="ghost-action" type="button" onClick={resetPassword} disabled={submitting}>
-                {locale === "zh" ? "忘记密码" : "Forgot password"}
+                {t("auth.forgotPassword")}
               </button>
             ) : (
               <button className="ghost-action" type="button" onClick={() => { setPendingId(""); setCode(""); onMode("login"); }}>
-                {locale === "zh" ? "已有账号" : "Have an account"}
+                {t("auth.haveAccount")}
               </button>
             )}
             <button className="primary-action" type="submit" disabled={submitting}>
-              {submitting ? (locale === "zh" ? "处理中..." : "Working...") : mode === "register" && pendingId ? (locale === "zh" ? "完成注册" : "Verify") : title}
+              {submitting ? t("auth.working") : mode === "register" && pendingId ? t("auth.verify") : title}
             </button>
           </footer>
         </form>
@@ -1472,7 +1494,7 @@ function AuthDialog({
             </div>
             <footer>
               <button className="ghost-action" type="button" onClick={() => onMode("register")}>
-                {locale === "zh" ? "注册新账号" : "Create a new account"}
+                {t("auth.createAccount")}
               </button>
             </footer>
           </>

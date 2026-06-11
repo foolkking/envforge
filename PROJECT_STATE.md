@@ -79,14 +79,18 @@ Landed/in working tree:
 | Drawers | Build markdown/compose/config overlays converted toward right-side drawers |
 | IA | Grouped nav and six-step `PipelineBar` source of truth in `lib/nav.ts` |
 | Plans deep link | `navigateApp(page, view)` and Plans `runs` deep link exist |
-| Design system | `components/ui/{Button,Card,Badge,StatusPill}.tsx` exists; rollout is partial |
+| i18n foundation | `i18next` / `react-i18next` are wired for shell, nav, public landing, and auth surfaces |
+| Design system | `components/ui/{Button,Card,Badge,StatusPill}.tsx` exists; Badge supports `size`/`title`; rollout is partial |
 | Governance split | `pages/governance/*` tab files exist |
+| UI smoke | Playwright config and `npm run smoke:web` exist for public/app/admin smoke coverage |
 
 Known backlog:
 
-1. i18n consolidation: replace inline `locale === "zh" ? ... : ...` with
-   dictionaries and fix mojibake comments.
-2. CSS split: `apps/web/src/styles.css` still has legacy layer plus refresh layer.
+1. i18n consolidation: shell/nav/public/auth now use the new foundation, but
+   deep pages still contain inline `locale === "zh" ? ... : ...` branches and
+   `CapabilityCatalogPage.tsx` still has mojibake comments.
+2. CSS split: modular CSS entry files exist, but most legacy and refresh rules
+   still live in `apps/web/src/styles.css`.
 3. Design-system deepening: governance subtabs, `conn-btn-ghost`, structural
    cards, `score-pill`, each with visual review.
 
@@ -108,8 +112,8 @@ and `npm run certification:backlog` before changing quoted counts.
 
 ## Git caveats
 
-- The worktree contains large unrelated UI changes plus runtime artifacts. Do not
-  revert user work.
+- The worktree may contain active UI refactor changes during implementation
+  batches. Do not revert user work.
 - Do not commit runtime state: `data/envforge.db*`, `data/.master-key`,
   `data/runtime-db*.json*`, `data/backups/`, `data/keys/`, `data/snapshots/`,
   `.env`, logs, or harness output.

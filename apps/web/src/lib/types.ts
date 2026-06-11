@@ -116,17 +116,6 @@ export const navItems: Array<{ id: Page; icon: LucideIcon; adminOnly?: boolean; 
   { id: "catalog", icon: Box, adminOnly: true, description: { zh: "管理员能力规则工作台：规则治理、认证升级、用户建议、软件支持映射、用户与队列", en: "Admin capability rules workbench: rule governance, certification, suggestions, package integrations, users & queues" } }
 ];
 
-/**
- * Filter the nav for the current viewer. Capability Admin (`catalog`)
- * is admin-only — regular users build through the `market` (Build)
- * page and never see the rule registry in their nav.
- *
- * `settings` (Maintain) and `me` (Account) used to be first-level
- * entries; they have been removed from the IA. Their content is now
- * folded into Dashboard (account / security / inbox / snapshots),
- * Plans (schedules / drift / webhooks), and Capability Admin
- * (rule governance / package integrations / users & queues).
- */
 export function navItemsForRole(role: "admin" | "user" | undefined): typeof navItems {
   return navItems.filter((item) => role === "admin" || !item.adminOnly);
 }

@@ -23,6 +23,7 @@ Start by reading `PROJECT_STATE.md` for the current repository snapshot.
 | API tests | `npm run test --workspace @fool/api` |
 | Web dev | `npm run dev:web` |
 | API dev | `npm run dev:api` |
+| Web smoke | `npm run smoke:web` |
 
 ## Web editing rules
 
@@ -36,6 +37,10 @@ Start by reading `PROJECT_STATE.md` for the current repository snapshot.
 - Do not rename page id `catalog` unless doing a full catalog/business-concept
   migration. It intentionally remains because it overlaps with `CatalogItem`,
   `fetchCatalog`, and plan source concepts.
+- New visible Web UI copy must use the i18n resources in
+  `apps/web/src/i18n/locales/{zh,en}.ts`. Do not add new inline
+  `locale === "zh" ? ... : ...` branches except as temporary compatibility
+  bridges for unmigrated child components.
 
 ## CSS and design system
 
@@ -43,6 +48,10 @@ Start by reading `PROJECT_STATE.md` for the current repository snapshot.
   "operations-console UI refresh". They merge by property. Do not delete legacy
   selectors until old-only properties have been folded into the refresh layer.
 - New override rules appended at the end of `styles.css` win by cascade.
+- `styles.css` imports modular files under `apps/web/src/styles/`; move rules
+  there by domain when making large CSS changes.
+- Large shell/CSS/dark-mode changes should run `npm run smoke:web` after
+  typecheck/build.
 - `components/ui/Button.tsx` maps to existing global button classes. Convert only
   exact clean variants (`primary-action`, `secondary-action`, `ghost-action`,
   `conn-btn conn-btn-danger`) and use the `loading` prop for `btn-loading`.
