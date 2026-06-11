@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 /**
- * Generate docs/CAPABILITY_CERTIFICATION_BACKLOG.md from the audit
- * JSON. Re-run after every certification:check.
+ * Generate docs/generated/catalog-certification-backlog.md from the
+ * certification JSON. Re-run after every certification:check when a
+ * separate backlog view is useful.
  */
 import path from "node:path";
 import fs from "node:fs/promises";
@@ -9,8 +10,8 @@ import { fileURLToPath } from "node:url";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(here, "..");
-const auditPath = path.resolve(repoRoot, "docs/catalog-audit/full-migration-certification.json");
-const out = path.resolve(repoRoot, "docs/CAPABILITY_CERTIFICATION_BACKLOG.md");
+const auditPath = path.resolve(repoRoot, "docs/generated/catalog-certification.json");
+const out = path.resolve(repoRoot, "docs/generated/catalog-certification-backlog.md");
 
 const data = JSON.parse(await fs.readFile(auditPath, "utf8"));
 const certified = data.records.filter((r) => r.certificationStatus === "certified");
@@ -61,7 +62,7 @@ for (const r of openBacklog) buckets[priorityOf(r)].push(r);
 const lines = [];
 lines.push("# Capability Certification Backlog");
 lines.push("");
-lines.push(`Generated from \`docs/catalog-audit/full-migration-certification.json\` at ${data.generatedAt}.`);
+lines.push(`Generated from \`docs/generated/catalog-certification.json\` at ${data.generatedAt}.`);
 lines.push("");
 lines.push("> The long-term goal is for every capability the platform retains to be Full Migration Certified.");
 lines.push("> Until then, end users only see the items in the **Currently certified** list. Everything else");

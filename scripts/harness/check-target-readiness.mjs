@@ -4,7 +4,7 @@
  *
  * Run a readiness probe against a target reachable via SSH and emit
  * the structured contract documented in
- * `docs/HARNESS_TARGET_READINESS.md`.
+ * `docs/validation.md`.
  *
  * Usage:
  *   node scripts/harness/check-target-readiness.mjs <user@host:port>

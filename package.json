@@ -27,7 +27,7 @@
     "preflight": "node scripts/preflight.mjs",
     "audit:catalog": "node scripts/audit-catalog.mjs && node scripts/audit-catalog-packages.mjs",
     "audit:catalog:packages": "node scripts/audit-catalog-packages.mjs",
-    "catalog:audit": "npm run build:server && node scripts/audit-catalog-items.mjs > docs/catalog-audit/catalog-items.dump.json",
+    "catalog:audit": "npm run build:server && node scripts/audit-catalog-items.mjs > docs/generated/catalog-items.dump.json",
     "catalog:check": "npm run build:server && node scripts/check-catalog-quality.mjs",
     "certification:check": "npm run build:server && node scripts/check-full-migration-certification.mjs",
     "certification:backlog": "node scripts/generate-certification-backlog.mjs",

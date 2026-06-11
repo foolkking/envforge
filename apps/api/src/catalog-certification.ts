@@ -7,7 +7,7 @@
  *   - not-ready  → hidden from end users; admin registry only.
  *
  * The audit machinery in `scripts/check-full-migration-certification.mjs`
- * audits every catalog item against `docs/FULL_MIGRATION_REQUIREMENTS.md`.
+ * audits every catalog item against the requirements in `docs/catalog.md`.
  * This module is the runtime source of truth that the API + UI consult
  * to decide what to expose.
  *

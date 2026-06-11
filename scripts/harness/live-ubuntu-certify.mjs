@@ -96,7 +96,7 @@ async function main() {
     await writeNotRun({ reasons });
     console.log("Verdict: not-run.");
     console.log(`Reasons: ${reasons.join("; ")}`);
-    console.log("Operator next steps printed in docs/HARNESS_UBUNTU_LIVE_RUN.md.");
+    console.log("Operator next steps are documented in docs/validation.md.");
     process.exit(0);
   }
 

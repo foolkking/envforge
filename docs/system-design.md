@@ -1,0 +1,200 @@
+# System Design
+
+EnvForge is organized around a six-stage model:
+
+```text
+Discover -> Classify -> Plan -> Apply -> Verify -> Rollback / Report
+```
+
+The same architecture powers Migrate, Build, and Maintain. The input changes,
+but the mutation path does not.
+
+## Environment Plan contract
+
+Environment Plan is the only product-level write path.
+
+| Endpoint | Purpose |
+|---|---|
+| `POST /api/plans` | Create Migration/Rebuild/Change/Remove/Repair/Imported Recipe plan |
+| `GET /api/plans/:id` | Inspect plan |
+| `POST /api/plans/:id/review` | Record review/approval decisions |
+| `POST /api/plans/:id/apply` | Apply approved plan |
+| `POST /api/plans/:id/verify` | Re-run verification |
+| `POST /api/plans/:id/rollback` | Roll back supported changes |
+| `GET /api/plans/:id/report` | Export report |
+
+Legacy direct execution routes may exist for compatibility, but the main UI must
+not use them.
+
+## Core modules
+
+| Area | Responsibility |
+|---|---|
+| Collectors | SSH read-only host evidence collection |
+| Inventory | Normalize packages, services, configs, containers, users, runtimes, network, security |
+| Classifier | Package intent, config ownership, default/custom, secret detection, risk, completeness |
+| Catalog | Capability rules, package/service/config maps, validation/rollback metadata |
+| Planner | Action graph, dependencies, target compatibility, dry-run, exports |
+| Executor | SSH actions, safe config writes, package/service operations |
+| Verifier | Config syntax, service status, ports, app health checks |
+| Rollback | File backups, package/service state restoration, rollback reports |
+| Runtime store | SQLite document/relational persistence |
+
+## Discover
+
+Discover creates a read-only `HostSnapshot`.
+
+Collectors gather:
+
+- OS, distro, kernel, architecture, init system.
+- Packages from apt/dpkg, dnf/yum/rpm, pacman, apk, snap, flatpak and language
+  package managers.
+- Services, timers, cron, supervisor, init.d.
+- Listening ports, processes, firewall state.
+- Known catalog config paths, `/etc`, systemd drop-ins, dotfiles, compose files,
+  env files.
+- Containers, volumes, networks, bind mounts, image lists.
+- Manual artifacts in `/opt`, `/usr/local`, `~/.local/bin`, custom units.
+- Security state: sshd, firewall, fail2ban, sudoers metadata, authorized keys
+  metadata.
+
+Discover must not modify the source, read blocked secrets, read large data by
+default, copy database directories, or treat Docker images as a plan.
+
+## Classify
+
+Classify converts raw evidence into migration candidates.
+
+```ts
+type MigrationClass =
+  | "managed-software"
+  | "system-baseline"
+  | "user-dotfile"
+  | "service-config"
+  | "language-global-package"
+  | "container-workload"
+  | "manual-install"
+  | "unknown-review"
+  | "do-not-migrate";
+```
+
+Package Intent Score buckets:
+
+| Bucket | Meaning | Default behavior |
+|---|---|---|
+| high | Strong migration intent | recommend/include |
+| medium | Likely useful | user review |
+| low | Weak signal | collapsed |
+| ignore | dependency/base package | hidden unless expanded |
+
+High signals include catalog match, enabled/running service, listening port,
+custom config, data directory, and references from systemd/cron/compose/config.
+Medium signals include manual install markers, binaries, PATH/alias/history, and
+language global packages. Kernel, library, firmware, base image, essential, and
+auto dependency packages are downranked.
+
+## Config and data governance
+
+Config files are first-class migration artifacts. The system tracks:
+
+- ownership from catalog paths, package ownership, service references,
+  environment files, includes, symlinks, and process flags;
+- default/custom status from package verification, ownership, mtime, and
+  semantic diff;
+- sensitivity: `safe`, `review`, `secret`, `blocked`;
+- safe read status: `read`, `skipped-large`, `skipped-secret`,
+  `permission-denied`, `not-found`;
+- validation command and rollback backup path.
+
+Data strategy is explicit:
+
+| Strategy | Use |
+|---|---|
+| `none` | No persistent data owned |
+| `optional` | Useful but not required |
+| `review` | Operator must decide |
+| `dump-restore` | Logical database dump/restore |
+| `official-backup-restore` | Upstream backup tool |
+| `manual` | Structured manual steps |
+| `blocked` | Unsafe or unsupported |
+
+Database directories and `/var/lib/docker` are not copied blindly.
+
+## Plan
+
+An Environment Plan includes:
+
+- source/target host metadata;
+- selected capabilities or evidence;
+- action graph and dependencies;
+- risks, blockers, approvals, manual steps;
+- config/data decisions;
+- dry-run result;
+- validation plan;
+- rollback plan;
+- report/export artifacts.
+
+Action kinds include install package, copy/edit file, create directory, enable
+or restart service, transfer data, validate, snapshot, run command, and rollback.
+High-risk actions must define dry-run, apply, verify, and rollback behavior.
+
+## Managed execution
+
+Mutating actions record `ActionRunRecord` lifecycle:
+
+```text
+pending -> snapshotting -> applying -> verifying -> succeeded
+failed -> rolling-back -> rolled-back | rollback-failed
+```
+
+Non-mutating or manual-only actions may end as `skipped` or `manual-required`.
+
+Secret redaction is mandatory for stdout, stderr, errors, verification output,
+rollback output, and report markdown. Redaction covers private keys, GitHub and
+GitLab tokens, OpenAI keys, AWS keys/secrets, JWTs, auth headers, database URLs,
+env secrets, passwords, and generic tokens.
+
+## Safe apply surfaces
+
+| Surface | Required behavior |
+|---|---|
+| SSH config | Pre-validate, atomic write, post-validate, reload not restart, fresh SSH probe, rollback protection |
+| Firewall | Preflight must preserve SSH, rollback timer, reload, reachability probe |
+| Sudoers | Stage candidate, `visudo -cf`, atomic write, validate live path |
+| Systemd unit | Atomic write, daemon-reload, active-state check, restore on failure |
+| Generic config | Backup, temp candidate, validation, atomic install, rollback on failure |
+
+## Verify and rollback
+
+Verify runs catalog-defined checks such as `nginx -t`, `sshd -t`,
+`docker compose config`, `systemctl is-active`, `ss`, `curl`, `redis-cli ping`,
+`psql -c "select 1"`, and similar health checks.
+
+Rollback restores file backups, package state for packages installed by the
+current plan, service enabled/running state, and supported config snapshots. It
+does not delete existing target data by default.
+
+## Storage and scaling
+
+Current storage is SQLite hybrid:
+
+- document-style runtime state in key/value form;
+- relational tables for comments, suggestions, inbox, audit logs, queues,
+  reports, and task metadata.
+
+Long-term scaling should happen through repository/provider interfaces rather
+than business-logic rewrites. Future candidates: PostgreSQL for core/comments,
+Redis or PostgreSQL queues, Meilisearch, ClickHouse.
+
+## Test groups
+
+- collector parsing;
+- inventory normalization;
+- package intent scoring;
+- config ownership/default/secret detection;
+- migration plan and dry-run;
+- managed execution and safe apply;
+- verifier and rollback;
+- catalog certification;
+- SQLite persistence and queues;
+- UI source regression tests.

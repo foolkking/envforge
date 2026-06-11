@@ -3,7 +3,7 @@
  *
  * For now this is a thin wrapper around the connection logic that was duplicated across
  * routes.ts, capture.ts, config-files.ts. A future enhancement would be a real keepalive
- * pool (connection reuse with a 5-minute idle TTL) — see ARCHITECTURE.md.
+ * pool (connection reuse with a 5-minute idle TTL) — see docs/system-design.md.
  */
 
 import { Client } from "ssh2";

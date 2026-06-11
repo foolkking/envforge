@@ -10,7 +10,7 @@
  *   1. parseReadinessProbe — turn the JSON our SSH probe emits into a
  *      structured TargetReadiness record.
  *   2. evaluateReadiness    — apply the readiness contract documented
- *      in docs/HARNESS_TARGET_READINESS.md.
+ *      in docs/validation.md.
  *   3. decideCertificationVerdict — fold the per-scenario results into
  *      a single certification verdict.
  *

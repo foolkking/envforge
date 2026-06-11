@@ -3,7 +3,7 @@
  * audit-catalog-packages.mjs
  *
  * 检查所有 catalog playbook 里 `package: name:` 任务引用的包名，
- * 对照 §7.5.6（CATALOG_AUTHORING.md）的"已知陷阱表" + PACKAGE_ALIASES + NEEDS_EPEL，
+ * 对照 docs/catalog.md 中的 companion/package 规则 + PACKAGE_ALIASES + NEEDS_EPEL，
  * 报出可能在某发行版上失败的包。
  *
  * 用法：
@@ -51,7 +51,7 @@ function extractAliases() {
 const NEEDS_EPEL = extractStringSet("NEEDS_EPEL");
 const ALIASES = extractAliases();
 
-// ── 2) Known traps (mirror of §7.5.6 in CATALOG_AUTHORING.md) ─────────────────
+// ── 2) Known traps (mirror of docs/catalog.md package rules) ─────────────────
 const KNOWN_BAD = new Map([
   ["exa", "Deprecated since 2021. Use 'lsd' or upstream tarball."],
 ]);

@@ -2,14 +2,14 @@
 /**
  * scripts/check-full-migration-certification.mjs
  *
- * Audit every catalog item against the Full Migration Requirements
- * defined in `docs/FULL_MIGRATION_REQUIREMENTS.md`. Emits:
+ * Audit every catalog item against the Full Migration Certified
+ * requirements summarized in `docs/catalog.md`. Emits:
  *
- *   - `docs/catalog-audit/full-migration-certification.json`
+ *   - `docs/generated/catalog-certification.json`
  *     One record per item with certificationStatus, certificationScore,
  *     missingRequirements, blockers, and visibleToUsers.
  *
- *   - `docs/catalog-audit/full-migration-certification.md`
+ *   - `docs/generated/catalog-certification.md`
  *     Human-readable summary (committed alongside the JSON).
  *
  * Exit codes:
@@ -30,7 +30,7 @@ import { pathToFileURL, fileURLToPath } from "node:url";
 const here = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(here, "..");
 const distRoot = path.resolve(repoRoot, "apps/api/dist");
-const auditDir = path.resolve(repoRoot, "docs/catalog-audit");
+const auditDir = path.resolve(repoRoot, "docs/generated");
 const scenariosDir = path.resolve(repoRoot, "scripts/harness/scenarios");
 
 const databaseMod = await import(pathToFileURL(path.join(distRoot, "database.js")).href);
@@ -266,12 +266,12 @@ const json = {
 
 await fs.mkdir(auditDir, { recursive: true });
 await fs.writeFile(
-  path.join(auditDir, "full-migration-certification.json"),
+  path.join(auditDir, "catalog-certification.json"),
   JSON.stringify(json, null, 2),
   "utf8"
 );
 await fs.writeFile(
-  path.join(auditDir, "full-migration-certification.md"),
+  path.join(auditDir, "catalog-certification.md"),
   toMarkdown(json),
   "utf8"
 );
@@ -303,8 +303,8 @@ for (const r of records) {
 }
 
 console.log("");
-console.log(`Wrote ${path.relative(repoRoot, path.join(auditDir, "full-migration-certification.json"))}`);
-console.log(`Wrote ${path.relative(repoRoot, path.join(auditDir, "full-migration-certification.md"))}`);
+console.log(`Wrote ${path.relative(repoRoot, path.join(auditDir, "catalog-certification.json"))}`);
+console.log(`Wrote ${path.relative(repoRoot, path.join(auditDir, "catalog-certification.md"))}`);
 
 process.exit(failure === 0 ? 0 : 1);
 

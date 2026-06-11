@@ -3172,7 +3172,7 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
       }
       // Build Mode contract: pull existing capabilities from the target
       // snapshot so the planner can emit target-state conflicts and
-      // reconcile evidence. See E2E_SCENARIO_VALIDATION.md "Target Snapshot
+      // reconcile evidence. See docs/validation.md "Target Snapshot
       // in Build Mode".
       const targetSnapshotMeta = computeTargetSnapshotMeta(connection, catalogItems);
       plan = buildRebuildPlan(selected, connection.id, {

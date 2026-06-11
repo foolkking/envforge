@@ -1,10 +1,10 @@
 /**
  * Dump every catalog item with its capability metadata, including the
  * supportLevel resolved by `withCapabilityMetadata`. Used by the
- * one-shot 116-item audit to seed `docs/catalog-audit/catalog-items.audit.json`.
+ * one-shot catalog audit to seed `docs/generated/catalog-items.audit.json`.
  *
  * Usage:
- *   node scripts/audit-catalog-items.mjs > docs/catalog-audit/catalog-items.audit.json
+ *   node scripts/audit-catalog-items.mjs > docs/generated/catalog-items.audit.json
  */
 import path from "node:path";
 import { fileURLToPath } from "node:url";

@@ -4,7 +4,7 @@
  * End-to-End Scenario Validation for the EnvForge Catalog Audit
  * Enforcement phase.
  *
- * Each scenario in `docs/E2E_SCENARIO_VALIDATION.md` has at least one
+ * Each scenario in `docs/validation.md` has at least one
  * test below. The tests exercise the full **server-side** decision
  * pipeline:
  *

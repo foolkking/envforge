@@ -288,7 +288,7 @@ function capabilityKeyForCatalogId(id: string): string {
  * supportLevel + security risk per capability key.
  *
  * The four supportLevels follow the contract in
- * `docs/CATALOG_SYSTEM.md`:
+ * `docs/catalog.md`:
  *
  *   - detect-only: EnvForge can identify the capability but does not plan
  *     changes automatically. Rebuild Plan generation is blocked at the UI.

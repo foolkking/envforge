@@ -6,7 +6,7 @@
  *
  * Reads the merged catalog (post-`withCapabilityMetadata`) via the
  * compiled `apps/api/dist/database.js` module and checks every item
- * against the rules defined in `docs/CATALOG_QUALITY_GATE.md`.
+ * against the rules summarized in `docs/catalog.md`.
  *
  * Exit code 0 = all checks pass.
  * Exit code 1 = at least one item failed.

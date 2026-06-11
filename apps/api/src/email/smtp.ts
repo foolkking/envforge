@@ -3,7 +3,7 @@
  *
  * Reads SMTP config from `getConfig().smtp`. When `host` is empty, returns null
  * and email-sending callers fall back to logging to stdout (acceptable for
- * local dev; production deployments must configure SMTP — `docs/DEPLOY.md`
+ * local dev; production deployments must configure SMTP — `docs/operations.md`
  * has the recipe for Gmail app-specific passwords).
  *
  * The transport is lazily constructed on first call so tests / scripts that

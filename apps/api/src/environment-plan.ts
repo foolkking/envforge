@@ -240,7 +240,7 @@ export interface EnvironmentPlan {
      * `min(item.supportLevel, item.audit.finalSupportLevel)` across all
      * plan items. The UI labels the plan card with this value so a
      * `full-migration` item next to a `detect-only` item never advertises
-     * full migration. See E2E_SCENARIO_VALIDATION.md scenario 6.
+     * full migration. See docs/validation.md combo scenarios.
      */
     effectiveSupportLevel?: NonNullable<CatalogItem["supportLevel"]>;
   };
@@ -264,7 +264,7 @@ export interface EnvironmentPlan {
      * Build Mode signal: did the planner have a fresh target snapshot
      * to consult? When `true`, the UI must surface a "Target state
      * unknown — plan may be incomplete" banner. See
-     * E2E_SCENARIO_VALIDATION.md "Target Snapshot in Build Mode".
+     * docs/validation.md "Target Snapshot in Build Mode" scenario.
      */
     targetStateUnknown?: boolean;
     /** "verified" (snapshot < 24h), "stale" (older), "unknown" (none). */
@@ -3578,7 +3578,7 @@ export interface ApplyGateVerdict {
  * acknowledgements. The logic is shared between the apply route and
  * the test suite; UI also re-implements the readiness display.
  *
- * Server-side trust contract (E2E_SCENARIO_VALIDATION.md):
+ * Server-side trust contract (docs/validation.md):
  *
  *   - **Block conflicts are recomputed from `plan.items[*].capabilityKey`.**
  *     We do NOT rely on `plan.review.conflicts` because the client may
@@ -3788,7 +3788,7 @@ export function evaluateApplyGate(
 /**
  * Plan Report — generated after Plan Review (regardless of whether
  * apply succeeded). The report is the audit trail required by
- * E2E_SCENARIO_VALIDATION.md.
+ * docs/validation.md.
  *
  * Two consumers:
  *   - `GET /api/plans/:id/report?format=json` — structured JSON for the

@@ -361,7 +361,7 @@ test("certification audit JSON: counts match annotateCertification", async () =>
   const { fileURLToPath } = await import("node:url");
   const here = path.dirname(fileURLToPath(import.meta.url));
   const repoRoot = path.resolve(here, "../../../../..");
-  const auditPath = path.resolve(repoRoot, "docs/catalog-audit/full-migration-certification.json");
+  const auditPath = path.resolve(repoRoot, "docs/generated/catalog-certification.json");
   const raw = await fs.readFile(auditPath, "utf8");
   const parsed = JSON.parse(raw);
   assert.equal(parsed.totals.certified, certified, "audit JSON certified count differs from runtime gate");

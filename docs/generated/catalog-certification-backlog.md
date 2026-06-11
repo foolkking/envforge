@@ -1,6 +1,6 @@
 # Capability Certification Backlog
 
-Generated from `docs/catalog-audit/full-migration-certification.json` at 2026-05-31T03:32:03.487Z.
+Generated from `docs/generated/catalog-certification.json` at 2026-06-11T08:34:00.136Z.
 
 > The long-term goal is for every capability the platform retains to be Full Migration Certified.
 > Until then, end users only see the items in the **Currently certified** list. Everything else

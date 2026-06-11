@@ -95,7 +95,7 @@ async function main() {
   console.log("");
   console.log("Next steps:");
   console.log(`  1. node scripts/harness/check-target-readiness.mjs envforge@${ip}`);
-  console.log(`  2. Register a connection in EnvForge (see docs/HARNESS_UBUNTU_LIVE_RUN.md).`);
+  console.log(`  2. Register a connection in EnvForge (see docs/validation.md).`);
   console.log("  3. Set ENVFORGE_HARNESS_TARGET=<connId> + ENVFORGE_HARNESS_TARGET_SSH=envforge@" + ip);
   console.log("  4. ENVFORGE_HARNESS_ALLOW_DESTRUCTIVE=true npm run harness:certify");
   console.log(`  5. node scripts/harness/destroy-multipass-ubuntu.mjs --name ${runId}`);
@@ -148,11 +148,11 @@ function printManualFallback() {
   console.error("");
   console.error("  Vagrant + VirtualBox:");
   console.error("    cd scripts/harness");
-  console.error("    vagrant up        # uses the Vagrantfile snippet from docs/HARNESS_UBUNTU_LIVE_RUN.md");
+  console.error("    vagrant up        # see docs/validation.md for harness target guidance");
   console.error("");
   console.error("  Cloud burner:");
   console.error("    Spin up a cloud-init Ubuntu 22.04 / 24.04 instance with the same cloud-init payload");
-  console.error("    documented in docs/HARNESS_UBUNTU_LIVE_RUN.md.");
+  console.error("    documented in docs/validation.md.");
   console.error("");
   console.error("Either way, set the hostname to envforge-harness-* and drop /etc/envforge-disposable");
   console.error("so check-target-readiness.mjs accepts the target.");
