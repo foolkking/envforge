@@ -35,7 +35,7 @@ export class SafeJsonStore<T extends object> {
       return this.cache;
     } catch (err) {
       resetIdleTimer();
-      return null;
+      throw err;
     }
   }
 

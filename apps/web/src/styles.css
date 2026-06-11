@@ -12811,3 +12811,28 @@ body {
   border-bottom-color: #1e293b;
 }
 :root[data-theme="dark"] .pipeline-bar-step:hover { background: #1e293b; }
+
+@media (max-width: 860px) {
+  .build-workbench-grid.phase-select {
+    grid-template-areas:
+      "rail"
+      "catalog";
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .build-workbench-grid.phase-review {
+    grid-template-areas: "inspector";
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .build-workbench-grid.phase-select .build-catalog-surface,
+  .build-workbench-grid.phase-select .build-workbench-rail {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .pipeline-bar {
+    max-width: 100%;
+    min-width: 0;
+  }
+}

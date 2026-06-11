@@ -1481,3 +1481,5 @@ function AuthDialog({
     </div>
   );
 }
+
+createRoot(document.getElementById("root")!).render(<App />);

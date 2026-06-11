@@ -148,8 +148,10 @@ export async function getDatabaseMetrics(): Promise<{
 }
 
 export function resetIdleTimer() {
-  const isTestOrDev = process.env.NODE_ENV === "test" || process.env.NODE_ENV === "development" || !process.env.NODE_ENV;
-  if (!isTestOrDev) return;
+  const shouldCloseOnIdle =
+    process.env.NODE_ENV === "test" ||
+    process.env.FOOL_DATA_DIR?.includes("envforge-");
+  if (!shouldCloseOnIdle) return;
   if (idleTimer) clearTimeout(idleTimer);
   idleTimer = setTimeout(async () => {
     await _resetSqliteDbForTests();
