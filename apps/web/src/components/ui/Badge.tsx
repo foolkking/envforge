@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-type Tone = "ok" | "warn" | "danger" | "neutral" | "info";
+type Tone = "ok" | "warn" | "danger" | "neutral" | "info" | "primary";
 type Size = "sm" | "md";
 
 export function Badge({

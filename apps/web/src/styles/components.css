@@ -2,19 +2,20 @@
   background: var(--ef-surface);
   border: 1px solid var(--ef-border);
   border-radius: var(--ef-radius);
-  padding: 14px;
+  box-shadow: var(--ef-shadow-xs);
+  padding: 16px;
 }
 
-.ui-card-ok { border-color: #86efac; }
-.ui-card-warn { border-color: #fcd34d; }
-.ui-card-danger { border-color: #fecaca; }
+.ui-card-ok { border-color: var(--ef-success-soft); box-shadow: inset 3px 0 0 var(--ef-success), var(--ef-shadow-xs); }
+.ui-card-warn { border-color: var(--ef-warning-soft); box-shadow: inset 3px 0 0 var(--ef-warning), var(--ef-shadow-xs); }
+.ui-card-danger { border-color: var(--ef-danger-soft); box-shadow: inset 3px 0 0 var(--ef-danger), var(--ef-shadow-xs); }
 
 .ui-badge {
   align-items: center;
   border-radius: 999px;
   display: inline-flex;
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 600;
   gap: 6px;
   padding: 3px 10px;
   white-space: nowrap;
@@ -30,14 +31,15 @@
   padding: 3px 10px;
 }
 
-.ui-badge-ok { background: #dcfce7; color: #166534; }
-.ui-badge-warn { background: #fef3c7; color: #92400e; }
-.ui-badge-danger { background: #fee2e2; color: #b42318; }
-.ui-badge-neutral { background: #f1f5f9; color: #334155; }
-.ui-badge-info { background: #e0f2fe; color: #075985; }
+.ui-badge-ok { background: var(--ef-success-soft); color: var(--ef-success); }
+.ui-badge-warn { background: var(--ef-warning-soft); color: var(--ef-warning); }
+.ui-badge-danger { background: var(--ef-danger-soft); color: var(--ef-danger); }
+.ui-badge-neutral { background: var(--ef-surface-soft); border: 1px solid var(--ef-border); color: var(--ef-muted); }
+.ui-badge-info { background: var(--ef-info-soft); color: var(--ef-info); }
+.ui-badge-primary { background: var(--ef-primary-soft); color: var(--ef-primary-strong); }
 
-:root[data-theme="dark"] .ui-badge-ok { background: rgba(34, 197, 94, 0.18); color: #86efac; }
-:root[data-theme="dark"] .ui-badge-warn { background: rgba(245, 158, 11, 0.18); color: #fcd34d; }
-:root[data-theme="dark"] .ui-badge-danger { background: rgba(248, 113, 113, 0.18); color: #fecaca; }
-:root[data-theme="dark"] .ui-badge-neutral { background: rgba(148, 163, 184, 0.16); color: #cbd5e1; }
-:root[data-theme="dark"] .ui-badge-info { background: rgba(96, 165, 250, 0.18); color: #bfdbfe; }
+:root[data-theme="dark"] .ui-badge-neutral {
+  background: rgba(148, 163, 184, 0.14);
+  border-color: transparent;
+  color: var(--ef-muted);
+}

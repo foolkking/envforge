@@ -1,7 +1,7 @@
 import type { Locale, Page } from "./types";
 import { navItems, navItemsForRole } from "./types";
 
-export type NavGroupId = "workspace" | "flow" | "governance";
+export type NavGroupId = "workspace" | "sources" | "delivery" | "governance";
 
 export const NAV_GROUPS: Array<{
   id: NavGroupId;
@@ -9,30 +9,10 @@ export const NAV_GROUPS: Array<{
   pages: Page[];
 }> = [
   { id: "workspace", label: { zh: "工作区", en: "Workspace" }, pages: ["dashboard"] },
-  { id: "flow", label: { zh: "流程", en: "Workflow" }, pages: ["migrate", "build", "plans", "reports"] },
+  { id: "sources", label: { zh: "来源", en: "Sources" }, pages: ["migrate", "build"] },
+  { id: "delivery", label: { zh: "计划与交付", en: "Plan & Delivery" }, pages: ["plans"] },
   { id: "governance", label: { zh: "治理", en: "Governance" }, pages: ["catalog"] }
 ];
-
-export type PipelineStepId = "connect" | "snapshot" | "build" | "review" | "apply" | "report";
-
-export const PIPELINE: Array<{
-  id: PipelineStepId;
-  page: Page;
-  view?: string;
-  label: Record<Locale, string>;
-}> = [
-  { id: "connect", page: "migrate", label: { zh: "连接", en: "Connect" } },
-  { id: "snapshot", page: "migrate", label: { zh: "快照", en: "Snapshot" } },
-  { id: "build", page: "build", label: { zh: "构建", en: "Build" } },
-  { id: "review", page: "plans", label: { zh: "审查", en: "Review" } },
-  { id: "apply", page: "plans", view: "runs", label: { zh: "执行", en: "Apply" } },
-  { id: "report", page: "reports", label: { zh: "报告", en: "Report" } }
-];
-
-export function pipelineStepForPage(page: Page): PipelineStepId | null {
-  const match = PIPELINE.find((step) => step.page === page);
-  return match ? match.id : null;
-}
 
 export function navGroupsForRole(role: "admin" | "user" | undefined) {
   const allowed = navItemsForRole(role);

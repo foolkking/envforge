@@ -497,26 +497,44 @@ function MigrateStepHeader({
 }) {
   const zh = locale === "zh";
   const activeIndex = stepOrder.indexOf(activeStep);
+
+  // The migrate flow splits at "plan": everything up to and including the
+  // plan is "produce the plan"; the rest is "deliver" (target/apply/report).
+  // Visual segmentation only — step logic and order are unchanged.
+  const renderTab = (step: MigrationSessionStep) => {
+    const index = stepOrder.indexOf(step);
+    const blocked = !session && step !== "source";
+    const state = step === activeStep ? "active" : index < activeIndex ? "done" : blocked ? "blocked" : "todo";
+    return (
+      <li key={step}>
+        <button type="button" className={`migrate-step-tab ${state}`} disabled={blocked} onClick={() => onStep(step)}>
+          <span>{index + 1}</span>
+          {stepLabel(step, locale)}
+        </button>
+      </li>
+    );
+  };
+
+  const planIndex = stepOrder.indexOf("plan");
+  const produceSteps = stepOrder.slice(0, planIndex + 1);
+  const deliverSteps = stepOrder.slice(planIndex + 1);
+
   return (
     <header className="migrate-step-header">
       <div>
         <p className="eyebrow">{zh ? "迁移流水线" : "Migrate pipeline"}</p>
         <h2>{stepLabel(activeStep, locale)}</h2>
       </div>
-      <ol className="migrate-step-tabs">
-        {stepOrder.map((step, index) => {
-          const blocked = !session && step !== "source";
-          const state = step === activeStep ? "active" : index < activeIndex ? "done" : blocked ? "blocked" : "todo";
-          return (
-            <li key={step}>
-              <button type="button" className={`migrate-step-tab ${state}`} disabled={blocked} onClick={() => onStep(step)}>
-                <span>{index + 1}</span>
-                {stepLabel(step, locale)}
-              </button>
-            </li>
-          );
-        })}
-      </ol>
+      <div className="migrate-step-segments">
+        <div className="migrate-step-segment">
+          <span className="migrate-step-segment-label">{zh ? "生产计划" : "Produce plan"}</span>
+          <ol className="migrate-step-tabs">{produceSteps.map(renderTab)}</ol>
+        </div>
+        <div className="migrate-step-segment migrate-step-segment-deliver">
+          <span className="migrate-step-segment-label">{zh ? "交付" : "Deliver"}</span>
+          <ol className="migrate-step-tabs">{deliverSteps.map(renderTab)}</ol>
+        </div>
+      </div>
     </header>
   );
 }

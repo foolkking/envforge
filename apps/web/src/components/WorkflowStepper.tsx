@@ -97,7 +97,7 @@ export function buildMigrateSteps(input: {
   hasTarget: boolean;
   hasApplied: boolean;
 }): WorkflowStep[] {
-  const status = (cond: boolean, deps = true): WorkflowStepStatus => (cond ? "done" : deps ? "current" : "blocked");
+  const status = (cond: boolean, deps = true): WorkflowStepStatus => (cond ? "done" : deps ? "current" : "todo");
   return [
     {
       id: "source-vm",
@@ -120,7 +120,7 @@ export function buildMigrateSteps(input: {
     {
       id: "review-queue",
       label: { zh: "审查队列", en: "Review Queue" },
-      status: input.reviewPending === 0 && input.hasCandidates ? "done" : input.hasCandidates ? "current" : "blocked",
+      status: input.reviewPending === 0 && input.hasCandidates ? "done" : input.hasCandidates ? "current" : "todo",
       hint: input.reviewPending > 0
         ? { zh: `还有 ${input.reviewPending} 项待决策`, en: `${input.reviewPending} item(s) pending decision` }
         : { zh: "未知项决策已完成", en: "All unknown items decided" }
@@ -188,7 +188,7 @@ export function buildBuildSteps(input: {
   /** Plan has reached a terminal status (`succeeded` / `failed` / `rolled-back` / `committed`). */
   hasReport?: boolean;
 }): WorkflowStep[] {
-  const status = (cond: boolean, deps = true): WorkflowStepStatus => (cond ? "done" : deps ? "current" : "blocked");
+  const status = (cond: boolean, deps = true): WorkflowStepStatus => (cond ? "done" : deps ? "current" : "todo");
   // Backwards-compat: when callers pass only the old 5-step signal set
   // (no snapshot / reviewed / verified / report), light up the steps from
   // existing approximations.

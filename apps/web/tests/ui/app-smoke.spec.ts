@@ -1,6 +1,6 @@
 import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
 
-const API_BASE = "http://127.0.0.1:5173";
+const API_BASE = "http://127.0.0.1:5174";
 const PASSWORD = "SmokePass123!";
 
 function projectLocale(name: string): "zh" | "en" {

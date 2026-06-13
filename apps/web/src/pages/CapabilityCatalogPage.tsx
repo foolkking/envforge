@@ -55,7 +55,8 @@ export function CapabilityCatalogPage({
   authToken,
   activeConnectionId,
   activeTask,
-  onTaskUpdate
+  onTaskUpdate,
+  onNavigateToPlans
 }: {
   t: typeof text.zh;
   locale: Locale;
@@ -67,6 +68,8 @@ export function CapabilityCatalogPage({
   activeConnectionId: string | null;
   activeTask: ExecutionTask | null;
   onTaskUpdate: (task: ExecutionTask) => void;
+  /** Hand off to the Plan center to review / apply / verify the generated plan. */
+  onNavigateToPlans?: () => void;
 }) {
   const [executingId, setExecutingId] = useState<string | null>(null);
   const [taskError, setTaskError] = useState("");
@@ -487,7 +490,10 @@ export function CapabilityCatalogPage({
           hasApplied: Boolean(activeTaskId) || buildPlanState.hasApplied,
           hasVerified: buildPlanState.hasVerified,
           hasReport: buildPlanState.hasReport
-        })}
+          // Build is a plan *producer*: the stepper shows only the production
+          // stages (up to "Rebuild Plan"). Review / Apply / Verify / Report
+          // are owned by the Plan center — see the hand-off button below.
+        }).slice(0, 5)}
       />
       <div className="store-heading">
         <div>
@@ -509,6 +515,11 @@ export function CapabilityCatalogPage({
           ) : (selected.size > 0 || activeRebuildPlan) ? (
             <Button variant="secondary" onClick={() => setPhase("review")}>
               {locale === "zh" ? "审查计划 →" : "Review plan →"}
+            </Button>
+          ) : null}
+          {onNavigateToPlans && (activeRebuildPlan || buildPlanState.hasPlan) ? (
+            <Button variant="secondary" onClick={onNavigateToPlans}>
+              {locale === "zh" ? "前往计划中心 →" : "Go to Plan center →"}
             </Button>
           ) : null}
           {selected.size > 0 ? (

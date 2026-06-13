@@ -1,36 +1,88 @@
+/* ── Precision design tokens (Vercel / Linear flavour) ─────────────
+ * 中性灰阶(zinc 系)+ 清晰 1px 边框为分层主力 + 极淡阴影 + 小圆角。
+ * 单一品牌青绿仅作强调。所有旧 --ef-* 变量名保持兼容,只增不改名。
+ * ────────────────────────────────────────────────────────────── */
 :root {
-  --ef-bg: #f4f7fb;
+  /* surfaces — neutral, near-white */
+  --ef-bg: #fafafa;
   --ef-surface: #ffffff;
-  --ef-surface-soft: #f8fafc;
-  --ef-border: #dbe3ee;
-  --ef-border-strong: #cbd5e1;
-  --ef-text: #0f172a;
-  --ef-muted: #64748b;
-  --ef-muted-2: #94a3b8;
-  --ef-primary: #0f766e;
-  --ef-primary-strong: #0b5f59;
-  --ef-primary-soft: #ccfbf1;
+  --ef-surface-soft: #f4f4f5;
+  --ef-surface-raised: #ffffff;
+  --ef-border: #e4e4e7;
+  --ef-border-strong: #d4d4d8;
+
+  /* text — near-black zinc ramp, high contrast */
+  --ef-text: #18181b;
+  --ef-muted: #52525b;
+  --ef-muted-2: #a1a1aa;
+
+  /* brand: teal, 单一主色,仅作强调 */
+  --ef-primary: #0d9488;
+  --ef-primary-strong: #0f766e;
+  --ef-primary-soft: #d9f2ee;
+  --ef-on-primary: #ffffff;
+
+  /* semantic states */
   --ef-accent: #2563eb;
+  --ef-info: #2563eb;
+  --ef-info-soft: #e6effd;
+  --ef-success: #16794c;
+  --ef-success-soft: #e4f4ea;
+  --ef-warning: #a35200;
+  --ef-warning-soft: #fbeedd;
   --ef-danger: #dc2626;
-  --ef-warning: #b45309;
+  --ef-danger-soft: #fdebec;
+
+  /* shape — tight radii */
+  --ef-radius-sm: 6px;
   --ef-radius: 8px;
-  --ef-shadow: 0 1px 2px rgba(15, 23, 42, 0.06), 0 10px 28px rgba(15, 23, 42, 0.06);
+  --ef-radius-lg: 12px;
+
+  /* elevation — borders do the work, shadows stay barely-there */
+  --ef-shadow-xs: 0 1px 2px rgba(24, 24, 27, 0.04);
+  --ef-shadow: 0 1px 2px rgba(24, 24, 27, 0.05), 0 1px 3px rgba(24, 24, 27, 0.05);
+  --ef-shadow-lg: 0 8px 16px -6px rgba(24, 24, 27, 0.12), 0 16px 40px -12px rgba(24, 24, 27, 0.18);
+  --ef-ring: 0 0 0 3px rgba(13, 148, 136, 0.18);
+
+  /* typography */
+  --ef-font-sans: "Noto Sans SC Variable", "PingFang SC", "Microsoft YaHei UI",
+    "Microsoft YaHei", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --ef-font-mono: "JetBrains Mono", ui-monospace, "Cascadia Code", Consolas,
+    "SFMono-Regular", "Liberation Mono", monospace;
 }
 
 :root[data-theme="dark"] {
-  --ef-bg: #070b12;
-  --ef-surface: #111827;
-  --ef-surface-soft: #0f172a;
-  --ef-border: #263244;
-  --ef-border-strong: #334155;
-  --ef-text: #e5edf7;
-  --ef-muted: #9aa8bb;
-  --ef-muted-2: #7b8797;
+  /* near-black, Linear/Vercel dark */
+  --ef-bg: #08080a;
+  --ef-surface: #121214;
+  --ef-surface-soft: #1a1a1d;
+  --ef-surface-raised: #1c1c20;
+  --ef-border: #26262a;
+  --ef-border-strong: #34343a;
+
+  --ef-text: #ededef;
+  --ef-muted: #a1a1aa;
+  --ef-muted-2: #71717a;
+
   --ef-primary: #2dd4bf;
   --ef-primary-strong: #5eead4;
-  --ef-primary-soft: rgba(45, 212, 191, 0.16);
+  --ef-primary-soft: rgba(45, 212, 191, 0.12);
+  --ef-on-primary: #04211d;
+
   --ef-accent: #60a5fa;
-  --ef-danger: #f87171;
+  --ef-info: #60a5fa;
+  --ef-info-soft: rgba(96, 165, 250, 0.12);
+  --ef-success: #4ade80;
+  --ef-success-soft: rgba(74, 222, 128, 0.12);
   --ef-warning: #fbbf24;
+  --ef-warning-soft: rgba(251, 191, 36, 0.12);
+  --ef-danger: #f87171;
+  --ef-danger-soft: rgba(248, 113, 113, 0.12);
+
+  --ef-shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --ef-shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 1px 3px rgba(0, 0, 0, 0.5);
+  --ef-shadow-lg: 0 12px 28px -8px rgba(0, 0, 0, 0.6), 0 24px 56px -16px rgba(0, 0, 0, 0.7);
+  --ef-ring: 0 0 0 3px rgba(45, 212, 191, 0.22);
+
   color-scheme: dark;
 }

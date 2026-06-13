@@ -40,19 +40,21 @@ import {
 } from "./api";
 import { text, navItems, navItemsForRole, type Locale, type Page } from "./lib/types";
 import { navGroupsForRole } from "./lib/nav";
-import { PipelineBar } from "./components/PipelineBar";
 import { MachinePage } from "./pages/MachinePage";
 import { CapabilityCatalogPage } from "./pages/CapabilityCatalogPage";
 import { CapabilityRulesAdminPage } from "./pages/CapabilityRulesAdminPage";
 import { DashboardPage } from "./pages/DashboardPage";
 import { PlanRecipesPage } from "./pages/PlanRecipesPage";
-import { ReportsPage } from "./pages/ReportsPage";
 import { fetchPlaybooks, type StoredPlaybook } from "./api";
 import { TerminalPanel } from "./components/TerminalPanel";
 import { MarkdownOverlay } from "./components/MarkdownOverlay";
 import { OnboardingWizard } from "./components/OnboardingWizard";
 import { AccountPanel } from "./components/AccountPanel";
 import { i18n as appI18n, normalizeLanguage } from "./i18n";
+import "@fontsource-variable/noto-sans-sc/index.css";
+import "@fontsource/jetbrains-mono/400.css";
+import "@fontsource/jetbrains-mono/500.css";
+import "@fontsource/jetbrains-mono/700.css";
 import "./styles.css";
 
 type ConnectionMethod = "ssh-password" | "ssh-key";
@@ -79,9 +81,17 @@ function pageFromPathname(pathname: string): Page {
     catalog: "catalog",
     plans: "plans",
     playbooks: "plans",
-    reports: "reports"
+    reports: "plans"
   };
   return routeMap[route ?? ""] ?? "dashboard";
+}
+
+/** Reports merged into the Plans center as its `reports` tab; legacy
+ *  /app/reports deep links should land there instead of a standalone page. */
+function isReportsPath(pathname: string): boolean {
+  const segments = pathname.replace(/^\/+/, "").split("/").filter(Boolean);
+  const route = segments[0] === "app" ? segments[1] : segments[0];
+  return route === "reports";
 }
 
 function isAppPath(pathname: string): boolean {
@@ -100,7 +110,7 @@ function App() {
   const [locale, setLocale] = useState<Locale>(() => normalizeLanguage(appI18n.language));
   const [shellMode, setShellMode] = useState<"public" | "app">(() => isAppPath(window.location.pathname) ? "app" : "public");
   const [page, setPage] = useState<Page>(() => pageFromPathname(window.location.pathname));
-  const [requestedView, setRequestedView] = useState<string | null>(null);
+  const [requestedView, setRequestedView] = useState<string | null>(() => isReportsPath(window.location.pathname) ? "reports" : null);
   const [catalog, setCatalog] = useState<CatalogItem[]>([]);
   const [userPlaybooks, setUserPlaybooks] = useState<StoredPlaybook[]>([]);
   const [showOnboarding, setShowOnboarding] = useState(false);
@@ -168,6 +178,14 @@ function App() {
     document.documentElement.dataset.theme = themeMode;
     localStorage.setItem("envforge_theme", themeMode);
   }, [themeMode]);
+
+  // Legacy /app/reports → Plans center (reports tab). Normalize the URL once
+  // so the address bar matches the merged location.
+  useEffect(() => {
+    if (isReportsPath(window.location.pathname)) {
+      window.history.replaceState(null, "", "/app/plans");
+    }
+  }, []);
 
   useEffect(() => {
     const syncLanguage = (language: string) => {
@@ -774,18 +792,6 @@ function App() {
           </div>
         </header>
 
-        {authToken && (page === "migrate" || page === "build" || page === "plans" || page === "reports") ? (
-          <PipelineBar
-            authToken={authToken}
-            locale={locale}
-            connections={connections}
-            activeConnection={activeConnection}
-            activeProbe={activeProbe ?? null}
-            currentPage={page}
-            onNavigate={(target, view) => navigateApp(target, view)}
-          />
-        ) : null}
-
         {inboxOpen ? (
           <div className="inbox-drawer" role="dialog" aria-label={locale === "zh" ? "站内信" : "Inbox"}>
             <div className="inbox-drawer-header">
@@ -870,10 +876,6 @@ function App() {
           )
         ) : null}
 
-        {page === "reports" && authToken ? (
-          <ReportsPage authToken={authToken} locale={locale} />
-        ) : null}
-
         {page === "migrate" ? (
           <MachinePage
             t={t}
@@ -924,6 +926,7 @@ function App() {
             activeConnectionId={activeConnectionId}
             activeTask={activeTask}
             onTaskUpdate={setActiveTask}
+            onNavigateToPlans={() => navigateApp("plans", "plans")}
           />
         ) : null}
 
@@ -1023,27 +1026,27 @@ function TopbarMoreMenu({
 }) {
   const zh = locale === "zh";
   const accountInitial = (authUser?.displayName || authUser?.name || "U").slice(0, 1).toUpperCase();
-  const nextLanguage = zh ? "English" : "??";
-  const nextTheme = themeMode === "dark" ? (zh ? "????" : "Light mode") : (zh ? "????" : "Dark mode");
+  const nextLanguage = zh ? "English" : "中文";
+  const nextTheme = themeMode === "dark" ? (zh ? "浅色模式" : "Light mode") : (zh ? "深色模式" : "Dark mode");
 
   return (
     <div className="topbar-more-wrap">
       <button className="ghost-action more-action" type="button" onClick={onToggleOpen} aria-expanded={open} aria-haspopup="menu">
         {authUser ? <span className="more-avatar">{accountInitial}</span> : <MoreHorizontal aria-hidden />}
-        <span>{zh ? "??" : "More"}</span>
+        <span>{zh ? "更多" : "More"}</span>
       </button>
       {open ? (
         <div className="topbar-more-menu" role="menu">
           {authUser && onAccount ? (
             <button type="button" role="menuitem" onClick={onAccount}>
               <UserRound aria-hidden />
-              <span>{zh ? "?????" : "Account & security"}</span>
+              <span>{zh ? "账号与安全" : "Account & security"}</span>
             </button>
           ) : null}
           {onInbox ? (
             <button type="button" role="menuitem" onClick={onInbox}>
               <Bell aria-hidden />
-              <span>{zh ? "??" : "Notifications"}</span>
+              <span>{zh ? "通知" : "Notifications"}</span>
               {inboxUnreadCount ? <b>{inboxUnreadCount > 99 ? "99+" : inboxUnreadCount}</b> : null}
             </button>
           ) : null}
@@ -1059,7 +1062,7 @@ function TopbarMoreMenu({
           {onLogout ? (
             <button type="button" role="menuitem" onClick={onLogout}>
               <LogOut aria-hidden />
-              <span>{zh ? "????" : "Sign out"}</span>
+              <span>{zh ? "退出登录" : "Sign out"}</span>
             </button>
           ) : null}
         </div>

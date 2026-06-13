@@ -28,7 +28,7 @@ import { Badge } from "../components/ui/Badge";
 
 type JumpTarget = "migrate" | "build" | "plans" | "reports" | "catalog";
 type PipelineState = "done" | "active" | "blocked" | "idle";
-type NoticeTone = "danger" | "warning" | "neutral";
+type NoticeTone = "danger" | "warning" | "neutral" | "primary";
 
 export function DashboardPage({
   authToken,
@@ -432,7 +432,7 @@ function StatusBadge({ tone, label }: { tone: NoticeTone; label: string }) {
 
 function stateToTone(state: PipelineState): NoticeTone {
   if (state === "blocked") return "danger";
-  if (state === "active") return "warning";
+  if (state === "active") return "primary";
   return "neutral";
 }
 

@@ -4,7 +4,6 @@ import {
   Box,
   Cpu,
   Database,
-  FileText,
   LayoutDashboard,
   MonitorCog,
   PackagePlus,
@@ -112,7 +111,6 @@ export const navItems: Array<{ id: Page; icon: LucideIcon; adminOnly?: boolean; 
   { id: "migrate", icon: MonitorCog, description: { zh: "源主机、快照、分析与迁移候选", en: "Source VM, snapshot, analysis, candidates" } },
   { id: "build", icon: PackagePlus, description: { zh: "选择已认证能力，生成重建计划，进入审查和执行门禁", en: "Build: pick certified capabilities, generate a Rebuild Plan; flows through Plan Review and the Apply Gate" } },
   { id: "plans", icon: Server, description: { zh: "计划中心、配方、排程、漂移、外发通知、报告", en: "Plans center, recipes, schedules, drift, webhooks, reports" } },
-  { id: "reports", icon: FileText, description: { zh: "迁移 / 重建 / 修复报告", en: "Migration / rebuild / repair reports" } },
   { id: "catalog", icon: Box, adminOnly: true, description: { zh: "管理员能力规则工作台：规则治理、认证升级、用户建议、软件支持映射、用户与队列", en: "Admin capability rules workbench: rule governance, certification, suggestions, package integrations, users & queues" } }
 ];
 

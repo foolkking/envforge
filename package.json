@@ -33,7 +33,7 @@
     "certification:backlog": "node scripts/generate-certification-backlog.mjs",
     "backup:db": "node scripts/backup-runtime-db.mjs",
     "generate:guides": "node scripts/generate-stub-guides.mjs",
-    "dev": "npm run dev:api",
+    "dev": "node scripts/dev.mjs",
     "dev:api": "npm run build:server && npm run start --workspace @fool/api",
     "dev:web": "npm run dev --workspace @fool/web",
     "scan": "node packages/cli/dist/index.js scan",

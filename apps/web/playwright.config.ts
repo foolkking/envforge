@@ -7,7 +7,7 @@ export default defineConfig({
   fullyParallel: false,
   reporter: [["list"]],
   use: {
-    baseURL: "http://127.0.0.1:5174",
+    baseURL: "http://127.0.0.1:5173",
     trace: "retain-on-failure"
   },
   webServer: [
@@ -16,6 +16,7 @@ export default defineConfig({
       cwd: "../..",
       env: {
         NODE_ENV: "development",
+        PORT: "5174",
         ENVFORGE_ADMIN_EMAILS: [
           "codex-ui-admin-desktop-zh-light@example.test",
           "codex-ui-admin-desktop-en-dark@example.test",
@@ -23,14 +24,14 @@ export default defineConfig({
           "codex-ui-admin-mobile-en-light@example.test"
         ].join(",")
       },
-      url: "http://127.0.0.1:5173/api/health",
+      url: "http://127.0.0.1:5174/api/health",
       reuseExistingServer: true,
       timeout: 120_000
     },
     {
       command: "npm run dev --workspace @fool/web",
       cwd: "../..",
-      url: "http://127.0.0.1:5174",
+      url: "http://127.0.0.1:5173",
       reuseExistingServer: true,
       timeout: 120_000
     }
