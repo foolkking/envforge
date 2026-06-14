@@ -7,12 +7,13 @@ import { FilterPills, Th, Td } from "./shared";
 // ── Suggestion Inbox tab ──────────────────────────────────────────────
 
 export function SuggestionInboxTab({
-  locale, suggestions, loading, onProcess
+  locale, suggestions, loading, onProcess, onAuthorFromSuggestion
 }: {
   locale: Locale;
   suggestions: AdminSuggestionRecord[];
   loading: boolean;
   onProcess: (id: string, action: "accepted" | "rejected", feedback?: string) => Promise<void>;
+  onAuthorFromSuggestion?: (suggestion: AdminSuggestionRecord) => void;
 }): JSX.Element {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -76,15 +77,24 @@ export function SuggestionInboxTab({
                 <Td>
                   {s.status === "pending" ? (
                     <div style={{ display: "flex", gap: 4 }}>
-                      <button type="button" disabled={busyId === s.id}
-                        onClick={async () => {
-                          setBusyId(s.id);
-                          try { await onProcess(s.id, "accepted"); }
-                          finally { setBusyId(null); }
-                        }}
-                        style={{ padding: "2px 8px", background: "#dcfce7", border: "1px solid #86efac", color: "#166534", borderRadius: 4 }}>
-                        {locale === "zh" ? "接受" : "Accept"}
-                      </button>
+                      {onAuthorFromSuggestion ? (
+                        <button type="button" disabled={busyId === s.id}
+                          data-testid={`suggestion-author-${s.id}`}
+                          onClick={() => onAuthorFromSuggestion(s)}
+                          style={{ padding: "2px 8px", background: "#dcfce7", border: "1px solid #86efac", color: "#166534", borderRadius: 4 }}>
+                          {locale === "zh" ? (s.catalogId ? "接受并编辑" : "接受并新建") : (s.catalogId ? "Accept & edit" : "Accept & create")}
+                        </button>
+                      ) : (
+                        <button type="button" disabled={busyId === s.id}
+                          onClick={async () => {
+                            setBusyId(s.id);
+                            try { await onProcess(s.id, "accepted"); }
+                            finally { setBusyId(null); }
+                          }}
+                          style={{ padding: "2px 8px", background: "#dcfce7", border: "1px solid #86efac", color: "#166534", borderRadius: 4 }}>
+                          {locale === "zh" ? "接受" : "Accept"}
+                        </button>
+                      )}
                       <button type="button" disabled={busyId === s.id}
                         onClick={async () => {
                           const feedback = window.prompt(locale === "zh" ? "拒绝理由（可选）" : "Reason (optional)") ?? "";
@@ -109,9 +119,9 @@ export function SuggestionInboxTab({
 
 function SuggestionStatusBadge({ status, locale, testId }: { status: string; locale: Locale; testId: string }): JSX.Element {
   const map: Record<string, { tone: "ok" | "warn" | "danger" | "neutral"; zh: string; en: string }> = {
-    pending: { tone: "warn", zh: "???", en: "Pending" },
-    accepted: { tone: "ok", zh: "???", en: "Accepted" },
-    rejected: { tone: "danger", zh: "???", en: "Rejected" }
+    pending: { tone: "warn", zh: "待处理", en: "Pending" },
+    accepted: { tone: "ok", zh: "已接受", en: "Accepted" },
+    rejected: { tone: "danger", zh: "已拒绝", en: "Rejected" }
   };
   const item = map[status] ?? { tone: "neutral", zh: status, en: status };
   return <span data-testid={testId}><Badge tone={item.tone} size="sm">{locale === "zh" ? item.zh : item.en}</Badge></span>;

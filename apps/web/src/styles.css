@@ -12631,3 +12631,143 @@ body {
   min-height: 40px;
   padding: 0 12px;
 }
+
+/* ── Capability editor drawer (admin Build authoring) ───────────────────
+   Right-side drawer reusing the Calm tokens. Sections stack; PlaybookEditor
+   and SchemaEditor render inside their own section blocks. */
+.cap-editor-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  justify-content: flex-end;
+  background: rgba(16, 28, 40, 0.45);
+  backdrop-filter: blur(2px);
+}
+.cap-editor-drawer {
+  background: var(--ef-bg);
+  border-left: 1px solid var(--ef-border);
+  box-shadow: var(--ef-shadow-lg);
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  width: min(880px, 100vw);
+}
+.cap-editor-header,
+.cap-editor-footer {
+  align-items: center;
+  background: var(--ef-surface);
+  display: flex;
+  flex-shrink: 0;
+  gap: 12px;
+  justify-content: space-between;
+  padding: 16px 20px;
+}
+.cap-editor-header { border-bottom: 1px solid var(--ef-border); }
+.cap-editor-footer { border-top: 1px solid var(--ef-border); }
+.cap-editor-header h2 { font-size: 20px; margin: 2px 0 0; }
+.cap-editor-footer-left,
+.cap-editor-footer-right { align-items: center; display: flex; flex-wrap: wrap; gap: 8px; }
+.cap-editor-body {
+  display: grid;
+  gap: 18px;
+  overflow-y: auto;
+  padding: 20px;
+}
+.cap-editor-note {
+  background: var(--ef-info-soft);
+  border-radius: var(--ef-radius);
+  color: var(--ef-info);
+  font-size: 13px;
+  margin: 0;
+  padding: 10px 14px;
+}
+.cap-editor-section {
+  background: var(--ef-surface);
+  border: 1px solid var(--ef-border);
+  border-radius: var(--ef-radius);
+  box-shadow: var(--ef-shadow-xs);
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+}
+.cap-editor-section > h3 {
+  font-size: 14px;
+  margin: 0;
+}
+.cap-editor-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+.cap-editor-grid label,
+.cap-editor-full { display: grid; gap: 6px; }
+.cap-editor-grid label span,
+.cap-editor-full span {
+  color: var(--ef-muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+.cap-editor-grid input,
+.cap-editor-grid select,
+.cap-editor-full input {
+  background: var(--ef-surface);
+  border: 1px solid var(--ef-border-strong);
+  border-radius: 10px;
+  font: inherit;
+  min-height: 38px;
+  outline: 0;
+  padding: 0 12px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.cap-editor-grid input:focus,
+.cap-editor-grid select:focus,
+.cap-editor-full input:focus {
+  border-color: var(--ef-primary);
+  box-shadow: var(--ef-ring);
+}
+.cap-editor-inline { align-items: center; display: flex; flex-wrap: wrap; gap: 16px; }
+.cap-editor-check { align-items: center; display: inline-flex; gap: 6px; font-size: 13px; }
+.cap-editor-components { display: grid; gap: 8px; }
+.cap-component-row {
+  align-items: center;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: 150px 1fr 1fr 1.4fr auto;
+}
+.cap-component-row select,
+.cap-component-row input {
+  background: var(--ef-surface);
+  border: 1px solid var(--ef-border-strong);
+  border-radius: 8px;
+  font: inherit;
+  min-height: 34px;
+  outline: 0;
+  padding: 0 10px;
+}
+.cap-editor-markdown {
+  background: var(--ef-surface);
+  border: 1px solid var(--ef-border-strong);
+  border-radius: 10px;
+  font: inherit;
+  min-height: 120px;
+  outline: 0;
+  padding: 10px 12px;
+  resize: vertical;
+  width: 100%;
+}
+.cap-editor-preview {
+  background: var(--ef-surface-soft);
+  border: 1px solid var(--ef-border);
+  border-radius: 8px;
+  font-family: var(--ef-font-mono);
+  font-size: 12px;
+  max-height: 320px;
+  overflow: auto;
+  padding: 12px;
+  white-space: pre;
+}
+@media (max-width: 720px) {
+  .cap-component-row { grid-template-columns: 1fr 1fr; }
+  .cap-editor-drawer { width: 100vw; }
+}

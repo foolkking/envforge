@@ -5,7 +5,7 @@ import { CATEGORY_ICONS, REQUIREMENT_LABELS, FilterPills, Th, Td, buildUpgradePr
 
 // ── Rule Registry tab ─────────────────────────────────────────────────
 
-export function RuleRegistryTab({ locale, rows }: { locale: Locale; rows: AdminCatalogRow[] }): JSX.Element {
+export function RuleRegistryTab({ locale, rows, onCreate, onEdit }: { locale: Locale; rows: AdminCatalogRow[]; onCreate?: () => void; onEdit?: (id: string) => void }): JSX.Element {
   const [statusFilter, setStatusFilter] = useState<"all" | "certified" | "not-ready">("all");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [search, setSearch] = useState("");
@@ -27,7 +27,7 @@ export function RuleRegistryTab({ locale, rows }: { locale: Locale; rows: AdminC
 
   return (
     <div data-testid="registry-tab">
-      <div className="rules-filters" style={{ display: "flex", flexWrap: "wrap", gap: 8, margin: "0 0 12px 0" }}>
+      <div className="rules-filters" style={{ display: "flex", flexWrap: "wrap", gap: 8, margin: "0 0 12px 0", alignItems: "center" }}>
         <label style={{ display: "inline-flex", alignItems: "center", gap: 4, background: "#fff", border: "1px solid #cbd5e1", borderRadius: 6, padding: "2px 8px" }}>
           <Search size={14} aria-hidden />
           <input
@@ -59,6 +59,17 @@ export function RuleRegistryTab({ locale, rows }: { locale: Locale; rows: AdminC
             }))
           ]}
         />
+        {onCreate ? (
+          <button
+            type="button"
+            onClick={onCreate}
+            data-testid="registry-new-capability"
+            className="primary-action"
+            style={{ marginLeft: "auto", minHeight: 34, padding: "0 14px" }}
+          >
+            {locale === "zh" ? "+ 新建能力" : "+ New capability"}
+          </button>
+        ) : null}
       </div>
 
       <table className="rules-table" data-testid="rules-table"
@@ -115,13 +126,25 @@ export function RuleRegistryTab({ locale, rows }: { locale: Locale; rows: AdminC
                       )}
                   </Td>
                   <Td>
-                    <button
-                      type="button"
-                      onClick={() => setOpenRowId(openRowId === row.id ? null : row.id)}
-                      style={{ padding: "2px 8px" }}
-                    >
-                      {openRowId === row.id ? (locale === "zh" ? "收起" : "Hide") : (locale === "zh" ? "查看" : "View")}
-                    </button>
+                    <div style={{ display: "flex", gap: 6 }}>
+                      {onEdit ? (
+                        <button
+                          type="button"
+                          onClick={() => onEdit(row.id)}
+                          data-testid={`rules-edit-${row.id}`}
+                          style={{ padding: "2px 8px" }}
+                        >
+                          {locale === "zh" ? "编辑" : "Edit"}
+                        </button>
+                      ) : null}
+                      <button
+                        type="button"
+                        onClick={() => setOpenRowId(openRowId === row.id ? null : row.id)}
+                        style={{ padding: "2px 8px" }}
+                      >
+                        {openRowId === row.id ? (locale === "zh" ? "收起" : "Hide") : (locale === "zh" ? "查看" : "View")}
+                      </button>
+                    </div>
                   </Td>
                 </tr>
                 {openRowId === row.id ? (

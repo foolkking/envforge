@@ -38,6 +38,7 @@ import {
   processAdminSuggestion,
   fetchPackageIntegrations,
   type AdminSuggestionRecord,
+  type AdminCatalogInput,
   type CapabilityWorkflowQueue,
   type CapabilityWorkflowUser,
   type PackageIntegrationRow
@@ -57,6 +58,9 @@ import { StandardsTab } from "./governance/StandardsTab";
 import { SuggestionInboxTab } from "./governance/SuggestionInboxTab";
 import { PackageIntegrationsTab } from "./governance/PackageIntegrationsTab";
 import { UsersQueuesTab } from "./governance/UsersQueuesTab";
+import { CapabilityEditorDrawer } from "../components/CapabilityEditorDrawer";
+
+const CATALOG_CATEGORIES = new Set(["runtime", "developer", "database", "container", "security", "network", "service"]);
 
 interface Props {
   authToken: string;
@@ -77,6 +81,21 @@ export function CapabilityRulesAdminPage({ authToken, isAdmin, locale }: Props):
   const [workflowUsers, setWorkflowUsers] = useState<CapabilityWorkflowUser[]>([]);
   const [workflowQueues, setWorkflowQueues] = useState<CapabilityWorkflowQueue[]>([]);
   const [workflowLoading, setWorkflowLoading] = useState(false);
+
+  // Capability editor drawer (create / edit). `fromSuggestionId` ties a save
+  // back to the originating suggestion so it can be marked accepted.
+  const [editor, setEditor] = useState<{
+    mode: "create" | "edit";
+    catalogId?: string;
+    prefill?: Partial<AdminCatalogInput>;
+    fromSuggestionId?: string;
+  } | null>(null);
+
+  async function reloadRows() {
+    const response = await fetchCapabilityRulesAdmin(authToken);
+    setRows(response.items);
+    setMeta(response.meta);
+  }
 
   useEffect(() => {
     if (!isAdmin) return;
@@ -201,7 +220,12 @@ export function CapabilityRulesAdminPage({ authToken, isAdmin, locale }: Props):
       ) : null}
 
       {tab === "registry" ? (
-        <RuleRegistryTab locale={locale} rows={rows} />
+        <RuleRegistryTab
+          locale={locale}
+          rows={rows}
+          onCreate={() => setEditor({ mode: "create" })}
+          onEdit={(catalogId) => setEditor({ mode: "edit", catalogId })}
+        />
       ) : null}
 
       {tab === "standards" ? (
@@ -217,6 +241,24 @@ export function CapabilityRulesAdminPage({ authToken, isAdmin, locale }: Props):
             await processAdminSuggestion(authToken, id, action, feedback);
             const res = await fetchAdminSuggestions(authToken, { limit: 50 });
             setSuggestions(res.suggestions);
+          }}
+          onAuthorFromSuggestion={(s) => {
+            if (s.catalogId) {
+              setEditor({ mode: "edit", catalogId: s.catalogId, fromSuggestionId: s.id });
+            } else {
+              setEditor({
+                mode: "create",
+                fromSuggestionId: s.id,
+                prefill: {
+                  name: s.nameZh || s.nameEn,
+                  nameEn: s.nameEn || s.nameZh,
+                  category: s.category && CATALOG_CATEGORIES.has(s.category) ? (s.category as AdminCatalogInput["category"]) : undefined,
+                  summary: s.remark ?? "",
+                  playbookYaml: s.playbookYaml ?? undefined,
+                  guideMarkdown: s.guideMarkdown ?? undefined
+                }
+              });
+            }
           }}
         />
       ) : null}
@@ -237,6 +279,32 @@ export function CapabilityRulesAdminPage({ authToken, isAdmin, locale }: Props):
           users={workflowUsers}
           queues={workflowQueues}
           loading={workflowLoading}
+        />
+      ) : null}
+
+      {editor ? (
+        <CapabilityEditorDrawer
+          authToken={authToken}
+          locale={locale}
+          mode={editor.mode}
+          catalogId={editor.catalogId}
+          prefill={editor.prefill}
+          onClose={() => setEditor(null)}
+          onGotoStandards={(id) => { setEditor(null); setTab("standards"); void id; }}
+          onSaved={async (savedId) => {
+            const originatingSuggestion = editor.fromSuggestionId;
+            setEditor(null);
+            try {
+              await reloadRows();
+              if (originatingSuggestion) {
+                await processAdminSuggestion(authToken, originatingSuggestion, "accepted", `Authored capability ${savedId}`);
+                const res = await fetchAdminSuggestions(authToken, { limit: 50 });
+                setSuggestions(res.suggestions);
+              }
+            } catch (err) {
+              setError(err instanceof Error ? err.message : "Refresh failed");
+            }
+          }}
         />
       ) : null}
     </div>
