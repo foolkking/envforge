@@ -3137,6 +3137,7 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
         | { kind?: "remove-request"; packages?: string[]; source?: string; managedByEnvForge?: boolean; preserveData?: boolean }
         | { kind?: "config-change"; path?: string; content?: string }
         | { kind?: "repair-failures"; failures?: RepairFailure[]; name?: string; sourcePlanId?: string }
+        | { kind?: "migration-session"; sessionId?: string }
         | { kind?: "existing-plan"; plan?: EnvironmentPlan }
       );
     };
@@ -3229,6 +3230,22 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
         sourcePlanId: body.source.sourcePlanId,
         failures
       });
+    } else if (body.source?.kind === "migration-session" && "sessionId" in body.source) {
+      // Phase 3: promote a migration session into a first-class Environment
+      // Plan so review / apply / verify / report all run through the unified
+      // engine + Plan center (instead of the legacy migration-session runner).
+      const sessionId = body.source.sessionId;
+      if (!sessionId) { reply.code(400); return { error: "sessionId is required." }; }
+      const context = await loadMigrationSessionContext(user.id, sessionId);
+      if (!context) { reply.code(404); return { error: "Migration session not found." }; }
+      if (!context.conn.probeSnapshot) { reply.code(400); return { error: "Probe the source connection before generating a migration plan." }; }
+      const artifacts = buildSessionArtifacts(context);
+      if (!artifacts.plan) { reply.code(400); return { error: "Migration plan is not available yet — complete selection and review first." }; }
+      const target = targetConnectionId ?? context.session.targetConnectionId;
+      if (!target) { reply.code(400); return { error: "targetConnectionId is required to deliver the migration plan." }; }
+      const targetConn = db.connections.find((c) => c.id === target && c.userId === user.id);
+      if (!targetConn) { reply.code(404); return { error: "Target connection not found." }; }
+      plan = migrationPlanToEnvironmentPlan(artifacts.plan, target);
     }
 
     if (!plan) { reply.code(400); return { error: "Unsupported Environment Plan source." }; }

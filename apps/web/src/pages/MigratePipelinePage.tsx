@@ -18,6 +18,7 @@ import {
   attachMigrationSessionSnapshot,
   applyMigrationSession,
   createMigrationSession,
+  createPlanFromMigrationSession,
   dryRunMigrationSession,
   fetchMigrationSessionApplyReadiness,
   fetchMigrationSessionAnalysis,
@@ -64,7 +65,8 @@ export function MigratePipelinePage({
   connections,
   onCollectSnapshot,
   onOpenHostDetails,
-  pushLog
+  pushLog,
+  onPlanCreated
 }: {
   locale: Locale;
   authToken: string;
@@ -76,6 +78,8 @@ export function MigratePipelinePage({
   onCollectSnapshot: () => Promise<void>;
   onOpenHostDetails: () => void;
   pushLog?: (type: "info" | "success" | "error" | "cmd", text: string) => void;
+  /** Phase 3: after the migration plan is promoted into the Plan center. */
+  onPlanCreated?: (planId: string) => void;
 }) {
   const zh = locale === "zh";
   const [session, setSession] = useState<MigrationSessionView | null>(null);
@@ -93,6 +97,7 @@ export function MigratePipelinePage({
   const [loading, setLoading] = useState(false);
   const [stepLoading, setStepLoading] = useState(false);
   const [error, setError] = useState("");
+  const [creatingPlan, setCreatingPlan] = useState(false);
 
   useEffect(() => {
     setAnalysis(null);
@@ -222,6 +227,24 @@ export function MigratePipelinePage({
       setSession(next);
     } catch {
       // Local step changes should still work if the session update races with a refresh.
+    }
+  }
+
+  // Phase 3: promote this migration session into a first-class Environment
+  // Plan and hand off to the Plan center, which owns review / apply / verify
+  // / report through the unified engine.
+  async function promoteToPlanCenter(targetConnectionId: string) {
+    if (!session) return;
+    setCreatingPlan(true);
+    setError("");
+    try {
+      const { plan } = await createPlanFromMigrationSession(authToken, session.id, targetConnectionId);
+      pushLog?.("success", zh ? "迁移计划已生成并进入计划中心" : "Migration plan created in the Plan center");
+      onPlanCreated?.(plan.id);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Create migration plan failed.");
+    } finally {
+      setCreatingPlan(false);
     }
   }
 
@@ -412,7 +435,19 @@ export function MigratePipelinePage({
           />
         );
       case "plan":
-        return <PlanPreviewStep locale={locale} session={session} plan={plan} loading={stepLoading} onRefresh={() => session && void loadPlan(session.id)} />;
+        return (
+          <PlanPreviewStep
+            locale={locale}
+            session={session}
+            plan={plan}
+            loading={stepLoading}
+            onRefresh={() => session && void loadPlan(session.id)}
+            connections={connections}
+            sourceConnectionId={connectionId}
+            creating={creatingPlan}
+            onCreatePlan={promoteToPlanCenter}
+          />
+        );
       case "target":
         return (
           <TargetDryRunStep
@@ -959,10 +994,12 @@ function ConfigBundleDrawer({ locale, bundle, decision, onClose }: { locale: Loc
   );
 }
 
-function PlanPreviewStep({ locale, session, plan, loading, onRefresh }: { locale: Locale; session: MigrationSessionView | null; plan: MigrationPlan | null; loading: boolean; onRefresh: () => void }) {
+function PlanPreviewStep({ locale, session, plan, loading, onRefresh, connections, sourceConnectionId, creating, onCreatePlan }: { locale: Locale; session: MigrationSessionView | null; plan: MigrationPlan | null; loading: boolean; onRefresh: () => void; connections: ConnectionProfile[]; sourceConnectionId: string | null; creating: boolean; onCreatePlan: (targetConnectionId: string) => void | Promise<void> }) {
   const zh = locale === "zh";
   const groups = groupPlanActions(plan);
   const blocked = (session?.summary.pendingReviewCount ?? 0) > 0;
+  const targetOptions = connections.filter((c) => c.id !== sourceConnectionId);
+  const [targetId, setTargetId] = useState<string>(session?.targetConnectionId ?? "");
   return (
     <div className="pipeline-step-surface">
       <div className="pipeline-section-heading">
@@ -987,6 +1024,35 @@ function PlanPreviewStep({ locale, session, plan, loading, onRefresh }: { locale
               ))}
             </section>
           ))}
+        </div>
+      ) : null}
+      {plan ? (
+        <div className="migrate-deliver-card">
+          <div>
+            <p className="eyebrow">{zh ? "交付" : "Deliver"}</p>
+            <h4>{zh ? "生成计划并交付到计划中心" : "Create plan and hand off to the Plan center"}</h4>
+            <p className="pipeline-muted">
+              {zh
+                ? "审查、执行、验证与报告统一在计划中心完成。请选择目标主机后生成计划。"
+                : "Review, apply, verify, and report all happen in the Plan center. Pick a target host, then create the plan."}
+            </p>
+          </div>
+          <div className="migrate-deliver-actions">
+            <select value={targetId} onChange={(e) => setTargetId(e.target.value)} aria-label={zh ? "目标主机" : "Target host"}>
+              <option value="">{zh ? "选择目标主机…" : "Select target host…"}</option>
+              {targetOptions.map((c) => (
+                <option key={c.id} value={c.id}>{c.label || c.fields.host || c.id}</option>
+              ))}
+            </select>
+            <Button
+              variant="primary"
+              disabled={!targetId || blocked || creating}
+              loading={creating}
+              onClick={() => targetId && void onCreatePlan(targetId)}
+            >
+              {zh ? "生成计划 →" : "Create plan →"}
+            </Button>
+          </div>
         </div>
       ) : null}
     </div>

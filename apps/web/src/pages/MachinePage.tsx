@@ -78,7 +78,8 @@ export function MachinePage({
   onSshKeysChange,
   onDeleteConnection,
   onUpdateConnection,
-  pushLog
+  pushLog,
+  onNavigateToPlans
 }: {
   t: TextDict;
   locale: Locale;
@@ -101,6 +102,8 @@ export function MachinePage({
   onDeleteConnection: (id: string) => Promise<void> | void;
   onUpdateConnection: (id: string, input: { label?: string; agentUrl?: string; tags?: string[] }) => Promise<void> | void;
   pushLog?: (type: "info" | "success" | "error" | "cmd", text: string) => void;
+  /** Phase 3: navigate to the Plan center after a migration plan is created. */
+  onNavigateToPlans?: () => void;
 }) {
   const [fields, setFields] = useState<Record<string, string>>({ port: "22" });
   const [showNewForm, setShowNewForm] = useState(connections.length === 0);
@@ -336,6 +339,7 @@ export function MachinePage({
         onCollectSnapshot={collectHostSnapshot}
         onOpenHostDetails={() => setHostDetailsOpen(true)}
         pushLog={pushLog}
+        onPlanCreated={() => onNavigateToPlans?.()}
       />
 
       {connectionManagerOpen ? (

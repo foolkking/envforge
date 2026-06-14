@@ -36,7 +36,7 @@ const navTypesPath = path.resolve(repoRoot, "apps/web/src/lib/types.ts");
 const dashboardPagePath = path.resolve(repoRoot, "apps/web/src/pages/DashboardPage.tsx");
 const plansPagePath = path.resolve(repoRoot, "apps/web/src/pages/PlanRecipesPage.tsx");
 const machinePagePath = path.resolve(repoRoot, "apps/web/src/pages/MachinePage.tsx");
-const migratePipelinePath = path.resolve(repoRoot, "apps/web/src/components/MigratePipelinePage.tsx");
+const migratePipelinePath = path.resolve(repoRoot, "apps/web/src/pages/MigratePipelinePage.tsx");
 const webApiPath = path.resolve(repoRoot, "apps/web/src/api.ts");
 const stepperPath = path.resolve(repoRoot, "apps/web/src/components/WorkflowStepper.tsx");
 const settingsPath = path.resolve(repoRoot, "apps/web/src/pages/SettingsPage.tsx");
@@ -45,6 +45,19 @@ const apiRoutesPath = path.resolve(repoRoot, "apps/api/src/routes.ts");
 function fileURLToPathSafe(url: string): string {
   // Local helper to avoid importing node:url at top-level twice.
   return new URL(url).pathname.replace(/^\/([A-Za-z]:)/, "$1");
+}
+
+// The Capability Admin workbench was split into per-tab components under
+// pages/governance/*.tsx; CapabilityRulesAdminPage.tsx now only composes
+// them. Admin-content scans therefore read the composer + every tab.
+const governanceDir = path.resolve(repoRoot, "apps/web/src/pages/governance");
+async function readAdminWorkbenchSource(): Promise<string> {
+  const entries = await fs.readdir(governanceDir);
+  const tabs = await Promise.all(
+    entries.filter((f) => f.endsWith(".tsx")).map((f) => fs.readFile(path.join(governanceDir, f), "utf8"))
+  );
+  const composer = await fs.readFile(adminPagePath, "utf8");
+  return [composer, ...tabs].join("\n");
 }
 
 // ── source-level scans ──────────────────────────────────────────────
@@ -166,7 +179,7 @@ test("Migrate session routes enforce phase 8 apply gates", async () => {
 });
 
 test("Admin registry page renders missing requirements + not-ready status", async () => {
-  const src = await fs.readFile(adminPagePath, "utf8");
+  const src = await readAdminWorkbenchSource();
   assert.match(src, /Not Ready|not-ready/);
   assert.match(src, /reasons/, "admin page must render certification reasons (missing requirements)");
   assert.match(src, /Full Migration Checklist|Full Migration 检查项/, "admin page must render the Full Migration Checklist");
@@ -196,7 +209,7 @@ test("admin navigation exposes Capability Admin", async () => {
 test("non-admin catalog route redirects to Build", async () => {
   const main = await fs.readFile(mainPagePath, "utf8");
   assert.match(main, /page === "catalog" && authUser\?\.role !== "admin"/);
-  assert.match(main, /setPage\("market"\)/);
+  assert.match(main, /setPage\("build"\)/);
 });
 
 test("Build page keeps only category filters and no market controls", async () => {
@@ -257,14 +270,14 @@ test("Capability Admin renders five governance tabs", async () => {
 });
 
 test("Package Integrations is not an install/uninstall host package manager", async () => {
-  const src = await fs.readFile(adminPagePath, "utf8");
+  const src = await readAdminWorkbenchSource();
   assert.ok(!/<button[^>]*>\s*Install\s*<\/button>/i.test(src));
   assert.ok(!/<button[^>]*>\s*Uninstall\s*<\/button>/i.test(src));
   assert.match(src, /NOT a host-level package manager|not a host-level package manager/i);
 });
 
 test("Suggestion Inbox and Users & Queues render workflow assignment language", async () => {
-  const src = await fs.readFile(adminPagePath, "utf8");
+  const src = await readAdminWorkbenchSource();
   assert.match(src, /SuggestionStatusBadge/);
   assert.match(src, /Users \/ Maintainers/);
   assert.match(src, /reviewer|maintainer/);

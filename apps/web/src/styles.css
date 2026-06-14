@@ -12597,3 +12597,37 @@ body {
   flex: 1 1 110px;
   min-width: 0;
 }
+
+/* ── Migrate plan step: deliver-to-Plan-center hand-off card (Phase 3) ── */
+.migrate-deliver-card {
+  align-items: center;
+  background: var(--ef-primary-soft);
+  border: 1px solid transparent;
+  border-radius: var(--ef-radius);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  justify-content: space-between;
+  padding: 16px 18px;
+}
+.migrate-deliver-card h4 {
+  margin: 4px 0 2px;
+}
+.migrate-deliver-card .eyebrow {
+  color: var(--ef-primary);
+}
+.migrate-deliver-actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.migrate-deliver-actions select {
+  background: var(--ef-surface);
+  border: 1px solid var(--ef-border-strong);
+  border-radius: 10px;
+  color: var(--ef-text);
+  font: inherit;
+  min-height: 40px;
+  padding: 0 12px;
+}

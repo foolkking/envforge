@@ -337,7 +337,14 @@ export function migrationPlanToEnvironmentPlan(plan: MigrationPlan, targetConnec
     targetConnectionId,
     generatedAt: new Date().toISOString(),
     items,
-    review: { required: true, reasons: ["Migration plans are generated from classified HostSnapshot evidence and require human approval."] }
+    review: { required: true, reasons: ["Migration plans are generated from classified HostSnapshot evidence and require human approval."] },
+    // Phase 3: migration plans execute through the unified Environment Plan
+    // engine (POST /api/plans/:id/apply runs export.yaml). Without this the
+    // unified apply rejects with "Plan has no executable recipe".
+    export: {
+      yaml: planItemsToYaml("EnvForge Migration Plan", items),
+      markdown: planItemsToMarkdown("Migration Plan", items)
+    }
   }));
 }
 

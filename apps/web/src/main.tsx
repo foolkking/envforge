@@ -911,6 +911,7 @@ function App() {
             onDeleteConnection={handleDeleteConnection}
             onUpdateConnection={handleUpdateConnection}
             pushLog={pushLog}
+            onNavigateToPlans={() => navigateApp("plans", "plans")}
           />
         ) : null}
 

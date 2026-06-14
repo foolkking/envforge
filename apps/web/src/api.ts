@@ -1714,6 +1714,23 @@ export async function createEnvironmentPlan(token: string, input: CreateEnvironm
   return readJsonOrThrow(response, "Create Environment Plan failed");
 }
 
+/**
+ * Phase 3 — promote a migration session into a first-class Environment Plan so
+ * review / apply / verify / report run through the unified engine + Plan center.
+ */
+export async function createPlanFromMigrationSession(
+  token: string,
+  sessionId: string,
+  targetConnectionId: string
+): Promise<{ plan: EnvironmentPlan }> {
+  const response = await fetch("/api/plans", {
+    method: "POST",
+    headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ type: "migration", targetConnectionId, source: { kind: "migration-session", sessionId } })
+  });
+  return readJsonOrThrow(response, "Create migration plan failed");
+}
+
 export async function reviewEnvironmentPlan(
   token: string,
   plan: EnvironmentPlan,

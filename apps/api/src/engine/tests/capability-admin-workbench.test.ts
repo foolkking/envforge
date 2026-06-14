@@ -50,6 +50,18 @@ function fileURLToPathSafe(url: string): string {
   return new URL(url).pathname.replace(/^\/([A-Za-z]:)/, "$1");
 }
 
+// CapabilityRulesAdminPage.tsx now composes per-tab components under
+// pages/governance/*.tsx; admin-content scans read the composer + tabs.
+const governanceDir = path.resolve(repoRoot, "apps/web/src/pages/governance");
+async function readAdminWorkbenchSource(): Promise<string> {
+  const entries = await fs.readdir(governanceDir);
+  const tabs = await Promise.all(
+    entries.filter((f) => f.endsWith(".tsx")).map((f) => fs.readFile(path.join(governanceDir, f), "utf8"))
+  );
+  const composer = await fs.readFile(adminPagePath, "utf8");
+  return [composer, ...tabs].join("\n");
+}
+
 async function bootApp() {
   const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "envforge-cap-admin-"));
   const dbPath = path.join(tmpDir, "runtime.json");
@@ -122,8 +134,10 @@ test("navItemsForRole drops the admin-only catalog entry for non-admins", async 
 
 test("main.tsx renders the nav with navItemsForRole(authUser?.role)", async () => {
   const src = await fs.readFile(mainPath, "utf8");
-  assert.match(src, /navItemsForRole\(authUser\?\.role\)\.map/,
-    "main.tsx must render the nav via navItemsForRole(authUser?.role).map");
+  // The sidebar now renders role-filtered, grouped navigation via
+  // navGroupsForRole (which internally applies navItemsForRole).
+  assert.match(src, /navGroupsForRole\(authUser\?\.role\)\.map/,
+    "main.tsx must render the nav via navGroupsForRole(authUser?.role).map");
 });
 
 test("main.tsx redirects non-admin viewers away from the catalog page", async () => {
@@ -134,8 +148,8 @@ test("main.tsx redirects non-admin viewers away from the catalog page", async ()
     "main.tsx must include a useEffect that redirects non-admins off the catalog page"
   );
   assert.ok(
-    src.includes(`setPage("market")`),
-    "main.tsx must redirect non-admins to the market (Build) page"
+    src.includes(`setPage("build")`),
+    "main.tsx must redirect non-admins to the Build page"
   );
 });
 
@@ -167,7 +181,7 @@ test("Capability Admin page renders the five-tab workbench", async () => {
 });
 
 test("Rule Registry uses a table, not the legacy market-card grid", async () => {
-  const src = await fs.readFile(adminPagePath, "utf8");
+  const src = await readAdminWorkbenchSource();
   assert.match(src, /data-testid="rules-table"/);
   // The legacy market grid uses className "catalog-grid" with cards.
   assert.ok(
@@ -177,7 +191,7 @@ test("Rule Registry uses a table, not the legacy market-card grid", async () => 
 });
 
 test("Suggestion Inbox surfaces suggestion status", async () => {
-  const src = await fs.readFile(adminPagePath, "utf8");
+  const src = await readAdminWorkbenchSource();
   assert.match(src, /SuggestionStatusBadge/);
   assert.match(src, /suggestion-status-/);
   // Status flow values
@@ -187,7 +201,7 @@ test("Suggestion Inbox surfaces suggestion status", async () => {
 });
 
 test("Package Integrations panel renders package map + service map + config paths", async () => {
-  const src = await fs.readFile(adminPagePath, "utf8");
+  const src = await readAdminWorkbenchSource();
   // Section testIds (rendered via data-testid={testId}).
   assert.match(src, /testId="package-map"/);
   assert.match(src, /testId="service-map"/);
@@ -226,10 +240,14 @@ test("Maintain (SettingsPage) no longer ships the legacy CatalogAdminPanel tab",
 
 test("Build page only renders the capability-type filter (no supportLevel pills)", async () => {
   const src = await fs.readFile(buildPagePath, "utf8");
-  // No supportLevelFilter state.
+  // No supportLevelFilter state / helper — this is the real contract for
+  // "no supportLevel pills" (the pills were driven by that state).
   assert.ok(!src.includes("supportLevelFilter"));
-  // No "全部 / 完整迁移 / 托管配置 / 基础重建 / 仅识别" labels.
-  for (const lbl of ["完整迁移", "托管配置", "基础重建", "仅识别", "Full migration", "Managed config", "Basic rebuild", "Detect only"]) {
+  assert.ok(!src.includes("supportLevelLabel"));
+  // The old English supportLevel pill labels must not appear. (We do NOT
+  // forbid the Chinese terms here: the redesigned page legitimately shows
+  // certification copy like "完整迁移认证", which contains "完整迁移".)
+  for (const lbl of ["Full migration", "Managed config", "Basic rebuild", "Detect only"]) {
     assert.ok(!src.includes(lbl), `Build page must not render supportLevel label ${lbl}`);
   }
   // The capability-type filter pills exist.
