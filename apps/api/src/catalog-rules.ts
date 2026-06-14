@@ -131,6 +131,88 @@ function dockerAppRule(input: DockerAppRuleInput): CatalogDetectionRule {
   };
 }
 
+/**
+ * nativeRule — archetype factory for native (non-Docker) capabilities:
+ * package-based services, databases, runtimes, and security tools.
+ *
+ * Collapses the ~25-line hand-written CatalogDetectionRule literal to a
+ * dozen essential params, defaulting the repetitive scaffolding that was
+ * identical across rules:
+ *   - kind="software", capability = capabilityKey (override-able)
+ *   - intentSignals = defaultIntentSignals()
+ *   - config.maxSizeKB = 256, config.secretPatterns = [...extra, ...commonSecretPatterns]
+ *   - migrate.package / migrate.config default true
+ *
+ * Optional keys (data, config.files/globs/exclude, migrate.restartServices)
+ * are emitted ONLY when provided, so a runtime rule (no systemd/data) and a
+ * database rule (systemd + data) both round-trip exactly. crossDistro
+ * (packageMap + serviceMap) is passed through verbatim — distro package
+ * names are genuinely per-capability and stay explicit in Phase A.
+ */
+type NativeRuleInput = {
+  id: string;
+  displayName: string;
+  capabilityKey: string;
+  capability?: string;
+  category: CatalogDetectionRule["category"];
+  supportLevel?: SupportLevel;
+  detect: CatalogDetectionRule["detect"];
+  configFiles?: string[];
+  configGlobs?: string[];
+  configExclude?: string[];
+  configMaxSizeKB?: number;
+  extraSecretPatterns?: string[];
+  dataPaths?: string[];
+  references: NonNullable<CatalogDetectionRule["references"]>;
+  migrationCompleteness: NonNullable<CatalogDetectionRule["migrationCompleteness"]>;
+  security: NonNullable<CatalogDetectionRule["security"]>;
+  crossDistro: NonNullable<CatalogDetectionRule["crossDistro"]>;
+  migrate: {
+    package?: boolean;
+    config?: boolean;
+    data: CatalogDetectionRule["migrate"]["data"];
+    strategy: MigrationStrategy;
+    restartServices?: string[];
+    validate: string[];
+  };
+};
+
+function nativeRule(input: NativeRuleInput): CatalogDetectionRule {
+  const config: NonNullable<CatalogDetectionRule["config"]> = {
+    ...(input.configFiles ? { files: input.configFiles } : {}),
+    ...(input.configGlobs ? { globs: input.configGlobs } : {}),
+    ...(input.configExclude ? { exclude: input.configExclude } : {}),
+    maxSizeKB: input.configMaxSizeKB ?? 256,
+    secretPatterns: [...(input.extraSecretPatterns ?? []), ...commonSecretPatterns]
+  };
+  const migrate: CatalogDetectionRule["migrate"] = {
+    package: input.migrate.package ?? true,
+    config: input.migrate.config ?? true,
+    data: input.migrate.data,
+    strategy: input.migrate.strategy,
+    ...(input.migrate.restartServices ? { restartServices: input.migrate.restartServices } : {}),
+    validate: input.migrate.validate
+  };
+  return {
+    id: input.id,
+    kind: "software",
+    displayName: input.displayName,
+    capabilityKey: input.capabilityKey,
+    capability: input.capability ?? input.capabilityKey,
+    supportLevel: input.supportLevel ?? "full-migration",
+    category: input.category,
+    detect: input.detect,
+    config,
+    ...(input.dataPaths ? { data: { paths: input.dataPaths } } : {}),
+    intentSignals: defaultIntentSignals(),
+    references: input.references,
+    migrationCompleteness: input.migrationCompleteness,
+    security: input.security,
+    crossDistro: input.crossDistro,
+    migrate
+  };
+}
+
 const finalBatchDockerAppRules: CatalogDetectionRule[] = [
   dockerAppRule({
     id: "homepage",
@@ -798,13 +880,11 @@ const batch20DockerAppRules: CatalogDetectionRule[] = [
 
 export const catalogDetectionRules: CatalogDetectionRule[] = [
   ...batch20DockerAppRules,
-  {
+  nativeRule({
     id: "nginx",
-    kind: "software",
     displayName: "Nginx",
     capabilityKey: "web-server.nginx",
     capability: "web-server.reverse-proxy",
-    supportLevel: "full-migration",
     category: "service",
     detect: {
       packages: { apt: ["nginx", "nginx-full", "nginx-extras"], rpm: ["nginx"] },
@@ -812,15 +892,11 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
       systemd: ["nginx.service"],
       ports: [80, 443]
     },
-    config: {
-      files: ["/etc/nginx/nginx.conf", "/etc/nginx/mime.types"],
-      globs: ["/etc/nginx/conf.d/*.conf", "/etc/nginx/sites-available/*", "/etc/nginx/sites-enabled/*"],
-      exclude: ["/etc/nginx/*.default"],
-      maxSizeKB: 256,
-      secretPatterns: ["ssl_certificate_key", ...commonSecretPatterns]
-    },
-    data: { paths: ["/var/www", "/usr/share/nginx/html"] },
-    intentSignals: defaultIntentSignals(),
+    configFiles: ["/etc/nginx/nginx.conf", "/etc/nginx/mime.types"],
+    configGlobs: ["/etc/nginx/conf.d/*.conf", "/etc/nginx/sites-available/*", "/etc/nginx/sites-enabled/*"],
+    configExclude: ["/etc/nginx/*.default"],
+    extraSecretPatterns: ["ssl_certificate_key"],
+    dataPaths: ["/var/www", "/usr/share/nginx/html"],
     references: [
       { pattern: "include", type: "configInclude" },
       { pattern: "root", type: "filesystemPath" },
@@ -830,8 +906,8 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
     migrationCompleteness: { configOnly: "partial", missingRisks: ["site roots", "TLS certificates", "upstream services"] },
     security: { risk: "review", notes: ["Configs may reference TLS private keys and upstream internal services."] },
     crossDistro: { packageMap: { apt: ["nginx"], dnf: ["nginx"], yum: ["nginx"], pacman: ["nginx"], apk: ["nginx"] }, serviceMap: { debian: ["nginx"], rhel: ["nginx"], fedora: ["nginx"], arch: ["nginx"], alpine: ["nginx"] } },
-    migrate: { package: true, config: true, data: "optional", strategy: "template-or-copy", restartServices: ["nginx"], validate: ["nginx -t"] }
-  },
+    migrate: { data: "optional", strategy: "template-or-copy", restartServices: ["nginx"], validate: ["nginx -t"] }
+  }),
   {
     id: "caddy",
     kind: "software",
@@ -1063,13 +1139,10 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
     crossDistro: { packageMap: { apt: ["docker.io"], dnf: ["docker-ce"], yum: ["docker-ce"], pacman: ["docker"], apk: ["docker"] }, serviceMap: { debian: ["docker"], rhel: ["docker"], fedora: ["docker"], arch: ["docker"], alpine: ["docker"] } },
     migrate: { package: true, config: true, data: "optional", strategy: "copy-with-review", restartServices: ["docker"], validate: ["docker version", "docker compose version"] }
   },
-  {
+  nativeRule({
     id: "postgresql",
-    kind: "software",
     displayName: "PostgreSQL",
     capabilityKey: "database.postgresql",
-    capability: "database.postgresql",
-    supportLevel: "full-migration",
     category: "database",
     detect: {
       packages: { apt: ["postgresql", "postgresql-16", "postgresql-client"], rpm: ["postgresql", "postgresql-server"] },
@@ -1077,26 +1150,19 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
       systemd: ["postgresql.service"],
       ports: [5432]
     },
-    config: {
-      globs: ["/etc/postgresql/*/main/postgresql.conf", "/etc/postgresql/*/main/pg_hba.conf"],
-      maxSizeKB: 256,
-      secretPatterns: commonSecretPatterns
-    },
-    data: { paths: ["/var/lib/postgresql"] },
-    intentSignals: defaultIntentSignals(),
+    configGlobs: ["/etc/postgresql/*/main/postgresql.conf", "/etc/postgresql/*/main/pg_hba.conf"],
+    dataPaths: ["/var/lib/postgresql"],
     references: [{ pattern: "data_directory", type: "filesystemPath" }, { pattern: "include", type: "configInclude" }],
     migrationCompleteness: { configOnly: "insufficient", missingRisks: ["roles", "databases", "extensions", "logical dump/restore"] },
     security: { risk: "privileged", notes: ["Database data should use logical dump/restore before any filesystem copy is considered."] },
     crossDistro: { packageMap: { apt: ["postgresql"], dnf: ["postgresql-server"], yum: ["postgresql-server"], pacman: ["postgresql"], apk: ["postgresql"] }, serviceMap: { debian: ["postgresql"], rhel: ["postgresql"], fedora: ["postgresql"], arch: ["postgresql"], alpine: ["postgresql"] } },
-    migrate: { package: true, config: true, data: "optional", strategy: "manual-review", restartServices: ["postgresql"], validate: ["psql -c 'select 1'", "systemctl is-active postgresql"] }
-  },
-  {
+    migrate: { data: "optional", strategy: "manual-review", restartServices: ["postgresql"], validate: ["psql -c 'select 1'", "systemctl is-active postgresql"] }
+  }),
+  nativeRule({
     id: "mysql",
-    kind: "software",
     displayName: "MySQL / MariaDB",
     capabilityKey: "database.mysql",
     capability: "database.mysql-compatible",
-    supportLevel: "full-migration",
     category: "database",
     detect: {
       packages: { apt: ["mysql-server", "mariadb-server"], rpm: ["mysql-server", "mariadb-server"] },
@@ -1104,27 +1170,20 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
       systemd: ["mysql.service", "mariadb.service"],
       ports: [3306]
     },
-    config: {
-      files: ["/etc/mysql/my.cnf"],
-      globs: ["/etc/mysql/mysql.conf.d/*.cnf", "/etc/mysql/mariadb.conf.d/*.cnf"],
-      maxSizeKB: 256,
-      secretPatterns: commonSecretPatterns
-    },
-    data: { paths: ["/var/lib/mysql"] },
-    intentSignals: defaultIntentSignals(),
+    configFiles: ["/etc/mysql/my.cnf"],
+    configGlobs: ["/etc/mysql/mysql.conf.d/*.cnf", "/etc/mysql/mariadb.conf.d/*.cnf"],
+    dataPaths: ["/var/lib/mysql"],
     references: [{ pattern: "!includedir", type: "configInclude" }, { pattern: "datadir", type: "filesystemPath" }],
     migrationCompleteness: { configOnly: "insufficient", missingRisks: ["users", "grants", "databases", "logical dump/restore"] },
     security: { risk: "privileged", notes: ["Prefer mysqldump/mariadb-dump; config may include credentials or socket paths."] },
     crossDistro: { packageMap: { apt: ["mysql-server", "mariadb-server"], dnf: ["mysql-server", "mariadb-server"], yum: ["mysql-server", "mariadb-server"], pacman: ["mariadb"], apk: ["mariadb"] }, serviceMap: { debian: ["mysql", "mariadb"], rhel: ["mysqld", "mariadb"], fedora: ["mysqld", "mariadb"], arch: ["mariadb"], alpine: ["mariadb"] } },
-    migrate: { package: true, config: true, data: "optional", strategy: "manual-review", restartServices: ["mysql", "mariadb"], validate: ["mysqladmin ping", "mysql --execute 'select 1'"] }
-  },
-  {
+    migrate: { data: "optional", strategy: "manual-review", restartServices: ["mysql", "mariadb"], validate: ["mysqladmin ping", "mysql --execute 'select 1'"] }
+  }),
+  nativeRule({
     id: "redis",
-    kind: "software",
     displayName: "Redis",
     capabilityKey: "cache.redis",
     capability: "database.redis-cache",
-    supportLevel: "full-migration",
     category: "database",
     detect: {
       packages: { apt: ["redis", "redis-server"], rpm: ["redis", "redis6"] },
@@ -1132,63 +1191,48 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
       systemd: ["redis.service", "redis-server.service"],
       ports: [6379]
     },
-    config: {
-      files: ["/etc/redis/redis.conf"],
-      maxSizeKB: 256,
-      secretPatterns: ["requirepass", ...commonSecretPatterns]
-    },
-    data: { paths: ["/var/lib/redis"] },
-    intentSignals: defaultIntentSignals(),
+    configFiles: ["/etc/redis/redis.conf"],
+    extraSecretPatterns: ["requirepass"],
+    dataPaths: ["/var/lib/redis"],
     references: [{ pattern: "dir", type: "filesystemPath" }, { pattern: "include", type: "configInclude" }],
     migrationCompleteness: { configOnly: "partial", missingRisks: ["RDB/AOF persistence files", "ACLs", "requirepass secrets"] },
     security: { risk: "review", notes: ["redis.conf may contain requirepass and persistence paths."] },
     crossDistro: { packageMap: { apt: ["redis-server"], dnf: ["redis"], yum: ["redis"], pacman: ["redis"], apk: ["redis"] }, serviceMap: { debian: ["redis-server", "redis"], rhel: ["redis"], fedora: ["redis"], arch: ["redis"], alpine: ["redis"] } },
-    migrate: { package: true, config: true, data: "optional", strategy: "manual-review", restartServices: ["redis", "redis-server"], validate: ["redis-cli ping"] }
-  },
-  {
+    migrate: { data: "optional", strategy: "manual-review", restartServices: ["redis", "redis-server"], validate: ["redis-cli ping"] }
+  }),
+  nativeRule({
     id: "nodejs",
-    kind: "software",
     displayName: "Node.js / npm",
     capabilityKey: "runtime.nodejs",
-    capability: "runtime.nodejs",
     supportLevel: "managed-config",
     category: "runtime",
     detect: {
       packages: { apt: ["nodejs", "npm"], rpm: ["nodejs", "npm"], npm: ["npm"] },
       binaries: ["node", "npm"]
     },
-    config: {
-      files: ["~/.npmrc"],
-      maxSizeKB: 64,
-      secretPatterns: ["_authToken", ...commonSecretPatterns]
-    },
-    intentSignals: defaultIntentSignals(),
+    configFiles: ["~/.npmrc"],
+    configMaxSizeKB: 64,
+    extraSecretPatterns: ["_authToken"],
     references: [{ pattern: "registry", type: "serviceDependency" }, { pattern: "_authToken", type: "secretFile" }],
     migrationCompleteness: { configOnly: "partial", missingRisks: ["project package-lock files", "nvm/asdf versions", "npm auth tokens"] },
     security: { risk: "review", notes: ["~/.npmrc may contain auth tokens and private registry credentials."] },
     crossDistro: { packageMap: { apt: ["nodejs", "npm"], dnf: ["nodejs", "npm"], yum: ["nodejs", "npm"], pacman: ["nodejs", "npm"], apk: ["nodejs", "npm"] }, serviceMap: { debian: [], rhel: [], fedora: [], arch: [], alpine: [] } },
-    migrate: { package: true, config: true, data: "none", strategy: "template-or-copy", validate: ["node --version", "npm --version"] }
-  },
-  {
+    migrate: { data: "none", strategy: "template-or-copy", validate: ["node --version", "npm --version"] }
+  }),
+  nativeRule({
     id: "nodejs-version-mgr",
-    kind: "software",
     displayName: "NVM Node version manager",
     capabilityKey: "runtime.nodejs.nvm",
-    capability: "runtime.nodejs.nvm",
-    supportLevel: "full-migration",
     category: "runtime",
     detect: {
       packages: { apt: ["curl", "git", "ca-certificates", "build-essential"], rpm: ["curl", "git", "ca-certificates", "gcc-c++", "make"] },
       binaries: ["node", "npm", "npx"]
     },
-    config: {
-      files: ["~/.nvm/nvm.sh", "~/.nvm/alias/default", "~/.npmrc", "~/.bashrc", "~/.zshrc", "~/.profile"],
-      globs: ["~/.nvm/versions/node/*/etc/npmrc", "~/.config/npm/*"],
-      maxSizeKB: 128,
-      secretPatterns: ["_authToken", "NVM_DIR", ...commonSecretPatterns]
-    },
-    data: { paths: ["~/.nvm"] },
-    intentSignals: defaultIntentSignals(),
+    configFiles: ["~/.nvm/nvm.sh", "~/.nvm/alias/default", "~/.npmrc", "~/.bashrc", "~/.zshrc", "~/.profile"],
+    configGlobs: ["~/.nvm/versions/node/*/etc/npmrc", "~/.config/npm/*"],
+    configMaxSizeKB: 128,
+    extraSecretPatterns: ["_authToken", "NVM_DIR"],
+    dataPaths: ["~/.nvm"],
     references: [
       { pattern: "NVM_DIR", type: "filesystemPath" },
       { pattern: "nvm.sh", type: "configInclude" },
@@ -1198,32 +1242,26 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
     migrationCompleteness: { configOnly: "partial", missingRisks: ["per-user Node versions", "global npm packages", "npm cache", "private registry tokens"] },
     security: { risk: "safe", notes: ["NVM is per-user; shell init and npm credentials are surfaced for review while caches are rebuilt."] },
     crossDistro: { packageMap: { apt: ["curl", "git", "ca-certificates", "build-essential"], dnf: ["curl", "git", "ca-certificates", "gcc-c++", "make"], yum: ["curl", "git", "ca-certificates", "gcc-c++", "make"], pacman: ["curl", "git", "base-devel"], apk: ["curl", "git", "build-base"] }, serviceMap: { debian: [], rhel: [], fedora: [], arch: [], alpine: [] } },
-    migrate: { package: true, config: true, data: "optional", strategy: "manual-review", validate: ["bash -lc 'source ~/.nvm/nvm.sh 2>/dev/null && nvm --version || node --version'"] }
-  },
-  {
+    migrate: { data: "optional", strategy: "manual-review", validate: ["bash -lc 'source ~/.nvm/nvm.sh 2>/dev/null && nvm --version || node --version'"] }
+  }),
+  nativeRule({
     id: "python",
-    kind: "software",
     displayName: "Python / pip",
     capabilityKey: "runtime.python",
-    capability: "runtime.python",
     supportLevel: "managed-config",
     category: "runtime",
     detect: {
       packages: { apt: ["python3", "python3-pip", "pipx"], rpm: ["python3", "python3-pip", "pipx"], pip: ["pip", "pipx"] },
       binaries: ["python3", "pip3", "pipx"]
     },
-    config: {
-      files: ["~/.config/pip/pip.conf", "/etc/pip.conf"],
-      maxSizeKB: 64,
-      secretPatterns: commonSecretPatterns
-    },
-    intentSignals: defaultIntentSignals(),
+    configFiles: ["~/.config/pip/pip.conf", "/etc/pip.conf"],
+    configMaxSizeKB: 64,
     references: [{ pattern: "index-url", type: "serviceDependency" }, { pattern: "extra-index-url", type: "serviceDependency" }],
     migrationCompleteness: { configOnly: "partial", missingRisks: ["venvs", "requirements files", "pipx apps", "private index credentials"] },
     security: { risk: "review", notes: ["pip config can include private index URLs with embedded credentials."] },
     crossDistro: { packageMap: { apt: ["python3", "python3-pip", "pipx"], dnf: ["python3", "python3-pip", "pipx"], yum: ["python3", "python3-pip"], pacman: ["python", "python-pip", "python-pipx"], apk: ["python3", "py3-pip"] }, serviceMap: { debian: [], rhel: [], fedora: [], arch: [], alpine: [] } },
-    migrate: { package: true, config: true, data: "none", strategy: "template-or-copy", validate: ["python3 --version", "pip3 --version"] }
-  },
+    migrate: { data: "none", strategy: "template-or-copy", validate: ["python3 --version", "pip3 --version"] }
+  }),
   {
     id: "pyenv-toolchain",
     kind: "software",
@@ -1255,25 +1293,19 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
     crossDistro: { packageMap: { apt: ["curl", "git", "build-essential", "libssl-dev", "zlib1g-dev", "libbz2-dev", "libreadline-dev", "libsqlite3-dev", "xz-utils", "tk-dev", "libffi-dev"], dnf: ["curl", "git", "gcc", "make", "openssl-devel", "zlib-devel", "bzip2", "bzip2-devel", "readline-devel", "sqlite-devel", "xz", "tk-devel", "libffi-devel"], yum: ["curl", "git", "gcc", "make", "openssl-devel", "zlib-devel", "bzip2", "bzip2-devel", "readline-devel", "sqlite-devel", "xz", "tk-devel", "libffi-devel"], pacman: ["curl", "git", "base-devel", "openssl", "zlib", "bzip2", "readline", "sqlite", "xz", "tk", "libffi"], apk: ["curl", "git", "build-base", "openssl-dev", "zlib-dev", "bzip2-dev", "readline-dev", "sqlite-dev", "xz", "tk-dev", "libffi-dev"] }, serviceMap: { debian: [], rhel: [], fedora: [], arch: [], alpine: [] } },
     migrate: { package: true, config: true, data: "optional", strategy: "manual-review", validate: ["pyenv --version || python3 --version"] }
   },
-  {
+  nativeRule({
     id: "php",
-    kind: "software",
     displayName: "PHP / Composer",
     capabilityKey: "runtime.php",
-    capability: "runtime.php",
-    supportLevel: "full-migration",
     category: "runtime",
     detect: {
       packages: { apt: ["php", "php-cli", "composer"], rpm: ["php", "php-cli", "composer"] },
       binaries: ["php", "composer"]
     },
-    config: {
-      files: ["~/.composer/config.json", "~/.config/composer/config.json"],
-      globs: ["/etc/php/*/cli/php.ini", "/etc/php.d/*.ini", "/etc/php/*/mods-available/*.ini"],
-      maxSizeKB: 128,
-      secretPatterns: ["github-oauth", "gitlab-token", "http-basic", ...commonSecretPatterns]
-    },
-    intentSignals: defaultIntentSignals(),
+    configFiles: ["~/.composer/config.json", "~/.config/composer/config.json"],
+    configGlobs: ["/etc/php/*/cli/php.ini", "/etc/php.d/*.ini", "/etc/php/*/mods-available/*.ini"],
+    configMaxSizeKB: 128,
+    extraSecretPatterns: ["github-oauth", "gitlab-token", "http-basic"],
     references: [
       { pattern: "extension", type: "serviceDependency" },
       { pattern: "include_path", type: "filesystemPath" },
@@ -1283,27 +1315,21 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
     migrationCompleteness: { configOnly: "partial", missingRisks: ["project composer.lock files", "global Composer packages", "private repository tokens"] },
     security: { risk: "review", notes: ["Composer config can contain private repository credentials and OAuth tokens."] },
     crossDistro: { packageMap: { apt: ["php-cli", "composer"], dnf: ["php-cli", "composer"], yum: ["php-cli", "composer"], pacman: ["php", "composer"], apk: ["php", "composer"] }, serviceMap: { debian: [], rhel: [], fedora: [], arch: [], alpine: [] } },
-    migrate: { package: true, config: true, data: "none", strategy: "template-or-copy", validate: ["php --version", "composer --version"] }
-  },
-  {
+    migrate: { data: "none", strategy: "template-or-copy", validate: ["php --version", "composer --version"] }
+  }),
+  nativeRule({
     id: "ruby",
-    kind: "software",
     displayName: "Ruby / Bundler",
     capabilityKey: "runtime.ruby",
-    capability: "runtime.ruby",
-    supportLevel: "full-migration",
     category: "runtime",
     detect: {
       packages: { apt: ["ruby", "ruby-full", "bundler"], rpm: ["ruby", "rubygems", "rubygem-bundler"] },
       binaries: ["ruby", "gem", "bundle", "bundler"]
     },
-    config: {
-      files: ["~/.gemrc", "~/.bundle/config"],
-      globs: ["/etc/gemrc", "/usr/local/etc/gemrc"],
-      maxSizeKB: 128,
-      secretPatterns: ["rubygems_api_key", "BUNDLE_", ...commonSecretPatterns]
-    },
-    intentSignals: defaultIntentSignals(),
+    configFiles: ["~/.gemrc", "~/.bundle/config"],
+    configGlobs: ["/etc/gemrc", "/usr/local/etc/gemrc"],
+    configMaxSizeKB: 128,
+    extraSecretPatterns: ["rubygems_api_key", "BUNDLE_"],
     references: [
       { pattern: "gem:", type: "serviceDependency" },
       { pattern: "sources:", type: "serviceDependency" },
@@ -1313,27 +1339,21 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
     migrationCompleteness: { configOnly: "partial", missingRisks: ["project Gemfile.lock files", "global gemsets", "private gem credentials"] },
     security: { risk: "review", notes: ["RubyGems and Bundler configs may contain private source credentials."] },
     crossDistro: { packageMap: { apt: ["ruby-full", "bundler"], dnf: ["ruby", "rubygem-bundler"], yum: ["ruby", "rubygem-bundler"], pacman: ["ruby", "ruby-bundler"], apk: ["ruby", "ruby-bundler"] }, serviceMap: { debian: [], rhel: [], fedora: [], arch: [], alpine: [] } },
-    migrate: { package: true, config: true, data: "none", strategy: "template-or-copy", validate: ["ruby --version", "gem --version", "bundle --version"] }
-  },
-  {
+    migrate: { data: "none", strategy: "template-or-copy", validate: ["ruby --version", "gem --version", "bundle --version"] }
+  }),
+  nativeRule({
     id: "golang",
-    kind: "software",
     displayName: "Go",
     capabilityKey: "runtime.go",
-    capability: "runtime.go",
-    supportLevel: "full-migration",
     category: "runtime",
     detect: {
       packages: { apt: ["golang-go"], rpm: ["golang"] },
       binaries: ["go", "gofmt"]
     },
-    config: {
-      files: ["~/.config/go/env"],
-      globs: ["/etc/profile.d/go*.sh"],
-      maxSizeKB: 64,
-      secretPatterns: ["GOPRIVATE", "GONOSUMDB", ...commonSecretPatterns]
-    },
-    intentSignals: defaultIntentSignals(),
+    configFiles: ["~/.config/go/env"],
+    configGlobs: ["/etc/profile.d/go*.sh"],
+    configMaxSizeKB: 64,
+    extraSecretPatterns: ["GOPRIVATE", "GONOSUMDB"],
     references: [
       { pattern: "GOPRIVATE", type: "serviceDependency" },
       { pattern: "GONOSUMDB", type: "serviceDependency" },
@@ -1342,27 +1362,21 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
     migrationCompleteness: { configOnly: "partial", missingRisks: ["project go.mod files", "module cache", "private module access"] },
     security: { risk: "review", notes: ["Go env can reveal private module domains; module cache is rebuilt, not copied."] },
     crossDistro: { packageMap: { apt: ["golang-go"], dnf: ["golang"], yum: ["golang"], pacman: ["go"], apk: ["go"] }, serviceMap: { debian: [], rhel: [], fedora: [], arch: [], alpine: [] } },
-    migrate: { package: true, config: true, data: "none", strategy: "template-or-copy", validate: ["go version"] }
-  },
-  {
+    migrate: { data: "none", strategy: "template-or-copy", validate: ["go version"] }
+  }),
+  nativeRule({
     id: "openjdk",
-    kind: "software",
     displayName: "OpenJDK / Maven",
     capabilityKey: "runtime.java",
-    capability: "runtime.java",
-    supportLevel: "full-migration",
     category: "runtime",
     detect: {
       packages: { apt: ["default-jdk", "openjdk-17-jdk", "maven"], rpm: ["java-17-openjdk-devel", "maven"] },
       binaries: ["java", "javac", "mvn"]
     },
-    config: {
-      files: ["~/.m2/settings.xml", "/etc/maven/settings.xml"],
-      globs: ["/etc/java-*/**/*.conf"],
-      maxSizeKB: 128,
-      secretPatterns: ["<password>", "<privateKey>", ...commonSecretPatterns]
-    },
-    intentSignals: defaultIntentSignals(),
+    configFiles: ["~/.m2/settings.xml", "/etc/maven/settings.xml"],
+    configGlobs: ["/etc/java-*/**/*.conf"],
+    configMaxSizeKB: 128,
+    extraSecretPatterns: ["<password>", "<privateKey>"],
     references: [
       { pattern: "<mirror>", type: "serviceDependency" },
       { pattern: "<server>", type: "secretFile" },
@@ -1371,8 +1385,8 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
     migrationCompleteness: { configOnly: "partial", missingRisks: ["project pom/gradle files", "Maven local repository", "private repository credentials"] },
     security: { risk: "review", notes: ["Maven settings may contain repository credentials; local artifact cache is rebuilt."] },
     crossDistro: { packageMap: { apt: ["default-jdk", "maven"], dnf: ["java-17-openjdk-devel", "maven"], yum: ["java-17-openjdk-devel", "maven"], pacman: ["jdk-openjdk", "maven"], apk: ["openjdk17", "maven"] }, serviceMap: { debian: [], rhel: [], fedora: [], arch: [], alpine: [] } },
-    migrate: { package: true, config: true, data: "none", strategy: "template-or-copy", validate: ["java -version", "javac -version", "mvn --version"] }
-  },
+    migrate: { data: "none", strategy: "template-or-copy", validate: ["java -version", "javac -version", "mvn --version"] }
+  }),
   {
     id: "rust",
     kind: "software",
@@ -1402,25 +1416,19 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
     crossDistro: { packageMap: { apt: ["rustc", "cargo"], dnf: ["rust", "cargo"], yum: ["rust", "cargo"], pacman: ["rust"], apk: ["rust", "cargo"] }, serviceMap: { debian: [], rhel: [], fedora: [], arch: [], alpine: [] } },
     migrate: { package: true, config: true, data: "none", strategy: "template-or-copy", validate: ["rustc --version", "cargo --version"] }
   },
-  {
+  nativeRule({
     id: "dotnet",
-    kind: "software",
     displayName: ".NET SDK",
     capabilityKey: "runtime.dotnet",
-    capability: "runtime.dotnet",
-    supportLevel: "full-migration",
     category: "runtime",
     detect: {
       packages: { apt: ["dotnet-sdk-8.0", "dotnet-runtime-8.0"], rpm: ["dotnet-sdk-8.0", "dotnet-runtime-8.0"] },
       binaries: ["dotnet"]
     },
-    config: {
-      files: ["~/.nuget/NuGet/NuGet.Config", "/etc/nuget/NuGet.Config"],
-      globs: ["~/.dotnet/tools/.store/*"],
-      maxSizeKB: 128,
-      secretPatterns: ["ClearTextPassword", "apikey", ...commonSecretPatterns]
-    },
-    intentSignals: defaultIntentSignals(),
+    configFiles: ["~/.nuget/NuGet/NuGet.Config", "/etc/nuget/NuGet.Config"],
+    configGlobs: ["~/.dotnet/tools/.store/*"],
+    configMaxSizeKB: 128,
+    extraSecretPatterns: ["ClearTextPassword", "apikey"],
     references: [
       { pattern: "packageSources", type: "serviceDependency" },
       { pattern: "packageSourceCredentials", type: "secretFile" },
@@ -1429,26 +1437,20 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
     migrationCompleteness: { configOnly: "partial", missingRisks: ["project restore state", "NuGet package cache", "private feed credentials"] },
     security: { risk: "review", notes: ["NuGet.Config can contain private feed credentials; package caches are rebuilt."] },
     crossDistro: { packageMap: { apt: ["dotnet-sdk-8.0"], dnf: ["dotnet-sdk-8.0"], yum: ["dotnet-sdk-8.0"], pacman: ["dotnet-sdk"], apk: ["dotnet8-sdk"] }, serviceMap: { debian: [], rhel: [], fedora: [], arch: [], alpine: [] } },
-    migrate: { package: true, config: true, data: "none", strategy: "template-or-copy", validate: ["dotnet --version"] }
-  },
-  {
+    migrate: { data: "none", strategy: "template-or-copy", validate: ["dotnet --version"] }
+  }),
+  nativeRule({
     id: "git",
-    kind: "software",
     displayName: "Git",
     capabilityKey: "developer.git",
-    capability: "developer.git",
-    supportLevel: "full-migration",
     category: "developer",
     detect: {
       packages: { apt: ["git"], rpm: ["git"] },
       binaries: ["git"]
     },
-    config: {
-      files: ["~/.gitconfig", "~/.config/git/config", "/etc/gitconfig"],
-      maxSizeKB: 128,
-      secretPatterns: ["credential.helper", "insteadOf", ...commonSecretPatterns]
-    },
-    intentSignals: defaultIntentSignals(),
+    configFiles: ["~/.gitconfig", "~/.config/git/config", "/etc/gitconfig"],
+    configMaxSizeKB: 128,
+    extraSecretPatterns: ["credential.helper", "insteadOf"],
     references: [
       { pattern: "include.path", type: "configInclude" },
       { pattern: "credential.helper", type: "secretFile" },
@@ -1457,8 +1459,8 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
     migrationCompleteness: { configOnly: "partial", missingRisks: ["repository working trees", "credential helpers", "SSH/GPG signing keys"] },
     security: { risk: "review", notes: ["Git configs can point to credential helpers and signing keys; repositories are not copied by this card."] },
     crossDistro: { packageMap: { apt: ["git"], dnf: ["git"], yum: ["git"], pacman: ["git"], apk: ["git"] }, serviceMap: { debian: [], rhel: [], fedora: [], arch: [], alpine: [] } },
-    migrate: { package: true, config: true, data: "none", strategy: "copy-with-review", validate: ["git --version"] }
-  },
+    migrate: { data: "none", strategy: "copy-with-review", validate: ["git --version"] }
+  }),
   {
     id: "ansible",
     kind: "software",
@@ -2288,26 +2290,18 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
     crossDistro: { packageMap: { apt: ["openssh-server"], dnf: ["openssh-server"], yum: ["openssh-server"], pacman: ["openssh"], apk: ["openssh"] }, serviceMap: { debian: ["ssh", "sshd"], rhel: ["sshd"], fedora: ["sshd"], arch: ["sshd"], alpine: ["sshd"] } },
     migrate: { package: true, config: true, data: "none", strategy: "copy-with-review", restartServices: ["ssh", "sshd"], validate: ["sshd -t"] }
   },
-  {
+  nativeRule({
     id: "ufw",
-    kind: "software",
     displayName: "UFW firewall",
     capabilityKey: "security.firewall.ufw",
-    capability: "security.firewall.ufw",
-    supportLevel: "full-migration",
     category: "security",
     detect: {
       packages: { apt: ["ufw"], rpm: ["firewalld"] },
       binaries: ["ufw", "firewall-cmd"],
       systemd: ["ufw.service", "firewalld.service"]
     },
-    config: {
-      files: ["/etc/ufw/user.rules", "/etc/ufw/user6.rules", "/etc/default/ufw", "/etc/firewalld/firewalld.conf"],
-      globs: ["/etc/firewalld/zones/*.xml"],
-      maxSizeKB: 256,
-      secretPatterns: commonSecretPatterns
-    },
-    intentSignals: defaultIntentSignals(),
+    configFiles: ["/etc/ufw/user.rules", "/etc/ufw/user6.rules", "/etc/default/ufw", "/etc/firewalld/firewalld.conf"],
+    configGlobs: ["/etc/firewalld/zones/*.xml"],
     references: [
       { pattern: "allow", type: "serviceDependency" },
       { pattern: "deny", type: "serviceDependency" },
@@ -2316,8 +2310,8 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
     migrationCompleteness: { configOnly: "complete", missingRisks: ["cloud security groups must still be reviewed outside the VM"] },
     security: { risk: "privileged", notes: ["Firewall migration can lock out SSH; safeFirewallApply refuses when the current SSH port is unknown or not allowed."] },
     crossDistro: { packageMap: { apt: ["ufw"], dnf: ["firewalld"], yum: ["firewalld"], pacman: ["ufw"], apk: ["ufw"] }, serviceMap: { debian: ["ufw"], rhel: ["firewalld"], fedora: ["firewalld"], arch: ["ufw"], alpine: ["ufw"] } },
-    migrate: { package: true, config: true, data: "none", strategy: "copy-with-review", restartServices: ["ufw", "firewalld"], validate: ["ufw status", "firewall-cmd --state || true"] }
-  },
+    migrate: { data: "none", strategy: "copy-with-review", restartServices: ["ufw", "firewalld"], validate: ["ufw status", "firewall-cmd --state || true"] }
+  }),
   {
     id: "firewalld",
     kind: "software",
