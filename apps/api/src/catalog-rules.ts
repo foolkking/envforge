@@ -908,13 +908,11 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
     crossDistro: { packageMap: { apt: ["nginx"], dnf: ["nginx"], yum: ["nginx"], pacman: ["nginx"], apk: ["nginx"] }, serviceMap: { debian: ["nginx"], rhel: ["nginx"], fedora: ["nginx"], arch: ["nginx"], alpine: ["nginx"] } },
     migrate: { data: "optional", strategy: "template-or-copy", restartServices: ["nginx"], validate: ["nginx -t"] }
   }),
-  {
+  nativeRule({
     id: "caddy",
-    kind: "software",
     displayName: "Caddy",
     capabilityKey: "web-server.caddy",
     capability: "web-server.reverse-proxy",
-    supportLevel: "full-migration",
     category: "service",
     detect: {
       packages: { apt: ["caddy"], rpm: ["caddy"] },
@@ -922,14 +920,10 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
       systemd: ["caddy.service"],
       ports: [80, 443]
     },
-    config: {
-      files: ["/etc/caddy/Caddyfile"],
-      globs: ["/etc/caddy/conf.d/*.caddy", "/etc/caddy/sites-enabled/*"],
-      maxSizeKB: 256,
-      secretPatterns: ["tls", "dns", "api_token", "CF_API_TOKEN", ...commonSecretPatterns]
-    },
-    data: { paths: ["/var/lib/caddy", "/srv", "/var/www"] },
-    intentSignals: defaultIntentSignals(),
+    configFiles: ["/etc/caddy/Caddyfile"],
+    configGlobs: ["/etc/caddy/conf.d/*.caddy", "/etc/caddy/sites-enabled/*"],
+    extraSecretPatterns: ["tls", "dns", "api_token", "CF_API_TOKEN"],
+    dataPaths: ["/var/lib/caddy", "/srv", "/var/www"],
     references: [
       { pattern: "import", type: "configInclude" },
       { pattern: "root", type: "filesystemPath" },
@@ -939,15 +933,13 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
     migrationCompleteness: { configOnly: "partial", missingRisks: ["site roots", "ACME storage", "DNS challenge credentials", "upstream services"] },
     security: { risk: "review", notes: ["Caddy ACME storage contains private keys; DNS challenge credentials must be approved before transport."] },
     crossDistro: { packageMap: { apt: ["caddy"], dnf: ["caddy"], yum: ["caddy"], pacman: ["caddy"], apk: ["caddy"] }, serviceMap: { debian: ["caddy"], rhel: ["caddy"], fedora: ["caddy"], arch: ["caddy"], alpine: ["caddy"] } },
-    migrate: { package: true, config: true, data: "optional", strategy: "manual-review", restartServices: ["caddy"], validate: ["caddy validate --config /etc/caddy/Caddyfile", "systemctl is-active caddy"] }
-  },
-  {
+    migrate: { data: "optional", strategy: "manual-review", restartServices: ["caddy"], validate: ["caddy validate --config /etc/caddy/Caddyfile", "systemctl is-active caddy"] }
+  }),
+  nativeRule({
     id: "openresty",
-    kind: "software",
     displayName: "OpenResty",
     capabilityKey: "web-server.openresty",
     capability: "web-server.reverse-proxy",
-    supportLevel: "full-migration",
     category: "network",
     detect: {
       packages: { apt: ["openresty"], rpm: ["openresty"] },
@@ -955,14 +947,10 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
       systemd: ["openresty.service"],
       ports: [80, 443]
     },
-    config: {
-      files: ["/usr/local/openresty/nginx/conf/nginx.conf", "/etc/openresty/nginx.conf"],
-      globs: ["/etc/openresty/conf.d/*.conf", "/usr/local/openresty/nginx/conf/conf.d/*.conf", "/etc/nginx/conf.d/*.conf"],
-      maxSizeKB: 256,
-      secretPatterns: ["ssl_certificate_key", "lua_shared_dict", ...commonSecretPatterns]
-    },
-    data: { paths: ["/usr/local/openresty/lualib", "/var/www", "/srv"] },
-    intentSignals: defaultIntentSignals(),
+    configFiles: ["/usr/local/openresty/nginx/conf/nginx.conf", "/etc/openresty/nginx.conf"],
+    configGlobs: ["/etc/openresty/conf.d/*.conf", "/usr/local/openresty/nginx/conf/conf.d/*.conf", "/etc/nginx/conf.d/*.conf"],
+    extraSecretPatterns: ["ssl_certificate_key", "lua_shared_dict"],
+    dataPaths: ["/usr/local/openresty/lualib", "/var/www", "/srv"],
     references: [
       { pattern: "include", type: "configInclude" },
       { pattern: "root", type: "filesystemPath" },
@@ -972,15 +960,13 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
     migrationCompleteness: { configOnly: "partial", missingRisks: ["custom Lua modules", "site roots", "TLS certificates", "upstream services"] },
     security: { risk: "review", notes: ["OpenResty config may reference TLS private keys and custom Lua code requiring review."] },
     crossDistro: { packageMap: { apt: ["openresty"], dnf: ["openresty"], yum: ["openresty"], pacman: ["openresty"], apk: ["openresty"] }, serviceMap: { debian: ["openresty"], rhel: ["openresty"], fedora: ["openresty"], arch: ["openresty"], alpine: ["openresty"] } },
-    migrate: { package: true, config: true, data: "optional", strategy: "manual-review", restartServices: ["openresty"], validate: ["openresty -t", "systemctl is-active openresty"] }
-  },
-  {
+    migrate: { data: "optional", strategy: "manual-review", restartServices: ["openresty"], validate: ["openresty -t", "systemctl is-active openresty"] }
+  }),
+  nativeRule({
     id: "traefik",
-    kind: "software",
     displayName: "Traefik",
     capabilityKey: "network.reverse-proxy.traefik",
     capability: "web-server.reverse-proxy",
-    supportLevel: "full-migration",
     category: "network",
     detect: {
       packages: { apt: ["traefik"], rpm: ["traefik"] },
@@ -988,14 +974,10 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
       systemd: ["traefik.service"],
       ports: [80, 443, 8080]
     },
-    config: {
-      files: ["/etc/traefik/traefik.yml", "/etc/traefik/traefik.yaml", "/etc/traefik/acme.json"],
-      globs: ["/etc/traefik/dynamic/*.yml", "/etc/traefik/dynamic/*.yaml", "/etc/traefik/conf.d/*.yml"],
-      maxSizeKB: 256,
-      secretPatterns: ["acme.json", "certificatesResolvers", "apiToken", "CF_API_TOKEN", ...commonSecretPatterns]
-    },
-    data: { paths: ["/etc/traefik/acme.json", "/var/lib/traefik"] },
-    intentSignals: defaultIntentSignals(),
+    configFiles: ["/etc/traefik/traefik.yml", "/etc/traefik/traefik.yaml", "/etc/traefik/acme.json"],
+    configGlobs: ["/etc/traefik/dynamic/*.yml", "/etc/traefik/dynamic/*.yaml", "/etc/traefik/conf.d/*.yml"],
+    extraSecretPatterns: ["acme.json", "certificatesResolvers", "apiToken", "CF_API_TOKEN"],
+    dataPaths: ["/etc/traefik/acme.json", "/var/lib/traefik"],
     references: [
       { pattern: "providers", type: "serviceDependency" },
       { pattern: "file", type: "configInclude" },
@@ -1005,15 +987,13 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
     migrationCompleteness: { configOnly: "partial", missingRisks: ["ACME storage", "Docker provider labels", "dynamic file provider configs", "dashboard exposure"] },
     security: { risk: "review", notes: ["Traefik acme.json contains private keys; Docker provider and dashboard exposure require review."] },
     crossDistro: { packageMap: { apt: ["traefik"], dnf: ["traefik"], yum: ["traefik"], pacman: ["traefik"], apk: ["traefik"] }, serviceMap: { debian: ["traefik"], rhel: ["traefik"], fedora: ["traefik"], arch: ["traefik"], alpine: ["traefik"] } },
-    migrate: { package: true, config: true, data: "optional", strategy: "manual-review", restartServices: ["traefik"], validate: ["traefik healthcheck", "systemctl is-active traefik"] }
-  },
-  {
+    migrate: { data: "optional", strategy: "manual-review", restartServices: ["traefik"], validate: ["traefik healthcheck", "systemctl is-active traefik"] }
+  }),
+  nativeRule({
     id: "haproxy",
-    kind: "software",
     displayName: "HAProxy",
     capabilityKey: "network.load-balancer.haproxy",
     capability: "network.load-balancer",
-    supportLevel: "full-migration",
     category: "network",
     detect: {
       packages: { apt: ["haproxy"], rpm: ["haproxy"] },
@@ -1021,14 +1001,10 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
       systemd: ["haproxy.service"],
       ports: [80, 443, 8404]
     },
-    config: {
-      files: ["/etc/haproxy/haproxy.cfg"],
-      globs: ["/etc/haproxy/conf.d/*.cfg"],
-      maxSizeKB: 256,
-      secretPatterns: ["ssl", "crt", "ca-file", ...commonSecretPatterns]
-    },
-    data: { paths: ["/etc/haproxy/certs", "/var/lib/haproxy"] },
-    intentSignals: defaultIntentSignals(),
+    configFiles: ["/etc/haproxy/haproxy.cfg"],
+    configGlobs: ["/etc/haproxy/conf.d/*.cfg"],
+    extraSecretPatterns: ["ssl", "crt", "ca-file"],
+    dataPaths: ["/etc/haproxy/certs", "/var/lib/haproxy"],
     references: [
       { pattern: "bind", type: "serviceDependency" },
       { pattern: "server", type: "serviceDependency" },
@@ -1038,15 +1014,13 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
     migrationCompleteness: { configOnly: "partial", missingRisks: ["TLS certificates", "backend services", "stats socket access"] },
     security: { risk: "review", notes: ["HAProxy configs can reference TLS private keys and backend service addresses."] },
     crossDistro: { packageMap: { apt: ["haproxy"], dnf: ["haproxy"], yum: ["haproxy"], pacman: ["haproxy"], apk: ["haproxy"] }, serviceMap: { debian: ["haproxy"], rhel: ["haproxy"], fedora: ["haproxy"], arch: ["haproxy"], alpine: ["haproxy"] } },
-    migrate: { package: true, config: true, data: "optional", strategy: "manual-review", restartServices: ["haproxy"], validate: ["haproxy -c -f /etc/haproxy/haproxy.cfg", "systemctl is-active haproxy"] }
-  },
-  {
+    migrate: { data: "optional", strategy: "manual-review", restartServices: ["haproxy"], validate: ["haproxy -c -f /etc/haproxy/haproxy.cfg", "systemctl is-active haproxy"] }
+  }),
+  nativeRule({
     id: "apache",
-    kind: "software",
     displayName: "Apache HTTP Server",
     capabilityKey: "web-server.apache",
     capability: "web-server.http",
-    supportLevel: "full-migration",
     category: "service",
     detect: {
       packages: { apt: ["apache2", "libapache2-mod-php"], rpm: ["httpd", "mod_ssl"] },
@@ -1054,15 +1028,11 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
       systemd: ["apache2.service", "httpd.service"],
       ports: [80, 443]
     },
-    config: {
-      files: ["/etc/apache2/apache2.conf", "/etc/httpd/conf/httpd.conf"],
-      globs: ["/etc/apache2/sites-available/*.conf", "/etc/apache2/sites-enabled/*.conf", "/etc/apache2/mods-enabled/*.load", "/etc/apache2/mods-enabled/*.conf", "/etc/httpd/conf.d/*.conf"],
-      exclude: ["/etc/apache2/sites-available/000-default.conf"],
-      maxSizeKB: 256,
-      secretPatterns: ["SSLCertificateKeyFile", "AuthUserFile", ...commonSecretPatterns]
-    },
-    data: { paths: ["/var/www", "/srv/www"] },
-    intentSignals: defaultIntentSignals(),
+    configFiles: ["/etc/apache2/apache2.conf", "/etc/httpd/conf/httpd.conf"],
+    configGlobs: ["/etc/apache2/sites-available/*.conf", "/etc/apache2/sites-enabled/*.conf", "/etc/apache2/mods-enabled/*.load", "/etc/apache2/mods-enabled/*.conf", "/etc/httpd/conf.d/*.conf"],
+    configExclude: ["/etc/apache2/sites-available/000-default.conf"],
+    extraSecretPatterns: ["SSLCertificateKeyFile", "AuthUserFile"],
+    dataPaths: ["/var/www", "/srv/www"],
     references: [
       { pattern: "Include", type: "configInclude" },
       { pattern: "DocumentRoot", type: "filesystemPath" },
@@ -1072,15 +1042,12 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
     migrationCompleteness: { configOnly: "partial", missingRisks: ["site roots", "TLS certificates", "enabled module state", "php-fpm or mod_php coupling"] },
     security: { risk: "review", notes: ["Apache vhosts can reference TLS keys, .htaccess policies, PHP handlers, and upstream services."] },
     crossDistro: { packageMap: { apt: ["apache2"], dnf: ["httpd"], yum: ["httpd"], pacman: ["apache"], apk: ["apache2"] }, serviceMap: { debian: ["apache2"], rhel: ["httpd"], fedora: ["httpd"], arch: ["httpd"], alpine: ["apache2"] } },
-    migrate: { package: true, config: true, data: "optional", strategy: "manual-review", restartServices: ["apache2", "httpd"], validate: ["apachectl configtest", "systemctl is-active apache2 || systemctl is-active httpd"] }
-  },
-  {
+    migrate: { data: "optional", strategy: "manual-review", restartServices: ["apache2", "httpd"], validate: ["apachectl configtest", "systemctl is-active apache2 || systemctl is-active httpd"] }
+  }),
+  nativeRule({
     id: "php-fpm",
-    kind: "software",
     displayName: "PHP-FPM",
     capabilityKey: "runtime.php-fpm",
-    capability: "runtime.php-fpm",
-    supportLevel: "full-migration",
     category: "service",
     detect: {
       packages: { apt: ["php-fpm", "php8.2-fpm", "php8.3-fpm"], rpm: ["php-fpm"] },
@@ -1088,13 +1055,9 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
       systemd: ["php-fpm.service", "php8.2-fpm.service", "php8.3-fpm.service"],
       ports: [9000]
     },
-    config: {
-      globs: ["/etc/php/*/fpm/php-fpm.conf", "/etc/php/*/fpm/pool.d/*.conf", "/etc/php-fpm.conf", "/etc/php-fpm.d/*.conf"],
-      maxSizeKB: 256,
-      secretPatterns: ["env[", "php_admin_value", ...commonSecretPatterns]
-    },
-    data: { paths: ["/var/lib/php/sessions", "/run/php"] },
-    intentSignals: defaultIntentSignals(),
+    configGlobs: ["/etc/php/*/fpm/php-fpm.conf", "/etc/php/*/fpm/pool.d/*.conf", "/etc/php-fpm.conf", "/etc/php-fpm.d/*.conf"],
+    extraSecretPatterns: ["env[", "php_admin_value"],
+    dataPaths: ["/var/lib/php/sessions", "/run/php"],
     references: [
       { pattern: "include", type: "configInclude" },
       { pattern: "listen", type: "serviceDependency" },
@@ -1104,11 +1067,10 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
     migrationCompleteness: { configOnly: "partial", missingRisks: ["pool sizing", "socket paths", "per-app env secrets", "web-server upstream coupling"] },
     security: { risk: "review", notes: ["PHP-FPM pool configs may contain environment secrets and app-specific socket/user settings."] },
     crossDistro: { packageMap: { apt: ["php-fpm"], dnf: ["php-fpm"], yum: ["php-fpm"], pacman: ["php-fpm"], apk: ["php-fpm"] }, serviceMap: { debian: ["php8.2-fpm", "php8.3-fpm", "php-fpm"], rhel: ["php-fpm"], fedora: ["php-fpm"], arch: ["php-fpm"], alpine: ["php-fpm"] } },
-    migrate: { package: true, config: true, data: "optional", strategy: "manual-review", restartServices: ["php-fpm", "php8.2-fpm", "php8.3-fpm"], validate: ["php-fpm -t || php-fpm8.2 -t || php-fpm8.3 -t", "systemctl is-active php-fpm || systemctl is-active php8.2-fpm || systemctl is-active php8.3-fpm"] }
-  },
-  {
+    migrate: { data: "optional", strategy: "manual-review", restartServices: ["php-fpm", "php8.2-fpm", "php8.3-fpm"], validate: ["php-fpm -t || php-fpm8.2 -t || php-fpm8.3 -t", "systemctl is-active php-fpm || systemctl is-active php8.2-fpm || systemctl is-active php8.3-fpm"] }
+  }),
+  nativeRule({
     id: "docker",
-    kind: "software",
     displayName: "Docker",
     capabilityKey: "container.docker",
     capability: "container.runtime",
@@ -1120,14 +1082,10 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
       systemd: ["docker.service"],
       ports: []
     },
-    config: {
-      files: ["/etc/docker/daemon.json"],
-      globs: ["/opt/*/docker-compose.yml", "/opt/*/compose.yaml", "/srv/*/docker-compose.yml", "/srv/*/compose.yaml"],
-      maxSizeKB: 256,
-      secretPatterns: commonSecretPatterns
-    },
-    data: { paths: ["/var/lib/docker"] },
-    intentSignals: defaultIntentSignals(),
+    configFiles: ["/etc/docker/daemon.json"],
+    configGlobs: ["/opt/*/docker-compose.yml", "/opt/*/compose.yaml", "/srv/*/docker-compose.yml", "/srv/*/compose.yaml"],
+    configMaxSizeKB: 256,
+    dataPaths: ["/var/lib/docker"],
     references: [
       { pattern: "docker-compose.yml", type: "configInclude" },
       { pattern: "compose.yaml", type: "configInclude" },
@@ -1137,8 +1095,8 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
     migrationCompleteness: { configOnly: "partial", missingRisks: ["compose env files", "bind mounts", "named volumes", "external networks"] },
     security: { risk: "privileged", notes: ["Do not blindly migrate /var/lib/docker; prefer compose, env files, bind mounts, and volume inventory."] },
     crossDistro: { packageMap: { apt: ["docker.io"], dnf: ["docker-ce"], yum: ["docker-ce"], pacman: ["docker"], apk: ["docker"] }, serviceMap: { debian: ["docker"], rhel: ["docker"], fedora: ["docker"], arch: ["docker"], alpine: ["docker"] } },
-    migrate: { package: true, config: true, data: "optional", strategy: "copy-with-review", restartServices: ["docker"], validate: ["docker version", "docker compose version"] }
-  },
+    migrate: { data: "optional", strategy: "copy-with-review", restartServices: ["docker"], validate: ["docker version", "docker compose version"] }
+  }),
   nativeRule({
     id: "postgresql",
     displayName: "PostgreSQL",
@@ -1262,9 +1220,8 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
     crossDistro: { packageMap: { apt: ["python3", "python3-pip", "pipx"], dnf: ["python3", "python3-pip", "pipx"], yum: ["python3", "python3-pip"], pacman: ["python", "python-pip", "python-pipx"], apk: ["python3", "py3-pip"] }, serviceMap: { debian: [], rhel: [], fedora: [], arch: [], alpine: [] } },
     migrate: { data: "none", strategy: "template-or-copy", validate: ["python3 --version", "pip3 --version"] }
   }),
-  {
+  nativeRule({
     id: "pyenv-toolchain",
-    kind: "software",
     displayName: "pyenv Python version manager",
     capabilityKey: "runtime.python.pyenv",
     capability: "runtime.python.pyenv",
@@ -1274,14 +1231,11 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
       packages: { apt: ["curl", "git", "build-essential", "libssl-dev", "zlib1g-dev", "libbz2-dev", "libreadline-dev", "libsqlite3-dev", "xz-utils", "tk-dev", "libffi-dev"], rpm: ["curl", "git", "gcc", "make", "openssl-devel", "zlib-devel", "bzip2", "bzip2-devel", "readline-devel", "sqlite-devel", "xz", "tk-devel", "libffi-devel"] },
       binaries: ["pyenv", "python", "python3"]
     },
-    config: {
-      files: ["~/.pyenv/version", "~/.python-version", "~/.config/pip/pip.conf", "~/.bashrc", "~/.zshrc", "~/.profile"],
-      globs: ["~/.pyenv/plugins/*", "~/.pyenv/versions/*/pip.conf"],
-      maxSizeKB: 128,
-      secretPatterns: ["PYENV_ROOT", "index-url", "extra-index-url", ...commonSecretPatterns]
-    },
-    data: { paths: ["~/.pyenv"] },
-    intentSignals: defaultIntentSignals(),
+    configFiles: ["~/.pyenv/version", "~/.python-version", "~/.config/pip/pip.conf", "~/.bashrc", "~/.zshrc", "~/.profile"],
+    configGlobs: ["~/.pyenv/plugins/*", "~/.pyenv/versions/*/pip.conf"],
+    configMaxSizeKB: 128,
+    extraSecretPatterns: ["PYENV_ROOT", "index-url", "extra-index-url"],
+    dataPaths: ["~/.pyenv"],
     references: [
       { pattern: "PYENV_ROOT", type: "filesystemPath" },
       { pattern: "pyenv init", type: "configInclude" },
@@ -1291,8 +1245,8 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
     migrationCompleteness: { configOnly: "partial", missingRisks: ["compiled Python versions", "pyenv plugins", "pip private indexes", "virtualenvs"] },
     security: { risk: "safe", notes: ["pyenv builds are per-user; Python versions and virtualenvs are rebuilt or explicitly reviewed."] },
     crossDistro: { packageMap: { apt: ["curl", "git", "build-essential", "libssl-dev", "zlib1g-dev", "libbz2-dev", "libreadline-dev", "libsqlite3-dev", "xz-utils", "tk-dev", "libffi-dev"], dnf: ["curl", "git", "gcc", "make", "openssl-devel", "zlib-devel", "bzip2", "bzip2-devel", "readline-devel", "sqlite-devel", "xz", "tk-devel", "libffi-devel"], yum: ["curl", "git", "gcc", "make", "openssl-devel", "zlib-devel", "bzip2", "bzip2-devel", "readline-devel", "sqlite-devel", "xz", "tk-devel", "libffi-devel"], pacman: ["curl", "git", "base-devel", "openssl", "zlib", "bzip2", "readline", "sqlite", "xz", "tk", "libffi"], apk: ["curl", "git", "build-base", "openssl-dev", "zlib-dev", "bzip2-dev", "readline-dev", "sqlite-dev", "xz", "tk-dev", "libffi-dev"] }, serviceMap: { debian: [], rhel: [], fedora: [], arch: [], alpine: [] } },
-    migrate: { package: true, config: true, data: "optional", strategy: "manual-review", validate: ["pyenv --version || python3 --version"] }
-  },
+    migrate: { data: "optional", strategy: "manual-review", validate: ["pyenv --version || python3 --version"] }
+  }),
   nativeRule({
     id: "php",
     displayName: "PHP / Composer",
@@ -1387,9 +1341,8 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
     crossDistro: { packageMap: { apt: ["default-jdk", "maven"], dnf: ["java-17-openjdk-devel", "maven"], yum: ["java-17-openjdk-devel", "maven"], pacman: ["jdk-openjdk", "maven"], apk: ["openjdk17", "maven"] }, serviceMap: { debian: [], rhel: [], fedora: [], arch: [], alpine: [] } },
     migrate: { data: "none", strategy: "template-or-copy", validate: ["java -version", "javac -version", "mvn --version"] }
   }),
-  {
+  nativeRule({
     id: "rust",
-    kind: "software",
     displayName: "Rust / Cargo",
     capabilityKey: "runtime.rust",
     capability: "runtime.rust",
@@ -1399,13 +1352,10 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
       packages: { apt: ["rustc", "cargo"], rpm: ["rust", "cargo"] },
       binaries: ["rustc", "cargo"]
     },
-    config: {
-      files: ["~/.cargo/config.toml", "~/.cargo/credentials.toml"],
-      globs: ["/etc/cargo/config.toml"],
-      maxSizeKB: 128,
-      secretPatterns: ["token", "registry", ...commonSecretPatterns]
-    },
-    intentSignals: defaultIntentSignals(),
+    configFiles: ["~/.cargo/config.toml", "~/.cargo/credentials.toml"],
+    configGlobs: ["/etc/cargo/config.toml"],
+    configMaxSizeKB: 128,
+    extraSecretPatterns: ["token", "registry"],
     references: [
       { pattern: "registry", type: "serviceDependency" },
       { pattern: "credential-provider", type: "secretFile" },
@@ -1414,8 +1364,8 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
     migrationCompleteness: { configOnly: "partial", missingRisks: ["project Cargo.lock files", "target directories", "private registry tokens"] },
     security: { risk: "review", notes: ["Cargo credentials and private registries require review; build artifacts are rebuilt."] },
     crossDistro: { packageMap: { apt: ["rustc", "cargo"], dnf: ["rust", "cargo"], yum: ["rust", "cargo"], pacman: ["rust"], apk: ["rust", "cargo"] }, serviceMap: { debian: [], rhel: [], fedora: [], arch: [], alpine: [] } },
-    migrate: { package: true, config: true, data: "none", strategy: "template-or-copy", validate: ["rustc --version", "cargo --version"] }
-  },
+    migrate: { data: "none", strategy: "template-or-copy", validate: ["rustc --version", "cargo --version"] }
+  }),
   nativeRule({
     id: "dotnet",
     displayName: ".NET SDK",
@@ -1461,9 +1411,8 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
     crossDistro: { packageMap: { apt: ["git"], dnf: ["git"], yum: ["git"], pacman: ["git"], apk: ["git"] }, serviceMap: { debian: [], rhel: [], fedora: [], arch: [], alpine: [] } },
     migrate: { data: "none", strategy: "copy-with-review", validate: ["git --version"] }
   }),
-  {
+  nativeRule({
     id: "ansible",
-    kind: "software",
     displayName: "Ansible",
     capabilityKey: "developer.ansible",
     capability: "developer.ansible",
@@ -1473,13 +1422,10 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
       packages: { apt: ["ansible"], rpm: ["ansible-core"] },
       binaries: ["ansible", "ansible-playbook"]
     },
-    config: {
-      files: ["/etc/ansible/ansible.cfg", "~/.ansible.cfg"],
-      globs: ["/etc/ansible/hosts", "~/ansible/inventory*"],
-      maxSizeKB: 256,
-      secretPatterns: ["vault_password_file", "private_key_file", ...commonSecretPatterns]
-    },
-    intentSignals: defaultIntentSignals(),
+    configFiles: ["/etc/ansible/ansible.cfg", "~/.ansible.cfg"],
+    configGlobs: ["/etc/ansible/hosts", "~/ansible/inventory*"],
+    configMaxSizeKB: 256,
+    extraSecretPatterns: ["vault_password_file", "private_key_file"],
     references: [
       { pattern: "inventory", type: "filesystemPath" },
       { pattern: "vault_password_file", type: "secretFile" },
@@ -1488,11 +1434,10 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
     migrationCompleteness: { configOnly: "partial", missingRisks: ["inventories", "vault passwords", "collections cache", "SSH keys"] },
     security: { risk: "review", notes: ["Ansible inventories and vault password references require review before transport."] },
     crossDistro: { packageMap: { apt: ["ansible"], dnf: ["ansible-core"], yum: ["ansible-core"], pacman: ["ansible"], apk: ["ansible"] }, serviceMap: { debian: [], rhel: [], fedora: [], arch: [], alpine: [] } },
-    migrate: { package: true, config: true, data: "none", strategy: "copy-with-review", validate: ["ansible --version", "ansible-playbook --version"] }
-  },
-  {
+    migrate: { data: "none", strategy: "copy-with-review", validate: ["ansible --version", "ansible-playbook --version"] }
+  }),
+  nativeRule({
     id: "terraform",
-    kind: "software",
     displayName: "Terraform",
     capabilityKey: "developer.terraform",
     capability: "developer.terraform",
@@ -1502,13 +1447,10 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
       packages: { apt: ["terraform"], rpm: ["terraform"] },
       binaries: ["terraform"]
     },
-    config: {
-      files: ["~/.terraformrc", "~/.terraform.d/credentials.tfrc.json"],
-      globs: ["~/.terraform.d/plugin-cache/*"],
-      maxSizeKB: 128,
-      secretPatterns: ["credentials", "token", ...commonSecretPatterns]
-    },
-    intentSignals: defaultIntentSignals(),
+    configFiles: ["~/.terraformrc", "~/.terraform.d/credentials.tfrc.json"],
+    configGlobs: ["~/.terraform.d/plugin-cache/*"],
+    configMaxSizeKB: 128,
+    extraSecretPatterns: ["credentials", "token"],
     references: [
       { pattern: "credentials", type: "secretFile" },
       { pattern: "plugin_cache_dir", type: "filesystemPath" },
@@ -1517,11 +1459,10 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
     migrationCompleteness: { configOnly: "partial", missingRisks: ["terraform.tfstate files", "provider plugins", "cloud credentials"] },
     security: { risk: "review", notes: ["Terraform state is project-owned and must not be migrated automatically."] },
     crossDistro: { packageMap: { apt: ["terraform"], dnf: ["terraform"], yum: ["terraform"], pacman: ["terraform"], apk: ["terraform"] }, serviceMap: { debian: [], rhel: [], fedora: [], arch: [], alpine: [] } },
-    migrate: { package: true, config: true, data: "none", strategy: "copy-with-review", validate: ["terraform version"] }
-  },
-  {
+    migrate: { data: "none", strategy: "copy-with-review", validate: ["terraform version"] }
+  }),
+  nativeRule({
     id: "kubectl",
-    kind: "software",
     displayName: "kubectl / Helm",
     capabilityKey: "developer.kubectl",
     capability: "developer.kubernetes-client",
@@ -1531,13 +1472,10 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
       packages: { apt: ["kubectl", "helm"], rpm: ["kubectl", "helm"] },
       binaries: ["kubectl", "helm"]
     },
-    config: {
-      files: ["~/.kube/config", "/etc/kubernetes/admin.conf"],
-      globs: ["~/.config/helm/repositories.yaml", "~/.config/helm/registry/config.json"],
-      maxSizeKB: 256,
-      secretPatterns: ["client-key-data", "token", "certificate-authority-data", ...commonSecretPatterns]
-    },
-    intentSignals: defaultIntentSignals(),
+    configFiles: ["~/.kube/config", "/etc/kubernetes/admin.conf"],
+    configGlobs: ["~/.config/helm/repositories.yaml", "~/.config/helm/registry/config.json"],
+    configMaxSizeKB: 256,
+    extraSecretPatterns: ["client-key-data", "token", "certificate-authority-data"],
     references: [
       { pattern: "cluster:", type: "serviceDependency" },
       { pattern: "client-key-data", type: "secretFile" },
@@ -1546,11 +1484,10 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
     migrationCompleteness: { configOnly: "partial", missingRisks: ["cluster credentials", "helm registry tokens", "current context drift"] },
     security: { risk: "review", notes: ["Kubeconfigs contain credentials and cluster endpoints; transport requires explicit review."] },
     crossDistro: { packageMap: { apt: ["kubectl", "helm"], dnf: ["kubectl", "helm"], yum: ["kubectl", "helm"], pacman: ["kubectl", "helm"], apk: ["kubectl", "helm"] }, serviceMap: { debian: [], rhel: [], fedora: [], arch: [], alpine: [] } },
-    migrate: { package: true, config: true, data: "none", strategy: "copy-with-review", validate: ["kubectl version --client", "helm version"] }
-  },
-  {
+    migrate: { data: "none", strategy: "copy-with-review", validate: ["kubectl version --client", "helm version"] }
+  }),
+  nativeRule({
     id: "flutter-sdk",
-    kind: "software",
     displayName: "Flutter SDK",
     capabilityKey: "developer.flutter",
     capability: "developer.flutter",
@@ -1560,14 +1497,11 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
       packages: { apt: ["git", "curl", "unzip", "xz-utils"], rpm: ["git", "curl", "unzip", "xz"] },
       binaries: ["flutter", "dart"]
     },
-    config: {
-      files: ["~/.flutter_settings", "~/.pub-cache/credentials.json", "~/.bashrc", "~/.zshrc", "~/.profile"],
-      globs: ["~/.config/flutter/*", "~/.pub-cache/hosted/*"],
-      maxSizeKB: 128,
-      secretPatterns: ["credentials.json", "PUB_HOSTED_URL", "FLUTTER_STORAGE_BASE_URL", ...commonSecretPatterns]
-    },
-    data: { paths: ["~/development/flutter", "~/.pub-cache"] },
-    intentSignals: defaultIntentSignals(),
+    configFiles: ["~/.flutter_settings", "~/.pub-cache/credentials.json", "~/.bashrc", "~/.zshrc", "~/.profile"],
+    configGlobs: ["~/.config/flutter/*", "~/.pub-cache/hosted/*"],
+    configMaxSizeKB: 128,
+    extraSecretPatterns: ["credentials.json", "PUB_HOSTED_URL", "FLUTTER_STORAGE_BASE_URL"],
+    dataPaths: ["~/development/flutter", "~/.pub-cache"],
     references: [
       { pattern: "flutter", type: "filesystemPath" },
       { pattern: "PUB_HOSTED_URL", type: "serviceDependency" },
@@ -1577,11 +1511,10 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
     migrationCompleteness: { configOnly: "partial", missingRisks: ["SDK clone path", "pub cache", "Android SDK", "Xcode toolchain"] },
     security: { risk: "safe", notes: ["Flutter SDK is per-user; pub credentials are surfaced for review and platform SDKs stay out of scope."] },
     crossDistro: { packageMap: { apt: ["git", "curl", "unzip", "xz-utils"], dnf: ["git", "curl", "unzip", "xz"], yum: ["git", "curl", "unzip", "xz"], pacman: ["git", "curl", "unzip", "xz"], apk: ["git", "curl", "unzip", "xz"] }, serviceMap: { debian: [], rhel: [], fedora: [], arch: [], alpine: [] } },
-    migrate: { package: true, config: true, data: "optional", strategy: "manual-review", validate: ["flutter --version || dart --version"] }
-  },
-  {
+    migrate: { data: "optional", strategy: "manual-review", validate: ["flutter --version || dart --version"] }
+  }),
+  nativeRule({
     id: "rsync",
-    kind: "software",
     displayName: "rsync",
     capabilityKey: "ops.backup.rsync",
     capability: "ops.backup.rsync",
@@ -1591,13 +1524,10 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
       packages: { apt: ["rsync"], rpm: ["rsync"] },
       binaries: ["rsync"]
     },
-    config: {
-      files: ["/etc/rsyncd.conf", "~/.rsync-filter"],
-      globs: ["/etc/rsyncd.secrets"],
-      maxSizeKB: 128,
-      secretPatterns: ["secrets file", "password", ...commonSecretPatterns]
-    },
-    intentSignals: defaultIntentSignals(),
+    configFiles: ["/etc/rsyncd.conf", "~/.rsync-filter"],
+    configGlobs: ["/etc/rsyncd.secrets"],
+    configMaxSizeKB: 128,
+    extraSecretPatterns: ["secrets file", "password"],
     references: [
       { pattern: "path", type: "filesystemPath" },
       { pattern: "secrets file", type: "secretFile" },
@@ -1606,11 +1536,10 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
     migrationCompleteness: { configOnly: "partial", missingRisks: ["module paths", "rsync secrets", "SSH keys"] },
     security: { risk: "review", notes: ["rsync daemon secrets and module paths require review; backup datasets are not copied by this card."] },
     crossDistro: { packageMap: { apt: ["rsync"], dnf: ["rsync"], yum: ["rsync"], pacman: ["rsync"], apk: ["rsync"] }, serviceMap: { debian: [], rhel: [], fedora: [], arch: [], alpine: [] } },
-    migrate: { package: true, config: true, data: "none", strategy: "copy-with-review", validate: ["rsync --version"] }
-  },
-  {
+    migrate: { data: "none", strategy: "copy-with-review", validate: ["rsync --version"] }
+  }),
+  nativeRule({
     id: "ops-tools",
-    kind: "software",
     displayName: "Ops monitoring tools",
     capabilityKey: "ops.monitoring.tools",
     capability: "ops.monitoring.tools",
@@ -1620,13 +1549,9 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
       packages: { apt: ["htop", "iotop", "sysstat"], rpm: ["htop", "iotop", "sysstat"] },
       binaries: ["htop", "iotop", "iostat"]
     },
-    config: {
-      files: ["~/.config/htop/htoprc", "/etc/sysstat/sysstat"],
-      globs: ["/etc/sysstat/*.conf"],
-      maxSizeKB: 64,
-      secretPatterns: commonSecretPatterns
-    },
-    intentSignals: defaultIntentSignals(),
+    configFiles: ["~/.config/htop/htoprc", "/etc/sysstat/sysstat"],
+    configGlobs: ["/etc/sysstat/*.conf"],
+    configMaxSizeKB: 64,
     references: [
       { pattern: "SADC_OPTIONS", type: "serviceDependency" },
       { pattern: "HISTFILE", type: "filesystemPath" }
@@ -1634,11 +1559,10 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
     migrationCompleteness: { configOnly: "complete", missingRisks: ["per-user UI preferences", "historical sar data"] },
     security: { risk: "safe", notes: ["Monitoring tool configs are low risk; historical samples are not migrated."] },
     crossDistro: { packageMap: { apt: ["htop", "iotop", "sysstat"], dnf: ["htop", "iotop", "sysstat"], yum: ["htop", "iotop", "sysstat"], pacman: ["htop", "iotop", "sysstat"], apk: ["htop", "iotop", "sysstat"] }, serviceMap: { debian: [], rhel: [], fedora: [], arch: [], alpine: [] } },
-    migrate: { package: true, config: true, data: "none", strategy: "template-or-copy", validate: ["htop --version || true", "iostat -V || true"] }
-  },
-  {
+    migrate: { data: "none", strategy: "template-or-copy", validate: ["htop --version || true", "iostat -V || true"] }
+  }),
+  nativeRule({
     id: "zsh",
-    kind: "software",
     displayName: "Zsh",
     capabilityKey: "shell.zsh",
     capability: "shell.zsh",
@@ -1648,13 +1572,10 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
       packages: { apt: ["zsh"], rpm: ["zsh"] },
       binaries: ["zsh"]
     },
-    config: {
-      files: ["~/.zshrc", "~/.zprofile", "~/.zshenv", "/etc/zsh/zshrc", "/etc/zshrc"],
-      globs: ["~/.oh-my-zsh/custom/**/*.zsh"],
-      maxSizeKB: 128,
-      secretPatterns: ["export", "source", ...commonSecretPatterns]
-    },
-    intentSignals: defaultIntentSignals(),
+    configFiles: ["~/.zshrc", "~/.zprofile", "~/.zshenv", "/etc/zsh/zshrc", "/etc/zshrc"],
+    configGlobs: ["~/.oh-my-zsh/custom/**/*.zsh"],
+    configMaxSizeKB: 128,
+    extraSecretPatterns: ["export", "source"],
     references: [
       { pattern: "source", type: "configInclude" },
       { pattern: "plugins=", type: "serviceDependency" },
@@ -1663,11 +1584,10 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
     migrationCompleteness: { configOnly: "partial", missingRisks: ["default shell change", "per-user dotfiles", "custom plugins"] },
     security: { risk: "safe", notes: ["Zsh installation is package-only; chsh and user dotfiles stay operator-reviewed."] },
     crossDistro: { packageMap: { apt: ["zsh"], dnf: ["zsh"], yum: ["zsh"], pacman: ["zsh"], apk: ["zsh"] }, serviceMap: { debian: [], rhel: [], fedora: [], arch: [], alpine: [] } },
-    migrate: { package: true, config: true, data: "none", strategy: "template-or-copy", validate: ["zsh --version"] }
-  },
-  {
+    migrate: { data: "none", strategy: "template-or-copy", validate: ["zsh --version"] }
+  }),
+  nativeRule({
     id: "fish",
-    kind: "software",
     displayName: "Fish shell",
     capabilityKey: "shell.fish",
     capability: "shell.fish",
@@ -1677,13 +1597,10 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
       packages: { apt: ["fish"], rpm: ["fish"] },
       binaries: ["fish"]
     },
-    config: {
-      files: ["~/.config/fish/config.fish", "/etc/fish/config.fish", "~/.config/starship.toml"],
-      globs: ["~/.config/fish/conf.d/*.fish", "~/.config/fish/functions/*.fish"],
-      maxSizeKB: 128,
-      secretPatterns: ["set -x", "set -gx", ...commonSecretPatterns]
-    },
-    intentSignals: defaultIntentSignals(),
+    configFiles: ["~/.config/fish/config.fish", "/etc/fish/config.fish", "~/.config/starship.toml"],
+    configGlobs: ["~/.config/fish/conf.d/*.fish", "~/.config/fish/functions/*.fish"],
+    configMaxSizeKB: 128,
+    extraSecretPatterns: ["set -x", "set -gx"],
     references: [
       { pattern: "source", type: "configInclude" },
       { pattern: "fish_add_path", type: "filesystemPath" },
@@ -1692,11 +1609,10 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
     migrationCompleteness: { configOnly: "partial", missingRisks: ["default shell change", "per-user fish functions", "Starship prompt config"] },
     security: { risk: "safe", notes: ["Fish installation is package-only; default-shell switching remains manual."] },
     crossDistro: { packageMap: { apt: ["fish"], dnf: ["fish"], yum: ["fish"], pacman: ["fish"], apk: ["fish"] }, serviceMap: { debian: [], rhel: [], fedora: [], arch: [], alpine: [] } },
-    migrate: { package: true, config: true, data: "none", strategy: "template-or-copy", validate: ["fish --version"] }
-  },
-  {
+    migrate: { data: "none", strategy: "template-or-copy", validate: ["fish --version"] }
+  }),
+  nativeRule({
     id: "neovim",
-    kind: "software",
     displayName: "Neovim",
     capabilityKey: "developer.neovim",
     capability: "developer.neovim",
@@ -1706,13 +1622,10 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
       packages: { apt: ["neovim"], rpm: ["neovim"] },
       binaries: ["nvim"]
     },
-    config: {
-      files: ["~/.config/nvim/init.lua", "~/.config/nvim/init.vim", "/etc/xdg/nvim/sysinit.vim"],
-      globs: ["~/.config/nvim/lua/**/*.lua", "~/.config/nvim/plugin/*"],
-      maxSizeKB: 256,
-      secretPatterns: ["token", "github.com", ...commonSecretPatterns]
-    },
-    intentSignals: defaultIntentSignals(),
+    configFiles: ["~/.config/nvim/init.lua", "~/.config/nvim/init.vim", "/etc/xdg/nvim/sysinit.vim"],
+    configGlobs: ["~/.config/nvim/lua/**/*.lua", "~/.config/nvim/plugin/*"],
+    configMaxSizeKB: 256,
+    extraSecretPatterns: ["token", "github.com"],
     references: [
       { pattern: "require", type: "configInclude" },
       { pattern: "plug", type: "serviceDependency" },
@@ -1721,11 +1634,10 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
     migrationCompleteness: { configOnly: "partial", missingRisks: ["plugin manager state", "LSP server binaries", "per-user cache"] },
     security: { risk: "safe", notes: ["Neovim package and reviewed config are portable; plugin caches and LSP binaries are rebuilt."] },
     crossDistro: { packageMap: { apt: ["neovim"], dnf: ["neovim"], yum: ["neovim"], pacman: ["neovim"], apk: ["neovim"] }, serviceMap: { debian: [], rhel: [], fedora: [], arch: [], alpine: [] } },
-    migrate: { package: true, config: true, data: "none", strategy: "template-or-copy", validate: ["nvim --version"] }
-  },
-  {
+    migrate: { data: "none", strategy: "template-or-copy", validate: ["nvim --version"] }
+  }),
+  nativeRule({
     id: "tmux",
-    kind: "software",
     displayName: "tmux",
     capabilityKey: "developer.tmux",
     capability: "developer.tmux",
@@ -1735,13 +1647,10 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
       packages: { apt: ["tmux"], rpm: ["tmux"] },
       binaries: ["tmux"]
     },
-    config: {
-      files: ["~/.tmux.conf", "~/.config/tmux/tmux.conf", "/etc/tmux.conf"],
-      globs: ["~/.tmux/*.conf", "~/.config/tmux/plugins/*"],
-      maxSizeKB: 128,
-      secretPatterns: ["run-shell", "set-environment", ...commonSecretPatterns]
-    },
-    intentSignals: defaultIntentSignals(),
+    configFiles: ["~/.tmux.conf", "~/.config/tmux/tmux.conf", "/etc/tmux.conf"],
+    configGlobs: ["~/.tmux/*.conf", "~/.config/tmux/plugins/*"],
+    configMaxSizeKB: 128,
+    extraSecretPatterns: ["run-shell", "set-environment"],
     references: [
       { pattern: "source-file", type: "configInclude" },
       { pattern: "run-shell", type: "serviceDependency" },
@@ -1750,11 +1659,10 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
     migrationCompleteness: { configOnly: "partial", missingRisks: ["live sessions", "plugin directories", "per-user tmux state"] },
     security: { risk: "safe", notes: ["tmux config may run shell hooks; hooks are surfaced for review."] },
     crossDistro: { packageMap: { apt: ["tmux"], dnf: ["tmux"], yum: ["tmux"], pacman: ["tmux"], apk: ["tmux"] }, serviceMap: { debian: [], rhel: [], fedora: [], arch: [], alpine: [] } },
-    migrate: { package: true, config: true, data: "none", strategy: "template-or-copy", validate: ["tmux -V"] }
-  },
-  {
+    migrate: { data: "none", strategy: "template-or-copy", validate: ["tmux -V"] }
+  }),
+  nativeRule({
     id: "modern-cli-tools",
-    kind: "software",
     displayName: "Modern CLI tools",
     capabilityKey: "developer.cli-tools",
     capability: "developer.cli-tools",
@@ -1767,13 +1675,9 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
       },
       binaries: ["bat", "batcat", "rg", "fd", "fdfind", "exa", "eza", "lsd", "zoxide", "fzf", "tldr", "tealdeer"]
     },
-    config: {
-      files: ["~/.config/zoxide/config.toml", "~/.config/fzf/fzf.bash", "~/.config/fzf/fzf.zsh", "~/.tldrrc"],
-      globs: ["~/.config/bat/*", "~/.config/ripgrep/*", "~/.config/fd/*", "~/.config/lsd/*", "~/.config/eza/*"],
-      maxSizeKB: 128,
-      secretPatterns: commonSecretPatterns
-    },
-    intentSignals: defaultIntentSignals(),
+    configFiles: ["~/.config/zoxide/config.toml", "~/.config/fzf/fzf.bash", "~/.config/fzf/fzf.zsh", "~/.tldrrc"],
+    configGlobs: ["~/.config/bat/*", "~/.config/ripgrep/*", "~/.config/fd/*", "~/.config/lsd/*", "~/.config/eza/*"],
+    configMaxSizeKB: 128,
     references: [
       { pattern: "FZF_DEFAULT_COMMAND", type: "serviceDependency" },
       { pattern: "BAT_THEME", type: "serviceDependency" },
@@ -1805,10 +1709,9 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
         "zoxide --version || true"
       ]
     }
-  },
-  {
+  }),
+  nativeRule({
     id: "network-monitoring-tools",
-    kind: "software",
     displayName: "Network monitoring tools",
     capabilityKey: "network.monitoring.tools",
     capability: "network.monitoring.tools",
@@ -1818,14 +1721,10 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
       packages: { apt: ["nethogs", "vnstat", "iftop", "tcpdump", "nmap"], rpm: ["nethogs", "vnstat", "iftop", "tcpdump", "nmap"] },
       binaries: ["nethogs", "vnstat", "iftop", "tcpdump", "nmap"]
     },
-    config: {
-      files: ["/etc/vnstat.conf", "/etc/default/vnstat", "/etc/sysconfig/vnstat"],
-      globs: ["~/.nmap/*", "/etc/nmap/*"],
-      maxSizeKB: 128,
-      secretPatterns: commonSecretPatterns
-    },
-    data: { paths: ["/var/lib/vnstat"] },
-    intentSignals: defaultIntentSignals(),
+    configFiles: ["/etc/vnstat.conf", "/etc/default/vnstat", "/etc/sysconfig/vnstat"],
+    configGlobs: ["~/.nmap/*", "/etc/nmap/*"],
+    configMaxSizeKB: 128,
+    dataPaths: ["/var/lib/vnstat"],
     references: [
       { pattern: "Interface", type: "serviceDependency" },
       { pattern: "DatabaseDir", type: "filesystemPath" },
@@ -1834,11 +1733,10 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
     migrationCompleteness: { configOnly: "partial", missingRisks: ["packet capture privileges", "vnstat historical counters", "interface names"] },
     security: { risk: "review", notes: ["Packet capture tools require root/CAP_NET_RAW; historical vnstat counters are not migrated."] },
     crossDistro: { packageMap: { apt: ["nethogs", "vnstat", "iftop", "tcpdump", "nmap"], dnf: ["nethogs", "vnstat", "iftop", "tcpdump", "nmap"], yum: ["nethogs", "vnstat", "iftop", "tcpdump", "nmap"], pacman: ["nethogs", "vnstat", "iftop", "tcpdump", "nmap"], apk: ["nethogs", "vnstat", "iftop", "tcpdump", "nmap"] }, serviceMap: { debian: ["vnstat"], rhel: ["vnstat"], fedora: ["vnstat"], arch: ["vnstat"], alpine: ["vnstat"] } },
-    migrate: { package: true, config: true, data: "none", strategy: "template-or-copy", validate: ["nethogs -V || true", "vnstat --version || true", "nmap --version"] }
-  },
-  {
+    migrate: { data: "none", strategy: "template-or-copy", validate: ["nethogs -V || true", "vnstat --version || true", "nmap --version"] }
+  }),
+  nativeRule({
     id: "memcached",
-    kind: "software",
     displayName: "Memcached",
     capabilityKey: "cache.memcached",
     capability: "cache.memcached",
@@ -1850,12 +1748,8 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
       systemd: ["memcached.service"],
       ports: [11211]
     },
-    config: {
-      files: ["/etc/memcached.conf", "/etc/default/memcached", "/etc/sysconfig/memcached"],
-      maxSizeKB: 128,
-      secretPatterns: commonSecretPatterns
-    },
-    intentSignals: defaultIntentSignals(),
+    configFiles: ["/etc/memcached.conf", "/etc/default/memcached", "/etc/sysconfig/memcached"],
+    configMaxSizeKB: 128,
     references: [
       { pattern: "-l", type: "serviceDependency" },
       { pattern: "-m", type: "serviceDependency" },
@@ -1864,11 +1758,10 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
     migrationCompleteness: { configOnly: "complete", missingRisks: ["bind address review", "memory limit tuning", "no persistent cache data"] },
     security: { risk: "review", notes: ["Memcached is in-memory only; bind address and memory caps require review before exposure."] },
     crossDistro: { packageMap: { apt: ["memcached"], dnf: ["memcached"], yum: ["memcached"], pacman: ["memcached"], apk: ["memcached"] }, serviceMap: { debian: ["memcached"], rhel: ["memcached"], fedora: ["memcached"], arch: ["memcached"], alpine: ["memcached"] } },
-    migrate: { package: true, config: true, data: "none", strategy: "template-or-copy", restartServices: ["memcached"], validate: ["memcached -h", "systemctl is-active memcached || true"] }
-  },
-  {
+    migrate: { data: "none", strategy: "template-or-copy", restartServices: ["memcached"], validate: ["memcached -h", "systemctl is-active memcached || true"] }
+  }),
+  nativeRule({
     id: "valkey",
-    kind: "software",
     displayName: "Valkey",
     capabilityKey: "cache.valkey",
     capability: "cache.valkey",
@@ -1880,14 +1773,11 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
       systemd: ["valkey.service", "valkey-server.service"],
       ports: [6379]
     },
-    config: {
-      files: ["/etc/valkey/valkey.conf", "/etc/valkey.conf", "/etc/default/valkey-server", "/etc/sysconfig/valkey"],
-      globs: ["/etc/valkey/*.conf"],
-      maxSizeKB: 256,
-      secretPatterns: ["requirepass", "masterauth", "aclfile", ...commonSecretPatterns]
-    },
-    data: { paths: ["/var/lib/valkey"] },
-    intentSignals: defaultIntentSignals(),
+    configFiles: ["/etc/valkey/valkey.conf", "/etc/valkey.conf", "/etc/default/valkey-server", "/etc/sysconfig/valkey"],
+    configGlobs: ["/etc/valkey/*.conf"],
+    configMaxSizeKB: 256,
+    extraSecretPatterns: ["requirepass", "masterauth", "aclfile"],
+    dataPaths: ["/var/lib/valkey"],
     references: [
       { pattern: "include", type: "configInclude" },
       { pattern: "dir", type: "filesystemPath" },
@@ -1897,11 +1787,10 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
     migrationCompleteness: { configOnly: "partial", missingRisks: ["RDB/AOF persistence", "ACL secrets", "Redis port conflict"] },
     security: { risk: "review", notes: ["Valkey persistence uses explicit SAVE/BGSAVE review; requirepass/masterauth values are secrets."] },
     crossDistro: { packageMap: { apt: ["valkey-server"], dnf: ["valkey"], yum: ["valkey"], pacman: ["valkey"], apk: ["valkey"] }, serviceMap: { debian: ["valkey-server"], rhel: ["valkey"], fedora: ["valkey"], arch: ["valkey"], alpine: ["valkey"] } },
-    migrate: { package: true, config: true, data: "optional", strategy: "manual-review", restartServices: ["valkey", "valkey-server"], validate: ["valkey-cli ping || redis-cli ping", "systemctl is-active valkey || systemctl is-active valkey-server || true"] }
-  },
-  {
+    migrate: { data: "optional", strategy: "manual-review", restartServices: ["valkey", "valkey-server"], validate: ["valkey-cli ping || redis-cli ping", "systemctl is-active valkey || systemctl is-active valkey-server || true"] }
+  }),
+  nativeRule({
     id: "prometheus",
-    kind: "software",
     displayName: "Prometheus monitoring",
     capabilityKey: "observability.metrics.prometheus",
     capability: "observability.metrics.prometheus",
@@ -1913,14 +1802,11 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
       systemd: ["prometheus.service", "prometheus-node-exporter.service", "node_exporter.service"],
       ports: [9090, 9100]
     },
-    config: {
-      files: ["/etc/prometheus/prometheus.yml", "/etc/default/prometheus", "/etc/sysconfig/prometheus"],
-      globs: ["/etc/prometheus/*.yml", "/etc/prometheus/rules/*.yml", "/etc/prometheus/console_libraries/*"],
-      maxSizeKB: 512,
-      secretPatterns: ["bearer_token", "bearer_token_file", "authorization", "basic_auth", ...commonSecretPatterns]
-    },
-    data: { paths: ["/var/lib/prometheus"] },
-    intentSignals: defaultIntentSignals(),
+    configFiles: ["/etc/prometheus/prometheus.yml", "/etc/default/prometheus", "/etc/sysconfig/prometheus"],
+    configGlobs: ["/etc/prometheus/*.yml", "/etc/prometheus/rules/*.yml", "/etc/prometheus/console_libraries/*"],
+    configMaxSizeKB: 512,
+    extraSecretPatterns: ["bearer_token", "bearer_token_file", "authorization", "basic_auth"],
+    dataPaths: ["/var/lib/prometheus"],
     references: [
       { pattern: "scrape_configs", type: "serviceDependency" },
       { pattern: "rule_files", type: "configInclude" },
@@ -1931,11 +1817,10 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
     migrationCompleteness: { configOnly: "partial", missingRisks: ["TSDB snapshots", "remote_write credentials", "target reachability"] },
     security: { risk: "review", notes: ["Prometheus configs can contain scrape credentials and remote_write tokens; TSDB data is snapshot/restore only."] },
     crossDistro: { packageMap: { apt: ["prometheus", "prometheus-node-exporter"], dnf: ["prometheus", "node_exporter"], yum: ["prometheus", "node_exporter"], pacman: ["prometheus", "prometheus-node-exporter"], apk: ["prometheus", "prometheus-node-exporter"] }, serviceMap: { debian: ["prometheus", "prometheus-node-exporter"], rhel: ["prometheus", "node_exporter"], fedora: ["prometheus", "node_exporter"], arch: ["prometheus"], alpine: ["prometheus"] } },
-    migrate: { package: true, config: true, data: "optional", strategy: "manual-review", restartServices: ["prometheus", "prometheus-node-exporter", "node_exporter"], validate: ["promtool check config /etc/prometheus/prometheus.yml", "systemctl is-active prometheus || true"] }
-  },
-  {
+    migrate: { data: "optional", strategy: "manual-review", restartServices: ["prometheus", "prometheus-node-exporter", "node_exporter"], validate: ["promtool check config /etc/prometheus/prometheus.yml", "systemctl is-active prometheus || true"] }
+  }),
+  nativeRule({
     id: "grafana",
-    kind: "software",
     displayName: "Grafana",
     capabilityKey: "observability.dashboard.grafana",
     capability: "observability.dashboard.grafana",
@@ -1947,14 +1832,11 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
       systemd: ["grafana-server.service"],
       ports: [3000]
     },
-    config: {
-      files: ["/etc/grafana/grafana.ini", "/etc/default/grafana-server", "/etc/sysconfig/grafana-server"],
-      globs: ["/etc/grafana/provisioning/**/*.yaml", "/etc/grafana/provisioning/**/*.yml", "/etc/grafana/provisioning/**/*.json"],
-      maxSizeKB: 512,
-      secretPatterns: ["secret_key", "password", "secureJsonData", "client_secret", ...commonSecretPatterns]
-    },
-    data: { paths: ["/var/lib/grafana"] },
-    intentSignals: defaultIntentSignals(),
+    configFiles: ["/etc/grafana/grafana.ini", "/etc/default/grafana-server", "/etc/sysconfig/grafana-server"],
+    configGlobs: ["/etc/grafana/provisioning/**/*.yaml", "/etc/grafana/provisioning/**/*.yml", "/etc/grafana/provisioning/**/*.json"],
+    configMaxSizeKB: 512,
+    extraSecretPatterns: ["secret_key", "password", "secureJsonData", "client_secret"],
+    dataPaths: ["/var/lib/grafana"],
     references: [
       { pattern: "provisioning", type: "configInclude" },
       { pattern: "datasources", type: "serviceDependency" },
@@ -1964,11 +1846,10 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
     migrationCompleteness: { configOnly: "partial", missingRisks: ["dashboard database backup", "datasource credentials", "plugin compatibility"] },
     security: { risk: "review", notes: ["Datasource credentials and Grafana secret_key are secrets; dashboard DB migration is backup/restore only."] },
     crossDistro: { packageMap: { apt: ["grafana"], dnf: ["grafana"], yum: ["grafana"], pacman: ["grafana"], apk: ["grafana"] }, serviceMap: { debian: ["grafana-server"], rhel: ["grafana-server"], fedora: ["grafana-server"], arch: ["grafana"], alpine: ["grafana"] } },
-    migrate: { package: true, config: true, data: "optional", strategy: "manual-review", restartServices: ["grafana-server", "grafana"], validate: ["curl -fsS http://127.0.0.1:3000/api/health || systemctl is-active grafana-server || true"] }
-  },
-  {
+    migrate: { data: "optional", strategy: "manual-review", restartServices: ["grafana-server", "grafana"], validate: ["curl -fsS http://127.0.0.1:3000/api/health || systemctl is-active grafana-server || true"] }
+  }),
+  nativeRule({
     id: "netdata",
-    kind: "software",
     displayName: "Netdata monitoring",
     capabilityKey: "observability.metrics.netdata",
     capability: "observability.metrics.netdata",
@@ -1980,14 +1861,11 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
       systemd: ["netdata.service"],
       ports: [19999]
     },
-    config: {
-      files: ["/etc/netdata/netdata.conf", "/etc/netdata/stream.conf", "/etc/netdata/health_alarm_notify.conf"],
-      globs: ["/etc/netdata/**/*.conf", "/etc/netdata/go.d/*.conf", "/etc/netdata/python.d/*.conf"],
-      maxSizeKB: 512,
-      secretPatterns: ["claim_token", "api_key", "webhook", "slack", ...commonSecretPatterns]
-    },
-    data: { paths: ["/var/lib/netdata", "/var/cache/netdata"] },
-    intentSignals: defaultIntentSignals(),
+    configFiles: ["/etc/netdata/netdata.conf", "/etc/netdata/stream.conf", "/etc/netdata/health_alarm_notify.conf"],
+    configGlobs: ["/etc/netdata/**/*.conf", "/etc/netdata/go.d/*.conf", "/etc/netdata/python.d/*.conf"],
+    configMaxSizeKB: 512,
+    extraSecretPatterns: ["claim_token", "api_key", "webhook", "slack"],
+    dataPaths: ["/var/lib/netdata", "/var/cache/netdata"],
     references: [
       { pattern: "claim_token", type: "secretFile" },
       { pattern: "stream", type: "serviceDependency" },
@@ -1997,11 +1875,10 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
     migrationCompleteness: { configOnly: "partial", missingRisks: ["metric history", "cloud claim tokens", "streaming parent topology"] },
     security: { risk: "review", notes: ["Netdata alert endpoints and cloud claim tokens are redacted; metric history is rebuilt unless explicitly exported."] },
     crossDistro: { packageMap: { apt: ["netdata"], dnf: ["netdata"], yum: ["netdata"], pacman: ["netdata"], apk: ["netdata"] }, serviceMap: { debian: ["netdata"], rhel: ["netdata"], fedora: ["netdata"], arch: ["netdata"], alpine: ["netdata"] } },
-    migrate: { package: true, config: true, data: "optional", strategy: "manual-review", restartServices: ["netdata"], validate: ["systemctl is-active netdata || curl -fsS http://127.0.0.1:19999/api/v1/info || true"] }
-  },
-  {
+    migrate: { data: "optional", strategy: "manual-review", restartServices: ["netdata"], validate: ["systemctl is-active netdata || curl -fsS http://127.0.0.1:19999/api/v1/info || true"] }
+  }),
+  nativeRule({
     id: "zabbix-agent",
-    kind: "software",
     displayName: "Zabbix agent",
     capabilityKey: "observability.metrics.zabbix",
     capability: "observability.metrics.zabbix",
@@ -2013,13 +1890,10 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
       systemd: ["zabbix-agent.service", "zabbix-agent2.service"],
       ports: [10050]
     },
-    config: {
-      files: ["/etc/zabbix/zabbix_agentd.conf", "/etc/zabbix/zabbix_agent2.conf"],
-      globs: ["/etc/zabbix/zabbix_agentd.d/*.conf", "/etc/zabbix/zabbix_agent2.d/*.conf"],
-      maxSizeKB: 256,
-      secretPatterns: ["TLSPSKFile", "TLSPSKIdentity", "UserParameter", ...commonSecretPatterns]
-    },
-    intentSignals: defaultIntentSignals(),
+    configFiles: ["/etc/zabbix/zabbix_agentd.conf", "/etc/zabbix/zabbix_agent2.conf"],
+    configGlobs: ["/etc/zabbix/zabbix_agentd.d/*.conf", "/etc/zabbix/zabbix_agent2.d/*.conf"],
+    configMaxSizeKB: 256,
+    extraSecretPatterns: ["TLSPSKFile", "TLSPSKIdentity", "UserParameter"],
     references: [
       { pattern: "Include", type: "configInclude" },
       { pattern: "Server", type: "serviceDependency" },
@@ -2029,11 +1903,10 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
     migrationCompleteness: { configOnly: "partial", missingRisks: ["Zabbix server reachability", "TLS PSK re-issue", "custom UserParameter scripts"] },
     security: { risk: "review", notes: ["Zabbix agent TLS PSK files and custom scripts require review before transport."] },
     crossDistro: { packageMap: { apt: ["zabbix-agent"], dnf: ["zabbix-agent"], yum: ["zabbix-agent"], pacman: ["zabbix-agent"], apk: ["zabbix-agent"] }, serviceMap: { debian: ["zabbix-agent"], rhel: ["zabbix-agent"], fedora: ["zabbix-agent"], arch: ["zabbix-agent"], alpine: ["zabbix-agent"] } },
-    migrate: { package: true, config: true, data: "none", strategy: "template-or-copy", restartServices: ["zabbix-agent", "zabbix-agent2"], validate: ["zabbix_agentd -t agent.ping || zabbix_agent2 -t agent.ping || true", "systemctl is-active zabbix-agent || systemctl is-active zabbix-agent2 || true"] }
-  },
-  {
+    migrate: { data: "none", strategy: "template-or-copy", restartServices: ["zabbix-agent", "zabbix-agent2"], validate: ["zabbix_agentd -t agent.ping || zabbix_agent2 -t agent.ping || true", "systemctl is-active zabbix-agent || systemctl is-active zabbix-agent2 || true"] }
+  }),
+  nativeRule({
     id: "loki",
-    kind: "software",
     displayName: "Grafana Loki",
     capabilityKey: "observability.logs.loki",
     capability: "observability.logs.loki",
@@ -2045,14 +1918,11 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
       systemd: ["loki.service", "promtail.service"],
       ports: [3100]
     },
-    config: {
-      files: ["/etc/loki/loki.yaml", "/etc/loki/config.yml", "/etc/promtail/config.yml"],
-      globs: ["/etc/loki/*.yaml", "/etc/promtail/*.yaml"],
-      maxSizeKB: 512,
-      secretPatterns: ["s3", "access_key", "secret_key", "bearer_token", ...commonSecretPatterns]
-    },
-    data: { paths: ["/var/lib/loki", "/var/lib/promtail"] },
-    intentSignals: defaultIntentSignals(),
+    configFiles: ["/etc/loki/loki.yaml", "/etc/loki/config.yml", "/etc/promtail/config.yml"],
+    configGlobs: ["/etc/loki/*.yaml", "/etc/promtail/*.yaml"],
+    configMaxSizeKB: 512,
+    extraSecretPatterns: ["s3", "access_key", "secret_key", "bearer_token"],
+    dataPaths: ["/var/lib/loki", "/var/lib/promtail"],
     references: [
       { pattern: "storage_config", type: "serviceDependency" },
       { pattern: "positions", type: "filesystemPath" },
@@ -2062,11 +1932,10 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
     migrationCompleteness: { configOnly: "partial", missingRisks: ["chunk/index data", "object storage credentials", "promtail offsets"] },
     security: { risk: "review", notes: ["Loki object storage credentials are secrets; chunks and indices require operator-selected retention/export strategy."] },
     crossDistro: { packageMap: { apt: ["loki", "promtail"], dnf: ["loki", "promtail"], yum: ["loki", "promtail"], pacman: ["loki"], apk: ["loki"] }, serviceMap: { debian: ["loki", "promtail"], rhel: ["loki", "promtail"], fedora: ["loki", "promtail"], arch: ["loki"], alpine: ["loki"] } },
-    migrate: { package: true, config: true, data: "optional", strategy: "manual-review", restartServices: ["loki", "promtail"], validate: ["curl -fsS http://127.0.0.1:3100/ready || systemctl is-active loki || true"] }
-  },
-  {
+    migrate: { data: "optional", strategy: "manual-review", restartServices: ["loki", "promtail"], validate: ["curl -fsS http://127.0.0.1:3100/ready || systemctl is-active loki || true"] }
+  }),
+  nativeRule({
     id: "mosquitto",
-    kind: "software",
     displayName: "Mosquitto MQTT",
     capabilityKey: "messaging.mqtt.mosquitto",
     capability: "messaging.mqtt.mosquitto",
@@ -2078,14 +1947,11 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
       systemd: ["mosquitto.service"],
       ports: [1883, 8883]
     },
-    config: {
-      files: ["/etc/mosquitto/mosquitto.conf"],
-      globs: ["/etc/mosquitto/conf.d/*.conf", "/etc/mosquitto/passwd*"],
-      maxSizeKB: 256,
-      secretPatterns: ["password_file", "psk_file", "cafile", "certfile", "keyfile", ...commonSecretPatterns]
-    },
-    data: { paths: ["/var/lib/mosquitto"] },
-    intentSignals: defaultIntentSignals(),
+    configFiles: ["/etc/mosquitto/mosquitto.conf"],
+    configGlobs: ["/etc/mosquitto/conf.d/*.conf", "/etc/mosquitto/passwd*"],
+    configMaxSizeKB: 256,
+    extraSecretPatterns: ["password_file", "psk_file", "cafile", "certfile", "keyfile"],
+    dataPaths: ["/var/lib/mosquitto"],
     references: [
       { pattern: "include_dir", type: "configInclude" },
       { pattern: "password_file", type: "secretFile" },
@@ -2096,11 +1962,10 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
     migrationCompleteness: { configOnly: "partial", missingRisks: ["password hashes", "TLS material", "retained messages"] },
     security: { risk: "review", notes: ["Mosquitto password files and TLS private keys are secret surfaces; retained message DB is optional."] },
     crossDistro: { packageMap: { apt: ["mosquitto", "mosquitto-clients"], dnf: ["mosquitto"], yum: ["mosquitto"], pacman: ["mosquitto"], apk: ["mosquitto", "mosquitto-clients"] }, serviceMap: { debian: ["mosquitto"], rhel: ["mosquitto"], fedora: ["mosquitto"], arch: ["mosquitto"], alpine: ["mosquitto"] } },
-    migrate: { package: true, config: true, data: "optional", strategy: "manual-review", restartServices: ["mosquitto"], validate: ["mosquitto -c /etc/mosquitto/mosquitto.conf -t || true", "systemctl is-active mosquitto || true"] }
-  },
-  {
+    migrate: { data: "optional", strategy: "manual-review", restartServices: ["mosquitto"], validate: ["mosquitto -c /etc/mosquitto/mosquitto.conf -t || true", "systemctl is-active mosquitto || true"] }
+  }),
+  nativeRule({
     id: "rabbitmq",
-    kind: "software",
     displayName: "RabbitMQ",
     capabilityKey: "messaging.amqp.rabbitmq",
     capability: "messaging.amqp.rabbitmq",
@@ -2112,14 +1977,11 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
       systemd: ["rabbitmq-server.service"],
       ports: [5672, 15672]
     },
-    config: {
-      files: ["/etc/rabbitmq/rabbitmq.conf", "/etc/rabbitmq/enabled_plugins", "/etc/rabbitmq/rabbitmq-env.conf"],
-      globs: ["/etc/rabbitmq/conf.d/*.conf", "/etc/rabbitmq/advanced.config"],
-      maxSizeKB: 512,
-      secretPatterns: [".erlang.cookie", "default_pass", "ssl_options", ...commonSecretPatterns]
-    },
-    data: { paths: ["/var/lib/rabbitmq"] },
-    intentSignals: defaultIntentSignals(),
+    configFiles: ["/etc/rabbitmq/rabbitmq.conf", "/etc/rabbitmq/enabled_plugins", "/etc/rabbitmq/rabbitmq-env.conf"],
+    configGlobs: ["/etc/rabbitmq/conf.d/*.conf", "/etc/rabbitmq/advanced.config"],
+    configMaxSizeKB: 512,
+    extraSecretPatterns: [".erlang.cookie", "default_pass", "ssl_options"],
+    dataPaths: ["/var/lib/rabbitmq"],
     references: [
       { pattern: "enabled_plugins", type: "configInclude" },
       { pattern: "definitions", type: "filesystemPath" },
@@ -2129,11 +1991,10 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
     migrationCompleteness: { configOnly: "partial", missingRisks: ["definitions export/import", "queue contents", "Erlang cookie"] },
     security: { risk: "review", notes: ["RabbitMQ definitions and Erlang cookie are reviewed; queue contents require explicit operator strategy."] },
     crossDistro: { packageMap: { apt: ["rabbitmq-server"], dnf: ["rabbitmq-server"], yum: ["rabbitmq-server"], pacman: ["rabbitmq"], apk: ["rabbitmq-server"] }, serviceMap: { debian: ["rabbitmq-server"], rhel: ["rabbitmq-server"], fedora: ["rabbitmq-server"], arch: ["rabbitmq"], alpine: ["rabbitmq-server"] } },
-    migrate: { package: true, config: true, data: "optional", strategy: "manual-review", restartServices: ["rabbitmq-server", "rabbitmq"], validate: ["rabbitmq-diagnostics ping || systemctl is-active rabbitmq-server || true"] }
-  },
-  {
+    migrate: { data: "optional", strategy: "manual-review", restartServices: ["rabbitmq-server", "rabbitmq"], validate: ["rabbitmq-diagnostics ping || systemctl is-active rabbitmq-server || true"] }
+  }),
+  nativeRule({
     id: "meilisearch",
-    kind: "software",
     displayName: "Meilisearch",
     capabilityKey: "database.search.meilisearch",
     capability: "database.search.meilisearch",
@@ -2145,14 +2006,11 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
       systemd: ["meilisearch.service"],
       ports: [7700]
     },
-    config: {
-      files: ["/etc/meilisearch.toml", "/etc/meilisearch/config.toml", "/etc/default/meilisearch", "/etc/sysconfig/meilisearch"],
-      globs: ["/etc/meilisearch/*.toml"],
-      maxSizeKB: 256,
-      secretPatterns: ["MEILI_MASTER_KEY", "master_key", "api_key", ...commonSecretPatterns]
-    },
-    data: { paths: ["/var/lib/meilisearch", "./data.ms"] },
-    intentSignals: defaultIntentSignals(),
+    configFiles: ["/etc/meilisearch.toml", "/etc/meilisearch/config.toml", "/etc/default/meilisearch", "/etc/sysconfig/meilisearch"],
+    configGlobs: ["/etc/meilisearch/*.toml"],
+    configMaxSizeKB: 256,
+    extraSecretPatterns: ["MEILI_MASTER_KEY", "master_key", "api_key"],
+    dataPaths: ["/var/lib/meilisearch", "./data.ms"],
     references: [
       { pattern: "master_key", type: "secretFile" },
       { pattern: "db_path", type: "filesystemPath" },
@@ -2162,11 +2020,10 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
     migrationCompleteness: { configOnly: "partial", missingRisks: ["dump/import flow", "master key continuity", "index rebuild window"] },
     security: { risk: "review", notes: ["Meilisearch master key and dumps must be confirmed; index data moves through dump/import."] },
     crossDistro: { packageMap: { apt: ["meilisearch"], dnf: ["meilisearch"], yum: ["meilisearch"], pacman: ["meilisearch"], apk: ["meilisearch"] }, serviceMap: { debian: ["meilisearch"], rhel: ["meilisearch"], fedora: ["meilisearch"], arch: ["meilisearch"], alpine: ["meilisearch"] } },
-    migrate: { package: true, config: true, data: "optional", strategy: "manual-review", restartServices: ["meilisearch"], validate: ["curl -fsS http://127.0.0.1:7700/health || systemctl is-active meilisearch || true"] }
-  },
-  {
+    migrate: { data: "optional", strategy: "manual-review", restartServices: ["meilisearch"], validate: ["curl -fsS http://127.0.0.1:7700/health || systemctl is-active meilisearch || true"] }
+  }),
+  nativeRule({
     id: "jenkins",
-    kind: "software",
     displayName: "Jenkins CI",
     capabilityKey: "ci.jenkins",
     capability: "ci.jenkins",
@@ -2178,14 +2035,11 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
       systemd: ["jenkins.service"],
       ports: [8080]
     },
-    config: {
-      files: ["/etc/default/jenkins", "/etc/sysconfig/jenkins", "/etc/jenkins/jenkins.yaml"],
-      globs: ["/var/lib/jenkins/*.xml", "/var/lib/jenkins/init.groovy.d/*.groovy"],
-      maxSizeKB: 512,
-      secretPatterns: ["credentials.xml", "master.key", "secret.key", "hudson.util.Secret", ...commonSecretPatterns]
-    },
-    data: { paths: ["/var/lib/jenkins"] },
-    intentSignals: defaultIntentSignals(),
+    configFiles: ["/etc/default/jenkins", "/etc/sysconfig/jenkins", "/etc/jenkins/jenkins.yaml"],
+    configGlobs: ["/var/lib/jenkins/*.xml", "/var/lib/jenkins/init.groovy.d/*.groovy"],
+    configMaxSizeKB: 512,
+    extraSecretPatterns: ["credentials.xml", "master.key", "secret.key", "hudson.util.Secret"],
+    dataPaths: ["/var/lib/jenkins"],
     references: [
       { pattern: "JENKINS_HOME", type: "filesystemPath" },
       { pattern: "JAVA_OPTS", type: "serviceDependency" },
@@ -2195,11 +2049,10 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
     migrationCompleteness: { configOnly: "partial", missingRisks: ["JENKINS_HOME snapshot", "credentials store", "plugin compatibility"] },
     security: { risk: "review", notes: ["Jenkins credentials store and master keys are secrets; job history uses operator snapshot/export."] },
     crossDistro: { packageMap: { apt: ["jenkins"], dnf: ["jenkins"], yum: ["jenkins"], pacman: ["jenkins"], apk: ["jenkins"] }, serviceMap: { debian: ["jenkins"], rhel: ["jenkins"], fedora: ["jenkins"], arch: ["jenkins"], alpine: ["jenkins"] } },
-    migrate: { package: true, config: true, data: "optional", strategy: "manual-review", restartServices: ["jenkins"], validate: ["curl -fsS http://127.0.0.1:8080/login || systemctl is-active jenkins || true"] }
-  },
-  {
+    migrate: { data: "optional", strategy: "manual-review", restartServices: ["jenkins"], validate: ["curl -fsS http://127.0.0.1:8080/login || systemctl is-active jenkins || true"] }
+  }),
+  nativeRule({
     id: "gitlab-runner",
-    kind: "software",
     displayName: "GitLab Runner",
     capabilityKey: "ci.gitlab-runner",
     capability: "ci.gitlab-runner",
@@ -2210,14 +2063,11 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
       binaries: ["gitlab-runner"],
       systemd: ["gitlab-runner.service"]
     },
-    config: {
-      files: ["/etc/gitlab-runner/config.toml"],
-      globs: ["/etc/gitlab-runner/*.toml", "/home/gitlab-runner/.gitlab-runner/*.toml"],
-      maxSizeKB: 256,
-      secretPatterns: ["token", "registration-token", "tls-ca-file", ...commonSecretPatterns]
-    },
-    data: { paths: ["/home/gitlab-runner", "/var/lib/gitlab-runner"] },
-    intentSignals: defaultIntentSignals(),
+    configFiles: ["/etc/gitlab-runner/config.toml"],
+    configGlobs: ["/etc/gitlab-runner/*.toml", "/home/gitlab-runner/.gitlab-runner/*.toml"],
+    configMaxSizeKB: 256,
+    extraSecretPatterns: ["token", "registration-token", "tls-ca-file"],
+    dataPaths: ["/home/gitlab-runner", "/var/lib/gitlab-runner"],
     references: [
       { pattern: "token", type: "secretFile" },
       { pattern: "executor", type: "serviceDependency" },
@@ -2227,11 +2077,10 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
     migrationCompleteness: { configOnly: "partial", missingRisks: ["runner registration token", "executor dependencies", "job caches"] },
     security: { risk: "review", notes: ["GitLab Runner tokens are project/group scoped; re-registration is preferred over copying tokens."] },
     crossDistro: { packageMap: { apt: ["gitlab-runner"], dnf: ["gitlab-runner"], yum: ["gitlab-runner"], pacman: ["gitlab-runner"], apk: ["gitlab-runner"] }, serviceMap: { debian: ["gitlab-runner"], rhel: ["gitlab-runner"], fedora: ["gitlab-runner"], arch: ["gitlab-runner"], alpine: ["gitlab-runner"] } },
-    migrate: { package: true, config: true, data: "optional", strategy: "manual-review", restartServices: ["gitlab-runner"], validate: ["gitlab-runner verify || systemctl is-active gitlab-runner || true"] }
-  },
-  {
+    migrate: { data: "optional", strategy: "manual-review", restartServices: ["gitlab-runner"], validate: ["gitlab-runner verify || systemctl is-active gitlab-runner || true"] }
+  }),
+  nativeRule({
     id: "certbot",
-    kind: "software",
     displayName: "Certbot / Let's Encrypt",
     capabilityKey: "security.tls.certbot",
     capability: "security.tls.acme-client",
@@ -2243,14 +2092,11 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
       systemd: ["certbot.timer", "certbot-renew.timer"],
       ports: [80, 443]
     },
-    config: {
-      files: ["/etc/letsencrypt/cli.ini", "/etc/letsencrypt/renewal-hooks/deploy/envforge.sh"],
-      globs: ["/etc/letsencrypt/renewal/*.conf", "/etc/letsencrypt/renewal-hooks/*/*", "/etc/nginx/sites-enabled/*", "/etc/apache2/sites-enabled/*"],
-      maxSizeKB: 256,
-      secretPatterns: ["privkey.pem", "fullchain.pem", "certbot_dns", "dns_", ...commonSecretPatterns]
-    },
-    data: { paths: ["/etc/letsencrypt"] },
-    intentSignals: defaultIntentSignals(),
+    configFiles: ["/etc/letsencrypt/cli.ini", "/etc/letsencrypt/renewal-hooks/deploy/envforge.sh"],
+    configGlobs: ["/etc/letsencrypt/renewal/*.conf", "/etc/letsencrypt/renewal-hooks/*/*", "/etc/nginx/sites-enabled/*", "/etc/apache2/sites-enabled/*"],
+    configMaxSizeKB: 256,
+    extraSecretPatterns: ["privkey.pem", "fullchain.pem", "certbot_dns", "dns_"],
+    dataPaths: ["/etc/letsencrypt"],
     references: [
       { pattern: "archive", type: "filesystemPath" },
       { pattern: "live", type: "filesystemPath" },
@@ -2261,11 +2107,10 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
     migrationCompleteness: { configOnly: "partial", missingRisks: ["domain ownership", "DNS validation", "private keys", "web-server config references"] },
     security: { risk: "review", notes: ["Private keys under /etc/letsencrypt require explicit operator approval; ACME issuance is represented as a manual DNS/domain step in dry-run harnesses."] },
     crossDistro: { packageMap: { apt: ["certbot", "python3-certbot-nginx"], dnf: ["certbot", "python3-certbot-nginx"], yum: ["certbot", "python3-certbot-nginx"], pacman: ["certbot", "certbot-nginx"], apk: ["certbot", "certbot-nginx"] }, serviceMap: { debian: ["certbot.timer"], rhel: ["certbot-renew.timer"], fedora: ["certbot-renew.timer"], arch: ["certbot-renew.timer"], alpine: [] } },
-    migrate: { package: true, config: true, data: "optional", strategy: "manual-review", restartServices: ["nginx", "apache2", "httpd"], validate: ["certbot certificates", "nginx -t", "apachectl configtest"] }
-  },
-  {
+    migrate: { data: "optional", strategy: "manual-review", restartServices: ["nginx", "apache2", "httpd"], validate: ["certbot certificates", "nginx -t", "apachectl configtest"] }
+  }),
+  nativeRule({
     id: "ssh",
-    kind: "software",
     displayName: "OpenSSH",
     capabilityKey: "security.ssh",
     capability: "security.ssh-access",
@@ -2277,19 +2122,16 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
       systemd: ["ssh.service", "sshd.service"],
       ports: [22]
     },
-    config: {
-      files: ["/etc/ssh/sshd_config", "~/.ssh/config"],
-      globs: ["/etc/ssh/sshd_config.d/*.conf"],
-      maxSizeKB: 128,
-      secretPatterns: ["IdentityFile", ...commonSecretPatterns]
-    },
-    intentSignals: defaultIntentSignals(),
+    configFiles: ["/etc/ssh/sshd_config", "~/.ssh/config"],
+    configGlobs: ["/etc/ssh/sshd_config.d/*.conf"],
+    configMaxSizeKB: 128,
+    extraSecretPatterns: ["IdentityFile"],
     references: [{ pattern: "Include", type: "configInclude" }, { pattern: "IdentityFile", type: "secretFile" }],
     migrationCompleteness: { configOnly: "partial", missingRisks: ["authorized_keys", "host keys", "firewall access", "lockout rollback timer"] },
     security: { risk: "privileged", notes: ["sshd_config changes must validate with sshd -t and keep the current session open."] },
     crossDistro: { packageMap: { apt: ["openssh-server"], dnf: ["openssh-server"], yum: ["openssh-server"], pacman: ["openssh"], apk: ["openssh"] }, serviceMap: { debian: ["ssh", "sshd"], rhel: ["sshd"], fedora: ["sshd"], arch: ["sshd"], alpine: ["sshd"] } },
-    migrate: { package: true, config: true, data: "none", strategy: "copy-with-review", restartServices: ["ssh", "sshd"], validate: ["sshd -t"] }
-  },
+    migrate: { data: "none", strategy: "copy-with-review", restartServices: ["ssh", "sshd"], validate: ["sshd -t"] }
+  }),
   nativeRule({
     id: "ufw",
     displayName: "UFW firewall",
@@ -2312,9 +2154,8 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
     crossDistro: { packageMap: { apt: ["ufw"], dnf: ["firewalld"], yum: ["firewalld"], pacman: ["ufw"], apk: ["ufw"] }, serviceMap: { debian: ["ufw"], rhel: ["firewalld"], fedora: ["firewalld"], arch: ["ufw"], alpine: ["ufw"] } },
     migrate: { data: "none", strategy: "copy-with-review", restartServices: ["ufw", "firewalld"], validate: ["ufw status", "firewall-cmd --state || true"] }
   }),
-  {
+  nativeRule({
     id: "firewalld",
-    kind: "software",
     displayName: "firewalld dynamic firewall",
     capabilityKey: "security.firewall.firewalld",
     capability: "security.firewall.firewalld",
@@ -2325,14 +2166,10 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
       binaries: ["firewall-cmd"],
       systemd: ["firewalld.service"]
     },
-    config: {
-      files: ["/etc/firewalld/firewalld.conf"],
-      globs: ["/etc/firewalld/zones/*.xml", "/etc/firewalld/services/*.xml", "/etc/firewalld/policies/*.xml", "/etc/firewalld/ipsets/*.xml"],
-      maxSizeKB: 256,
-      secretPatterns: commonSecretPatterns
-    },
-    data: { paths: ["/etc/firewalld"] },
-    intentSignals: defaultIntentSignals(),
+    configFiles: ["/etc/firewalld/firewalld.conf"],
+    configGlobs: ["/etc/firewalld/zones/*.xml", "/etc/firewalld/services/*.xml", "/etc/firewalld/policies/*.xml", "/etc/firewalld/ipsets/*.xml"],
+    configMaxSizeKB: 256,
+    dataPaths: ["/etc/firewalld"],
     references: [
       { pattern: "zone", type: "serviceDependency" },
       { pattern: "service", type: "serviceDependency" },
@@ -2342,11 +2179,10 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
     migrationCompleteness: { configOnly: "complete", missingRisks: ["SSH lockout protection", "cloud security groups", "UFW/firewalld exclusivity"] },
     security: { risk: "privileged", notes: ["firewalld rules can lock out SSH; apply requires a public-zone SSH check and rollback timer."] },
     crossDistro: { packageMap: { apt: ["firewalld"], dnf: ["firewalld"], yum: ["firewalld"], pacman: ["firewalld"], apk: ["firewalld"] }, serviceMap: { debian: ["firewalld"], rhel: ["firewalld"], fedora: ["firewalld"], arch: ["firewalld"], alpine: ["firewalld"] } },
-    migrate: { package: true, config: true, data: "optional", strategy: "copy-with-review", restartServices: ["firewalld"], validate: ["firewall-cmd --check-config", "firewall-cmd --state"] }
-  },
-  {
+    migrate: { data: "optional", strategy: "copy-with-review", restartServices: ["firewalld"], validate: ["firewall-cmd --check-config", "firewall-cmd --state"] }
+  }),
+  nativeRule({
     id: "wireguard",
-    kind: "software",
     displayName: "WireGuard VPN server",
     capabilityKey: "network.vpn.wireguard",
     capability: "network.vpn.wireguard",
@@ -2358,14 +2194,11 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
       systemd: ["wg-quick@wg0.service"],
       ports: [51820]
     },
-    config: {
-      files: ["/etc/wireguard/wg0.conf"],
-      globs: ["/etc/wireguard/*.conf"],
-      maxSizeKB: 256,
-      secretPatterns: ["PrivateKey", "PresharedKey", ...commonSecretPatterns]
-    },
-    data: { paths: ["/etc/wireguard"] },
-    intentSignals: defaultIntentSignals(),
+    configFiles: ["/etc/wireguard/wg0.conf"],
+    configGlobs: ["/etc/wireguard/*.conf"],
+    configMaxSizeKB: 256,
+    extraSecretPatterns: ["PrivateKey", "PresharedKey"],
+    dataPaths: ["/etc/wireguard"],
     references: [
       { pattern: "PrivateKey", type: "secretFile" },
       { pattern: "PresharedKey", type: "secretFile" },
@@ -2375,11 +2208,10 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
     migrationCompleteness: { configOnly: "partial", missingRisks: ["private keys", "peer endpoint reachability", "IP forwarding/NAT rules", "client reconfiguration"] },
     security: { risk: "privileged", notes: ["WireGuard configs contain private keys and route policy; migration requires explicit key handling approval."] },
     crossDistro: { packageMap: { apt: ["wireguard", "wireguard-tools"], dnf: ["wireguard-tools"], yum: ["wireguard-tools"], pacman: ["wireguard-tools"], apk: ["wireguard-tools"] }, serviceMap: { debian: ["wg-quick@wg0"], rhel: ["wg-quick@wg0"], fedora: ["wg-quick@wg0"], arch: ["wg-quick@wg0"], alpine: ["wg-quick@wg0"] } },
-    migrate: { package: true, config: true, data: "optional", strategy: "manual-review", restartServices: ["wg-quick@wg0"], validate: ["wg show || systemctl is-active wg-quick@wg0 || true"] }
-  },
-  {
+    migrate: { data: "optional", strategy: "manual-review", restartServices: ["wg-quick@wg0"], validate: ["wg show || systemctl is-active wg-quick@wg0 || true"] }
+  }),
+  nativeRule({
     id: "openvpn",
-    kind: "software",
     displayName: "OpenVPN server",
     capabilityKey: "network.vpn.openvpn",
     capability: "network.vpn.openvpn",
@@ -2391,14 +2223,11 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
       systemd: ["openvpn.service", "openvpn-server@server.service"],
       ports: [1194]
     },
-    config: {
-      files: ["/etc/openvpn/server/server.conf", "/etc/openvpn/openvpn.conf"],
-      globs: ["/etc/openvpn/**/*.conf", "/etc/openvpn/**/*.ovpn", "/etc/openvpn/**/*.key", "/etc/openvpn/**/*.crt", "/etc/openvpn/ccd/*"],
-      maxSizeKB: 512,
-      secretPatterns: ["tls-auth", "tls-crypt", "server.key", "client.key", "ca.key", "dh.pem", ...commonSecretPatterns]
-    },
-    data: { paths: ["/etc/openvpn", "/var/lib/openvpn"] },
-    intentSignals: defaultIntentSignals(),
+    configFiles: ["/etc/openvpn/server/server.conf", "/etc/openvpn/openvpn.conf"],
+    configGlobs: ["/etc/openvpn/**/*.conf", "/etc/openvpn/**/*.ovpn", "/etc/openvpn/**/*.key", "/etc/openvpn/**/*.crt", "/etc/openvpn/ccd/*"],
+    configMaxSizeKB: 512,
+    extraSecretPatterns: ["tls-auth", "tls-crypt", "server.key", "client.key", "ca.key", "dh.pem"],
+    dataPaths: ["/etc/openvpn", "/var/lib/openvpn"],
     references: [
       { pattern: "ca", type: "secretFile" },
       { pattern: "cert", type: "secretFile" },
@@ -2409,11 +2238,10 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
     migrationCompleteness: { configOnly: "partial", missingRisks: ["PKI material", "client certificates", "pushed routes", "target network topology"] },
     security: { risk: "privileged", notes: ["OpenVPN PKI and route push policy are sensitive and must travel out of band."] },
     crossDistro: { packageMap: { apt: ["openvpn", "easy-rsa"], dnf: ["openvpn", "easy-rsa"], yum: ["openvpn", "easy-rsa"], pacman: ["openvpn", "easy-rsa"], apk: ["openvpn", "easy-rsa"] }, serviceMap: { debian: ["openvpn", "openvpn-server@server"], rhel: ["openvpn-server@server"], fedora: ["openvpn-server@server"], arch: ["openvpn-server@server"], alpine: ["openvpn"] } },
-    migrate: { package: true, config: true, data: "optional", strategy: "manual-review", restartServices: ["openvpn", "openvpn-server@server"], validate: ["openvpn --version && (systemctl is-active openvpn-server@server || systemctl is-active openvpn || true)"] }
-  },
-  {
+    migrate: { data: "optional", strategy: "manual-review", restartServices: ["openvpn", "openvpn-server@server"], validate: ["openvpn --version && (systemctl is-active openvpn-server@server || systemctl is-active openvpn || true)"] }
+  }),
+  nativeRule({
     id: "vault",
-    kind: "software",
     displayName: "HashiCorp Vault",
     capabilityKey: "security.secrets.vault",
     capability: "security.secrets.vault",
@@ -2425,14 +2253,11 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
       systemd: ["vault.service"],
       ports: [8200, 8201]
     },
-    config: {
-      files: ["/etc/vault.d/vault.hcl"],
-      globs: ["/etc/vault.d/*.hcl", "/etc/vault.d/*.json", "/opt/vault/*.hcl"],
-      maxSizeKB: 256,
-      secretPatterns: ["VAULT_TOKEN", "seal", "unseal", "root_token", "storage", "transit", ...commonSecretPatterns]
-    },
-    data: { paths: ["/opt/vault/data", "/var/lib/vault"] },
-    intentSignals: defaultIntentSignals(),
+    configFiles: ["/etc/vault.d/vault.hcl"],
+    configGlobs: ["/etc/vault.d/*.hcl", "/etc/vault.d/*.json", "/opt/vault/*.hcl"],
+    configMaxSizeKB: 256,
+    extraSecretPatterns: ["VAULT_TOKEN", "seal", "unseal", "root_token", "storage", "transit"],
+    dataPaths: ["/opt/vault/data", "/var/lib/vault"],
     references: [
       { pattern: "storage", type: "filesystemPath" },
       { pattern: "seal", type: "secretFile" },
@@ -2442,11 +2267,10 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
     migrationCompleteness: { configOnly: "partial", missingRisks: ["Vault snapshot/restore", "unseal keys", "root token", "auto-unseal KMS dependencies"] },
     security: { risk: "privileged", notes: ["Vault stores secrets; state migration must use Vault APIs and operator-held unseal material."] },
     crossDistro: { packageMap: { apt: ["vault"], dnf: ["vault"], yum: ["vault"], pacman: ["vault"], apk: ["vault"] }, serviceMap: { debian: ["vault"], rhel: ["vault"], fedora: ["vault"], arch: ["vault"], alpine: ["vault"] } },
-    migrate: { package: true, config: true, data: "optional", strategy: "manual-review", restartServices: ["vault"], validate: ["vault status || systemctl is-active vault || true"] }
-  },
-  {
+    migrate: { data: "optional", strategy: "manual-review", restartServices: ["vault"], validate: ["vault status || systemctl is-active vault || true"] }
+  }),
+  nativeRule({
     id: "k3s",
-    kind: "software",
     displayName: "K3s lightweight Kubernetes",
     capabilityKey: "container.kubernetes.k3s",
     capability: "container.kubernetes.k3s",
@@ -2458,14 +2282,11 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
       systemd: ["k3s.service", "k3s-agent.service"],
       ports: [6443, 10250]
     },
-    config: {
-      files: ["/etc/rancher/k3s/config.yaml", "/etc/rancher/k3s/k3s.yaml"],
-      globs: ["/etc/rancher/k3s/*.yaml", "/var/lib/rancher/k3s/server/manifests/*.yaml"],
-      maxSizeKB: 512,
-      secretPatterns: ["token", "node-token", "client-key-data", "certificate-authority-data", ...commonSecretPatterns]
-    },
-    data: { paths: ["/var/lib/rancher/k3s"] },
-    intentSignals: defaultIntentSignals(),
+    configFiles: ["/etc/rancher/k3s/config.yaml", "/etc/rancher/k3s/k3s.yaml"],
+    configGlobs: ["/etc/rancher/k3s/*.yaml", "/var/lib/rancher/k3s/server/manifests/*.yaml"],
+    configMaxSizeKB: 512,
+    extraSecretPatterns: ["token", "node-token", "client-key-data", "certificate-authority-data"],
+    dataPaths: ["/var/lib/rancher/k3s"],
     references: [
       { pattern: "k3s.yaml", type: "secretFile" },
       { pattern: "node-token", type: "secretFile" },
@@ -2475,11 +2296,10 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
     migrationCompleteness: { configOnly: "partial", missingRisks: ["etcd/SQLite snapshot", "cluster CA/admin token", "agent node-token", "persistent volumes"] },
     security: { risk: "privileged", notes: ["K3s owns cluster control-plane state; migration requires snapshot/restore and explicit kubeconfig token handling."] },
     crossDistro: { packageMap: { apt: ["k3s"], dnf: ["k3s"], yum: ["k3s"], pacman: ["k3s"], apk: ["k3s"] }, serviceMap: { debian: ["k3s"], rhel: ["k3s"], fedora: ["k3s"], arch: ["k3s"], alpine: ["k3s"] } },
-    migrate: { package: true, config: true, data: "optional", strategy: "manual-review", restartServices: ["k3s"], validate: ["k3s kubectl get nodes || systemctl is-active k3s || true"] }
-  },
-  {
+    migrate: { data: "optional", strategy: "manual-review", restartServices: ["k3s"], validate: ["k3s kubectl get nodes || systemctl is-active k3s || true"] }
+  }),
+  nativeRule({
     id: "swap",
-    kind: "software",
     displayName: "Swap space configuration",
     capabilityKey: "system.swap",
     capability: "system.swap",
@@ -2490,14 +2310,10 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
       binaries: ["swapon", "swapoff", "mkswap", "fallocate"],
       systemd: ["systemd-swap.service"]
     },
-    config: {
-      files: ["/etc/fstab", "/etc/sysctl.conf"],
-      globs: ["/etc/sysctl.d/*.conf", "/etc/systemd/swap.conf.d/*.conf"],
-      maxSizeKB: 256,
-      secretPatterns: commonSecretPatterns
-    },
-    data: { paths: ["/swapfile"] },
-    intentSignals: defaultIntentSignals(),
+    configFiles: ["/etc/fstab", "/etc/sysctl.conf"],
+    configGlobs: ["/etc/sysctl.d/*.conf", "/etc/systemd/swap.conf.d/*.conf"],
+    configMaxSizeKB: 256,
+    dataPaths: ["/swapfile"],
     references: [
       { pattern: "swap", type: "filesystemPath" },
       { pattern: "vm.swappiness", type: "serviceDependency" },
@@ -2506,11 +2322,10 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
     migrationCompleteness: { configOnly: "partial", missingRisks: ["filesystem support", "zram conflicts", "cloud image swap policy"] },
     security: { risk: "privileged", notes: ["Swap changes write /etc/fstab and can consume root filesystem space; filesystem and zram compatibility require review."] },
     crossDistro: { packageMap: { apt: ["util-linux"], dnf: ["util-linux"], yum: ["util-linux"], pacman: ["util-linux"], apk: ["util-linux"] }, serviceMap: { debian: [], rhel: [], fedora: [], arch: [], alpine: [] } },
-    migrate: { package: false, config: true, data: "optional", strategy: "copy-with-review", validate: ["swapon --show"] }
-  },
-  {
+    migrate: { package: false, data: "optional", strategy: "copy-with-review", validate: ["swapon --show"] }
+  }),
+  nativeRule({
     id: "pm2",
-    kind: "software",
     displayName: "PM2 process manager",
     capabilityKey: "runtime.nodejs.pm2",
     capability: "runtime.nodejs.pm2",
@@ -2521,14 +2336,11 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
       binaries: ["pm2"],
       systemd: ["pm2.service", "pm2-root.service"]
     },
-    config: {
-      files: ["~/.pm2/dump.pm2", "~/.pm2/module_conf.json"],
-      globs: ["~/.pm2/conf.js", "~/.pm2/*.json", "/etc/systemd/system/pm2-*.service"],
-      maxSizeKB: 256,
-      secretPatterns: ["env", "PM2_HOME", ...commonSecretPatterns]
-    },
-    data: { paths: ["~/.pm2"] },
-    intentSignals: defaultIntentSignals(),
+    configFiles: ["~/.pm2/dump.pm2", "~/.pm2/module_conf.json"],
+    configGlobs: ["~/.pm2/conf.js", "~/.pm2/*.json", "/etc/systemd/system/pm2-*.service"],
+    configMaxSizeKB: 256,
+    extraSecretPatterns: ["env", "PM2_HOME"],
+    dataPaths: ["~/.pm2"],
     references: [
       { pattern: "script", type: "filesystemPath" },
       { pattern: "cwd", type: "filesystemPath" },
@@ -2538,11 +2350,10 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
     migrationCompleteness: { configOnly: "partial", missingRisks: ["saved process list", "per-user PM2_HOME", "application working directories", "environment secrets"] },
     security: { risk: "review", notes: ["PM2 dump files can include app paths and environment variables; migration is per target user."] },
     crossDistro: { packageMap: { apt: ["nodejs", "npm"], dnf: ["nodejs", "npm"], yum: ["nodejs", "npm"], pacman: ["nodejs", "npm"], apk: ["nodejs", "npm"] }, serviceMap: { debian: ["pm2"], rhel: ["pm2"], fedora: ["pm2"], arch: ["pm2"], alpine: ["pm2"] } },
-    migrate: { package: true, config: true, data: "optional", strategy: "manual-review", restartServices: ["pm2"], validate: ["pm2 --version && pm2 ls || true"] }
-  },
-  {
+    migrate: { data: "optional", strategy: "manual-review", restartServices: ["pm2"], validate: ["pm2 --version && pm2 ls || true"] }
+  }),
+  nativeRule({
     id: "nextcloud",
-    kind: "software",
     displayName: "Nextcloud private cloud",
     capabilityKey: "app.nextcloud",
     capability: "app.nextcloud",
@@ -2554,14 +2365,11 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
       systemd: ["snap.nextcloud.apache.service", "snap.nextcloud.mysql.service", "apache2.service", "httpd.service"],
       ports: [80, 443]
     },
-    config: {
-      files: ["/var/snap/nextcloud/current/nextcloud/config/config.php", "/var/www/nextcloud/config/config.php"],
-      globs: ["/var/snap/nextcloud/current/nextcloud/config/*.php", "/var/www/nextcloud/config/*.php"],
-      maxSizeKB: 256,
-      secretPatterns: ["passwordsalt", "secret", "dbpassword", "instanceid", ...commonSecretPatterns]
-    },
-    data: { paths: ["/var/snap/nextcloud/common/nextcloud/data", "/var/www/nextcloud/data"] },
-    intentSignals: defaultIntentSignals(),
+    configFiles: ["/var/snap/nextcloud/current/nextcloud/config/config.php", "/var/www/nextcloud/config/config.php"],
+    configGlobs: ["/var/snap/nextcloud/current/nextcloud/config/*.php", "/var/www/nextcloud/config/*.php"],
+    configMaxSizeKB: 256,
+    extraSecretPatterns: ["passwordsalt", "secret", "dbpassword", "instanceid"],
+    dataPaths: ["/var/snap/nextcloud/common/nextcloud/data", "/var/www/nextcloud/data"],
     references: [
       { pattern: "datadirectory", type: "filesystemPath" },
       { pattern: "dbhost", type: "serviceDependency" },
@@ -2571,11 +2379,10 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
     migrationCompleteness: { configOnly: "partial", missingRisks: ["database dump/restore", "data directory transfer", "config.php secrets", "app compatibility"] },
     security: { risk: "review", notes: ["Nextcloud config.php contains instance secrets and DB credentials; data migration must follow maintenance-mode and DB backup steps."] },
     crossDistro: { packageMap: { apt: ["snapd"], dnf: ["snapd"], yum: ["snapd"], pacman: ["snapd"], apk: ["snapd"] }, serviceMap: { debian: ["snap.nextcloud.apache", "apache2"], rhel: ["snap.nextcloud.apache", "httpd"], fedora: ["snap.nextcloud.apache", "httpd"], arch: ["snap.nextcloud.apache", "httpd"], alpine: ["apache2"] } },
-    migrate: { package: true, config: true, data: "optional", strategy: "manual-review", validate: ["nextcloud.occ status || sudo -u www-data php /var/www/nextcloud/occ status || true"] }
-  },
-  {
+    migrate: { data: "optional", strategy: "manual-review", validate: ["nextcloud.occ status || sudo -u www-data php /var/www/nextcloud/occ status || true"] }
+  }),
+  nativeRule({
     id: "gitea",
-    kind: "software",
     displayName: "Gitea Git server",
     capabilityKey: "developer.gitea",
     capability: "developer.gitea",
@@ -2587,14 +2394,11 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
       systemd: ["gitea.service"],
       ports: [3000, 2222]
     },
-    config: {
-      files: ["/etc/gitea/app.ini", "/var/lib/gitea/custom/conf/app.ini"],
-      globs: ["/etc/gitea/*.ini", "/var/lib/gitea/custom/conf/*.ini"],
-      maxSizeKB: 256,
-      secretPatterns: ["SECRET_KEY", "INTERNAL_TOKEN", "JWT_SECRET", "PASSWD", ...commonSecretPatterns]
-    },
-    data: { paths: ["/var/lib/gitea", "/home/git/gitea-repositories"] },
-    intentSignals: defaultIntentSignals(),
+    configFiles: ["/etc/gitea/app.ini", "/var/lib/gitea/custom/conf/app.ini"],
+    configGlobs: ["/etc/gitea/*.ini", "/var/lib/gitea/custom/conf/*.ini"],
+    configMaxSizeKB: 256,
+    extraSecretPatterns: ["SECRET_KEY", "INTERNAL_TOKEN", "JWT_SECRET", "PASSWD"],
+    dataPaths: ["/var/lib/gitea", "/home/git/gitea-repositories"],
     references: [
       { pattern: "ROOT", type: "filesystemPath" },
       { pattern: "LFS_CONTENT_PATH", type: "filesystemPath" },
@@ -2604,11 +2408,10 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
     migrationCompleteness: { configOnly: "partial", missingRisks: ["gitea dump/restore", "repositories", "LFS objects", "OAuth secrets"] },
     security: { risk: "review", notes: ["Gitea migration uses gitea dump/restore; app.ini secrets and OAuth providers require rotation/review."] },
     crossDistro: { packageMap: { apt: ["gitea"], dnf: ["gitea"], yum: ["gitea"], pacman: ["gitea"], apk: ["gitea"] }, serviceMap: { debian: ["gitea"], rhel: ["gitea"], fedora: ["gitea"], arch: ["gitea"], alpine: ["gitea"] } },
-    migrate: { package: true, config: true, data: "optional", strategy: "manual-review", restartServices: ["gitea"], validate: ["gitea --version && (systemctl is-active gitea || true)"] }
-  },
-  {
+    migrate: { data: "optional", strategy: "manual-review", restartServices: ["gitea"], validate: ["gitea --version && (systemctl is-active gitea || true)"] }
+  }),
+  nativeRule({
     id: "jellyfin",
-    kind: "software",
     displayName: "Jellyfin media server",
     capabilityKey: "app.media.jellyfin",
     capability: "app.media.jellyfin",
@@ -2620,14 +2423,11 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
       systemd: ["jellyfin.service"],
       ports: [8096, 8920]
     },
-    config: {
-      files: ["/etc/jellyfin/system.xml", "/var/lib/jellyfin/config/system.xml"],
-      globs: ["/etc/jellyfin/*.xml", "/var/lib/jellyfin/config/*.xml"],
-      maxSizeKB: 512,
-      secretPatterns: ["api", "token", ...commonSecretPatterns]
-    },
-    data: { paths: ["/var/lib/jellyfin", "/var/cache/jellyfin", "/media"] },
-    intentSignals: defaultIntentSignals(),
+    configFiles: ["/etc/jellyfin/system.xml", "/var/lib/jellyfin/config/system.xml"],
+    configGlobs: ["/etc/jellyfin/*.xml", "/var/lib/jellyfin/config/*.xml"],
+    configMaxSizeKB: 512,
+    extraSecretPatterns: ["api", "token"],
+    dataPaths: ["/var/lib/jellyfin", "/var/cache/jellyfin", "/media"],
     references: [
       { pattern: "MetadataPath", type: "filesystemPath" },
       { pattern: "CachePath", type: "filesystemPath" },
@@ -2637,11 +2437,10 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
     migrationCompleteness: { configOnly: "partial", missingRisks: ["metadata database", "media bind mounts", "hardware acceleration drivers", "per-user state"] },
     security: { risk: "review", notes: ["Jellyfin media libraries are usually operator-owned bind mounts; user/library metadata requires backup/restore review."] },
     crossDistro: { packageMap: { apt: ["jellyfin"], dnf: ["jellyfin"], yum: ["jellyfin"], pacman: ["jellyfin"], apk: ["jellyfin"] }, serviceMap: { debian: ["jellyfin"], rhel: ["jellyfin"], fedora: ["jellyfin"], arch: ["jellyfin"], alpine: ["jellyfin"] } },
-    migrate: { package: true, config: true, data: "optional", strategy: "manual-review", restartServices: ["jellyfin"], validate: ["curl -fsS http://127.0.0.1:8096/System/Info/Public || systemctl is-active jellyfin || true"] }
-  },
-  {
+    migrate: { data: "optional", strategy: "manual-review", restartServices: ["jellyfin"], validate: ["curl -fsS http://127.0.0.1:8096/System/Info/Public || systemctl is-active jellyfin || true"] }
+  }),
+  nativeRule({
     id: "keycloak",
-    kind: "software",
     displayName: "Keycloak identity provider",
     capabilityKey: "security.sso.keycloak",
     capability: "security.sso.keycloak",
@@ -2652,14 +2451,11 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
       binaries: ["docker"],
       ports: [8080, 8443]
     },
-    config: {
-      files: ["./docker-compose.yml", "./compose.yml", "/opt/keycloak/conf/keycloak.conf"],
-      globs: ["./keycloak*/**/*.yml", "./keycloak*/**/*.env", "/opt/keycloak/conf/*.conf", "/opt/keycloak/providers/*"],
-      maxSizeKB: 512,
-      secretPatterns: ["KEYCLOAK_ADMIN_PASSWORD", "KC_DB_PASSWORD", "client-secret", "SMTP_PASSWORD", ...commonSecretPatterns]
-    },
-    data: { paths: ["./keycloak_data", "./postgres_data", "/opt/keycloak/data", "/opt/keycloak/providers"] },
-    intentSignals: defaultIntentSignals(),
+    configFiles: ["./docker-compose.yml", "./compose.yml", "/opt/keycloak/conf/keycloak.conf"],
+    configGlobs: ["./keycloak*/**/*.yml", "./keycloak*/**/*.env", "/opt/keycloak/conf/*.conf", "/opt/keycloak/providers/*"],
+    configMaxSizeKB: 512,
+    extraSecretPatterns: ["KEYCLOAK_ADMIN_PASSWORD", "KC_DB_PASSWORD", "client-secret", "SMTP_PASSWORD"],
+    dataPaths: ["./keycloak_data", "./postgres_data", "/opt/keycloak/data", "/opt/keycloak/providers"],
     references: [
       { pattern: "KC_DB_URL", type: "serviceDependency" },
       { pattern: "KC_DB_PASSWORD", type: "secretFile" },
@@ -2669,11 +2465,10 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
     migrationCompleteness: { configOnly: "partial", missingRisks: ["realm export/import", "OIDC client secrets", "custom providers/themes", "database backup/restore"] },
     security: { risk: "privileged", notes: ["Keycloak is an identity provider; migration requires realm export/import and secret review."] },
     crossDistro: { packageMap: { apt: ["docker.io", "docker-compose-plugin"], dnf: ["docker", "docker-compose-plugin"], yum: ["docker", "docker-compose-plugin"], pacman: ["docker", "docker-compose"], apk: ["docker", "docker-cli-compose"] }, serviceMap: { debian: ["docker"], rhel: ["docker"], fedora: ["docker"], arch: ["docker"], alpine: ["docker"] } },
-    migrate: { package: true, config: true, data: "optional", strategy: "manual-review", validate: ["curl -fsS http://127.0.0.1:8080/realms/master || docker ps --filter name=keycloak || true"] }
-  },
-  {
+    migrate: { data: "optional", strategy: "manual-review", validate: ["curl -fsS http://127.0.0.1:8080/realms/master || docker ps --filter name=keycloak || true"] }
+  }),
+  nativeRule({
     id: "authelia",
-    kind: "software",
     displayName: "Authelia lightweight SSO",
     capabilityKey: "security.sso.authelia",
     capability: "security.sso.authelia",
@@ -2684,14 +2479,11 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
       binaries: ["docker"],
       ports: [9091]
     },
-    config: {
-      files: ["./config/configuration.yml", "./docker-compose.yml", "./compose.yml"],
-      globs: ["./authelia*/**/*.yml", "./authelia*/**/*.env", "./config/*.yml", "./config/*.yaml"],
-      maxSizeKB: 512,
-      secretPatterns: ["JWT_SECRET", "SESSION_SECRET", "STORAGE_ENCRYPTION_KEY", "SMTP_PASSWORD", ...commonSecretPatterns]
-    },
-    data: { paths: ["./config/db.sqlite3", "./authelia_data"] },
-    intentSignals: defaultIntentSignals(),
+    configFiles: ["./config/configuration.yml", "./docker-compose.yml", "./compose.yml"],
+    configGlobs: ["./authelia*/**/*.yml", "./authelia*/**/*.env", "./config/*.yml", "./config/*.yaml"],
+    configMaxSizeKB: 512,
+    extraSecretPatterns: ["JWT_SECRET", "SESSION_SECRET", "STORAGE_ENCRYPTION_KEY", "SMTP_PASSWORD"],
+    dataPaths: ["./config/db.sqlite3", "./authelia_data"],
     references: [
       { pattern: "storage", type: "filesystemPath" },
       { pattern: "jwt_secret", type: "secretFile" },
@@ -2701,11 +2493,10 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
     migrationCompleteness: { configOnly: "partial", missingRisks: ["SQLite/user state", "TOTP/WebAuthn enrolments", "reverse-proxy forward-auth pairing", "secret continuity"] },
     security: { risk: "privileged", notes: ["Authelia gates access to other apps; secret continuity and reverse-proxy pairing must be reviewed."] },
     crossDistro: { packageMap: { apt: ["docker.io", "docker-compose-plugin"], dnf: ["docker", "docker-compose-plugin"], yum: ["docker", "docker-compose-plugin"], pacman: ["docker", "docker-compose"], apk: ["docker", "docker-cli-compose"] }, serviceMap: { debian: ["docker"], rhel: ["docker"], fedora: ["docker"], arch: ["docker"], alpine: ["docker"] } },
-    migrate: { package: true, config: true, data: "optional", strategy: "manual-review", validate: ["curl -fsS http://127.0.0.1:9091/api/state || docker ps --filter name=authelia || true"] }
-  },
-  {
+    migrate: { data: "optional", strategy: "manual-review", validate: ["curl -fsS http://127.0.0.1:9091/api/state || docker ps --filter name=authelia || true"] }
+  }),
+  nativeRule({
     id: "fail2ban",
-    kind: "software",
     displayName: "Fail2Ban",
     capabilityKey: "security.fail2ban",
     capability: "security.intrusion-prevention.fail2ban",
@@ -2716,22 +2507,17 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
       binaries: ["fail2ban-client"],
       systemd: ["fail2ban.service"]
     },
-    config: {
-      files: ["/etc/fail2ban/jail.local", "/etc/fail2ban/jail.conf"],
-      globs: ["/etc/fail2ban/jail.d/*.conf"],
-      maxSizeKB: 256,
-      secretPatterns: commonSecretPatterns
-    },
-    intentSignals: defaultIntentSignals(),
+    configFiles: ["/etc/fail2ban/jail.local", "/etc/fail2ban/jail.conf"],
+    configGlobs: ["/etc/fail2ban/jail.d/*.conf"],
+    configMaxSizeKB: 256,
     references: [{ pattern: "logpath", type: "filesystemPath" }, { pattern: "filter", type: "configInclude" }],
     migrationCompleteness: { configOnly: "complete", missingRisks: ["custom action scripts and service-specific log paths still require operator review"] },
     security: { risk: "review", notes: ["Jail rules depend on service logs and firewall backend availability; custom action paths are scanned with secret patterns."] },
     crossDistro: { packageMap: { apt: ["fail2ban"], dnf: ["fail2ban"], yum: ["fail2ban"], pacman: ["fail2ban"], apk: ["fail2ban"] }, serviceMap: { debian: ["fail2ban"], rhel: ["fail2ban"], fedora: ["fail2ban"], arch: ["fail2ban"], alpine: ["fail2ban"] } },
-    migrate: { package: true, config: true, data: "none", strategy: "copy-with-review", restartServices: ["fail2ban"], validate: ["fail2ban-client status", "systemctl is-active fail2ban"] }
-  },
-  {
+    migrate: { data: "none", strategy: "copy-with-review", restartServices: ["fail2ban"], validate: ["fail2ban-client status", "systemctl is-active fail2ban"] }
+  }),
+  nativeRule({
     id: "samba",
-    kind: "software",
     displayName: "Samba file sharing",
     capabilityKey: "fs.share.samba",
     capability: "fs.share.samba",
@@ -2743,14 +2529,11 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
       systemd: ["smbd.service", "smb.service", "nmbd.service"],
       ports: [139, 445]
     },
-    config: {
-      files: ["/etc/samba/smb.conf"],
-      globs: ["/etc/samba/conf.d/*.conf", "/etc/samba/smb.conf.d/*.conf"],
-      maxSizeKB: 256,
-      secretPatterns: ["passdb backend", "valid users", "smbpasswd", ...commonSecretPatterns]
-    },
-    data: { paths: ["/srv/samba", "/var/lib/samba"] },
-    intentSignals: defaultIntentSignals(),
+    configFiles: ["/etc/samba/smb.conf"],
+    configGlobs: ["/etc/samba/conf.d/*.conf", "/etc/samba/smb.conf.d/*.conf"],
+    configMaxSizeKB: 256,
+    extraSecretPatterns: ["passdb backend", "valid users", "smbpasswd"],
+    dataPaths: ["/srv/samba", "/var/lib/samba"],
     references: [
       { pattern: "include", type: "configInclude" },
       { pattern: "path", type: "filesystemPath" },
@@ -2760,11 +2543,10 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
     migrationCompleteness: { configOnly: "partial", missingRisks: ["share paths", "Samba passdb", "ACLs", "client subnets"] },
     security: { risk: "review", notes: ["Samba shares expose filesystem paths and account mappings; passdb and ACL handling require review."] },
     crossDistro: { packageMap: { apt: ["samba", "smbclient"], dnf: ["samba", "samba-client"], yum: ["samba", "samba-client"], pacman: ["samba", "smbclient"], apk: ["samba", "samba-client"] }, serviceMap: { debian: ["smbd", "nmbd"], rhel: ["smb", "nmb"], fedora: ["smb", "nmb"], arch: ["smb"], alpine: ["samba"] } },
-    migrate: { package: true, config: true, data: "optional", strategy: "manual-review", restartServices: ["smbd", "smb", "nmbd"], validate: ["testparm -s", "systemctl is-active smbd || systemctl is-active smb || true"] }
-  },
-  {
+    migrate: { data: "optional", strategy: "manual-review", restartServices: ["smbd", "smb", "nmbd"], validate: ["testparm -s", "systemctl is-active smbd || systemctl is-active smb || true"] }
+  }),
+  nativeRule({
     id: "nfs-server",
-    kind: "software",
     displayName: "NFS file server",
     capabilityKey: "fs.share.nfs",
     capability: "fs.share.nfs",
@@ -2776,14 +2558,11 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
       systemd: ["nfs-server.service", "nfs-kernel-server.service"],
       ports: [2049]
     },
-    config: {
-      files: ["/etc/exports", "/etc/nfs.conf", "/etc/idmapd.conf"],
-      globs: ["/etc/exports.d/*.exports"],
-      maxSizeKB: 256,
-      secretPatterns: ["no_root_squash", "sec=krb5", ...commonSecretPatterns]
-    },
-    data: { paths: ["/srv/nfs", "/export"] },
-    intentSignals: defaultIntentSignals(),
+    configFiles: ["/etc/exports", "/etc/nfs.conf", "/etc/idmapd.conf"],
+    configGlobs: ["/etc/exports.d/*.exports"],
+    configMaxSizeKB: 256,
+    extraSecretPatterns: ["no_root_squash", "sec=krb5"],
+    dataPaths: ["/srv/nfs", "/export"],
     references: [
       { pattern: "/srv", type: "filesystemPath" },
       { pattern: "/export", type: "filesystemPath" },
@@ -2793,11 +2572,10 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
     migrationCompleteness: { configOnly: "partial", missingRisks: ["export paths", "client CIDRs", "root-squash policy", "Kerberos/KDC dependencies"] },
     security: { risk: "review", notes: ["NFS exports define network filesystem access; paths and client scopes require operator review."] },
     crossDistro: { packageMap: { apt: ["nfs-kernel-server", "nfs-common"], dnf: ["nfs-utils"], yum: ["nfs-utils"], pacman: ["nfs-utils"], apk: ["nfs-utils"] }, serviceMap: { debian: ["nfs-kernel-server", "nfs-server"], rhel: ["nfs-server"], fedora: ["nfs-server"], arch: ["nfs-server"], alpine: ["nfs"] } },
-    migrate: { package: true, config: true, data: "optional", strategy: "manual-review", restartServices: ["nfs-server", "nfs-kernel-server"], validate: ["exportfs -s", "systemctl is-active nfs-server || systemctl is-active nfs-kernel-server || true"] }
-  },
-  {
+    migrate: { data: "optional", strategy: "manual-review", restartServices: ["nfs-server", "nfs-kernel-server"], validate: ["exportfs -s", "systemctl is-active nfs-server || systemctl is-active nfs-kernel-server || true"] }
+  }),
+  nativeRule({
     id: "tailscale",
-    kind: "software",
     displayName: "Tailscale mesh VPN",
     capabilityKey: "network.vpn.tailscale",
     capability: "network.vpn.tailscale",
@@ -2808,14 +2586,11 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
       binaries: ["tailscale", "tailscaled"],
       systemd: ["tailscaled.service"]
     },
-    config: {
-      files: ["/etc/default/tailscaled", "/etc/sysconfig/tailscaled", "/var/lib/tailscale/tailscaled.state"],
-      globs: ["/etc/tailscale/*.conf"],
-      maxSizeKB: 256,
-      secretPatterns: ["PrivateMachineKey", "NodeKey", "authkey", ...commonSecretPatterns]
-    },
-    data: { paths: ["/var/lib/tailscale"] },
-    intentSignals: defaultIntentSignals(),
+    configFiles: ["/etc/default/tailscaled", "/etc/sysconfig/tailscaled", "/var/lib/tailscale/tailscaled.state"],
+    configGlobs: ["/etc/tailscale/*.conf"],
+    configMaxSizeKB: 256,
+    extraSecretPatterns: ["PrivateMachineKey", "NodeKey", "authkey"],
+    dataPaths: ["/var/lib/tailscale"],
     references: [
       { pattern: "tailscaled.state", type: "secretFile" },
       { pattern: "advertise-routes", type: "serviceDependency" },
@@ -2825,11 +2600,10 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
     migrationCompleteness: { configOnly: "partial", missingRisks: ["node identity key", "auth key re-enrollment", "subnet-router advertisements"] },
     security: { risk: "review", notes: ["The Tailscale node key is host identity; normal migration re-authenticates instead of copying state."] },
     crossDistro: { packageMap: { apt: ["tailscale"], dnf: ["tailscale"], yum: ["tailscale"], pacman: ["tailscale"], apk: ["tailscale"] }, serviceMap: { debian: ["tailscaled"], rhel: ["tailscaled"], fedora: ["tailscaled"], arch: ["tailscaled"], alpine: ["tailscaled"] } },
-    migrate: { package: true, config: true, data: "optional", strategy: "manual-review", restartServices: ["tailscaled"], validate: ["tailscale status || systemctl is-active tailscaled"] }
-  },
-  {
+    migrate: { data: "optional", strategy: "manual-review", restartServices: ["tailscaled"], validate: ["tailscale status || systemctl is-active tailscaled"] }
+  }),
+  nativeRule({
     id: "code-server",
-    kind: "software",
     displayName: "code-server",
     capabilityKey: "developer.code-server",
     capability: "developer.code-server",
@@ -2841,14 +2615,11 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
       systemd: ["code-server.service", "code-server@.service"],
       ports: [8080]
     },
-    config: {
-      files: ["~/.config/code-server/config.yaml", "/etc/code-server/config.yaml", "~/.local/share/code-server/User/settings.json"],
-      globs: ["~/.local/share/code-server/extensions/*", "~/.config/code-server/*.yaml"],
-      maxSizeKB: 256,
-      secretPatterns: ["password:", "hashed-password", "cert-key", ...commonSecretPatterns]
-    },
-    data: { paths: ["~/.local/share/code-server", "~/.config/code-server"] },
-    intentSignals: defaultIntentSignals(),
+    configFiles: ["~/.config/code-server/config.yaml", "/etc/code-server/config.yaml", "~/.local/share/code-server/User/settings.json"],
+    configGlobs: ["~/.local/share/code-server/extensions/*", "~/.config/code-server/*.yaml"],
+    configMaxSizeKB: 256,
+    extraSecretPatterns: ["password:", "hashed-password", "cert-key"],
+    dataPaths: ["~/.local/share/code-server", "~/.config/code-server"],
     references: [
       { pattern: "bind-addr", type: "serviceDependency" },
       { pattern: "password", type: "secretFile" },
@@ -2858,11 +2629,10 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
     migrationCompleteness: { configOnly: "partial", missingRisks: ["remote dev password", "extensions", "TLS/reverse-proxy endpoint", "workspace repos"] },
     security: { risk: "review", notes: ["code-server exposes an interactive development shell; auth, TLS, and reverse-proxy settings require review."] },
     crossDistro: { packageMap: { apt: ["curl", "ca-certificates"], dnf: ["curl", "ca-certificates"], yum: ["curl", "ca-certificates"], pacman: ["curl", "ca-certificates"], apk: ["curl", "ca-certificates"] }, serviceMap: { debian: ["code-server"], rhel: ["code-server"], fedora: ["code-server"], arch: ["code-server"], alpine: ["code-server"] } },
-    migrate: { package: true, config: true, data: "optional", strategy: "manual-review", restartServices: ["code-server"], validate: ["code-server --version || systemctl is-active code-server || true"] }
-  },
-  {
+    migrate: { data: "optional", strategy: "manual-review", restartServices: ["code-server"], validate: ["code-server --version || systemctl is-active code-server || true"] }
+  }),
+  nativeRule({
     id: "sonarqube",
-    kind: "software",
     displayName: "SonarQube",
     capabilityKey: "developer.sonarqube",
     capability: "developer.sonarqube",
@@ -2873,14 +2643,11 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
       binaries: ["docker"],
       ports: [9000]
     },
-    config: {
-      files: ["/opt/sonarqube/conf/sonar.properties", "./docker-compose.yml", "./compose.yml"],
-      globs: ["./sonarqube*/**/*.yml", "./sonarqube*/**/*.env"],
-      maxSizeKB: 256,
-      secretPatterns: ["SONAR_JDBC_PASSWORD", "sonar.jdbc.password", "admin", ...commonSecretPatterns]
-    },
-    data: { paths: ["/opt/sonarqube/data", "/opt/sonarqube/extensions", "./sonarqube_data"] },
-    intentSignals: defaultIntentSignals(),
+    configFiles: ["/opt/sonarqube/conf/sonar.properties", "./docker-compose.yml", "./compose.yml"],
+    configGlobs: ["./sonarqube*/**/*.yml", "./sonarqube*/**/*.env"],
+    configMaxSizeKB: 256,
+    extraSecretPatterns: ["SONAR_JDBC_PASSWORD", "sonar.jdbc.password", "admin"],
+    dataPaths: ["/opt/sonarqube/data", "/opt/sonarqube/extensions", "./sonarqube_data"],
     references: [
       { pattern: "sonar.jdbc.url", type: "serviceDependency" },
       { pattern: "sonar.jdbc.password", type: "secretFile" },
@@ -2890,11 +2657,10 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
     migrationCompleteness: { configOnly: "partial", missingRisks: ["database backup/restore", "quality profiles", "plugins", "default admin credentials"] },
     security: { risk: "review", notes: ["SonarQube data belongs in its DB; Docker volumes and credentials require explicit review."] },
     crossDistro: { packageMap: { apt: ["docker.io", "docker-compose-plugin"], dnf: ["docker", "docker-compose-plugin"], yum: ["docker", "docker-compose-plugin"], pacman: ["docker", "docker-compose"], apk: ["docker", "docker-cli-compose"] }, serviceMap: { debian: ["docker"], rhel: ["docker"], fedora: ["docker"], arch: ["docker"], alpine: ["docker"] } },
-    migrate: { package: true, config: true, data: "optional", strategy: "manual-review", validate: ["curl -fsS http://127.0.0.1:9000/api/system/status || docker ps --filter name=sonarqube || true"] }
-  },
-  {
+    migrate: { data: "optional", strategy: "manual-review", validate: ["curl -fsS http://127.0.0.1:9000/api/system/status || docker ps --filter name=sonarqube || true"] }
+  }),
+  nativeRule({
     id: "mongodb",
-    kind: "software",
     displayName: "MongoDB",
     capabilityKey: "database.mongodb",
     capability: "database.mongodb",
@@ -2906,14 +2672,11 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
       systemd: ["mongod.service"],
       ports: [27017]
     },
-    config: {
-      files: ["/etc/mongod.conf"],
-      globs: ["/etc/mongodb/*.conf", "/etc/mongod.conf.d/*.conf"],
-      maxSizeKB: 256,
-      secretPatterns: ["keyFile", "authorization", "clusterAuthMode", ...commonSecretPatterns]
-    },
-    data: { paths: ["/var/lib/mongodb"] },
-    intentSignals: defaultIntentSignals(),
+    configFiles: ["/etc/mongod.conf"],
+    configGlobs: ["/etc/mongodb/*.conf", "/etc/mongod.conf.d/*.conf"],
+    configMaxSizeKB: 256,
+    extraSecretPatterns: ["keyFile", "authorization", "clusterAuthMode"],
+    dataPaths: ["/var/lib/mongodb"],
     references: [
       { pattern: "storage.dbPath", type: "filesystemPath" },
       { pattern: "keyFile", type: "secretFile" },
@@ -2923,11 +2686,10 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
     migrationCompleteness: { configOnly: "partial", missingRisks: ["mongodump/mongorestore", "replica-set membership", "auth keyFile", "users/roles"] },
     security: { risk: "review", notes: ["MongoDB data must use logical backup/restore; keyFile and auth settings are sensitive."] },
     crossDistro: { packageMap: { apt: ["mongodb-org"], dnf: ["mongodb-org"], yum: ["mongodb-org"], pacman: ["mongodb-bin"], apk: ["mongodb"] }, serviceMap: { debian: ["mongod"], rhel: ["mongod"], fedora: ["mongod"], arch: ["mongodb"], alpine: ["mongodb"] } },
-    migrate: { package: true, config: true, data: "optional", strategy: "manual-review", restartServices: ["mongod", "mongodb"], validate: ["mongosh --eval 'db.runCommand({ ping: 1 })' || mongo --eval 'db.runCommand({ ping: 1 })' || systemctl is-active mongod"] }
-  },
-  {
+    migrate: { data: "optional", strategy: "manual-review", restartServices: ["mongod", "mongodb"], validate: ["mongosh --eval 'db.runCommand({ ping: 1 })' || mongo --eval 'db.runCommand({ ping: 1 })' || systemctl is-active mongod"] }
+  }),
+  nativeRule({
     id: "minio",
-    kind: "software",
     displayName: "MinIO",
     capabilityKey: "storage.object.minio",
     capability: "storage.object.minio",
@@ -2939,14 +2701,11 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
       systemd: ["minio.service"],
       ports: [9000, 9001]
     },
-    config: {
-      files: ["/etc/default/minio", "/etc/sysconfig/minio", "/etc/minio/minio.conf"],
-      globs: ["/etc/minio/*.env", "/etc/minio/*.conf"],
-      maxSizeKB: 256,
-      secretPatterns: ["MINIO_ROOT_USER", "MINIO_ROOT_PASSWORD", "MINIO_KMS", ...commonSecretPatterns]
-    },
-    data: { paths: ["/var/minio", "/srv/minio"] },
-    intentSignals: defaultIntentSignals(),
+    configFiles: ["/etc/default/minio", "/etc/sysconfig/minio", "/etc/minio/minio.conf"],
+    configGlobs: ["/etc/minio/*.env", "/etc/minio/*.conf"],
+    configMaxSizeKB: 256,
+    extraSecretPatterns: ["MINIO_ROOT_USER", "MINIO_ROOT_PASSWORD", "MINIO_KMS"],
+    dataPaths: ["/var/minio", "/srv/minio"],
     references: [
       { pattern: "MINIO_VOLUMES", type: "filesystemPath" },
       { pattern: "MINIO_ROOT_PASSWORD", type: "secretFile" },
@@ -2956,11 +2715,10 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
     migrationCompleteness: { configOnly: "partial", missingRisks: ["bucket data replication", "root credentials", "KMS keys", "site URL"] },
     security: { risk: "review", notes: ["Object data must move through MinIO replication/mirror tooling; root credentials require rotation/review."] },
     crossDistro: { packageMap: { apt: ["minio"], dnf: ["minio"], yum: ["minio"], pacman: ["minio"], apk: ["minio"] }, serviceMap: { debian: ["minio"], rhel: ["minio"], fedora: ["minio"], arch: ["minio"], alpine: ["minio"] } },
-    migrate: { package: true, config: true, data: "optional", strategy: "manual-review", restartServices: ["minio"], validate: ["curl -fsS http://127.0.0.1:9000/minio/health/live || mc admin info local || systemctl is-active minio"] }
-  },
-  {
+    migrate: { data: "optional", strategy: "manual-review", restartServices: ["minio"], validate: ["curl -fsS http://127.0.0.1:9000/minio/health/live || mc admin info local || systemctl is-active minio"] }
+  }),
+  nativeRule({
     id: "elasticsearch",
-    kind: "software",
     displayName: "Elasticsearch",
     capabilityKey: "database.search.elasticsearch",
     capability: "database.search.elasticsearch",
@@ -2972,14 +2730,11 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
       systemd: ["elasticsearch.service"],
       ports: [9200, 9300]
     },
-    config: {
-      files: ["/etc/elasticsearch/elasticsearch.yml", "/etc/default/elasticsearch", "/etc/sysconfig/elasticsearch"],
-      globs: ["/etc/elasticsearch/*.yml", "/etc/elasticsearch/jvm.options.d/*.options"],
-      maxSizeKB: 256,
-      secretPatterns: ["xpack.security", "keystore", "bootstrap.password", ...commonSecretPatterns]
-    },
-    data: { paths: ["/var/lib/elasticsearch"] },
-    intentSignals: defaultIntentSignals(),
+    configFiles: ["/etc/elasticsearch/elasticsearch.yml", "/etc/default/elasticsearch", "/etc/sysconfig/elasticsearch"],
+    configGlobs: ["/etc/elasticsearch/*.yml", "/etc/elasticsearch/jvm.options.d/*.options"],
+    configMaxSizeKB: 256,
+    extraSecretPatterns: ["xpack.security", "keystore", "bootstrap.password"],
+    dataPaths: ["/var/lib/elasticsearch"],
     references: [
       { pattern: "path.data", type: "filesystemPath" },
       { pattern: "discovery.seed_hosts", type: "serviceDependency" },
@@ -2989,11 +2744,10 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
     migrationCompleteness: { configOnly: "partial", missingRisks: ["snapshot repository", "index data", "keystore secrets", "cluster discovery"] },
     security: { risk: "review", notes: ["Elasticsearch index data must use snapshot/restore; keystore and TLS material require review."] },
     crossDistro: { packageMap: { apt: ["elasticsearch"], dnf: ["elasticsearch"], yum: ["elasticsearch"], pacman: ["elasticsearch"], apk: ["elasticsearch"] }, serviceMap: { debian: ["elasticsearch"], rhel: ["elasticsearch"], fedora: ["elasticsearch"], arch: ["elasticsearch"], alpine: ["elasticsearch"] } },
-    migrate: { package: true, config: true, data: "optional", strategy: "manual-review", restartServices: ["elasticsearch"], validate: ["curl -fsS http://127.0.0.1:9200/_cluster/health || systemctl is-active elasticsearch"] }
-  },
-  {
+    migrate: { data: "optional", strategy: "manual-review", restartServices: ["elasticsearch"], validate: ["curl -fsS http://127.0.0.1:9200/_cluster/health || systemctl is-active elasticsearch"] }
+  }),
+  nativeRule({
     id: "clickhouse",
-    kind: "software",
     displayName: "ClickHouse",
     capabilityKey: "database.olap.clickhouse",
     capability: "database.olap.clickhouse",
@@ -3005,14 +2759,11 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
       systemd: ["clickhouse-server.service"],
       ports: [8123, 9000]
     },
-    config: {
-      files: ["/etc/clickhouse-server/config.xml", "/etc/clickhouse-server/users.xml"],
-      globs: ["/etc/clickhouse-server/config.d/*.xml", "/etc/clickhouse-server/users.d/*.xml"],
-      maxSizeKB: 512,
-      secretPatterns: ["password_sha256_hex", "ldap", "kerberos", ...commonSecretPatterns]
-    },
-    data: { paths: ["/var/lib/clickhouse"] },
-    intentSignals: defaultIntentSignals(),
+    configFiles: ["/etc/clickhouse-server/config.xml", "/etc/clickhouse-server/users.xml"],
+    configGlobs: ["/etc/clickhouse-server/config.d/*.xml", "/etc/clickhouse-server/users.d/*.xml"],
+    configMaxSizeKB: 512,
+    extraSecretPatterns: ["password_sha256_hex", "ldap", "kerberos"],
+    dataPaths: ["/var/lib/clickhouse"],
     references: [
       { pattern: "<path>", type: "filesystemPath" },
       { pattern: "remote_servers", type: "serviceDependency" },
@@ -3022,11 +2773,10 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
     migrationCompleteness: { configOnly: "partial", missingRisks: ["BACKUP/RESTORE workflow", "Keeper/ZooKeeper state", "user secrets", "large table data"] },
     security: { risk: "review", notes: ["ClickHouse data must use BACKUP/RESTORE or clickhouse-backup; user secrets and cluster topology require review."] },
     crossDistro: { packageMap: { apt: ["clickhouse-server", "clickhouse-client"], dnf: ["clickhouse-server", "clickhouse-client"], yum: ["clickhouse-server", "clickhouse-client"], pacman: ["clickhouse"], apk: ["clickhouse"] }, serviceMap: { debian: ["clickhouse-server"], rhel: ["clickhouse-server"], fedora: ["clickhouse-server"], arch: ["clickhouse-server"], alpine: ["clickhouse-server"] } },
-    migrate: { package: true, config: true, data: "optional", strategy: "manual-review", restartServices: ["clickhouse-server"], validate: ["clickhouse-client --query 'SELECT 1' || systemctl is-active clickhouse-server"] }
-  },
-  {
+    migrate: { data: "optional", strategy: "manual-review", restartServices: ["clickhouse-server"], validate: ["clickhouse-client --query 'SELECT 1' || systemctl is-active clickhouse-server"] }
+  }),
+  nativeRule({
     id: "influxdb",
-    kind: "software",
     displayName: "InfluxDB",
     capabilityKey: "database.timeseries.influxdb",
     capability: "database.timeseries.influxdb",
@@ -3038,14 +2788,11 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
       systemd: ["influxdb.service"],
       ports: [8086]
     },
-    config: {
-      files: ["/etc/influxdb/config.toml", "/etc/influxdb/influxdb.conf"],
-      globs: ["/etc/influxdb/*.toml", "/etc/influxdb/*.conf"],
-      maxSizeKB: 256,
-      secretPatterns: ["token", "INFLUX_TOKEN", "bolt", ...commonSecretPatterns]
-    },
-    data: { paths: ["/var/lib/influxdb", "/var/lib/influxdb2"] },
-    intentSignals: defaultIntentSignals(),
+    configFiles: ["/etc/influxdb/config.toml", "/etc/influxdb/influxdb.conf"],
+    configGlobs: ["/etc/influxdb/*.toml", "/etc/influxdb/*.conf"],
+    configMaxSizeKB: 256,
+    extraSecretPatterns: ["token", "INFLUX_TOKEN", "bolt"],
+    dataPaths: ["/var/lib/influxdb", "/var/lib/influxdb2"],
     references: [
       { pattern: "engine-path", type: "filesystemPath" },
       { pattern: "bolt-path", type: "filesystemPath" },
@@ -3055,8 +2802,8 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
     migrationCompleteness: { configOnly: "partial", missingRisks: ["influxd backup/restore", "operator tokens", "bucket retention", "v1/v2 schema drift"] },
     security: { risk: "review", notes: ["InfluxDB TSDB data must use influxd backup/restore; tokens and bolt DB state require review."] },
     crossDistro: { packageMap: { apt: ["influxdb2"], dnf: ["influxdb2"], yum: ["influxdb2"], pacman: ["influxdb"], apk: ["influxdb"] }, serviceMap: { debian: ["influxdb"], rhel: ["influxdb"], fedora: ["influxdb"], arch: ["influxdb"], alpine: ["influxdb"] } },
-    migrate: { package: true, config: true, data: "optional", strategy: "manual-review", restartServices: ["influxdb"], validate: ["curl -fsS http://127.0.0.1:8086/health || influx ping || systemctl is-active influxdb"] }
-  },
+    migrate: { data: "optional", strategy: "manual-review", restartServices: ["influxdb"], validate: ["curl -fsS http://127.0.0.1:8086/health || influx ping || systemctl is-active influxdb"] }
+  }),
   ...finalBatchComboRules,
   ...finalBatchDockerAppRules
 ];
