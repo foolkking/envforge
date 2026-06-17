@@ -60,6 +60,9 @@ try {
   // Self-heal running/queued tasks from last crash/restart.
   const { healTaskStates } = await import("./executor.js");
   await healTaskStates();
+  // Load UI-authored runtime detection rules into the merged detection view.
+  const { loadRuntimeDetectionRules } = await import("./catalog-rule-store.js");
+  await loadRuntimeDetectionRules();
   // Start the cron-style scheduler (idempotent).
   startScheduler();
   app.log.info("Scheduler started");

@@ -3531,6 +3531,73 @@ export async function resetAdminCatalog(token: string, id: string): Promise<void
   await readJsonOrThrow(r, "Reset catalog failed");
 }
 
+// ── Runtime detection rules (Phase B2) ───────────────────────────────
+// Admin-authored detection rules generated from an archetype factory; they
+// extend migrate detection only and never enter Build certification.
+export type RuleArchetype = "native" | "docker-app";
+
+/** Structural view of a backend CatalogDetectionRule (display + round-trip). */
+export interface CatalogDetectionRule {
+  id: string;
+  displayName: string;
+  capabilityKey: string;
+  category: string;
+  detect?: { packages?: Record<string, string[]>; binaries?: string[]; systemd?: string[]; ports?: number[] };
+  migrate?: { validate?: string[] };
+  [key: string]: unknown;
+}
+
+export interface RuntimeRuleOverride {
+  id: string;
+  archetype: RuleArchetype;
+  input: Record<string, unknown>;
+  rule: CatalogDetectionRule;
+  createdAt: string;
+  updatedAt: string;
+  modifiedBy: string;
+}
+
+export async function generateCapabilityRule(
+  token: string,
+  archetype: RuleArchetype,
+  params: Record<string, unknown>
+): Promise<{ rule: CatalogDetectionRule; conflict: string | null }> {
+  const r = await fetch("/api/admin/capability-rules/generate", {
+    method: "POST",
+    headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ archetype, params })
+  });
+  return readJsonOrThrow(r, "Rule generation failed");
+}
+
+export async function listCapabilityRules(token: string): Promise<{ rules: RuntimeRuleOverride[] }> {
+  const r = await fetch("/api/admin/capability-rules", { headers: { "Authorization": `Bearer ${token}` } });
+  return readJsonOrThrow(r, "List runtime rules failed");
+}
+
+export async function saveCapabilityRule(
+  token: string,
+  archetype: RuleArchetype,
+  params: Record<string, unknown>,
+  existingId?: string
+): Promise<{ ok: true; rule: RuntimeRuleOverride }> {
+  const url = existingId ? `/api/admin/capability-rules/${encodeURIComponent(existingId)}` : "/api/admin/capability-rules";
+  const r = await fetch(url, {
+    method: existingId ? "PATCH" : "POST",
+    headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ archetype, params })
+  });
+  return readJsonOrThrow(r, "Save runtime rule failed");
+}
+
+export async function deleteCapabilityRule(token: string, id: string): Promise<void> {
+  const r = await fetch(`/api/admin/capability-rules/${encodeURIComponent(id)}`, {
+    method: "DELETE",
+    headers: { "Authorization": `Bearer ${token}` }
+  });
+  await readJsonOrThrow(r, "Delete runtime rule failed");
+}
+
 export interface AdminUser {
   id: string;
   name: string;

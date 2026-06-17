@@ -68,7 +68,7 @@ const commonSecretPatterns = [
   "DATABASE_URL"
 ];
 
-type DockerAppRuleInput = {
+export type DockerAppRuleInput = {
   id: string;
   displayName: string;
   capabilityKey: string;
@@ -85,7 +85,7 @@ type DockerAppRuleInput = {
   validate: string[];
 };
 
-function dockerAppRule(input: DockerAppRuleInput): CatalogDetectionRule {
+export function dockerAppRule(input: DockerAppRuleInput): CatalogDetectionRule {
   return {
     id: input.id,
     kind: "software",
@@ -149,7 +149,7 @@ function dockerAppRule(input: DockerAppRuleInput): CatalogDetectionRule {
  * (packageMap + serviceMap) is passed through verbatim — distro package
  * names are genuinely per-capability and stay explicit in Phase A.
  */
-type NativeRuleInput = {
+export type NativeRuleInput = {
   id: string;
   displayName: string;
   capabilityKey: string;
@@ -177,7 +177,7 @@ type NativeRuleInput = {
   };
 };
 
-function nativeRule(input: NativeRuleInput): CatalogDetectionRule {
+export function nativeRule(input: NativeRuleInput): CatalogDetectionRule {
   const config: NonNullable<CatalogDetectionRule["config"]> = {
     ...(input.configFiles ? { files: input.configFiles } : {}),
     ...(input.configGlobs ? { globs: input.configGlobs } : {}),
@@ -2808,9 +2808,33 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
   ...finalBatchDockerAppRules
 ];
 
+/**
+ * Runtime detection-rule overlay (Phase B2).
+ *
+ * UI-authored rules are loaded from the runtime store into this cache at
+ * boot (and refreshed on mutation) via `setRuntimeDetectionRules`. They
+ * extend DETECTION/classification only — `getDetectionRules()` is the
+ * merged view consumed by detection paths. Certification deliberately
+ * does NOT use this view: the CI audit and `deriveCertification` read the
+ * static `catalogDetectionRules` export, so runtime rules can never make a
+ * capability "certified" or user-visible in Build.
+ */
+let runtimeDetectionRules: CatalogDetectionRule[] = [];
+
+export function setRuntimeDetectionRules(rules: CatalogDetectionRule[]): void {
+  runtimeDetectionRules = rules;
+}
+
+/** Static baseline rules merged with the runtime overlay, for DETECTION only. */
+export function getDetectionRules(): CatalogDetectionRule[] {
+  return runtimeDetectionRules.length === 0
+    ? catalogDetectionRules
+    : [...catalogDetectionRules, ...runtimeDetectionRules];
+}
+
 export function findRuleForPackage(name: string, source?: string): CatalogDetectionRule | undefined {
   const normalized = normalizeName(name);
-  return catalogDetectionRules.find((rule) => {
+  return getDetectionRules().find((rule) => {
     if (normalizeName(rule.id) === normalized) return true;
     if (rule.displayName.toLowerCase().includes(normalized)) return true;
     const packageSets = rule.detect.packages ?? {};
@@ -2829,7 +2853,7 @@ export function getConfigDiscoveryRules(installedSoftware: string[]): Array<{
   isGlob: boolean;
 }> {
   const names = new Set(installedSoftware.map(normalizeName));
-  const matched = catalogDetectionRules.filter((rule) => {
+  const matched = getDetectionRules().filter((rule) => {
     const packageNames = Object.values(rule.detect.packages ?? {}).flat().map(normalizeName);
     const binaries = (rule.detect.binaries ?? []).map(normalizeName);
     return [...packageNames, ...binaries, normalizeName(rule.id)].some((name) => names.has(name));

@@ -1,11 +1,24 @@
 import React, { useMemo, useState } from "react";
 import { BookOpen, Box as BoxIcon, CheckCircle2, Cog, Database, FileText, Hand, Key, Network, RefreshCcw, Search, Server, Shield, XCircle, AlertTriangle } from "lucide-react";
 import type { Locale } from "../../lib/types";
+import type { RuntimeRuleOverride } from "../../api";
 import { CATEGORY_ICONS, REQUIREMENT_LABELS, FilterPills, Th, Td, buildUpgradePrompt, copyToClipboard, type AdminCatalogRow } from "./shared";
 
 // ── Rule Registry tab ─────────────────────────────────────────────────
 
-export function RuleRegistryTab({ locale, rows, onCreate, onEdit }: { locale: Locale; rows: AdminCatalogRow[]; onCreate?: () => void; onEdit?: (id: string) => void }): JSX.Element {
+export function RuleRegistryTab({
+  locale, rows, onCreate, onEdit,
+  runtimeRules = [], onNewDetectionRule, onEditDetectionRule, onDeleteDetectionRule
+}: {
+  locale: Locale;
+  rows: AdminCatalogRow[];
+  onCreate?: () => void;
+  onEdit?: (id: string) => void;
+  runtimeRules?: RuntimeRuleOverride[];
+  onNewDetectionRule?: () => void;
+  onEditDetectionRule?: (rule: RuntimeRuleOverride) => void;
+  onDeleteDetectionRule?: (id: string) => void;
+}): JSX.Element {
   const [statusFilter, setStatusFilter] = useState<"all" | "certified" | "not-ready">("all");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [search, setSearch] = useState("");
@@ -70,7 +83,54 @@ export function RuleRegistryTab({ locale, rows, onCreate, onEdit }: { locale: Lo
             {locale === "zh" ? "+ 新建能力" : "+ New capability"}
           </button>
         ) : null}
+        {onNewDetectionRule ? (
+          <button
+            type="button"
+            onClick={onNewDetectionRule}
+            data-testid="registry-new-detection-rule"
+            className="secondary-action"
+            style={{ minHeight: 34, padding: "0 14px", ...(onCreate ? {} : { marginLeft: "auto" }) }}
+          >
+            {locale === "zh" ? "+ 检测规则(原型)" : "+ Detection rule"}
+          </button>
+        ) : null}
       </div>
+
+      {runtimeRules.length > 0 ? (
+        <div data-testid="runtime-rules" style={{ margin: "0 0 16px 0", border: "1px solid var(--ef-border)", borderRadius: 10, padding: 12 }}>
+          <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>
+            {locale === "zh" ? "运行时检测规则" : "Runtime detection rules"}
+            <span className="ui-badge ui-badge-warn ui-badge-sm" style={{ marginLeft: 8 }}>
+              {locale === "zh" ? "检测扩展 · 未认证" : "Detection-only · uncertified"}
+            </span>
+          </div>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+            <thead style={{ background: "var(--ef-surface-soft)" }}>
+              <tr>
+                <Th>{locale === "zh" ? "名称" : "Name"}</Th>
+                <Th>capabilityKey</Th>
+                <Th>{locale === "zh" ? "类目" : "Category"}</Th>
+                <Th>Actions</Th>
+              </tr>
+            </thead>
+            <tbody>
+              {runtimeRules.map((r) => (
+                <tr key={r.id} style={{ borderBottom: "1px solid var(--ef-border)" }} data-testid={`runtime-rule-${r.id}`}>
+                  <Td><strong>{r.rule.displayName || r.id}</strong><div style={{ color: "var(--ef-muted)", fontSize: 11 }}>{r.id}</div></Td>
+                  <Td><code>{r.rule.capabilityKey}</code></Td>
+                  <Td>{r.rule.category}</Td>
+                  <Td>
+                    <div style={{ display: "flex", gap: 6 }}>
+                      {onEditDetectionRule ? <button type="button" style={{ padding: "2px 8px" }} onClick={() => onEditDetectionRule(r)}>{locale === "zh" ? "编辑" : "Edit"}</button> : null}
+                      {onDeleteDetectionRule ? <button type="button" style={{ padding: "2px 8px", color: "#b42318" }} onClick={() => { if (window.confirm(locale === "zh" ? `删除检测规则 ${r.id}?` : `Delete rule ${r.id}?`)) onDeleteDetectionRule(r.id); }}>{locale === "zh" ? "删除" : "Delete"}</button> : null}
+                    </div>
+                  </Td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : null}
 
       <table className="rules-table" data-testid="rules-table"
         style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>

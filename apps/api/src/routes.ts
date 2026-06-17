@@ -5627,6 +5627,82 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
     return { ok: true };
   });
 
+  // ── Runtime detection rules (Phase B2) ───────────────────────────────
+  // Admin-authored detection rules generated from an archetype factory.
+  // They EXTEND migrate detection/classification only — they never enter
+  // Build certification (cert reads the static rule export + opt-in).
+
+  /** Generate (preview, no persist) a detection rule from an archetype. */
+  app.post("/api/admin/capability-rules/generate", async (request, reply) => {
+    const user = await getUserByToken(readBearerToken(request.headers.authorization));
+    if (!user || user.role !== "admin") { reply.code(403); return { error: "Admin only." }; }
+    const body = (request.body ?? {}) as { archetype?: string; params?: Record<string, unknown> };
+    if (body.archetype !== "native" && body.archetype !== "docker-app") {
+      reply.code(400); return { error: "archetype must be 'native' or 'docker-app'." };
+    }
+    try {
+      const { nativeRule, dockerAppRule } = await import("./catalog-rules.js");
+      const rule = body.archetype === "native"
+        ? nativeRule(body.params as Parameters<typeof nativeRule>[0])
+        : dockerAppRule(body.params as Parameters<typeof dockerAppRule>[0]);
+      const { ruleOverrideRejectionReason } = await import("./catalog-rule-store.js");
+      return { rule, conflict: ruleOverrideRejectionReason(rule) };
+    } catch (error) {
+      reply.code(400);
+      return { error: `Rule generation failed: ${error instanceof Error ? error.message : error}` };
+    }
+  });
+
+  /** List runtime (UI-authored) detection rules. */
+  app.get("/api/admin/capability-rules", async (request, reply) => {
+    const user = await getUserByToken(readBearerToken(request.headers.authorization));
+    if (!user || user.role !== "admin") { reply.code(403); return { error: "Admin only." }; }
+    const { listRuleOverrides } = await import("./catalog-rule-store.js");
+    return { rules: await listRuleOverrides() };
+  });
+
+  /** Create or update a runtime detection rule (generate + persist). */
+  async function upsertCapabilityRule(request: import("fastify").FastifyRequest, reply: import("fastify").FastifyReply, existingId?: string) {
+    const user = await getUserByToken(readBearerToken(request.headers.authorization));
+    if (!user || user.role !== "admin") { reply.code(403); return { error: "Admin only." }; }
+    const body = (request.body ?? {}) as { archetype?: string; params?: Record<string, unknown> };
+    if (body.archetype !== "native" && body.archetype !== "docker-app") {
+      reply.code(400); return { error: "archetype must be 'native' or 'docker-app'." };
+    }
+    const { nativeRule, dockerAppRule } = await import("./catalog-rules.js");
+    const { ruleOverrideRejectionReason, saveRuleOverride, getRuleOverride } = await import("./catalog-rule-store.js");
+    let rule;
+    try {
+      rule = body.archetype === "native"
+        ? nativeRule(body.params as Parameters<typeof nativeRule>[0])
+        : dockerAppRule(body.params as Parameters<typeof dockerAppRule>[0]);
+    } catch (error) {
+      reply.code(400); return { error: `Rule generation failed: ${error instanceof Error ? error.message : error}` };
+    }
+    const reason = ruleOverrideRejectionReason(rule, existingId);
+    if (reason) { reply.code(400); return { error: reason }; }
+    // POST = create: reject when a runtime rule with this id already exists.
+    if (!existingId && await getRuleOverride(rule.id)) {
+      reply.code(400); return { error: `Runtime rule "${rule.id}" already exists; edit it instead.` };
+    }
+    const saved = await saveRuleOverride({ archetype: body.archetype, input: body.params ?? {}, rule, modifiedBy: user.id, existingId });
+    return { ok: true, rule: saved };
+  }
+
+  app.post("/api/admin/capability-rules", async (request, reply) => upsertCapabilityRule(request, reply));
+  app.patch("/api/admin/capability-rules/:id", async (request, reply) =>
+    upsertCapabilityRule(request, reply, (request.params as { id: string }).id));
+
+  app.delete("/api/admin/capability-rules/:id", async (request, reply) => {
+    const user = await getUserByToken(readBearerToken(request.headers.authorization));
+    if (!user || user.role !== "admin") { reply.code(403); return { error: "Admin only." }; }
+    const { id } = request.params as { id: string };
+    const { deleteRuleOverride } = await import("./catalog-rule-store.js");
+    const removed = await deleteRuleOverride(id);
+    if (!removed) { reply.code(404); return { error: "Runtime rule not found." }; }
+    return { ok: true };
+  });
+
   // ── Community Comments, Likes, Reports and FTS (Stage 2) ──────────────────────────
 
   /**

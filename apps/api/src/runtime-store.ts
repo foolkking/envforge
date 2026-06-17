@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { getConfig } from "./config.js";
 import { SafeJsonStore } from "./db-store.js";
 import { getSqliteDb, initializeDatabase } from "./db-sqlite.js";
+import type { CatalogDetectionRule } from "./catalog-rules.js";
 
 // Singleton store instance (reused across requests for cache efficiency)
 let _store: SafeJsonStore<RuntimeDatabase> | null = null;
@@ -372,6 +373,9 @@ export interface RuntimeDatabase {
   apiTokens?: StoredApiToken[];
   /** Admin overrides on top of the static catalog baseline */
   catalogOverrides?: CatalogOverride[];
+  /** Runtime, UI-authored detection rules (Phase B2). Extend migrate
+   *  detection/classification ONLY; never enter Build certification. */
+  catalogRuleOverrides?: CatalogRuleOverride[];
   /** Online-maintained Full Migration standard profiles. */
   capabilityStandardProfiles?: CapabilityStandardProfile[];
   /** Editable per-capability requirement drafts. */
@@ -709,6 +713,27 @@ export interface CatalogOverride {
   createdAt: string;
   updatedAt: string;
   /** User who made this override (admin only) */
+  modifiedBy: string;
+}
+
+/**
+ * Runtime, UI-authored detection rule (Phase B2). Generated from an
+ * archetype + params via the catalog-rules factories. Stored so the
+ * merged detection view can recognize more source-host software during
+ * migrate analysis. NEVER feeds Build certification (cert reads only the
+ * static `catalogDetectionRules` export + CERTIFIED_OPT_IN).
+ */
+export interface CatalogRuleOverride {
+  /** Matches the contained rule's id; unique, must not collide with a static rule. */
+  id: string;
+  /** Archetype + params used to generate the rule (for editor round-trip). */
+  archetype: "native" | "docker-app";
+  input: Record<string, unknown>;
+  /** The generated detection rule (authoritative for detection). */
+  rule: CatalogDetectionRule;
+  createdAt: string;
+  updatedAt: string;
+  /** Admin who authored this rule. */
   modifiedBy: string;
 }
 

@@ -1,5 +1,5 @@
 import type { FullSystemSnapshot, SoftwareItem } from "./collectors/remote-collector.js";
-import { catalogDetectionRules, findRuleForPackage, type CatalogDetectionRule } from "./catalog-rules.js";
+import { getDetectionRules, findRuleForPackage, type CatalogDetectionRule } from "./catalog-rules.js";
 
 export type MigrationClass =
   | "managed-software"
@@ -552,7 +552,7 @@ function buildNormalizedArtifacts(candidates: MigrationCandidate[], context: Sna
   }
 
   for (const artifact of byKey.values()) {
-    const rule = artifact.catalogRuleId ? catalogDetectionRules.find((candidateRule) => candidateRule.id === artifact.catalogRuleId) : undefined;
+    const rule = artifact.catalogRuleId ? getDetectionRules().find((candidateRule) => candidateRule.id === artifact.catalogRuleId) : undefined;
     if (!rule) continue;
     const matchingPorts = (rule.detect.ports ?? []).filter((port) => context.openPorts.has(port));
     for (const evidence of context.portEvidence.filter((item) => item.port !== undefined && matchingPorts.includes(item.port))) {
@@ -652,7 +652,7 @@ function buildConfigBundles(artifacts: NormalizedArtifact[], context: SnapshotEv
 
   const bundles = [...ruleIds]
     .flatMap((ruleId) => {
-      const rule = catalogDetectionRules.find((candidateRule) => candidateRule.id === ruleId);
+      const rule = getDetectionRules().find((candidateRule) => candidateRule.id === ruleId);
       return rule ? configBundlesForRule(rule, context) : [];
     });
 
@@ -929,7 +929,7 @@ function findRuleForSoftwareItem(item: SoftwareItem): CatalogDetectionRule | und
 
   const normalized = normalizePackageNameForMatch(item.name);
   if (serviceSources.has(item.source)) {
-    return catalogDetectionRules.find((rule) =>
+    return getDetectionRules().find((rule) =>
       (rule.detect.systemd ?? []).some((serviceName) => normalizePackageNameForMatch(serviceName) === normalized)
     );
   }
@@ -938,7 +938,7 @@ function findRuleForSoftwareItem(item: SoftwareItem): CatalogDetectionRule | und
 }
 
 function ruleForCandidate(candidate: MigrationCandidate): CatalogDetectionRule | undefined {
-  return candidate.catalogRuleId ? catalogDetectionRules.find((rule) => rule.id === candidate.catalogRuleId) : undefined;
+  return candidate.catalogRuleId ? getDetectionRules().find((rule) => rule.id === candidate.catalogRuleId) : undefined;
 }
 
 function isUserFacingCandidate(candidate: MigrationCandidate): boolean {
@@ -1024,7 +1024,7 @@ function ruleIdsForConfigChecklistItem(item: FullSystemSnapshot["configChecklist
   const ids = new Set<string>();
   if (item.category === "security" || /\b(ssh|sshd|ufw|firewall|fail2ban|unattended)\b/.test(lower)) ids.add("security-baseline");
 
-  for (const rule of catalogDetectionRules) {
+  for (const rule of getDetectionRules()) {
     const tokens = [
       rule.id,
       rule.displayName,

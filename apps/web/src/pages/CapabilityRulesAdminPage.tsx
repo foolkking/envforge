@@ -37,11 +37,14 @@ import {
   fetchCapabilityWorkflowUsers,
   processAdminSuggestion,
   fetchPackageIntegrations,
+  listCapabilityRules,
+  deleteCapabilityRule,
   type AdminSuggestionRecord,
   type AdminCatalogInput,
   type CapabilityWorkflowQueue,
   type CapabilityWorkflowUser,
-  type PackageIntegrationRow
+  type PackageIntegrationRow,
+  type RuntimeRuleOverride
 } from "../api";
 import type { Locale } from "../lib/types";
 import {
@@ -59,6 +62,7 @@ import { SuggestionInboxTab } from "./governance/SuggestionInboxTab";
 import { PackageIntegrationsTab } from "./governance/PackageIntegrationsTab";
 import { UsersQueuesTab } from "./governance/UsersQueuesTab";
 import { CapabilityEditorDrawer } from "../components/CapabilityEditorDrawer";
+import { ArchetypeRuleDrawer } from "../components/ArchetypeRuleDrawer";
 
 const CATALOG_CATEGORIES = new Set(["runtime", "developer", "database", "container", "security", "network", "service"]);
 
@@ -91,6 +95,16 @@ export function CapabilityRulesAdminPage({ authToken, isAdmin, locale }: Props):
     fromSuggestionId?: string;
   } | null>(null);
 
+  // Runtime detection rules (Phase B2): UI-authored rules that extend
+  // migrate detection only (never certify). `ruleDrawer` opens the editor.
+  const [runtimeRules, setRuntimeRules] = useState<RuntimeRuleOverride[]>([]);
+  const [ruleDrawer, setRuleDrawer] = useState<{ existing?: RuntimeRuleOverride } | null>(null);
+
+  async function reloadRuntimeRules() {
+    const res = await listCapabilityRules(authToken);
+    setRuntimeRules(res.rules);
+  }
+
   async function reloadRows() {
     const response = await fetchCapabilityRulesAdmin(authToken);
     setRows(response.items);
@@ -119,6 +133,11 @@ export function CapabilityRulesAdminPage({ authToken, isAdmin, locale }: Props):
   useEffect(() => {
     if (!isAdmin) return;
     let abort = false;
+    if (tab === "registry" && runtimeRules.length === 0) {
+      listCapabilityRules(authToken)
+        .then((res) => { if (!abort) setRuntimeRules(res.rules); })
+        .catch(() => { /* registry still usable without runtime rules */ });
+    }
     if (tab === "suggestions" && suggestions.length === 0 && !suggestionsLoading) {
       setSuggestionsLoading(true);
       fetchAdminSuggestions(authToken, { limit: 50 })
@@ -225,6 +244,17 @@ export function CapabilityRulesAdminPage({ authToken, isAdmin, locale }: Props):
           rows={rows}
           onCreate={() => setEditor({ mode: "create" })}
           onEdit={(catalogId) => setEditor({ mode: "edit", catalogId })}
+          runtimeRules={runtimeRules}
+          onNewDetectionRule={() => setRuleDrawer({})}
+          onEditDetectionRule={(rule) => setRuleDrawer({ existing: rule })}
+          onDeleteDetectionRule={async (id) => {
+            try {
+              await deleteCapabilityRule(authToken, id);
+              await reloadRuntimeRules();
+            } catch (err) {
+              setError(err instanceof Error ? err.message : "Delete rule failed");
+            }
+          }}
         />
       ) : null}
 
@@ -301,6 +331,23 @@ export function CapabilityRulesAdminPage({ authToken, isAdmin, locale }: Props):
                 const res = await fetchAdminSuggestions(authToken, { limit: 50 });
                 setSuggestions(res.suggestions);
               }
+            } catch (err) {
+              setError(err instanceof Error ? err.message : "Refresh failed");
+            }
+          }}
+        />
+      ) : null}
+
+      {ruleDrawer ? (
+        <ArchetypeRuleDrawer
+          authToken={authToken}
+          locale={locale}
+          existing={ruleDrawer.existing ?? null}
+          onClose={() => setRuleDrawer(null)}
+          onSaved={async () => {
+            setRuleDrawer(null);
+            try {
+              await reloadRuntimeRules();
             } catch (err) {
               setError(err instanceof Error ? err.message : "Refresh failed");
             }
