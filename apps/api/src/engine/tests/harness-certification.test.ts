@@ -114,22 +114,12 @@ test("harness-certify: writes summary.json + summary.md into the certification d
   assert.match(src, /summary\.md/);
 });
 
-test("harness-certify: the committed summary.md reports verdict not-run", async () => {
-  const summaryPath = path.resolve(
-    repoRoot,
-    "docs/harness-reports/live-ubuntu-certification/summary.md"
-  );
-  const raw = await fs.readFile(summaryPath, "utf8");
-  assert.match(raw, /Verdict:\s*\*\*not-run\*\*/);
-});
-
-test("harness-certify: live evaluation report placeholder explicitly states not-run", async () => {
-  const evalPath = path.resolve(
-    repoRoot,
-    "docs/harness-reports/live-ubuntu-certification/EVALUATION_REPORT.md"
-  );
-  const raw = await fs.readFile(evalPath, "utf8");
-  assert.match(raw, /Status:\s*not-run/i);
+test("harness-certify: generated markdown renders the summary verdict explicitly", async () => {
+  const src = await readSource();
+  const fn = src.indexOf("function summaryToMarkdown(");
+  assert.ok(fn >= 0, "summaryToMarkdown helper must exist");
+  const body = src.slice(fn, fn + 1200);
+  assert.match(body, /Verdict:\s*\*\*\$\{summary\.verdict\}\*\*/);
 });
 
 test("harness-certify: orchestrator delegates verdict to decideCertificationVerdict", async () => {

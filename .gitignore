@@ -8,6 +8,18 @@ build/
 .expo/
 .kiro/
 .data/
+coverage/
+.nyc_output/
+.cache/
+.turbo/
+*.tsbuildinfo
+
+# Test and local visual-review outputs
+playwright-report/
+test-results/
+blob-report/
+/screenshots/
+/apps/web/screenshots/
 
 # Local runtime data
 docker-compose.yml
@@ -25,13 +37,14 @@ data/snapshots/
 configs/snapshots/
 configs/files/
 
+# Local maintenance scripts containing machine-specific paths or account data
+/scripts/reset-passwords.mjs
+
 # OS and editor noise
 .DS_Store
 Thumbs.db
 .idea/
 .vscode/
-
-# Generated package manager files can be committed once a manager is chosen.
 
 # Harness run outputs are local evidence, not durable documentation.
 docs/harness-reports/

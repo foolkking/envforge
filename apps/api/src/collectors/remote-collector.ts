@@ -18,6 +18,16 @@ import type { Client } from "ssh2";
 import { isKnownUserPackage } from "./known-packages.js";
 
 const COLLECT_SCRIPT = String.raw`
+run_limited() {
+  seconds="$1"
+  shift
+  if command -v timeout >/dev/null 2>&1; then
+    timeout "$seconds" "$@"
+  else
+    "$@"
+  fi
+}
+
 echo "===SECTION:hostname==="
 hostname 2>/dev/null
 
@@ -60,18 +70,15 @@ else
   cp "$APT_TMP/manual.txt" "$APT_TMP/user.txt"
 fi
 
-while IFS= read -r pkg; do
-  [ -z "$pkg" ] && continue
-  ver=$(dpkg-query -W -f='\${Version}' "$pkg" 2>/dev/null)
-  [ -n "$ver" ] && echo "$pkg|$ver"
-done < "$APT_TMP/user.txt"
+dpkg-query -W -f='\${Package}|\${Version}\n' 2>/dev/null | sort -u > "$APT_TMP/dpkg.txt"
+awk -F'|' 'NR==FNR { manual[$1]=1; next } manual[$1] { print }' "$APT_TMP/user.txt" "$APT_TMP/dpkg.txt"
 rm -rf "$APT_TMP" 2>/dev/null
 
 echo "===SECTION:apt-manual==="
 apt-mark showmanual 2>/dev/null | sort -u
 
 echo "===SECTION:rpm==="
-rpm -qa --queryformat '%{NAME}|%{VERSION}\n' 2>/dev/null
+run_limited 8s rpm -qa --queryformat '%{NAME}|%{VERSION}\n' 2>/dev/null
 
 echo "===SECTION:snap==="
 snap list 2>/dev/null | tail -n +2 | awk '{print $1"|"$2}'
@@ -80,14 +87,14 @@ echo "===SECTION:flatpak==="
 flatpak list --columns=application,version 2>/dev/null
 
 echo "===SECTION:npm==="
-npm list -g --depth=0 --parseable 2>/dev/null | tail -n +2 | awk -F'/' '{print $NF}'
+run_limited 8s npm list -g --depth=0 --parseable 2>/dev/null | tail -n +2 | awk -F'/' '{print $NF}'
 
 echo "===SECTION:pip==="
-pip3 list --format=freeze 2>/dev/null
-pip list --format=freeze 2>/dev/null
+run_limited 8s pip3 list --format=freeze 2>/dev/null
+run_limited 8s pip list --format=freeze 2>/dev/null
 
 echo "===SECTION:gem==="
-gem list --local 2>/dev/null
+run_limited 8s gem list --local 2>/dev/null
 
 echo "===SECTION:cargo==="
 ls -1 ~/.cargo/bin 2>/dev/null
@@ -131,20 +138,20 @@ echo "===SECTION:sdkman==="
 ls -1 ~/.sdkman/candidates 2>/dev/null
 
 echo "===SECTION:docker-images==="
-docker images --format '{{.Repository}}:{{.Tag}}' 2>/dev/null
+run_limited 8s docker images --format '{{.Repository}}:{{.Tag}}' 2>/dev/null
 
 echo "===SECTION:cron-jobs==="
 ls -1 /etc/cron.d 2>/dev/null | grep -vE '^(\.placeholder|e2scrub)$'
 crontab -l 2>/dev/null | grep -vE '^(#|$|SHELL|PATH|MAILTO)'
 
 echo "===SECTION:systemd-timers==="
-systemctl list-unit-files --state=enabled --type=timer --no-legend 2>/dev/null | awk '{print $1}' | grep -vE '^(apt-|systemd-|fstrim|logrotate|man-db|motd-news|e2scrub)'
+run_limited 8s systemctl list-unit-files --state=enabled --type=timer --no-legend 2>/dev/null | awk '{print $1}' | grep -vE '^(apt-|systemd-|fstrim|logrotate|man-db|motd-news|e2scrub)'
 
 echo "===SECTION:services-enabled==="
-systemctl list-unit-files --state=enabled --type=service --no-legend 2>/dev/null | awk '{print $1}'
+run_limited 8s systemctl list-unit-files --state=enabled --type=service --no-legend 2>/dev/null | awk '{print $1}'
 
 echo "===SECTION:services-running==="
-systemctl list-units --state=running --type=service --no-legend 2>/dev/null | awk '{print $1}'
+run_limited 8s systemctl list-units --state=running --type=service --no-legend 2>/dev/null | awk '{print $1}'
 
 echo "===SECTION:custom-services==="
 ls -1 /etc/systemd/system/*.service 2>/dev/null | xargs -n1 basename 2>/dev/null
@@ -161,7 +168,9 @@ grep -i "^PermitRootLogin" /etc/ssh/sshd_config 2>/dev/null | head -1 || echo "P
 grep -i "^PasswordAuthentication" /etc/ssh/sshd_config 2>/dev/null | head -1 || echo "PasswordAuthentication not-set"
 grep -i "^MaxAuthTries" /etc/ssh/sshd_config 2>/dev/null | head -1 || echo "MaxAuthTries not-set"
 # Firewall status
-sudo ufw status 2>/dev/null | head -1 || echo "UFW not-installed"
+ufw_line=$(run_limited 5s sudo -n ufw status 2>/dev/null | head -1)
+[ -n "$ufw_line" ] || ufw_line=$(run_limited 5s ufw status 2>/dev/null | head -1)
+[ -n "$ufw_line" ] && echo "$ufw_line" || echo "UFW not-installed"
 # Fail2ban status
 systemctl is-active fail2ban 2>/dev/null || echo "fail2ban-inactive"
 # Unattended upgrades
@@ -191,7 +200,7 @@ grep -vE '^(127\.|::1|#|$)' /etc/hosts 2>/dev/null | head -5
 echo "===SECTION:end==="
 `;
 
-const COLLECT_TIMEOUT_MS = 30_000; // 30s — dpkg -l can be slow on busy systems
+const COLLECT_TIMEOUT_MS = 60_000; // Full inventory can be slow on package-heavy hosts.
 
 export interface SoftwareItem {
   name: string;

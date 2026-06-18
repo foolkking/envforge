@@ -58,17 +58,21 @@ export async function testSshConnection(
     const conn = new Client();
     let settled = false;
 
-    const timer = setTimeout(() => {
+    const connectTimer = setTimeout(() => {
       if (settled) return;
       settled = true;
       conn.destroy();
       resolve({ ok: false, error: "Connection timed out.", code: "timeout" });
     }, CONNECT_TIMEOUT_MS);
 
+    function clearConnectTimer() {
+      clearTimeout(connectTimer);
+    }
+
     function done(result: SshResult) {
       if (settled) return;
       settled = true;
-      clearTimeout(timer);
+      clearConnectTimer();
       conn.end();
       resolve(result);
     }
@@ -84,6 +88,7 @@ export async function testSshConnection(
     });
 
     conn.on("ready", () => {
+      clearConnectTimer();
       // SSH 握手成功，使用全面采集器
       collectRemoteSnapshot(conn, host)
         .then((fullSnapshot) => {
@@ -128,17 +133,21 @@ export async function testSshConnectionWithContent(
     const conn = new Client();
     let settled = false;
 
-    const timer = setTimeout(() => {
+    const connectTimer = setTimeout(() => {
       if (settled) return;
       settled = true;
       conn.destroy();
       resolve({ ok: false, error: "Connection timed out.", code: "timeout" });
     }, CONNECT_TIMEOUT_MS);
 
+    function clearConnectTimer() {
+      clearTimeout(connectTimer);
+    }
+
     function done(result: SshResult) {
       if (settled) return;
       settled = true;
-      clearTimeout(timer);
+      clearConnectTimer();
       conn.end();
       resolve(result);
     }
@@ -154,6 +163,7 @@ export async function testSshConnectionWithContent(
     });
 
     conn.on("ready", () => {
+      clearConnectTimer();
       collectRemoteSnapshot(conn, host)
         .then((fullSnapshot) => {
           const latencyMs = Date.now() - start;

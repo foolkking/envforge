@@ -2,7 +2,7 @@
 
 AI-readable current-state snapshot. Read this before changing the repo, then read
 `AGENTS.md` for working rules. Human entry point: `README.md`. Last updated:
-2026-06-11.
+2026-06-18.
 
 ## Product snapshot
 
@@ -109,6 +109,16 @@ Current generated audit says:
 Source of truth: `docs/generated/catalog-certification.md` and
 `docs/generated/catalog-certification.json`. Re-run `npm run certification:check`
 and `npm run certification:backlog` before changing quoted counts.
+
+## Current SSH collection resilience
+
+- SSH connection timeouts cover the handshake only; successful connections clear
+  that timer before the full remote inventory starts.
+- Slow optional inventory commands are bounded, firewall inspection is
+  non-interactive, and Debian package versions are collected in one batched
+  `dpkg-query` pass.
+- Regression coverage lives in
+  `apps/api/src/engine/tests/ssh-collector-resilience.test.ts`.
 
 ## Git caveats
 
