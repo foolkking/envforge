@@ -61,8 +61,8 @@ export const REQUIREMENT_LABELS: Record<string, { zh: string; en: string }> = {
 
 export function Section({ title, testId, children }: { title: string; testId: string; children: React.ReactNode }): JSX.Element {
   return (
-    <section data-testid={testId} style={{ borderTop: "1px solid #e2e8f0", paddingTop: 8 }}>
-      <h4 style={{ margin: "0 0 4px 0", fontSize: 12, color: "#475569" }}>{title}</h4>
+    <section data-testid={testId} style={{ borderTop: "1px solid var(--ef-border)", paddingTop: 8 }}>
+      <h4 style={{ margin: "0 0 4px 0", fontSize: 12, color: "var(--ef-muted)" }}>{title}</h4>
       {children}
     </section>
   );
@@ -70,13 +70,13 @@ export function Section({ title, testId, children }: { title: string; testId: st
 
 export function DetailList({ label, items }: { label: string; items: string[] }): JSX.Element {
   if (!items || items.length === 0) {
-    return <p style={{ margin: "2px 0", fontSize: 12, color: "#94a3b8" }}>{label}: —</p>;
+    return <p style={{ margin: "2px 0", fontSize: 12, color: "var(--ef-muted-2)" }}>{label}: —</p>;
   }
   return (
     <p style={{ margin: "2px 0", fontSize: 12 }}>
-      <span style={{ color: "#64748b" }}>{label}:</span>{" "}
+      <span style={{ color: "var(--ef-muted)" }}>{label}:</span>{" "}
       {items.map((it, idx) => (
-        <code key={idx} style={{ background: "#f1f5f9", padding: "1px 4px", borderRadius: 3, marginRight: 4 }}>{it}</code>
+        <code key={idx} style={{ background: "var(--ef-surface-soft)", padding: "1px 4px", borderRadius: 3, marginRight: 4 }}>{it}</code>
       ))}
     </p>
   );
@@ -85,7 +85,7 @@ export function DetailList({ label, items }: { label: string; items: string[] })
 export function Kvp({ obj }: { obj: Record<string, string[] | undefined> }): JSX.Element {
   const entries = Object.entries(obj).filter(([, v]) => v && v.length > 0);
   if (entries.length === 0) {
-    return <p style={{ margin: "2px 0", fontSize: 12, color: "#94a3b8" }}>—</p>;
+    return <p style={{ margin: "2px 0", fontSize: 12, color: "var(--ef-muted-2)" }}>—</p>;
   }
   return (
     <ul style={{ margin: "2px 0", paddingLeft: 16, fontSize: 12 }}>
@@ -93,7 +93,7 @@ export function Kvp({ obj }: { obj: Record<string, string[] | undefined> }): JSX
         <li key={k}>
           <strong>{k}:</strong>{" "}
           {(v ?? []).map((it, idx) => (
-            <code key={idx} style={{ background: "#f1f5f9", padding: "1px 4px", borderRadius: 3, marginRight: 4 }}>{it}</code>
+            <code key={idx} style={{ background: "var(--ef-surface-soft)", padding: "1px 4px", borderRadius: 3, marginRight: 4 }}>{it}</code>
           ))}
         </li>
       ))}
@@ -132,7 +132,7 @@ export function FilterPills<T extends string>({
   options: Array<{ value: T; label: string }>;
 }): JSX.Element {
   return (
-    <div style={{ display: "inline-flex", gap: 4 }}>
+    <div style={{ display: "inline-flex", flexWrap: "wrap", gap: 4 }}>
       {options.map((opt) => (
         <button
           key={opt.value}
@@ -140,10 +140,10 @@ export function FilterPills<T extends string>({
           onClick={() => onChange(opt.value)}
           style={{
             padding: "4px 10px",
-            border: "1px solid #cbd5e1",
+            border: "1px solid var(--ef-border)",
             borderRadius: 999,
-            background: value === opt.value ? "#1e293b" : "#fff",
-            color: value === opt.value ? "#fff" : "#1e293b",
+            background: value === opt.value ? "var(--ef-text)" : "var(--ef-surface)",
+            color: value === opt.value ? "var(--ef-surface)" : "var(--ef-text)",
             fontSize: 12
           }}
         >
@@ -156,10 +156,10 @@ export function FilterPills<T extends string>({
 
 export function SummaryStat({ label, value, icon, tone }: { label: string; value: number | string; icon: React.ReactNode; tone: "green" | "amber" | "slate" }): JSX.Element {
   const colors = tone === "green"
-    ? { bg: "#ecfdf5", border: "#86efac", fg: "#065f46" }
+    ? { bg: "var(--ef-success-soft)", border: "var(--ef-success)", fg: "var(--ef-success)" }
     : tone === "amber"
-      ? { bg: "#fffbeb", border: "#fcd34d", fg: "#92400e" }
-      : { bg: "#f1f5f9", border: "#cbd5e1", fg: "#1e293b" };
+      ? { bg: "var(--ef-warning-soft)", border: "var(--ef-warning)", fg: "var(--ef-warning)" }
+      : { bg: "var(--ef-surface-soft)", border: "var(--ef-border)", fg: "var(--ef-text)" };
   return (
     <div
       style={{
@@ -191,21 +191,21 @@ export const summaryStyle: React.CSSProperties = {
 };
 
 export const panelStyle: React.CSSProperties = {
-  border: "1px solid #e2e8f0",
+  border: "1px solid var(--ef-border)",
   borderRadius: 8,
   padding: 16,
-  background: "#ffffff"
+  background: "var(--ef-surface)"
 };
 
 export const compactLabelStyle: React.CSSProperties = {
   display: "grid",
   gap: 4,
-  color: "#475569",
+  color: "var(--ef-muted)",
   fontSize: 12
 };
 
 export function Th({ children }: { children: React.ReactNode }): JSX.Element {
-  return <th style={{ textAlign: "left", padding: "8px 10px", fontWeight: 600, fontSize: 11, color: "#475569" }}>{children}</th>;
+  return <th style={{ textAlign: "left", padding: "8px 10px", fontWeight: 600, fontSize: 11, color: "var(--ef-muted)" }}>{children}</th>;
 }
 
 export function Td({ children }: { children: React.ReactNode }): JSX.Element {

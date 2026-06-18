@@ -10,10 +10,10 @@ const STATUS_ICON: Record<PreflightCheck["status"], string> = {
 };
 
 const STATUS_COLOR: Record<PreflightCheck["status"], string> = {
-  pass: "#16a34a",
-  warn: "#d97706",
-  fail: "#dc2626",
-  skipped: "#94a3b8"
+  pass: "var(--ef-success)",
+  warn: "var(--ef-warning)",
+  fail: "var(--ef-danger)",
+  skipped: "var(--ef-muted-2)"
 };
 
 export function PreflightPanel({

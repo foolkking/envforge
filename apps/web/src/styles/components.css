@@ -43,3 +43,95 @@
   border-color: transparent;
   color: var(--ef-muted);
 }
+
+/* ── In-app toast + dialog (replaces native alert/confirm/prompt) ─── */
+.ef-toast-stack {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 10000;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: min(92vw, 380px);
+}
+.ef-toast {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: var(--ef-radius);
+  background: var(--ef-surface);
+  color: var(--ef-text);
+  border: 1px solid var(--ef-border);
+  box-shadow: var(--ef-shadow-lg);
+  font-size: 13px;
+  line-height: 1.4;
+}
+.ef-toast span { flex: 1; word-break: break-word; }
+.ef-toast-success { border-left: 3px solid var(--ef-success); }
+.ef-toast-error { border-left: 3px solid var(--ef-danger); }
+.ef-toast-info { border-left: 3px solid var(--ef-info); }
+.ef-toast-close {
+  background: none;
+  border: none;
+  color: var(--ef-muted);
+  cursor: pointer;
+  padding: 0;
+  display: inline-flex;
+}
+.ef-toast-close:hover { color: var(--ef-text); }
+
+.ef-dialog .ef-dialog-body { padding: 4px 0 8px; color: var(--ef-text); }
+.ef-dialog .ef-dialog-body p { margin: 0 0 8px; }
+.ef-dialog .ef-dialog-body label { display: flex; flex-direction: column; gap: 6px; }
+.ef-dialog-footer { display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; }
+.ef-dialog .ef-danger-action,
+.ef-danger-action {
+  background: var(--ef-danger);
+  background-image: none;
+  border-color: var(--ef-danger);
+  color: #fff;
+}
+
+/* Package Integrations list + detail: two columns on desktop, stacked on mobile. */
+.integrations-grid {
+  display: grid;
+  grid-template-columns: minmax(280px, 1fr) minmax(360px, 2fr);
+  gap: 12px;
+}
+
+/* Wide admin tables scroll horizontally whenever they exceed the viewport
+   (tablet + mobile), instead of pushing the page wider. */
+@media (max-width: 1024px) {
+  .rules-table,
+  [data-testid="rules-table"],
+  [data-testid="suggestions-table"],
+  [data-testid="runtime-rules"] > table,
+  .integrations-table,
+  [data-testid="capability-admin-workbench"] table {
+    display: block;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    white-space: nowrap;
+  }
+}
+
+/* Mobile-only: collapse multi-column admin layouts + scroll the tab bar. */
+@media (max-width: 760px) {
+  .capability-admin-tabs {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    -webkit-overflow-scrolling: touch;
+  }
+  .capability-admin-tabs button { flex: 0 0 auto; }
+  .integrations-grid { grid-template-columns: 1fr; }
+  [data-testid="capability-admin-workbench"] select,
+  [data-testid="capability-admin-workbench"] input,
+  [data-testid="capability-admin-workbench"] textarea { max-width: 100%; }
+  [data-testid="standards-tab"] label { max-width: 100%; flex-wrap: wrap; }
+  /* Cure CSS grid/flex blowout: implicit 1fr = minmax(auto,1fr) lets wide
+     children push the track past the viewport. minmax(0,1fr)+min-width:0 fix it. */
+  [data-testid="standards-tab"] { grid-template-columns: minmax(0, 1fr); }
+  [data-testid="standards-tab"] * { min-width: 0; }
+}

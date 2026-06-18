@@ -13,6 +13,9 @@ import {
 } from "../api";
 import type { Locale } from "../lib/types";
 import { connectionFields, connectionFieldKeys } from "../lib/types";
+import { toast } from "../lib/dialogs";
+import { confirmDialog } from "../lib/dialogs";
+import { useEscapeToClose } from "../lib/useEscapeToClose";
 import { MigratePipelinePage } from "./MigratePipelinePage";
 import { Button } from "../components/ui/Button";
 
@@ -118,6 +121,8 @@ export function MachinePage({
   const [editLabel, setEditLabel] = useState("");
   const [editTags, setEditTags] = useState("");
   const [hostDetailsOpen, setHostDetailsOpen] = useState(false);
+  useEscapeToClose(() => setConnectionManagerOpen(false), connectionManagerOpen);
+  useEscapeToClose(() => setHostDetailsOpen(false), hostDetailsOpen);
 
   const activeConn = connections.find((connection) => connection.id === activeConnectionId);
   const activeProbe = probeResult ?? activeConn?.probeSnapshot;
@@ -197,7 +202,7 @@ export function MachinePage({
     const message = isCurrent
       ? (locale === "zh" ? "这是当前选中的连接。删除后会自动切换到其他连接，或清空当前主机。确认删除？" : "This is the current connection. Deleting it will switch to another connection or clear the current host. Delete it?")
       : (locale === "zh" ? "确认删除这个连接？" : "Delete this connection?");
-    if (!confirm(message)) return;
+    if (!(await confirmDialog({ message, danger: true }))) return;
     const next = connections.find((item) => item.id !== connection.id);
     await onDeleteConnection(connection.id);
     if (isCurrent && next) onSelectConnection(next.id);
@@ -288,7 +293,7 @@ export function MachinePage({
           </div>
           {method === "ssh-key" && showKeyUpload ? (
             <div className="ssh-key-upload-panel">
-              <p className="eyebrow" style={{ color: "#475569", margin: "0 0 8px" }}>{locale === "zh" ? "粘贴 SSH 私钥内容" : "Paste SSH private key"}</p>
+              <p className="eyebrow" style={{ color: "var(--ef-muted)", margin: "0 0 8px" }}>{locale === "zh" ? "粘贴 SSH 私钥内容" : "Paste SSH private key"}</p>
               <input placeholder={locale === "zh" ? "密钥标签（可选）" : "Key label (optional)"} value={keyUploadLabel} onChange={(event) => setKeyUploadLabel(event.target.value)} style={{ marginBottom: 8, width: "100%", border: "1px solid #d7dde4", borderRadius: 8, minHeight: 36, padding: "0 10px", font: "inherit" }} />
               <textarea placeholder="-----BEGIN OPENSSH PRIVATE KEY-----" value={keyUploadText} onChange={(event) => setKeyUploadText(event.target.value)} rows={6} style={{ width: "100%", fontFamily: "monospace", fontSize: 12, border: "1px solid #d7dde4", borderRadius: 8, padding: 10, resize: "vertical" }} />
               <Button
@@ -305,7 +310,7 @@ export function MachinePage({
                     setKeyUploadLabel("");
                     setShowKeyUpload(false);
                   } catch (err) {
-                    alert(err instanceof Error ? err.message : "Upload failed");
+                    toast(err instanceof Error ? err.message : "Upload failed", "error");
                   } finally {
                     setKeyUploading(false);
                   }

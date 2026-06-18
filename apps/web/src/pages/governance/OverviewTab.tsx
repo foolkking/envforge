@@ -42,16 +42,16 @@ export function OverviewTab({
           {locale === "zh" ? "P0 待升级能力（前 5）" : "P0 Backlog (top 5)"}
         </h2>
         {p0.length === 0 ? (
-          <p style={{ color: "#64748b" }}>{locale === "zh" ? "无待办" : "No backlog."}</p>
+          <p style={{ color: "var(--ef-muted)" }}>{locale === "zh" ? "无待办" : "No backlog."}</p>
         ) : (
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-            <thead style={{ background: "#f1f5f9" }}>
+            <thead style={{ background: "var(--ef-surface-soft)" }}>
               <tr><Th>Capability</Th><Th>Type</Th><Th>{locale === "zh" ? "缺失项" : "Missing"}</Th></tr>
             </thead>
             <tbody>
               {p0.map((row) => (
-                <tr key={row.id} style={{ borderBottom: "1px solid #e2e8f0" }}>
-                  <Td><strong>{row.name}</strong> <code style={{ color: "#64748b" }}>{row.id}</code></Td>
+                <tr key={row.id} style={{ borderBottom: "1px solid var(--ef-border)" }}>
+                  <Td><strong>{row.name}</strong> <code style={{ color: "var(--ef-muted)" }}>{row.id}</code></Td>
                   <Td>{row.category}</Td>
                   <Td>
                     <ul style={{ margin: 0, paddingLeft: 16 }}>
@@ -66,7 +66,7 @@ export function OverviewTab({
         )}
       </section>
 
-      <section style={{ marginTop: 16, color: "#64748b", fontSize: 12 }}>
+      <section style={{ marginTop: 16, color: "var(--ef-muted)", fontSize: 12 }}>
         <p style={{ margin: 0 }}>
           {locale === "zh"
             ? "提示：普通用户的 Build 只展示已认证能力，认证升级请参考 docs/catalog.md。"

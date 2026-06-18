@@ -21,6 +21,7 @@ import { DriftPanel, SchedulesPanel, WebhooksPanel } from "./SettingsPage";
 import { RunsPanel } from "../components/RunsPanel";
 import { ReportsPage } from "./ReportsPage";
 import type { Locale } from "../lib/types";
+import { confirmDialog } from "../lib/dialogs";
 import { Button } from "../components/ui/Button";
 import { Badge } from "../components/ui/Badge";
 
@@ -139,7 +140,7 @@ export function PlanRecipesPage({
   }
 
   async function handleDelete(id: string) {
-    if (!confirm(locale === "zh" ? "确认删除此计划草稿？" : "Delete this plan draft?")) return;
+    if (!(await confirmDialog({ message: locale === "zh" ? "确认删除此计划草稿？" : "Delete this plan draft?", danger: true }))) return;
     try {
       await deletePlaybook(authToken, id);
       setPlaybooks((prev) => prev.filter((item) => item.id !== id));
@@ -306,7 +307,7 @@ export function PlanRecipesPage({
                   {saving ? (locale === "zh" ? "保存中..." : "Saving...") : (locale === "zh" ? "保存计划草稿" : "Save plan draft")}
                 </Button>
                 {editingPlaybook ? (
-                  <Button variant="ghost" style={{ fontSize: 13, minHeight: 34, color: "#b42318" }} onClick={() => void handleDelete(editingPlaybook.id)}>
+                  <Button variant="ghost" style={{ fontSize: 13, minHeight: 34, color: "var(--ef-danger)" }} onClick={() => void handleDelete(editingPlaybook.id)}>
                     {locale === "zh" ? "删除" : "Delete"}
                   </Button>
                 ) : null}
@@ -326,8 +327,8 @@ export function PlanRecipesPage({
                     <div key={historyItem.version} className="playbook-history-item">
                       <div className="playbook-history-item-meta">
                         <Badge tone="neutral">v{historyItem.version}</Badge>
-                        <span style={{ color: "#64748b", fontSize: 12 }}>{new Date(historyItem.savedAt).toLocaleString()}</span>
-                        {historyItem.comment ? <span style={{ color: "#475569", fontSize: 12 }}>{historyItem.comment}</span> : null}
+                        <span style={{ color: "var(--ef-muted)", fontSize: 12 }}>{new Date(historyItem.savedAt).toLocaleString()}</span>
+                        {historyItem.comment ? <span style={{ color: "var(--ef-muted)", fontSize: 12 }}>{historyItem.comment}</span> : null}
                       </div>
                       {historyItem.version !== editingPlaybook.version ? (
                         <Button variant="secondary" style={{ fontSize: 12, minHeight: 28, padding: "0 10px" }} onClick={() => void handleRestoreVersion(historyItem.version)}>
@@ -350,7 +351,7 @@ export function PlanRecipesPage({
                 </div>
                 {allTags.length > 0 ? (
                   <div className="multi-target-tags">
-                    <p style={{ color: "#475569", fontSize: 12, fontWeight: 700, margin: "0 0 6px" }}>{locale === "zh" ? "按标签选择" : "Select by tag"}</p>
+                    <p style={{ color: "var(--ef-muted)", fontSize: 12, fontWeight: 700, margin: "0 0 6px" }}>{locale === "zh" ? "按标签选择" : "Select by tag"}</p>
                     <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
                       {allTags.map((tag) => (
                         <Button key={tag} variant={selectedTags.has(tag) ? "selected" : "ghost"} style={{ fontSize: 12, minHeight: 28, padding: "0 10px" }} onClick={() => setSelectedTags((prev) => {
@@ -364,7 +365,7 @@ export function PlanRecipesPage({
                   </div>
                 ) : null}
                 <div className="multi-target-connections">
-                  <p style={{ color: "#475569", fontSize: 12, fontWeight: 700, margin: "8px 0 6px" }}>{locale === "zh" ? "或直接选择目标" : "Or select targets directly"}</p>
+                  <p style={{ color: "var(--ef-muted)", fontSize: 12, fontWeight: 700, margin: "8px 0 6px" }}>{locale === "zh" ? "或直接选择目标" : "Or select targets directly"}</p>
                   {probedConnections.length === 0 ? (
                     <p className="empty-hint" style={{ fontSize: 12 }}>{locale === "zh" ? "暂无已采集的目标虚拟机" : "No collected target VMs"}</p>
                   ) : (
@@ -378,7 +379,7 @@ export function PlanRecipesPage({
                             return next;
                           })} style={{ accentColor: "#0f766e" }} />
                           <span style={{ fontWeight: 600 }}>{connection.label}</span>
-                          <span style={{ color: "#64748b" }}>{connection.fields.host}</span>
+                          <span style={{ color: "var(--ef-muted)" }}>{connection.fields.host}</span>
                           {connection.tags?.map((tag) => <Badge key={tag} tone="neutral">#{tag}</Badge>)}
                         </label>
                       ))}
@@ -388,8 +389,8 @@ export function PlanRecipesPage({
                 {execError ? <p className="connection-error" style={{ margin: "8px 0 0" }}>{execError}</p> : null}
                 {execResults.length > 0 ? (
                   <div style={{ marginTop: 10 }}>
-                    <p style={{ color: "#065f46", fontSize: 12, fontWeight: 700, margin: "0 0 6px" }}>{locale === "zh" ? `已在 ${execResults.length} 台目标上启动` : `Launched on ${execResults.length} target(s)`}</p>
-                    {execResults.map((result) => <div key={result.taskId} style={{ fontSize: 11, color: "#64748b" }}>{result.label}: task {result.taskId.slice(0, 12)}</div>)}
+                    <p style={{ color: "var(--ef-success)", fontSize: 12, fontWeight: 700, margin: "0 0 6px" }}>{locale === "zh" ? `已在 ${execResults.length} 台目标上启动` : `Launched on ${execResults.length} target(s)`}</p>
+                    {execResults.map((result) => <div key={result.taskId} style={{ fontSize: 11, color: "var(--ef-muted)" }}>{result.label}: task {result.taskId.slice(0, 12)}</div>)}
                   </div>
                 ) : null}
                 <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
@@ -408,9 +409,9 @@ export function PlanRecipesPage({
           </>
         ) : (
           <div className="playbook-empty-state">
-            <FileText style={{ width: 44, height: 44, marginBottom: 16, color: "#64748b" }} />
+            <FileText style={{ width: 44, height: 44, marginBottom: 16, color: "var(--ef-muted)" }} />
             <h3>{locale === "zh" ? "选择或新建环境计划" : "Select or create an Environment Plan"}</h3>
-            <p style={{ color: "#64748b", fontSize: 14 }}>
+            <p style={{ color: "var(--ef-muted)", fontSize: 14 }}>
               {locale === "zh"
                 ? "计划用于审查迁移、重建、配置变更和移除能力。所有目标机器变更都应先进入计划。"
                 : "Plans review migration, rebuild, config change, and remove flows. Target changes should enter a plan first."}

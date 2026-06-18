@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import type { Locale } from "../lib/types";
+import { useEscapeToClose } from "../lib/useEscapeToClose";
 
 type Step = 1 | 2 | 3 | 4;
 
@@ -48,6 +49,7 @@ export function OnboardingWizard({ locale, onClose }: { locale: Locale; onClose:
     try { localStorage.setItem("envforge_onboarded", "1"); } catch { /* ignore */ }
     onClose();
   }
+  useEscapeToClose(dismiss);
 
   return (
     <div className="modal-overlay" role="dialog" aria-modal="true" onClick={(e) => { if (e.target === e.currentTarget) dismiss(); }}>

@@ -15,10 +15,12 @@ import {
   generateCapabilityRule,
   saveCapabilityRule,
   type CatalogDetectionRule,
+  type RuleReadiness,
   type RuntimeRuleOverride
 } from "../api";
 import type { Locale } from "../lib/types";
 import { Button } from "./ui/Button";
+import { ReadinessScorecard } from "./ReadinessScorecard";
 
 const CATEGORIES = ["runtime", "developer", "database", "container", "security", "network", "service"];
 const DATA_MODES = ["none", "optional", "recommended"] as const;
@@ -68,6 +70,7 @@ export function ArchetypeRuleDrawer({
   const [securityNotes, setSecurityNotes] = useState<string>((seed.security?.notes ?? []).join("\n"));
 
   const [preview, setPreview] = useState<CatalogDetectionRule | null>(null);
+  const [readiness, setReadiness] = useState<RuleReadiness | null>(existing?.readiness ?? null);
   const [conflict, setConflict] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -111,6 +114,7 @@ export function ArchetypeRuleDrawer({
       const res = await generateCapabilityRule(authToken, "native", buildParams());
       setPreview(res.rule);
       setConflict(res.conflict);
+      setReadiness(res.readiness ?? null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Preview failed");
     } finally { setBusy(false); }
@@ -148,6 +152,12 @@ export function ArchetypeRuleDrawer({
           </p>
           {error ? <div className="conn-feedback conn-feedback-error"><AlertTriangle aria-hidden />{error}</div> : null}
           {conflict ? <div className="conn-feedback conn-feedback-error"><AlertTriangle aria-hidden />{conflict}</div> : null}
+
+          {readiness ? (
+            <section className="cap-editor-section">
+              <ReadinessScorecard readiness={readiness} locale={locale} />
+            </section>
+          ) : null}
 
           <section className="cap-editor-section">
             <h3>{zh ? "身份" : "Identity"}</h3>

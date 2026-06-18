@@ -2741,10 +2741,15 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
     const user = await getUserByToken(readBearerToken(request.headers.authorization));
     if (!user || user.role !== "admin") { reply.code(403); return { error: "Admin only." }; }
     const now = new Date().toISOString();
+    const { listRuleOverrides } = await import("./catalog-rule-store.js");
+    const promotionOpen = (await listRuleOverrides()).filter(
+      (o) => o.promotion && o.promotion.status !== "detection-only" && o.promotion.status !== "certified"
+    ).length;
     return {
       queues: [
         { id: "suggestion-triage", name: "Suggestion Triage", type: "Suggestion Triage", openItems: 4, priority: "P1", oldestItem: now, ownerGroup: "Capability reviewers", status: "open", nextAction: "Triage user suggestions and link related capabilities." },
         { id: "certification-review", name: "Certification Review", type: "Certification Review", openItems: 6, priority: "P0", oldestItem: now, ownerGroup: "Certification reviewers", status: "open", nextAction: "Review failed certification checks and assign rule owners." },
+        { id: "certification-promotion", name: "Certification Promotion", type: "Certification Review", openItems: promotionOpen, priority: "P1", oldestItem: now, ownerGroup: "Certification reviewers", status: "open", nextAction: "Review runtime-rule promotion bundles; land the artifacts + harness scenario, then merge to certify." },
         { id: "package-integration-fix", name: "Package Integration Fix", type: "Package Integration Fix", openItems: 3, priority: "P1", oldestItem: now, ownerGroup: "Package rule maintainers", status: "open", nextAction: "Fill package maps, detection rules, validate commands, and rollback hooks." },
         { id: "rule-upgrade", name: "Rule Upgrade", type: "Rule Upgrade", openItems: 5, priority: "P0", oldestItem: now, ownerGroup: "Rule maintainers", status: "open", nextAction: "Generate upgrade prompts and move missing metrics into backlog." }
       ]
@@ -5646,7 +5651,8 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
         ? nativeRule(body.params as Parameters<typeof nativeRule>[0])
         : dockerAppRule(body.params as Parameters<typeof dockerAppRule>[0]);
       const { ruleOverrideRejectionReason } = await import("./catalog-rule-store.js");
-      return { rule, conflict: ruleOverrideRejectionReason(rule) };
+      const { ruleReadiness } = await import("./certification-readiness.js");
+      return { rule, conflict: ruleOverrideRejectionReason(rule), readiness: ruleReadiness(rule, body.params ?? {}) };
     } catch (error) {
       reply.code(400);
       return { error: `Rule generation failed: ${error instanceof Error ? error.message : error}` };
@@ -5658,7 +5664,9 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
     const user = await getUserByToken(readBearerToken(request.headers.authorization));
     if (!user || user.role !== "admin") { reply.code(403); return { error: "Admin only." }; }
     const { listRuleOverrides } = await import("./catalog-rule-store.js");
-    return { rules: await listRuleOverrides() };
+    const { overrideReadiness } = await import("./certification-readiness.js");
+    const rules = await listRuleOverrides();
+    return { rules: rules.map((o) => ({ ...o, readiness: overrideReadiness(o) })) };
   });
 
   /** Create or update a runtime detection rule (generate + persist). */
@@ -5701,6 +5709,58 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
     const removed = await deleteRuleOverride(id);
     if (!removed) { reply.code(404); return { error: "Runtime rule not found." }; }
     return { ok: true };
+  });
+
+  /**
+   * Generate a PR-ready promotion bundle for a runtime detection rule.
+   * Returns the artifacts (catalog rule + item, registry edits, opt-in line,
+   * harness scenario) as TEXT — the API never writes the source tree.
+   * Certification still flows through code + harness + opt-in + CI.
+   */
+  app.post("/api/admin/capability-rules/:id/promotion-bundle", async (request, reply) => {
+    const user = await getUserByToken(readBearerToken(request.headers.authorization));
+    if (!user || user.role !== "admin") { reply.code(403); return { error: "Admin only." }; }
+    const { id } = request.params as { id: string };
+    const { getRuleOverride } = await import("./catalog-rule-store.js");
+    const override = await getRuleOverride(id);
+    if (!override) { reply.code(404); return { error: "Runtime rule not found." }; }
+    const { buildPromotionBundle } = await import("./promotion-bundle.js");
+    const bundle = buildPromotionBundle(override);
+    // Advance the lifecycle on first bundle generation (never downgrades).
+    const status = override.promotion?.status;
+    if (!status || status === "detection-only" || status === "promotion-requested") {
+      const { setPromotionState } = await import("./catalog-rule-store.js");
+      await setPromotionState(id, { status: "bundle-generated", requestedBy: user.id });
+    }
+    return { bundle };
+  });
+
+  /** Advance a runtime rule's promotion lifecycle (status / PR url / notes). */
+  app.post("/api/admin/capability-rules/:id/promotion", async (request, reply) => {
+    const user = await getUserByToken(readBearerToken(request.headers.authorization));
+    if (!user || user.role !== "admin") { reply.code(403); return { error: "Admin only." }; }
+    const { id } = request.params as { id: string };
+    const body = (request.body ?? {}) as { status?: string; prUrl?: string; notes?: string };
+    const settable = ["detection-only", "promotion-requested", "bundle-generated", "in-review"];
+    if (body.status !== undefined && !settable.includes(body.status)) {
+      reply.code(400);
+      return {
+        error: body.status === "certified"
+          ? "\"certified\" is granted automatically after the promotion PR merges; it cannot be set manually."
+          : `Invalid status. Allowed: ${settable.join(", ")}.`
+      };
+    }
+    const { getRuleOverride, setPromotionState } = await import("./catalog-rule-store.js");
+    if (!(await getRuleOverride(id))) { reply.code(404); return { error: "Runtime rule not found." }; }
+    const patch = {
+      ...(body.status !== undefined ? { status: body.status } : {}),
+      ...(body.prUrl !== undefined ? { prUrl: body.prUrl } : {}),
+      ...(body.notes !== undefined ? { notes: body.notes } : {}),
+      requestedBy: user.id,
+      requestedAt: new Date().toISOString()
+    } as Parameters<typeof setPromotionState>[1];
+    const updated = await setPromotionState(id, patch);
+    return { ok: true, rule: updated };
   });
 
   // ── Community Comments, Likes, Reports and FTS (Stage 2) ──────────────────────────

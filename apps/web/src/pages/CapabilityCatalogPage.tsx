@@ -27,6 +27,7 @@ import {
 } from "../api";
 import type { Locale } from "../lib/types";
 import { categoryIcons } from "../lib/types";
+import { useEscapeToClose } from "../lib/useEscapeToClose";
 import { ComponentPreview, getCatalogComponents } from "../components/ComponentPreview";
 import { PreflightPanel } from "../components/PreflightPanel";
 import { WorkflowStepper, buildBuildSteps } from "../components/WorkflowStepper";
@@ -98,6 +99,7 @@ export function CapabilityCatalogPage({
   const [loadingImpact, setLoadingImpact] = useState(false);
   const [dockerComposeId, setDockerComposeId] = useState<string | null>(null);
   const [dockerComposeContent, setDockerComposeContent] = useState("");
+  useEscapeToClose(() => handleCloseDockerModal(), dockerComposeId !== null);
   const [preflightReport, setPreflightReport] = useState<PreflightReport | null>(null);
   const [preflightLoading, setPreflightLoading] = useState(false);
   const [postPlanGuide, setPostPlanGuide] = useState<CatalogGuide | null>(null);
@@ -535,7 +537,7 @@ export function CapabilityCatalogPage({
           {batchInstalling ? (
             <Button
               variant="ghost"
-              style={{ color: "#b42318", borderColor: "#fecaca" }}
+              style={{ color: "var(--ef-danger)", borderColor: "var(--ef-danger)" }}
               onClick={() => void handleCancelBatch()}
             >
               {locale === "zh" ? "取消" : "Cancel"}
@@ -575,9 +577,9 @@ export function CapabilityCatalogPage({
       <div
         className="market-certified-banner"
         style={{
-          background: "#ecfdf5",
-          border: "1px solid #86efac",
-          color: "#065f46",
+          background: "var(--ef-success-soft)",
+          border: "1px solid var(--ef-success)",
+          color: "var(--ef-success)",
           padding: "10px 14px",
           borderRadius: 8,
           margin: "8px 0",
@@ -600,10 +602,10 @@ export function CapabilityCatalogPage({
           style={{
             padding: 24,
             textAlign: "center",
-            background: "#f8fafc",
-            border: "1px dashed #cbd5e1",
+            background: "var(--ef-surface-soft)",
+            border: "1px dashed var(--ef-border)",
             borderRadius: 8,
-            color: "#475569"
+            color: "var(--ef-muted)"
           }}
         >
           {locale === "zh"
@@ -778,9 +780,9 @@ export function CapabilityCatalogPage({
                         ? "完整迁移认证：检测、计划、配置治理、数据策略、验证、回滚、风险审批、报告均完整。"
                         : "Full Migration Certified: detection, plan, config governance, data strategy, validation, rollback, approvals, and report are all in place."}
                       style={{
-                        background: "#dcfce7",
-                        color: "#166534",
-                        border: "1px solid #86efac",
+                        background: "var(--ef-success-soft)",
+                        color: "var(--ef-success)",
+                        border: "1px solid var(--ef-success)",
                         padding: "2px 8px",
                         borderRadius: 999,
                         fontSize: 11
@@ -816,7 +818,7 @@ export function CapabilityCatalogPage({
                 <Button variant="ghost" onClick={handleCloseDockerModal} aria-label="Close">x</Button>
               </div>
             </div>
-            <pre style={{ flex: 1, overflow: "auto", margin: 0, padding: 16, background: "var(--surface-alt, #13131f)", borderRadius: 8, fontSize: 13, lineHeight: 1.6, fontFamily: "monospace", whiteSpace: "pre", color: "var(--text, #e2e8f0)" }}>{dockerComposeContent || (locale === "zh" ? "加载中..." : "Loading...")}</pre>
+            <pre style={{ flex: 1, overflow: "auto", margin: 0, padding: 16, background: "var(--surface-alt, #13131f)", borderRadius: 8, fontSize: 13, lineHeight: 1.6, fontFamily: "monospace", whiteSpace: "pre", color: "var(--text, var(--ef-border))" }}>{dockerComposeContent || (locale === "zh" ? "加载中..." : "Loading...")}</pre>
           </div>
         </div>
       ) : null}

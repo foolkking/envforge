@@ -21,6 +21,7 @@ import {
   type NotificationPrefs
 } from "../api";
 import type { Locale } from "../lib/types";
+import { confirmDialog } from "../lib/dialogs";
 
 interface Props {
   locale: Locale;
@@ -471,7 +472,7 @@ function DangerSection({ locale, authToken, onRefresh }: {
   const [message, setMessage] = useState("");
 
   async function removeAccount() {
-    if (!confirm(locale === "zh" ? "确认删除账号？此操作会停用当前账号。" : "Delete this account? This will deactivate the current account.")) return;
+    if (!(await confirmDialog({ message: locale === "zh" ? "确认删除账号？此操作会停用当前账号。" : "Delete this account? This will deactivate the current account.", danger: true }))) return;
     try {
       await deleteAccount(authToken, { password: password || undefined, currentTotpCode: code || undefined });
       setMessage(locale === "zh" ? "账号已删除。" : "Account deleted.");

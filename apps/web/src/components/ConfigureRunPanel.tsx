@@ -19,6 +19,7 @@ import type { CatalogGuide, VarsSchema, VarsSchemaField, PlaybookPreview } from 
 import type { Locale } from "../lib/types";
 import { renderMarkdownPreview } from "./MarkdownOverlay";
 import { PreviewPanel } from "./PreviewPanel";
+import { useEscapeToClose } from "../lib/useEscapeToClose";
 
 // Mirrors the server's evalShowWhen — kept identical so what the user sees in
 // the form is exactly what the server will validate. Fail-open on parse errors.
@@ -276,6 +277,7 @@ export function ConfigureRunPanel({
 
   // Combined error map: server-side wins over local
   const errors = { ...localErrors, ...(fieldErrors ?? {}) };
+  useEscapeToClose(onClose, !submitting);
 
   return (
     <div className="markdown-overlay" role="dialog" aria-modal="true" onClick={(e) => { if (e.target === e.currentTarget && !submitting) onClose(); }}>

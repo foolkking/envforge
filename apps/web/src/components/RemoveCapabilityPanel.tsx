@@ -79,28 +79,28 @@ export function RemoveCapabilityPanel({
   const unmanaged = !managed;
 
   return (
-    <div className="remove-plan-panel" style={{ background: "#fff", borderRadius: 8, padding: 16, boxShadow: "0 4px 16px rgba(15,23,42,0.08)", display: "grid", gap: 12 }}>
+    <div className="remove-plan-panel" style={{ background: "var(--ef-surface)", borderRadius: 8, padding: 16, boxShadow: "0 4px 16px rgba(15,23,42,0.08)", display: "grid", gap: 12 }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <strong>{locale === "zh" ? "创建能力移除计划" : "Create Remove Capability Plan"}</strong>
         {onClose ? <button type="button" className="conn-btn conn-btn-ghost" onClick={onClose}>x</button> : null}
       </div>
-      <p style={{ margin: 0, color: "#475569", fontSize: 13 }}>
+      <p style={{ margin: 0, color: "var(--ef-muted)", fontSize: 13 }}>
         {locale === "zh"
           ? "EnvForge 不提供直接卸载。请审查能力归属、数据保留策略和回滚边界，然后生成可审计的移除计划。"
           : "EnvForge does not expose direct uninstall. Review capability ownership, data preservation, and rollback boundaries before generating an auditable Remove Plan."}
       </p>
 
       <div className="remove-plan-meta" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, fontSize: 13 }}>
-        <div><span style={{ color: "#64748b" }}>{locale === "zh" ? "包管理器" : "Package manager"}:</span> <code>{source}</code></div>
-        <div><span style={{ color: "#64748b" }}>{locale === "zh" ? "包数量" : "Packages"}:</span> {packages.length}</div>
+        <div><span style={{ color: "var(--ef-muted)" }}>{locale === "zh" ? "包管理器" : "Package manager"}:</span> <code>{source}</code></div>
+        <div><span style={{ color: "var(--ef-muted)" }}>{locale === "zh" ? "包数量" : "Packages"}:</span> {packages.length}</div>
       </div>
-      <ul style={{ margin: 0, paddingLeft: 18, color: "#1e293b", fontSize: 13, maxHeight: 120, overflow: "auto" }}>
+      <ul style={{ margin: 0, paddingLeft: 18, color: "var(--ef-text)", fontSize: 13, maxHeight: 120, overflow: "auto" }}>
         {packages.slice(0, 30).map((p) => <li key={p}>{p}</li>)}
-        {packages.length > 30 ? <li style={{ color: "#64748b" }}>+{packages.length - 30} more…</li> : null}
+        {packages.length > 30 ? <li style={{ color: "var(--ef-muted)" }}>+{packages.length - 30} more…</li> : null}
       </ul>
 
-      <fieldset style={{ border: "1px solid #e2e8f0", borderRadius: 6, padding: 10, display: "grid", gap: 6 }}>
-        <legend style={{ fontSize: 12, color: "#64748b", padding: "0 6px" }}>{locale === "zh" ? "归属与数据策略" : "Ownership & data strategy"}</legend>
+      <fieldset style={{ border: "1px solid var(--ef-border)", borderRadius: 6, padding: 10, display: "grid", gap: 6 }}>
+        <legend style={{ fontSize: 12, color: "var(--ef-muted)", padding: "0 6px" }}>{locale === "zh" ? "归属与数据策略" : "Ownership & data strategy"}</legend>
         <label style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 13 }}>
           <input type="checkbox" checked={managed} onChange={(event) => setManaged(event.target.checked)} />
           <span>
@@ -114,7 +114,7 @@ export function RemoveCapabilityPanel({
           <span>{locale === "zh" ? "保留数据目录（推荐）" : "Preserve data directories (recommended)"}</span>
         </label>
         {unmanaged ? (
-          <p style={{ margin: 0, color: "#b91c1c", fontSize: 12 }}>
+          <p style={{ margin: 0, color: "var(--ef-danger)", fontSize: 12 }}>
             {locale === "zh"
               ? "此能力不是由 EnvForge 安装的，移除可能影响未托管工作负载。执行时必须显式确认未托管风险。"
               : "This capability is not EnvForge-managed; removal may affect unmanaged workloads. Apply requires explicit unmanaged-risk acknowledgement."}
@@ -129,10 +129,10 @@ export function RemoveCapabilityPanel({
       </div>
 
       {plan ? (
-        <section style={{ border: "1px solid #e2e8f0", borderRadius: 6, padding: 10, display: "grid", gap: 8 }}>
+        <section style={{ border: "1px solid var(--ef-border)", borderRadius: 6, padding: 10, display: "grid", gap: 8 }}>
           <strong>{plan.name}</strong>
           {plan.review?.reasons?.length ? (
-            <ul style={{ margin: 0, paddingLeft: 18, fontSize: 12, color: "#92400e" }}>
+            <ul style={{ margin: 0, paddingLeft: 18, fontSize: 12, color: "var(--ef-warning)" }}>
               {plan.review.reasons.map((reason) => <li key={reason}>{reason}</li>)}
             </ul>
           ) : null}
@@ -142,12 +142,12 @@ export function RemoveCapabilityPanel({
             </ul>
           ) : null}
           {plan.items?.[0]?.evidence?.length ? (
-            <ul style={{ margin: 0, paddingLeft: 18, fontSize: 12, color: "#475569" }}>
+            <ul style={{ margin: 0, paddingLeft: 18, fontSize: 12, color: "var(--ef-muted)" }}>
               {plan.items[0].evidence.map((piece, idx) => <li key={`${piece}-${idx}`}>{piece}</li>)}
             </ul>
           ) : null}
           {plan.summary ? (
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 4, fontSize: 12, color: "#1e293b" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 4, fontSize: 12, color: "var(--ef-text)" }}>
               <span>{locale === "zh" ? "动作" : "Actions"}: {plan.summary.totalActions}</span>
               <span>{locale === "zh" ? "高风险" : "High risk"}: {plan.summary.highRisk}</span>
               <span>{locale === "zh" ? "需 sudo" : "Needs sudo"}: {plan.summary.requiresSudo}</span>
@@ -182,8 +182,8 @@ export function RemoveCapabilityPanel({
         </section>
       ) : null}
 
-      {error ? <div style={{ color: "#b91c1c", fontSize: 13 }}>{error}</div> : null}
-      {result ? <div style={{ color: "#166534", fontSize: 13 }}>{result}</div> : null}
+      {error ? <div style={{ color: "var(--ef-danger)", fontSize: 13 }}>{error}</div> : null}
+      {result ? <div style={{ color: "var(--ef-success)", fontSize: 13 }}>{result}</div> : null}
     </div>
   );
 }

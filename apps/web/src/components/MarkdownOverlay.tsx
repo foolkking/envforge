@@ -21,6 +21,8 @@ import {
   type CommentCursor
 } from "../api";
 import type { Locale } from "../lib/types";
+import { useEscapeToClose } from "../lib/useEscapeToClose";
+import { promptDialog } from "../lib/dialogs";
 
 hljs.registerLanguage("dockerfile", dockerfile);
 hljs.registerLanguage("nginx", nginx);
@@ -77,6 +79,7 @@ export function MarkdownOverlay({
 }) {
   const [tab, setTab] = useState<"guide" | "comments" | "suggest">("guide");
   const rendered = useMemo(() => renderMarkdownPreview(guide.markdown), [guide.markdown]);
+  useEscapeToClose(onClose);
 
   return (
     <div className="markdown-overlay" role="dialog" aria-modal="true" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
@@ -158,7 +161,7 @@ function CommentsPane({ guide, locale, authToken }: { guide: CatalogGuide; local
 
   async function report(comment: CatalogComment) {
     if (!authToken) return;
-    const reason = window.prompt(locale === "zh" ? "举报原因" : "Report reason", "spam");
+    const reason = await promptDialog({ message: locale === "zh" ? "举报原因" : "Report reason", defaultValue: "spam" });
     if (!reason) return;
     await reportCatalogComment(authToken, comment.id, reason);
     setMessage(locale === "zh" ? "已提交举报。" : "Report submitted.");

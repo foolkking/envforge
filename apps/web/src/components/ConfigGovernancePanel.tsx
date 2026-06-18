@@ -29,6 +29,7 @@ import {
   type EnvironmentPlan
 } from "../api";
 import type { Locale } from "../lib/types";
+import { confirmDialog } from "../lib/dialogs";
 
 type ViewMode = "view" | "edit" | "diff" | "template";
 type FilterMode = "all" | "system" | "user" | "app";
@@ -222,7 +223,7 @@ export function ConfigGovernancePanel({
 
   async function handleRollback() {
     if (!activeFile) return;
-    const ok = window.confirm(locale === "zh" ? "确定要从 EnvForge 备份恢复这个配置文件吗？" : "Restore this config file from the EnvForge backup?");
+    const ok = await confirmDialog({ message: locale === "zh" ? "确定要从 EnvForge 备份恢复这个配置文件吗？" : "Restore this config file from the EnvForge backup?", confirmLabel: locale === "zh" ? "恢复" : "Restore", cancelLabel: locale === "zh" ? "取消" : "Cancel" });
     if (!ok) return;
     setRollingBack(true);
     setValidation(null);

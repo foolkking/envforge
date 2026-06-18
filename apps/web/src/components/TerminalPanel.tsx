@@ -23,9 +23,9 @@ const statusColor: Record<string, string> = {
   succeeded: "#34d399",
   failed: "#f87171",
   running: "#60a5fa",
-  pending: "#94a3b8",
+  pending: "var(--ef-muted-2)",
   skipped: "#fbbf24",
-  cancelled: "#cbd5e1",
+  cancelled: "var(--ef-border)",
   queued: "#a78bfa"
 };
 
@@ -170,7 +170,7 @@ function renderBatchTask(task: ExecutionTask) {
     return (
       <div key={item.catalogId} className={`terminal-batch-item status-${item.status}`}>
         <div className="terminal-batch-header">
-          <span className="terminal-status-chip" style={{ color: statusColor[item.status] ?? "#94a3b8" }}>{statusIcon[item.status] ?? item.status}</span>
+          <span className="terminal-status-chip" style={{ color: statusColor[item.status] ?? "var(--ef-muted-2)" }}>{statusIcon[item.status] ?? item.status}</span>
           <span className="terminal-batch-name">{item.displayName}</span>
           {item.error ? <span className="terminal-batch-error">{item.error}</span> : null}
         </div>
@@ -192,7 +192,7 @@ function renderSingleTask(task: ExecutionTask) {
 function renderStep(step: ExecutionTask["steps"][number]) {
   return (
     <div key={step.id} className={`terminal-step status-${step.status}`}>
-      <span className="step-icon" style={{ color: statusColor[step.status] ?? "#94a3b8" }}>{statusIcon[step.status] ?? step.status}</span>
+      <span className="step-icon" style={{ color: statusColor[step.status] ?? "var(--ef-muted-2)" }}>{statusIcon[step.status] ?? step.status}</span>
       <span className="step-label">{step.label}</span>
       {step.durationMs > 0 ? <span className="step-duration">{step.durationMs}ms</span> : null}
       <div className="step-command">$ {step.command}</div>

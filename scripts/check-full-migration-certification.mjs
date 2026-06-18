@@ -36,147 +36,20 @@ const scenariosDir = path.resolve(repoRoot, "scripts/harness/scenarios");
 const databaseMod = await import(pathToFileURL(path.join(distRoot, "database.js")).href);
 const rulesMod = await import(pathToFileURL(path.join(distRoot, "catalog-rules.js")).href);
 const planMod = await import(pathToFileURL(path.join(distRoot, "environment-plan.js")).href);
+const certMod = await import(pathToFileURL(path.join(distRoot, "catalog-certification.js")).href);
+const auditMod = await import(pathToFileURL(path.join(distRoot, "certification-audit.js")).href);
 
 /**
- * Capabilities the team has explicitly opted into Full Migration
- * Certified for this phase. Adding an entry here is necessary but not
- * sufficient — every requirement below must also be satisfied.
- *
- * The opt-in list is intentionally tiny. Adding more requires:
- *   - a passing harness scenario in scripts/harness/scenarios/,
- *   - the catalog audit recording the item at full-migration depth
- *     with a low remainingRisks count,
- *   - the catalog rule registry exposing crossDistro.packageMap and
- *     crossDistro.serviceMap,
- *   - an approval-gate configuration in environment-plan.ts when the
- *     catalog item touches privileged surfaces (sshd / firewall / sudo /
- *     systemd / secrets / data plane),
- *   - a Managed Execution adapter capable of producing ActionRunRecord
- *     entries for the apply / verify / rollback steps.
+ * Capabilities the team has explicitly opted into Full Migration Certified.
+ * The canonical list lives in `apps/api/src/catalog-certification.ts`; it is
+ * imported here (via the compiled dist) so CI and the runtime never drift.
+ * Adding an entry is necessary but not sufficient — every requirement
+ * audited by `certification-audit.ts` must also pass, the item needs a
+ * harness scenario, and privileged surfaces need approval gates.
  */
-const CERTIFIED_OPT_IN = new Set([
-  "nginx-web-service",
-  "docker-host-profile",
-  "ssh-hardening",
-  "firewall-baseline",
-  "fail2ban-protection",
-  "redis-server",
-  "postgres-profile",
-  "mysql-server",
-  "certbot-ssl",
-  "node-runtime-profile",
-  "nodejs-version-mgr",
-  "python-toolchain",
-  "pyenv-toolchain",
-  "mariadb",
-  "haproxy-lb",
-  "apache-httpd",
-  "php-fpm",
-  "php-toolchain",
-  "ruby-toolchain",
-  "golang-runtime",
-  "openjdk-runtime",
-  "rust-toolchain",
-  "dotnet-runtime",
-  "git-version-control",
-  "ansible-tool",
-  "terraform-iac",
-  "kubernetes-tools",
-  "flutter-sdk",
-  "rsync-tools",
-  "htop-tools",
-  "zsh-shell",
-  "fish-shell",
-  "neovim-editor",
-  "tmux-multiplex",
-  "rust-cli-tools",
-  "nethogs-bandwidth",
-  "memcached",
-  "valkey-server",
-  "prometheus-monitoring",
-  "grafana-dashboard",
-  "netdata-monitoring",
-  "zabbix-monitoring",
-  "loki-logging",
-  "mosquitto-mqtt",
-  "rabbitmq",
-  "meilisearch",
-  "gitlab-runner",
-  "jenkins-ci",
-  "caddy-server",
-  "openresty",
-  "traefik-proxy",
-  "wireguard-vpn",
-  "openvpn-server",
-  "firewalld",
-  "vault-secrets",
-  "k3s",
-  "swap-config",
-  "nodejs-pm2",
-  "gitea-server",
-  "nextcloud",
-  "jellyfin-media",
-  "keycloak",
-  "authelia",
-  "samba-share",
-  "nfs-server",
-  "tailscale",
-  "code-server",
-  "sonarqube",
-  "mongodb",
-  "minio-storage",
-  "elasticsearch",
-  "clickhouse",
-  "influxdb",
-  "vaultwarden",
-  "pihole",
-  "authentik",
-  "wikijs",
-  "n8n",
-  "bookstack",
-  "home-assistant",
-  "gitlab-ce",
-  "umami",
-  "nocodb",
-  "adguard-home",
-  "docker-mailserver",
-  "onlyoffice-docs",
-  "immich",
-  "forgejo",
-  "uptime-kuma",
-  "paperless-ngx",
-  "navidrome",
-  "audiobookshelf",
-  "freshrss",
-  "homepage",
-  "stirling-pdf",
-  "mealie",
-  "linkwarden",
-  "seafile",
-  "lamp-stack",
-  "lemp-stack",
-  "node-production-deploy",
-  "docker-compose-dev",
-  "security-baseline",
-  "monitoring-stack",
-  "sso-stack"
-]);
+const CERTIFIED_OPT_IN = certMod.CERTIFIED_OPT_IN;
 
-const REQUIREMENT_SECTIONS = [
-  "identity",
-  "detection",
-  "install",
-  "config",
-  "data",
-  "references",
-  "validate",
-  "rollback",
-  "security",
-  "crossDistro",
-  "conflicts",
-  "planIntegration",
-  "harness"
-];
+const REQUIREMENT_SECTIONS = auditMod.REQUIREMENT_SECTIONS;
 
 const DECISION_OVERRIDES = {
   "cockpit-panel": {
@@ -335,29 +208,16 @@ function auditOne(item) {
   const optIn = CERTIFIED_OPT_IN.has(item.id);
   const decision = DECISION_OVERRIDES[item.id] ?? null;
 
-  const checks = {
-    identity: checkIdentity(item),
-    detection: checkDetection(item),
-    install: checkInstall(item),
-    config: checkConfig(item),
-    data: checkData(item),
-    references: checkReferences(item),
-    validate: checkValidate(item),
-    rollback: checkRollback(item),
-    security: checkSecurity(item),
-    crossDistro: checkCrossDistro(item),
-    conflicts: checkConflicts(item),
-    planIntegration: checkPlanIntegration(item),
-    harness: checkHarness(item)
-  };
-
-  for (const section of REQUIREMENT_SECTIONS) {
-    const result = checks[section];
-    if (!result.ok) {
-      missing.push(section);
-      for (const reason of result.reasons) {
-        upgradeTasks.push({ section, task: reason, priority: priorityFor(item, section) });
-      }
+  const audit = auditMod.auditCatalogItem(item, {
+    rule: rulesByCapKey.get(item.capabilityKey),
+    hasScenario: scenarioCoverage.has(item.id),
+    computeApprovals: (it) => planMod.computeRequiredApprovalsForCatalogItem(`audit:${it.id}`, it)
+  });
+  const checks = audit.sectionResults;
+  missing.push(...audit.missingRequirements);
+  for (const section of missing) {
+    for (const reason of checks[section].reasons) {
+      upgradeTasks.push({ section, task: reason, priority: priorityFor(item, section) });
     }
   }
 
@@ -376,9 +236,8 @@ function auditOne(item) {
     blockers.push(`opted into certification but missing: ${missing.join(", ")}`);
   }
 
-  // Score: weight every section equally.
-  const passed = REQUIREMENT_SECTIONS.length - missing.length;
-  const certificationScore = Math.round((passed / REQUIREMENT_SECTIONS.length) * 100);
+  // Score: weight every section equally (computed in certification-audit.ts).
+  const certificationScore = audit.certificationScore;
 
   const certificationStatus = optIn && missing.length === 0 ? "certified" : "not-ready";
   const visibleToUsers = certificationStatus === "certified";
@@ -400,170 +259,6 @@ function auditOne(item) {
     canBeCertifiedWithManualSteps: missing.length === 0,
     notes: notesFor(item, missing)
   };
-}
-
-function ok() {
-  return { ok: true, reasons: [] };
-}
-function fail(...reasons) {
-  return { ok: false, reasons };
-}
-
-function checkIdentity(item) {
-  const reasons = [];
-  if (!item.id) reasons.push("missing id");
-  if (!item.capabilityKey) reasons.push("missing capabilityKey");
-  if (!item.name) reasons.push("missing name");
-  if (!item.category) reasons.push("missing category");
-  if (!item.summary && !item.summaryEn) reasons.push("missing summary/description");
-  return reasons.length === 0 ? ok() : fail(...reasons);
-}
-
-function checkDetection(item) {
-  const rule = rulesByCapKey.get(item.capabilityKey);
-  if (!rule) return fail("no detection rule registered for this capabilityKey");
-  const detect = rule.detect ?? {};
-  const config = rule.config ?? {};
-  const signals = [
-    detect.packages,
-    detect.binaries,
-    detect.systemd,
-    detect.ports,
-    detect.processes,
-    detect.containers,
-    config.files,
-    config.globs
-  ].filter((v) => Array.isArray(v) ? v.length > 0 : v && Object.keys(v).length > 0);
-  if (signals.length === 0) return fail("rule lists no packages/binaries/systemd/ports/processes/containers/configFiles");
-  return ok();
-}
-
-function checkInstall(item) {
-  const rule = rulesByCapKey.get(item.capabilityKey);
-  if (!rule) return fail("no catalog rule (install.packageMap requires one)");
-  const pm = rule.crossDistro?.packageMap ?? {};
-  const reasons = [];
-  if (!pm.apt) reasons.push("install.packageMap.apt missing");
-  if (!pm.dnf) reasons.push("install.packageMap.dnf missing");
-  if ((item.components ?? []).length === 0) reasons.push("install.actions: catalog item has no components");
-  // Idempotency / target reconciliation: we mark it OK when the
-  // catalog item's installMode is set; an explicit replace-existing or
-  // skip-existing flag is the closest formal contract we have today.
-  if (!item.installMode) reasons.push("install.idempotency: installMode missing");
-  return reasons.length === 0 ? ok() : fail(...reasons);
-}
-
-function checkConfig(item) {
-  const rule = rulesByCapKey.get(item.capabilityKey);
-  if (!rule) return fail("no catalog rule");
-  const reasons = [];
-  const files = rule.config?.files ?? [];
-  const globs = rule.config?.globs ?? [];
-  if (files.length === 0 && globs.length === 0) {
-    reasons.push("config.files: rule has no config.files / config.globs");
-  }
-  const validate = rule.migrate?.validate ?? [];
-  if (validate.length === 0) reasons.push("config.validation: migrate.validate is empty");
-  return reasons.length === 0 ? ok() : fail(...reasons);
-}
-
-function checkData(item) {
-  const rule = rulesByCapKey.get(item.capabilityKey);
-  if (!rule) return fail("no catalog rule");
-  const strategy = rule.migrate?.strategy;
-  const data = rule.migrate?.data;
-  if (!strategy) return fail("data.strategy: missing migrate.strategy");
-  // Forbidden combinations:
-  //   - capabilities that obviously own data MUST not advertise
-  //     `template-or-copy` as their strategy (e.g. databases). The
-  //     audit-records doc already catches the major databases; this
-  //     is a defence in depth.
-  if (data === "required" && strategy === "template-or-copy") {
-    return fail(`data.strategy: capability requires data but strategy=${strategy}; expected dump-restore / official-backup-restore / manual / blocked`);
-  }
-  return ok();
-}
-
-function checkReferences(item) {
-  const rule = rulesByCapKey.get(item.capabilityKey);
-  if (!rule) return fail("no catalog rule");
-  // `references` must call out at least one of: configInclude,
-  // serviceDependency, secretFile, filesystemPath. The catalog rules
-  // already declare these.
-  if (!Array.isArray(rule.references) || rule.references.length === 0) {
-    return fail("references graph is empty (configIncludes / serviceDependencies / secretFiles / filesystemPaths)");
-  }
-  return ok();
-}
-
-function checkValidate(item) {
-  const rule = rulesByCapKey.get(item.capabilityKey);
-  if (!rule) return fail("no catalog rule");
-  const validate = rule.migrate?.validate ?? [];
-  if (validate.length === 0) return fail("validate.config: migrate.validate is empty");
-  // We require at minimum a config/syntax check (e.g. `nginx -t`,
-  // `sshd -t`, `docker version`).
-  return ok();
-}
-
-function checkRollback(item) {
-  const reasons = [];
-  // The execution-layer rollback strategy is defined in
-  // environment-plan.ts and managed-execution.ts. We can prove a
-  // capability has a rollback path by checking that the audit record
-  // says rollback is one of the managedActions.
-  const actions = item.managedActions ?? [];
-  if (!actions.includes("rollback")) reasons.push("rollback: managedActions does not include rollback");
-  return reasons.length === 0 ? ok() : fail(...reasons);
-}
-
-function checkSecurity(item) {
-  const reasons = [];
-  if (!item.sensitivity) reasons.push("security.riskLevel: sensitivity missing");
-  // Privileged capabilities MUST have requiredApprovals registered in
-  // environment-plan.ts. We use the public helper to introspect.
-  if (item.sensitivity === "privileged") {
-    const approvals = planMod.computeRequiredApprovalsForCatalogItem(`audit:${item.id}`, item);
-    if (!Array.isArray(approvals) || approvals.length === 0) {
-      reasons.push("security.requiredApprovals: privileged capability has no approval gates");
-    }
-  }
-  return reasons.length === 0 ? ok() : fail(...reasons);
-}
-
-function checkCrossDistro(item) {
-  const rule = rulesByCapKey.get(item.capabilityKey);
-  if (!rule) return fail("no catalog rule");
-  const reasons = [];
-  if (!rule.crossDistro?.packageMap?.apt) reasons.push("crossDistro.packageMap.apt missing");
-  if (!rule.crossDistro?.packageMap?.dnf) reasons.push("crossDistro.packageMap.dnf missing");
-  if (!rule.crossDistro?.serviceMap) reasons.push("crossDistro.serviceMap missing");
-  return reasons.length === 0 ? ok() : fail(...reasons);
-}
-
-function checkConflicts(item) {
-  // We only require conflict rules for capabilities that the audit
-  // marks as part of an exclusivity family (firewall, http frontend,
-  // dns resolver, redis cache, etc.). The catalog-conflicts.ts module
-  // owns the registry; we trust it.
-  return ok();
-}
-
-function checkPlanIntegration(item) {
-  // Every capability flows through buildRebuildPlan today. Items that
-  // produce only review/manualStep actions are skipped here because
-  // they are intentionally not user-side.
-  if ((item.audit?.supportLevel ?? item.supportLevel) === "detect-only") {
-    return fail("planIntegration: detect-only items emit review-only actions; not user-applicable");
-  }
-  return ok();
-}
-
-function checkHarness(item) {
-  if (!scenarioCoverage.has(item.id)) {
-    return fail("harness.scenario: no scripts/harness/scenarios/*.json references this catalog id");
-  }
-  return ok();
 }
 
 function priorityFor(item, section) {

@@ -169,16 +169,16 @@ export function PlanReviewPanel({
       className="plan-review-panel"
       style={{
         padding: 16,
-        background: "#fff",
+        background: "var(--ef-surface)",
         borderRadius: 8,
-        border: "1px solid #e2e8f0",
+        border: "1px solid var(--ef-border)",
         display: "grid",
         gap: 16
       }}
     >
       <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <h2 style={{ margin: 0 }}>{locale === "zh" ? "计划审查" : "Plan Review"}</h2>
-        <span style={{ fontSize: 12, color: "#64748b" }}>
+        <span style={{ fontSize: 12, color: "var(--ef-muted)" }}>
           {plan.type} · {plan.status} · {plan.summary.totalActions} actions · {plan.summary.highRisk} high risk
         </span>
       </header>
@@ -270,10 +270,10 @@ export function PlanReviewPanel({
         </button>
       </div>
 
-      {error ? <div style={{ color: "#b91c1c", fontSize: 13 }}>{error}</div> : null}
+      {error ? <div style={{ color: "var(--ef-danger)", fontSize: 13 }}>{error}</div> : null}
 
       {gateRefusal ? (
-        <div style={{ background: "#fee2e2", color: "#991b1b", padding: 12, borderRadius: 6, fontSize: 13 }}>
+        <div style={{ background: "var(--ef-danger-soft)", color: "var(--ef-danger)", padding: 12, borderRadius: 6, fontSize: 13 }}>
           <strong>{locale === "zh" ? "执行门禁拒绝：" : "Apply gate refused:"}</strong>
           <ul style={{ margin: "6px 0 0 18px" }}>
             {gateRefusal.reasons.map((reason, idx) => (
@@ -303,8 +303,8 @@ function ConflictCard({
       style={{
         padding: 12,
         marginBottom: 8,
-        background: isBlock ? "#fee2e2" : "#fef3c7",
-        border: `1px solid ${isBlock ? "#fca5a5" : "#fcd34d"}`,
+        background: isBlock ? "var(--ef-danger-soft)" : "var(--ef-warning-soft)",
+        border: `1px solid ${isBlock ? "var(--ef-danger)" : "var(--ef-warning)"}`,
         borderRadius: 6
       }}
     >
@@ -312,8 +312,8 @@ function ConflictCard({
         <span
           style={{
             fontSize: 11,
-            background: isBlock ? "#991b1b" : "#92400e",
-            color: "#fff",
+            background: isBlock ? "var(--ef-danger)" : "var(--ef-warning)",
+            color: "var(--ef-surface)",
             padding: "1px 8px",
             borderRadius: 999,
             textTransform: "uppercase"
@@ -322,15 +322,15 @@ function ConflictCard({
           {conflict.severity}
         </span>
         <strong>{conflict.id}</strong>
-        <span style={{ color: "#475569", fontSize: 12 }}>({conflict.type})</span>
+        <span style={{ color: "var(--ef-muted)", fontSize: 12 }}>({conflict.type})</span>
       </div>
       <p style={{ margin: "6px 0 8px 0", fontSize: 13 }}>{conflict.reason}</p>
-      <div style={{ fontSize: 12, color: "#64748b", marginBottom: 8 }}>
+      <div style={{ fontSize: 12, color: "var(--ef-muted)", marginBottom: 8 }}>
         {locale === "zh" ? "涉及能力：" : "Capabilities involved: "}
         <code>{conflict.capabilityKeys.join(" / ")}</code>
       </div>
       {isBlock ? (
-        <div style={{ fontSize: 12, color: "#991b1b" }}>
+        <div style={{ fontSize: 12, color: "var(--ef-danger)" }}>
           {locale === "zh"
             ? "这是阻塞冲突。请编辑 Plan 移除其中一个能力，然后重新审阅。"
             : "This is a blocking conflict. Edit the plan to drop one capability before review."}
@@ -374,14 +374,14 @@ function RiskCallout({
       style={{
         padding: 12,
         marginBottom: 8,
-        background: "#fffbeb",
-        border: "1px solid #fde68a",
+        background: "var(--ef-warning-soft)",
+        border: "1px solid var(--ef-warning)",
         borderRadius: 6
       }}
     >
       <div style={{ fontSize: 13, marginBottom: 6 }}>
         <strong>{itemName}</strong>{" "}
-        <span style={{ color: "#64748b", fontSize: 11 }}>({itemId})</span>
+        <span style={{ color: "var(--ef-muted)", fontSize: 11 }}>({itemId})</span>
       </div>
       <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "grid", gap: 4 }}>
         {risks.map((risk) => (
@@ -396,7 +396,7 @@ function RiskCallout({
           </li>
         ))}
       </ul>
-      <div style={{ marginTop: 6, fontSize: 11, color: "#92400e" }}>
+      <div style={{ marginTop: 6, fontSize: 11, color: "var(--ef-warning)" }}>
         {locale === "zh"
           ? `${acked.size}/${risks.length} 风险已确认`
           : `${acked.size}/${risks.length} risks acknowledged`}
@@ -444,8 +444,8 @@ function ApprovalGate({
       style={{
         padding: 12,
         marginBottom: 8,
-        background: acked ? "#ecfdf5" : dangerous ? "#fef2f2" : "#f1f5f9",
-        border: `1px solid ${acked ? "#86efac" : dangerous ? "#fca5a5" : "#cbd5e1"}`,
+        background: acked ? "var(--ef-success-soft)" : dangerous ? "var(--ef-danger-soft)" : "var(--ef-surface-soft)",
+        border: `1px solid ${acked ? "var(--ef-success)" : dangerous ? "var(--ef-danger)" : "var(--ef-border)"}`,
         borderRadius: 6
       }}
     >
@@ -460,18 +460,18 @@ function ApprovalGate({
         <div>
           <div style={{ fontSize: 13 }}>
             <strong>{gate.label}</strong>{" "}
-            <span style={{ background: dangerous ? "#991b1b" : "#475569", color: "#fff", padding: "1px 6px", borderRadius: 4, fontSize: 10, marginLeft: 4 }}>
+            <span style={{ background: dangerous ? "var(--ef-danger)" : "var(--ef-muted)", color: "var(--ef-surface)", padding: "1px 6px", borderRadius: 4, fontSize: 10, marginLeft: 4 }}>
               {dangerous ? "DANGEROUS · " : ""}{gate.kind}
             </span>
           </div>
-          <p style={{ margin: "4px 0 0 0", fontSize: 12, color: "#475569" }}>{gate.prompt}</p>
-          <div style={{ fontSize: 11, color: "#64748b", marginTop: 2 }}>
+          <p style={{ margin: "4px 0 0 0", fontSize: 12, color: "var(--ef-muted)" }}>{gate.prompt}</p>
+          <div style={{ fontSize: 11, color: "var(--ef-muted)", marginTop: 2 }}>
             {locale === "zh" ? "归属项目: " : "Item: "}
             <code>{gate.itemId}</code>
           </div>
           {dangerous && !acked ? (
             <div style={{ marginTop: 6, display: "grid", gap: 4 }}>
-              <span style={{ fontSize: 11, color: "#991b1b" }}>
+              <span style={{ fontSize: 11, color: "var(--ef-danger)" }}>
                 {locale === "zh"
                   ? `输入 "${expectedPhrase}" 二次确认（高风险门）`
                   : `Type "${expectedPhrase}" to second-confirm (dangerous gate).`}
@@ -481,7 +481,7 @@ function ApprovalGate({
                 value={phrase}
                 onChange={(e) => setPhrase(e.target.value)}
                 placeholder={expectedPhrase}
-                style={{ fontSize: 12, padding: 4, border: `1px solid ${phraseOk ? "#86efac" : "#fca5a5"}`, borderRadius: 4 }}
+                style={{ fontSize: 12, padding: 4, border: `1px solid ${phraseOk ? "var(--ef-success)" : "var(--ef-danger)"}`, borderRadius: 4 }}
               />
             </div>
           ) : null}

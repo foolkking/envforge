@@ -24,6 +24,7 @@ import {
 } from "../api";
 import type { Locale } from "../lib/types";
 import { Button } from "./ui/Button";
+import { confirmDialog } from "../lib/dialogs";
 import { PlaybookEditor } from "./PlaybookEditor";
 import { SchemaEditor } from "./SchemaEditor";
 
@@ -180,7 +181,7 @@ export function CapabilityEditorDrawer({
 
   async function handleDelete() {
     if (!catalogId) return;
-    if (!window.confirm(zh ? "确认删除该能力?此操作不可撤销。" : "Delete this capability? This cannot be undone.")) return;
+    if (!(await confirmDialog({ message: zh ? "确认删除该能力?此操作不可撤销。" : "Delete this capability? This cannot be undone.", danger: true, confirmLabel: zh ? "删除" : "Delete", cancelLabel: zh ? "取消" : "Cancel" }))) return;
     setBusy(true);
     setError("");
     try {
@@ -195,7 +196,7 @@ export function CapabilityEditorDrawer({
 
   async function handleReset() {
     if (!catalogId) return;
-    if (!window.confirm(zh ? "重置为基线?将丢弃自定义覆盖。" : "Reset to baseline? Custom overrides will be discarded.")) return;
+    if (!(await confirmDialog({ message: zh ? "重置为基线?将丢弃自定义覆盖。" : "Reset to baseline? Custom overrides will be discarded.", danger: true, confirmLabel: zh ? "重置" : "Reset", cancelLabel: zh ? "取消" : "Cancel" }))) return;
     setBusy(true);
     setError("");
     try {

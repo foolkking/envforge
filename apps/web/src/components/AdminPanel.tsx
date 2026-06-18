@@ -20,6 +20,7 @@ import {
   type ConnectionProfile
 } from "../api";
 import type { Locale } from "../lib/types";
+import { toast, confirmDialog } from "../lib/dialogs";
 
 interface Props {
   locale: Locale;
@@ -75,14 +76,14 @@ export function AdminPanel({ locale, authToken, connections }: Props) {
     const confirmMsg = locale === "zh"
       ? `确定要将用户 ${targetUser.name} 的角色更改为 ${newRole === "admin" ? "管理员" : "普通用户"} 吗？`
       : `Are you sure you want to change the role of ${targetUser.name} to ${newRole}?`;
-    if (!confirm(confirmMsg)) return;
+    if (!(await confirmDialog(confirmMsg))) return;
 
     setActionInProgress(targetUser.id);
     try {
       const res = await updateAdminUserRole(authToken, targetUser.id, newRole);
       setUsers((prev) => prev.map((u) => (u.id === targetUser.id ? res.user : u)));
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Failed to update role");
+      toast(err instanceof Error ? err.message : "Failed to update role", "error");
     } finally {
       setActionInProgress(null);
     }
@@ -93,14 +94,14 @@ export function AdminPanel({ locale, authToken, connections }: Props) {
     const confirmMsg = locale === "zh"
       ? `确定要${actionText}用户 ${targetUser.name} 吗？`
       : `Are you sure you want to ${actionText.toLowerCase()} user ${targetUser.name}?`;
-    if (!confirm(confirmMsg)) return;
+    if (!(await confirmDialog(confirmMsg))) return;
 
     setActionInProgress(targetUser.id);
     try {
       const res = await toggleAdminUserLock(authToken, targetUser.id);
       setUsers((prev) => prev.map((u) => (u.id === targetUser.id ? res.user : u)));
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Failed to toggle user lock status");
+      toast(err instanceof Error ? err.message : "Failed to toggle user lock status", "error");
     } finally {
       setActionInProgress(null);
     }
@@ -170,10 +171,10 @@ export function AdminPanel({ locale, authToken, connections }: Props) {
                   }}
                 >
                   <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-                    <strong style={{ fontSize: "15px", color: "#f8fafc" }}>
+                    <strong style={{ fontSize: "15px", color: "var(--ef-surface-soft)" }}>
                       {conn ? conn.label : `VM (${q.connectionId.slice(0, 8)})`}
                     </strong>
-                    <span style={{ fontSize: "12px", color: "#94a3b8" }}>
+                    <span style={{ fontSize: "12px", color: "var(--ef-muted-2)" }}>
                       ID: <code>{q.connectionId}</code>
                       {conn?.fields?.host ? ` · Host: ${conn.fields.host}` : ""}
                     </span>
@@ -185,10 +186,10 @@ export function AdminPanel({ locale, authToken, connections }: Props) {
                           width: "8px",
                           height: "8px",
                           borderRadius: "50%",
-                          background: q.running ? "#10b981" : "#64748b"
+                          background: q.running ? "#10b981" : "var(--ef-muted)"
                         }}
                       />
-                      <span style={{ fontSize: "13px", color: q.running ? "#34d399" : "#94a3b8" }}>
+                      <span style={{ fontSize: "13px", color: q.running ? "#34d399" : "var(--ef-muted-2)" }}>
                         {q.running
                           ? (locale === "zh" ? "正在运行中" : "Running")
                           : (locale === "zh" ? "空闲" : "Idle")}
@@ -233,7 +234,7 @@ export function AdminPanel({ locale, authToken, connections }: Props) {
                   left: "10px",
                   top: "50%",
                   transform: "translateY(-50%)",
-                  color: "#64748b"
+                  color: "var(--ef-muted)"
                 }}
               />
               <input
@@ -248,7 +249,7 @@ export function AdminPanel({ locale, authToken, connections }: Props) {
                   background: "rgba(255, 255, 255, 0.05)",
                   border: "1px solid rgba(255, 255, 255, 0.1)",
                   borderRadius: "6px",
-                  color: "#f8fafc"
+                  color: "var(--ef-surface-soft)"
                 }}
               />
             </div>
@@ -278,11 +279,11 @@ export function AdminPanel({ locale, authToken, connections }: Props) {
             <table className="admin-user-table" style={{ width: "100%", borderCollapse: "collapse", fontSize: "14px" }}>
               <thead>
                 <tr style={{ borderBottom: "1px solid rgba(255, 255, 255, 0.1)", textAlign: "left" }}>
-                  <th style={{ padding: "12px 8px", color: "#94a3b8", fontWeight: "600" }}>{locale === "zh" ? "用户" : "User"}</th>
-                  <th style={{ padding: "12px 8px", color: "#94a3b8", fontWeight: "600" }}>{locale === "zh" ? "角色" : "Role"}</th>
-                  <th style={{ padding: "12px 8px", color: "#94a3b8", fontWeight: "600" }}>{locale === "zh" ? "状态" : "Status"}</th>
-                  <th style={{ padding: "12px 8px", color: "#94a3b8", fontWeight: "600" }}>{locale === "zh" ? "注册时间" : "Joined"}</th>
-                  <th style={{ padding: "12px 8px", color: "#94a3b8", fontWeight: "600", textAlign: "right" }}>{locale === "zh" ? "操作" : "Actions"}</th>
+                  <th style={{ padding: "12px 8px", color: "var(--ef-muted-2)", fontWeight: "600" }}>{locale === "zh" ? "用户" : "User"}</th>
+                  <th style={{ padding: "12px 8px", color: "var(--ef-muted-2)", fontWeight: "600" }}>{locale === "zh" ? "角色" : "Role"}</th>
+                  <th style={{ padding: "12px 8px", color: "var(--ef-muted-2)", fontWeight: "600" }}>{locale === "zh" ? "状态" : "Status"}</th>
+                  <th style={{ padding: "12px 8px", color: "var(--ef-muted-2)", fontWeight: "600" }}>{locale === "zh" ? "注册时间" : "Joined"}</th>
+                  <th style={{ padding: "12px 8px", color: "var(--ef-muted-2)", fontWeight: "600", textAlign: "right" }}>{locale === "zh" ? "操作" : "Actions"}</th>
                 </tr>
               </thead>
               <tbody>
@@ -300,9 +301,9 @@ export function AdminPanel({ locale, authToken, connections }: Props) {
                     >
                       <td style={{ padding: "12px 8px" }}>
                         <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
-                          <span style={{ fontWeight: "500", color: "#f8fafc" }}>{u.name}</span>
-                          <span style={{ fontSize: "12px", color: "#64748b" }}>{u.email}</span>
-                          <code style={{ fontSize: "10px", color: "#475569", width: "fit-content" }}>{u.id}</code>
+                          <span style={{ fontWeight: "500", color: "var(--ef-surface-soft)" }}>{u.name}</span>
+                          <span style={{ fontSize: "12px", color: "var(--ef-muted)" }}>{u.email}</span>
+                          <code style={{ fontSize: "10px", color: "var(--ef-muted)", width: "fit-content" }}>{u.id}</code>
                         </div>
                       </td>
                       <td style={{ padding: "12px 8px" }}>
@@ -316,7 +317,7 @@ export function AdminPanel({ locale, authToken, connections }: Props) {
                             fontSize: "11px",
                             fontWeight: "500",
                             background: u.role === "admin" ? "rgba(59, 130, 246, 0.15)" : "rgba(100, 116, 139, 0.15)",
-                            color: u.role === "admin" ? "#60a5fa" : "#94a3b8",
+                            color: u.role === "admin" ? "#60a5fa" : "var(--ef-muted-2)",
                             border: u.role === "admin" ? "1px solid rgba(59, 130, 246, 0.3)" : "1px solid rgba(100, 116, 139, 0.3)"
                           }}
                         >
@@ -336,7 +337,7 @@ export function AdminPanel({ locale, authToken, connections }: Props) {
                           </span>
                         )}
                       </td>
-                      <td style={{ padding: "12px 8px", fontSize: "13px", color: "#64748b" }}>
+                      <td style={{ padding: "12px 8px", fontSize: "13px", color: "var(--ef-muted)" }}>
                         {new Date(u.createdAt).toLocaleDateString()}
                       </td>
                       <td style={{ padding: "12px 8px", textAlign: "right" }}>

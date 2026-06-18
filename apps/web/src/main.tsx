@@ -40,6 +40,8 @@ import {
 } from "./api";
 import { text, navItems, navItemsForRole, type Locale, type Page } from "./lib/types";
 import { navGroupsForRole } from "./lib/nav";
+import { useEscapeToClose } from "./lib/useEscapeToClose";
+import { DialogHost, toast } from "./lib/dialogs";
 import { MachinePage } from "./pages/MachinePage";
 import { CapabilityCatalogPage } from "./pages/CapabilityCatalogPage";
 import { CapabilityRulesAdminPage } from "./pages/CapabilityRulesAdminPage";
@@ -371,9 +373,9 @@ function App() {
     if (fragParams.has("enroll") && oauthToken) {
       localStorage.setItem("envforge_enrollment_token", oauthToken);
       history.replaceState(null, "", url.origin + url.pathname);
-      alert(locale === "zh"
-        ? "Admin accounts must enable 2FA in Settings > Account."
-        : "Admin accounts must enable 2FA before continuing.");
+      toast(locale === "zh"
+        ? "管理员账号需先在「设置 › 账户」启用两步验证。"
+        : "Admin accounts must enable 2FA before continuing.", "info");
       setShellMode("app");
       setPage("dashboard");
       history.replaceState(null, "", "/app/dashboard");
@@ -384,9 +386,9 @@ function App() {
     const oauthLinked = url.searchParams.get("oauth") === "linked" || fragParams.get("oauth") === "linked";
     if (oauthLinked) {
       const provider = url.searchParams.get("provider") || fragParams.get("provider") || "OAuth";
-      alert(locale === "zh"
-        ? `${provider} account linked successfully.`
-        : `${provider} account linked successfully!`);
+      toast(locale === "zh"
+        ? `${provider} 账号已成功关联。`
+        : `${provider} account linked successfully!`, "success");
       setShellMode("app");
       setPage("dashboard");
       history.replaceState(null, "", "/app/dashboard");
@@ -399,17 +401,17 @@ function App() {
       const conflictEmail = url.searchParams.get("email") || fragParams.get("email");
       const msg = oauthError === "email_conflict"
         ? (locale === "zh"
-          ? `Email ${conflictEmail ?? ""} is already registered. Sign in with password first, then link this provider in settings.`
+          ? `邮箱 ${conflictEmail ?? ""} 已被注册。请先用密码登录,再到设置中关联此登录方式。`
           : `The email ${conflictEmail ?? ""} is already registered. Sign in with your password first, then link the provider from settings.`)
         : (locale === "zh"
-          ? `Login failed (${oauthError}).`
+          ? `登录失败(${oauthError})。`
           : `Login failed (${oauthError}).`);
-      alert(msg);
+      toast(msg, "error");
       history.replaceState(null, "", url.origin + "/");
       return;
     }
 
-    // 5. Password reset confirm landing (濠电姷鏁告慨鐑藉极閹间礁纾块柟瀵稿Т缁躲倝鏌﹀Ο渚＆鐟滅増甯掔壕濂告煟閹邦垰鐨洪柣娑栧劚閳规垶骞婇柛濠冩礋楠炲﹥鎯旈妸銉ュ殤婵炶揪绲跨涵鍫曞绩娴犲鐓曢悘鐐插⒔椤ｆ煡鏌涢悢鍝勪槐闁哄本绋掔换婵嬪礋椤愩垹绠ｉ梻浣告惈閻绱為埀顒併亜閿旂晫鍙€闁哄瞼鍠栭幊鐐哄Ψ瑜忛悡鍌滅磽娓氬洤娅欑紒鎻掆偓鐔轰簷闂備線鈧偛鑻晶瀛樼節閳ь剚绗熼埀顒€顫忓ú顏勭閹艰揪绲块悾鐢告⒑缂佹﹩娈旈柨鏇畱閳藉鎮界粙鍧楀敹闂佸搫娲ㄩ崰鎾诲储閸涘﹦绠鹃弶鍫濆⒔缁夘喗绻涙担鍐叉搐閻掑灚銇勯幒宥堝厡缂佺姷鍋為〃銉╂倷閹绘帗娈婚梺绯曟櫔缁绘繂鐣烽妸鈺婃晩闁稿繗鍋愰弶铏圭磽閸屾瑧顦﹀褑濮ら弲璺何旈崨顔芥珨婵犵數鍋涢悺銊у垝瀹ュ纾块柟鎯板Г缁犳帡姊绘担鐟邦嚋缂佽鍊哥叅闁挎洖鍊搁崥褰掓煃瑜滈崜姘辨崲濞戞埃鍋撻悽娈跨劸閺嶏繝姊洪幐搴㈢８闁搞劏妫勯锝囨嫚濞村顫嶉梺闈涚箳婵兘顢欐繝鍥ㄢ拺闁告繂瀚婵嬫煕閻樿櫕宕屽┑鈩冩尦楠炲洭鎮ч崼姘闂備胶顭堢换鎰板触鐎ｎ剛绀婇柟杈鹃檮閻撱儵鏌￠崶鏈电盎妞も晩鍓熼弻娑㈠箳閹捐櫕璇為梺杞扮劍閸旀瑥鐣烽妸鈺佺＜婵炴垶鐟㈤幏濠氭⒑闁偛鑻晶鍓х磽瀹ュ懏顥㈢€规洘绮岄埥澶愬煑閸濆嫭鍠樻い銏″哺閸┾偓妞ゆ巻鍋撴い顐㈢箰鐓ゆい蹇撳椤ρ囨⒑缁嬭法绠洪柛瀣姍瀹曟瑩鍩勯崘顏嗙槇闂傚倸鐗婄粙鎴﹀焵椤掑倹鍤€妞ゎ偄绻橀幊锟犲Χ閸涱厾浜版俊鐐€栭幐楣冨窗鎼达絾顐介柣鎰劋閻撴瑩姊洪銊х暠濠⒀屽枤閳?window.prompt)
+    // 5. Password reset confirm landing
     const urlResetToken = url.searchParams.get("token");
     if (url.pathname.startsWith("/auth/password-reset") && urlResetToken) {
       setResetToken(urlResetToken); // 婵犵數濮烽弫鍛婃叏閻戣棄鏋侀柛娑橈攻閸欏繘鏌ｉ幋婵愭綗闁逞屽墮閸婂湱绮嬮幒鏂哄亾閿濆簼绨介柨娑欑洴濮婅櫣鎲撮崟顐㈠Б濡炪倖娲﹂崢鍓у垝缂佹ǜ鍋呴柛鎰ㄦ櫇閸樼偓绻濋棃娑樷偓鍛婄珶婵犲洤绾ф繛宸簼閻撴洟鏌曢崼婵囶棤闁瑰啿娲弻锛勪沪鐠囨祴鍋撳┑鍡╁殨闁割偅娲栫粻锝嗐亜閺嶃劏澹樻い顐ゅХ缁?
@@ -698,16 +700,16 @@ function App() {
             onChange={setNewPassword}
             onCancel={() => { setResetToken(null); setNewPassword(""); }}
             onConfirm={async () => {
-              if (newPassword.length < 8) { alert("Password must be at least 8 characters."); return; }
+              if (newPassword.length < 8) { toast(locale === "zh" ? "密码至少需要 8 个字符。" : "Password must be at least 8 characters.", "error"); return; }
               try {
                 await confirmPasswordReset({ token: resetToken, newPassword });
-                alert("Password reset. Please sign in.");
+                toast(locale === "zh" ? "密码已重置,请登录。" : "Password reset. Please sign in.", "success");
                 setResetToken(null);
                 setNewPassword("");
                 setAuthDialog("login");
                 window.history.replaceState(null, "", "/login");
               } catch (err) {
-                alert(err instanceof Error ? err.message : "Reset failed");
+                toast(err instanceof Error ? err.message : "Reset failed", "error");
               }
             }}
           />
@@ -979,16 +981,16 @@ function App() {
           onChange={setNewPassword}
           onCancel={() => { setResetToken(null); setNewPassword(""); }}
           onConfirm={async () => {
-            if (newPassword.length < 8) { alert("Password must be at least 8 characters."); return; }
+            if (newPassword.length < 8) { toast(locale === "zh" ? "密码至少需要 8 个字符。" : "Password must be at least 8 characters.", "error"); return; }
             try {
               await confirmPasswordReset({ token: resetToken, newPassword });
-              alert("Password reset. Please sign in.");
+              toast(locale === "zh" ? "密码已重置,请登录。" : "Password reset. Please sign in.", "success");
               setResetToken(null);
               setNewPassword("");
               setAuthDialog("login");
               navigatePublic("/login");
             } catch (err) {
-              alert(err instanceof Error ? err.message : "Reset failed");
+              toast(err instanceof Error ? err.message : "Reset failed", "error");
             }
           }}
         />
@@ -1276,17 +1278,31 @@ function PasswordResetModal({
 }) {
   const { t } = useTranslation();
   void token;
+  useEscapeToClose(onCancel);
   return (
-    <div className="modal-overlay" style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 9999, display: "flex", justifyContent: "center", alignItems: "center" }}>
-      <div className="modal-content" style={{ background: "#fff", padding: "24px", borderRadius: "8px", minWidth: "320px", boxShadow: "0 4px 6px rgba(0,0,0,0.1)" }}>
-        <h3 style={{ marginTop: 0, marginBottom: "16px", fontSize: "18px" }}>{t("auth.titleLogin")}</h3>
-        <p style={{ fontSize: "14px", color: "#64748b", marginBottom: "12px" }}>{t("auth.passwordTooShort")}</p>
-        <input type="password" value={value} onChange={(event) => onChange(event.target.value)} placeholder="New password..." style={{ width: "100%", padding: "10px", marginBottom: "20px", border: "1px solid #cbd5e1", borderRadius: "4px", boxSizing: "border-box" }} />
-        <div style={{ display: "flex", gap: "12px", justifyContent: "flex-end" }}>
-          <button type="button" className="ghost-action" onClick={onCancel}>{t("shell.close")}</button>
-          <button type="button" className="primary-action" onClick={onConfirm}>{t("auth.verify")}</button>
+    <div className="modal-overlay" role="dialog" aria-modal="true" onClick={(event) => { if (event.target === event.currentTarget) onCancel(); }}>
+      <section className="profile-modal" style={{ maxWidth: 420 }}>
+        <header>
+          <div>
+            <p className="eyebrow">{t("shell.account")}</p>
+            <h2>{t("auth.titleLogin")}</h2>
+          </div>
+          <button type="button" className="ghost-action icon-action" onClick={onCancel} aria-label={t("shell.close")}>
+            <X aria-hidden />
+          </button>
+        </header>
+        <div className="modal-form">
+          <p className="settings-help" style={{ marginTop: 0 }}>{t("auth.passwordTooShort")}</p>
+          <label>
+            <span>{t("auth.password")}</span>
+            <input type="password" value={value} onChange={(event) => onChange(event.target.value)} autoComplete="new-password" />
+          </label>
+          <div style={{ display: "flex", gap: "12px", justifyContent: "flex-end" }}>
+            <button type="button" className="ghost-action" onClick={onCancel}>{t("shell.close")}</button>
+            <button type="button" className="primary-action" onClick={onConfirm}>{t("auth.verify")}</button>
+          </div>
         </div>
-      </div>
+      </section>
     </div>
   );
 }
@@ -1301,6 +1317,7 @@ function AccountSettingsModal({
   onClose: () => void;
 }) {
   const { t } = useTranslation();
+  useEscapeToClose(onClose);
   return (
     <div className="modal-overlay account-modal-overlay" role="dialog" aria-modal="true" onClick={(event) => { if (event.target === event.currentTarget) onClose(); }}>
       <section className="profile-modal account-settings-modal">
@@ -1347,6 +1364,7 @@ function AuthDialog({
   const [submitting, setSubmitting] = useState(false);
   const [providers, setProviders] = useState<{ github: boolean; google: boolean }>({ github: false, google: false });
   void locale;
+  useEscapeToClose(onClose);
 
   useEffect(() => {
     fetchAuthProviders().then(setProviders).catch(() => setProviders({ github: false, google: false }));
@@ -1508,4 +1526,4 @@ function AuthDialog({
   );
 }
 
-createRoot(document.getElementById("root")!).render(<App />);
+createRoot(document.getElementById("root")!).render(<><App /><DialogHost /></>);

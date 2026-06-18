@@ -11,7 +11,7 @@
  * runtime rule may not reuse a baseline rule's id or capabilityKey (so it
  * cannot hijack a certified capability's detection semantics).
  */
-import { readRuntimeDatabase, updateRuntimeDatabase, type CatalogRuleOverride } from "./runtime-store.js";
+import { readRuntimeDatabase, updateRuntimeDatabase, type CatalogRuleOverride, type RulePromotionState } from "./runtime-store.js";
 import { catalogDetectionRules, setRuntimeDetectionRules, type CatalogDetectionRule } from "./catalog-rules.js";
 
 const STATIC_RULE_IDS = new Set(catalogDetectionRules.map((rule) => rule.id));
@@ -19,8 +19,12 @@ const STATIC_RULE_CAPKEYS = new Set(catalogDetectionRules.map((rule) => rule.cap
 
 /** Read overrides from the DB and refresh the catalog-rules detection overlay. */
 export async function loadRuntimeDetectionRules(): Promise<void> {
+  await reconcilePromotions();
   const db = await readRuntimeDatabase();
-  setRuntimeDetectionRules((db.catalogRuleOverrides ?? []).map((override) => override.rule));
+  // Certified (merged) overrides are superseded by the now-static rule; drop
+  // them from the detection overlay so the merged view never double-detects.
+  const active = (db.catalogRuleOverrides ?? []).filter((override) => override.promotion?.status !== "certified");
+  setRuntimeDetectionRules(active.map((override) => override.rule));
 }
 
 export async function listRuleOverrides(): Promise<CatalogRuleOverride[]> {
@@ -98,4 +102,46 @@ export async function deleteRuleOverride(id: string): Promise<boolean> {
   });
   await loadRuntimeDetectionRules();
   return removed;
+}
+
+/**
+ * Advance / patch a runtime rule's promotion lifecycle (Phase C3). `status:
+ * "certified"` is intentionally NOT settable here — only `reconcilePromotions`
+ * may grant it, and only after the rule lands in the static baseline. This is
+ * what keeps "runtime never self-certifies" true.
+ */
+export async function setPromotionState(
+  id: string,
+  patch: Partial<RulePromotionState>
+): Promise<CatalogRuleOverride | undefined> {
+  return updateRuntimeDatabase((db) => {
+    const override = (db.catalogRuleOverrides ?? []).find((o) => o.id === id);
+    if (!override) return undefined;
+    const prev: RulePromotionState = override.promotion ?? { status: "detection-only" };
+    override.promotion = { ...prev, ...patch, updatedAt: new Date().toISOString() };
+    return override;
+  });
+}
+
+/**
+ * Flip any override whose rule has landed in the static baseline (matching id
+ * or capabilityKey ⇒ the promotion PR merged) to `certified`. This is the ONLY
+ * path to the certified status; manual callers cannot set it.
+ */
+export async function reconcilePromotions(): Promise<void> {
+  await updateRuntimeDatabase((db) => {
+    let changed = false;
+    for (const override of db.catalogRuleOverrides ?? []) {
+      const landed = STATIC_RULE_IDS.has(override.id) || STATIC_RULE_CAPKEYS.has(override.rule.capabilityKey);
+      if (landed && override.promotion?.status !== "certified") {
+        override.promotion = {
+          ...(override.promotion ?? { status: "detection-only" }),
+          status: "certified",
+          updatedAt: new Date().toISOString()
+        };
+        changed = true;
+      }
+    }
+    return changed;
+  });
 }

@@ -142,7 +142,7 @@ export function PlansCenterPanel({ authToken, locale }: { authToken: string; loc
   }, [plans, filter]);
 
   return (
-    <section className="plans-center" style={{ padding: 16, background: "#fff", borderRadius: 8, border: "1px solid #e2e8f0" }}>
+    <section className="plans-center" style={{ padding: 16, background: "var(--ef-surface)", borderRadius: 8, border: "1px solid var(--ef-border)" }}>
       <header style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
         <h2 style={{ margin: 0 }}>{locale === "zh" ? "环境计划" : "Environment Plans"}</h2>
         <button type="button" className="conn-btn conn-btn-ghost" onClick={() => void load()} disabled={loading}>
@@ -181,9 +181,9 @@ export function PlansCenterPanel({ authToken, locale }: { authToken: string; loc
               onClick={() => void loadActive(plan.id)}
               style={{
                 padding: 10,
-                border: `1px solid ${plan.id === activeId ? "#0ea5e9" : "#e2e8f0"}`,
+                border: `1px solid ${plan.id === activeId ? "#0ea5e9" : "var(--ef-border)"}`,
                 borderRadius: 6,
-                background: "#fff",
+                background: "var(--ef-surface)",
                 textAlign: "left",
                 cursor: "pointer"
               }}
@@ -192,12 +192,12 @@ export function PlansCenterPanel({ authToken, locale }: { authToken: string; loc
                 <strong style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{plan.name}</strong>
                 <StatusChip status={plan.status} />
               </div>
-              <div style={{ fontSize: 11, color: "#64748b", marginTop: 4, display: "flex", gap: 8 }}>
+              <div style={{ fontSize: 11, color: "var(--ef-muted)", marginTop: 4, display: "flex", gap: 8 }}>
                 <span>{plan.type}</span>
                 <span>·</span>
                 <span>{new Date(plan.updatedAt).toLocaleString()}</span>
               </div>
-              <div style={{ fontSize: 11, color: "#475569", marginTop: 2, display: "flex", gap: 6 }}>
+              <div style={{ fontSize: 11, color: "var(--ef-muted)", marginTop: 2, display: "flex", gap: 6 }}>
                 {plan.verifyResults.length ? <span>verify: {plan.verifyResults.filter((r) => r.status === "passed").length}/{plan.verifyResults.length}</span> : null}
                 {plan.rollbackResults.length ? <span>rollback: {plan.rollbackResults.filter((r) => r.status === "passed").length}/{plan.rollbackResults.length}</span> : null}
               </div>
@@ -205,16 +205,16 @@ export function PlansCenterPanel({ authToken, locale }: { authToken: string; loc
           ))}
         </div>
 
-        <aside style={{ padding: 12, border: "1px solid #e2e8f0", borderRadius: 6, background: "#fafafa", maxHeight: 540, overflow: "auto" }}>
+        <aside style={{ padding: 12, border: "1px solid var(--ef-border)", borderRadius: 6, background: "#fafafa", maxHeight: 540, overflow: "auto" }}>
           {!active ? (
-            <p style={{ color: "#64748b", fontSize: 13 }}>
+            <p style={{ color: "var(--ef-muted)", fontSize: 13 }}>
               {locale === "zh" ? "选择左侧计划查看详情、动作、验证结果与回滚结果。" : "Pick a plan on the left to inspect actions, verify results, and rollback results."}
             </p>
           ) : (
             <div style={{ display: "grid", gap: 10 }}>
               <header>
                 <strong style={{ fontSize: 16 }}>{active.plan.name}</strong>
-                <div style={{ color: "#64748b", fontSize: 12 }}>
+                <div style={{ color: "var(--ef-muted)", fontSize: 12 }}>
                   {active.plan.type} · {active.plan.status} · {active.plan.summary.totalActions} actions · {active.plan.summary.highRisk} high risk · {active.plan.summary.requiresSudo} sudo
                 </div>
               </header>
@@ -259,7 +259,7 @@ export function PlansCenterPanel({ authToken, locale }: { authToken: string; loc
                   {active.plan.items.flatMap((item) =>
                     item.actions.map((action) => (
                       <li key={action.id}>
-                        <span style={{ color: action.risk === "high" ? "#b91c1c" : action.risk === "medium" ? "#92400e" : "#166534" }}>[{action.risk}]</span>{" "}
+                        <span style={{ color: action.risk === "high" ? "var(--ef-danger)" : action.risk === "medium" ? "var(--ef-warning)" : "var(--ef-success)" }}>[{action.risk}]</span>{" "}
                         <strong>{action.kind}</strong> — {action.label}
                       </li>
                     ))
@@ -273,7 +273,7 @@ export function PlansCenterPanel({ authToken, locale }: { authToken: string; loc
                     {active.verifyResults.map((row) => (
                       <li key={row.actionId}>
                         <span style={{ color: tone(row.status) }}>[{row.status}]</span> {row.label}
-                        {row.message ? <span style={{ color: "#64748b" }}> — {row.message}</span> : null}
+                        {row.message ? <span style={{ color: "var(--ef-muted)" }}> — {row.message}</span> : null}
                       </li>
                     ))}
                   </ul>
@@ -286,7 +286,7 @@ export function PlansCenterPanel({ authToken, locale }: { authToken: string; loc
                     {active.rollbackResults.map((row) => (
                       <li key={row.actionId}>
                         <span style={{ color: tone(row.status) }}>[{row.status}]</span> {row.label}
-                        {row.message ? <span style={{ color: "#64748b" }}> — {row.message}</span> : null}
+                        {row.message ? <span style={{ color: "var(--ef-muted)" }}> — {row.message}</span> : null}
                       </li>
                     ))}
                   </ul>
@@ -295,7 +295,7 @@ export function PlansCenterPanel({ authToken, locale }: { authToken: string; loc
 
               {active.history.length ? (
                 <Section title={locale === "zh" ? "历史" : "History"}>
-                  <ul style={{ margin: 0, paddingLeft: 18, fontSize: 12, color: "#475569" }}>
+                  <ul style={{ margin: 0, paddingLeft: 18, fontSize: 12, color: "var(--ef-muted)" }}>
                     {active.history.map((event, idx) => (
                       <li key={`${event.at}-${idx}`}>
                         {event.at} · {event.event}
@@ -316,7 +316,7 @@ export function PlansCenterPanel({ authToken, locale }: { authToken: string; loc
         </aside>
       </div>
 
-      {error ? <div style={{ color: "#b91c1c", fontSize: 13, marginTop: 8 }}>{error}</div> : null}
+      {error ? <div style={{ color: "var(--ef-danger)", fontSize: 13, marginTop: 8 }}>{error}</div> : null}
     </section>
   );
 }
@@ -324,7 +324,7 @@ export function PlansCenterPanel({ authToken, locale }: { authToken: string; loc
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div>
-      <div style={{ fontSize: 12, color: "#64748b", marginBottom: 4 }}>{title}</div>
+      <div style={{ fontSize: 12, color: "var(--ef-muted)", marginBottom: 4 }}>{title}</div>
       <div>{children}</div>
     </div>
   );
@@ -333,22 +333,22 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 function StatusChip({ status }: { status: EnvironmentPlan["status"] }) {
   const safeStatus: NonNullable<EnvironmentPlan["status"]> = status ?? "draft";
   const colorMap: Record<NonNullable<EnvironmentPlan["status"]>, string> = {
-    draft: "#94a3b8",
-    "needs-review": "#f59e0b",
-    approved: "#2563eb",
+    draft: "var(--ef-muted-2)",
+    "needs-review": "var(--ef-warning)",
+    approved: "var(--ef-info)",
     applying: "#0ea5e9",
     verifying: "#7c3aed",
-    succeeded: "#16a34a",
+    succeeded: "var(--ef-success)",
     "partially-succeeded": "#ca8a04",
-    failed: "#b91c1c",
+    failed: "var(--ef-danger)",
     "rolled-back": "#7c2d12",
-    committed: "#16a34a"
+    committed: "var(--ef-success)"
   };
   return (
     <span
       style={{
-        background: colorMap[safeStatus] ?? "#94a3b8",
-        color: "#fff",
+        background: colorMap[safeStatus] ?? "var(--ef-muted-2)",
+        color: "var(--ef-surface)",
         fontSize: 11,
         padding: "2px 8px",
         borderRadius: 999,
@@ -361,10 +361,10 @@ function StatusChip({ status }: { status: EnvironmentPlan["status"] }) {
 }
 
 function tone(status: PlanVerifyResult["status"] | PlanRollbackResult["status"]): string {
-  if (status === "passed") return "#16a34a";
+  if (status === "passed") return "var(--ef-success)";
   if (status === "warning") return "#ca8a04";
-  if (status === "failed") return "#b91c1c";
-  return "#64748b";
+  if (status === "failed") return "var(--ef-danger)";
+  return "var(--ef-muted)";
 }
 
 /**

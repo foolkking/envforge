@@ -51,14 +51,14 @@ export function PackageIntegrationsTab({
 
   return (
     <div data-testid="integrations-tab">
-      <p style={{ color: "#475569", margin: "0 0 12px 0", maxWidth: 720 }}>
+      <p style={{ color: "var(--ef-muted)", margin: "0 0 12px 0", maxWidth: 720 }}>
         {locale === "zh"
           ? "规则级软件包支持映射治理：跨发行版包名 / 服务 / 配置路径 / 端口 / 验证 / 回滚 / 数据策略。这不是主机级包管理器。"
           : "Rule-level package support governance: cross-distro packages / services / config paths / ports / validate / rollback / data strategy. This is NOT a host-level package manager."}
       </p>
 
       <div style={{ display: "flex", flexWrap: "wrap", gap: 8, margin: "0 0 12px 0" }}>
-        <label style={{ display: "inline-flex", alignItems: "center", gap: 4, background: "#fff", border: "1px solid #cbd5e1", borderRadius: 6, padding: "2px 8px" }}>
+        <label style={{ display: "inline-flex", alignItems: "center", gap: 4, background: "var(--ef-surface)", border: "1px solid var(--ef-border)", borderRadius: 6, padding: "2px 8px" }}>
           <Search size={14} aria-hidden />
           <input
             type="search"
@@ -79,7 +79,7 @@ export function PackageIntegrationsTab({
           ]}
         />
         {meta ? (
-          <span style={{ color: "#64748b", fontSize: 12, display: "flex", alignItems: "center" }}>
+          <span style={{ color: "var(--ef-muted)", fontSize: 12, display: "flex", alignItems: "center" }}>
             {locale === "zh"
               ? `已有规则 ${meta.withRule} / 缺规则 ${meta.withoutRule} / 共 ${meta.total}`
               : `with rule ${meta.withRule} / missing ${meta.withoutRule} / total ${meta.total}`}
@@ -88,12 +88,12 @@ export function PackageIntegrationsTab({
       </div>
 
       {loading ? (
-        <p style={{ color: "#64748b" }}>{locale === "zh" ? "加载中..." : "Loading..."}</p>
+        <p style={{ color: "var(--ef-muted)" }}>{locale === "zh" ? "加载中..." : "Loading..."}</p>
       ) : (
-        <div style={{ display: "grid", gridTemplateColumns: "minmax(280px, 1fr) minmax(360px, 2fr)", gap: 12 }}>
-          <div style={{ border: "1px solid #e2e8f0", borderRadius: 6, maxHeight: 560, overflow: "auto" }} data-testid="integrations-list">
+        <div className="integrations-grid">
+          <div style={{ border: "1px solid var(--ef-border)", borderRadius: 6, maxHeight: 560, overflow: "auto" }} data-testid="integrations-list">
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
-              <thead style={{ background: "#f1f5f9", position: "sticky", top: 0 }}>
+              <thead style={{ background: "var(--ef-surface-soft)", position: "sticky", top: 0 }}>
                 <tr>
                   <Th>Capability</Th>
                   <Th>{locale === "zh" ? "规则" : "Rule"}</Th>
@@ -104,18 +104,18 @@ export function PackageIntegrationsTab({
                   <tr key={row.id}
                       data-testid={`integration-row-${row.id}`}
                       onClick={() => setActiveId(row.id)}
-                      style={{ borderBottom: "1px solid #e2e8f0", cursor: "pointer", background: row.id === activeId ? "#eff6ff" : undefined }}>
+                      style={{ borderBottom: "1px solid var(--ef-border)", cursor: "pointer", background: row.id === activeId ? "var(--ef-info-soft)" : undefined }}>
                     <Td>
                       <strong>{row.name}</strong>
-                      <div style={{ color: "#64748b", fontSize: 11 }}>{row.id}</div>
+                      <div style={{ color: "var(--ef-muted)", fontSize: 11 }}>{row.id}</div>
                     </Td>
                     <Td>
                       {row.hasRule ? (
-                        <span style={{ background: "#dcfce7", color: "#166534", padding: "1px 6px", borderRadius: 999, fontSize: 11 }}>
+                        <span style={{ background: "var(--ef-success-soft)", color: "var(--ef-success)", padding: "1px 6px", borderRadius: 999, fontSize: 11 }}>
                           {locale === "zh" ? "有规则" : "rule"}
                         </span>
                       ) : (
-                        <span style={{ background: "#fef3c7", color: "#92400e", padding: "1px 6px", borderRadius: 999, fontSize: 11 }}>
+                        <span style={{ background: "var(--ef-warning-soft)", color: "var(--ef-warning)", padding: "1px 6px", borderRadius: 999, fontSize: 11 }}>
                           {locale === "zh" ? "缺规则" : "missing"}
                         </span>
                       )}
@@ -126,9 +126,9 @@ export function PackageIntegrationsTab({
             </table>
           </div>
 
-          <div style={{ border: "1px solid #e2e8f0", borderRadius: 6, padding: 12 }} data-testid="integration-detail">
+          <div style={{ border: "1px solid var(--ef-border)", borderRadius: 6, padding: 12 }} data-testid="integration-detail">
             {!activeRow ? (
-              <p style={{ color: "#64748b" }}>
+              <p style={{ color: "var(--ef-muted)" }}>
                 {locale === "zh" ? "选择左侧能力查看规则细节。" : "Pick a capability on the left to view its rule details."}
               </p>
             ) : (
@@ -152,12 +152,12 @@ function PackageIntegrationDetailPanel({
   return (
     <div>
       <h3 style={{ margin: "0 0 4px 0" }}>{row.name}</h3>
-      <p style={{ margin: "0 0 12px 0", color: "#475569", fontSize: 12 }}>
+      <p style={{ margin: "0 0 12px 0", color: "var(--ef-muted)", fontSize: 12 }}>
         <code>{row.id}</code> · <code>{row.capabilityKey ?? "—"}</code> · {row.category}
       </p>
 
       {!row.hasRule || !summary ? (
-        <div style={{ background: "#fffbeb", border: "1px solid #fde68a", padding: 12, borderRadius: 6 }}>
+        <div style={{ background: "var(--ef-warning-soft)", border: "1px solid var(--ef-warning)", padding: 12, borderRadius: 6 }}>
           <strong>{locale === "zh" ? "缺少检测规则" : "Missing CatalogDetectionRule"}</strong>
           <p style={{ margin: "4px 0 0 0", fontSize: 12 }}>
             {locale === "zh"
@@ -188,16 +188,16 @@ function PackageIntegrationDetailPanel({
             <DetailList label="validate" items={summary.validate} />
             <DetailList label="restartServices" items={summary.restartServices} />
             <p style={{ margin: "4px 0", fontSize: 12 }}>
-              <span style={{ color: "#64748b" }}>data strategy:</span> <code>{summary.dataStrategy}</code>
-              {summary.migrationStrategy ? <> · <span style={{ color: "#64748b" }}>migration strategy:</span> <code>{summary.migrationStrategy}</code></> : null}
+              <span style={{ color: "var(--ef-muted)" }}>data strategy:</span> <code>{summary.dataStrategy}</code>
+              {summary.migrationStrategy ? <> · <span style={{ color: "var(--ef-muted)" }}>migration strategy:</span> <code>{summary.migrationStrategy}</code></> : null}
             </p>
           </Section>
           {detail ? (
             <details>
-              <summary style={{ cursor: "pointer", fontSize: 12, color: "#475569" }}>
+              <summary style={{ cursor: "pointer", fontSize: 12, color: "var(--ef-muted)" }}>
                 {locale === "zh" ? "完整规则 JSON" : "Raw rule JSON"}
               </summary>
-              <pre style={{ background: "#0f172a", color: "#e2e8f0", padding: 8, borderRadius: 4, overflow: "auto", fontSize: 11 }}>
+              <pre style={{ background: "var(--ef-text)", color: "var(--ef-border)", padding: 8, borderRadius: 4, overflow: "auto", fontSize: 11 }}>
                 {JSON.stringify(detail.rule, null, 2)}
               </pre>
             </details>

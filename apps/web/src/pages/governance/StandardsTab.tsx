@@ -22,6 +22,7 @@ import {
 } from "../../api";
 import type { Locale } from "../../lib/types";
 import { Button } from "../../components/ui/Button";
+import { confirmDialog } from "../../lib/dialogs";
 import {
   REQUIREMENT_LABELS,
   FilterPills,
@@ -212,7 +213,14 @@ export function StandardsTab({ locale, authToken, rows }: { locale: Locale; auth
 
   async function rollback(version: CapabilityRequirementVersion) {
     if (!detail) return;
-    if (!window.confirm(`Rollback ${detail.item.id} to v${version.version}? This creates a new published version.`)) return;
+    const ok = await confirmDialog({
+      message: locale === "zh"
+        ? `回滚 ${detail.item.id} 到 v${version.version}?将发布一个新版本。`
+        : `Rollback ${detail.item.id} to v${version.version}? This creates a new published version.`,
+      confirmLabel: locale === "zh" ? "回滚" : "Rollback",
+      cancelLabel: locale === "zh" ? "取消" : "Cancel"
+    });
+    if (!ok) return;
     setSaving(true);
     setError("");
     try {
@@ -331,7 +339,7 @@ export function StandardsTab({ locale, authToken, rows }: { locale: Locale; auth
         <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
           <div>
             <h2 style={{ margin: 0, fontSize: 16 }}>Versioned standards layer</h2>
-            <p style={{ color: "#64748b", margin: "4px 0 0 0", maxWidth: 780 }}>
+            <p style={{ color: "var(--ef-muted)", margin: "4px 0 0 0", maxWidth: 780 }}>
               Admins maintain standard profiles, per-capability requirement drafts, simulation runs, published versions, rollback history, and audit logs. Published versions record governance state; the runtime certified-only gate still applies.
             </p>
           </div>
@@ -356,13 +364,13 @@ export function StandardsTab({ locale, authToken, rows }: { locale: Locale; auth
         </div>
       </section>
 
-      {error ? <div style={{ background: "#fee2e2", color: "#991b1b", padding: 12, borderRadius: 6 }}>{error}</div> : null}
+      {error ? <div style={{ background: "var(--ef-danger-soft)", color: "var(--ef-danger)", padding: 12, borderRadius: 6 }}>{error}</div> : null}
 
       <section style={panelStyle}>
         <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", marginBottom: 12 }}>
           <div>
             <h3 style={{ margin: 0, fontSize: 15 }}>Standard profiles</h3>
-            <p style={{ margin: "4px 0 0 0", color: "#64748b", fontSize: 12 }}>
+            <p style={{ margin: "4px 0 0 0", color: "var(--ef-muted)", fontSize: 12 }}>
               Edit the default profile by materializing it online, clone profiles for new revisions, activate one profile per key, and retire older profiles only after a replacement exists.
             </p>
           </div>
@@ -374,13 +382,13 @@ export function StandardsTab({ locale, authToken, rows }: { locale: Locale; auth
         </div>
         <div style={{ overflowX: "auto" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-            <thead style={{ background: "#f1f5f9" }}>
+            <thead style={{ background: "var(--ef-surface-soft)" }}>
               <tr><Th>Profile</Th><Th>Key</Th><Th>Status</Th><Th>Sections</Th><Th>Updated</Th><Th>Action</Th></tr>
             </thead>
             <tbody>
               {profiles.map((profile) => (
-                <tr key={profile.id} style={{ borderBottom: "1px solid #e2e8f0", background: profile.id === activeProfileId ? "#eff6ff" : undefined }}>
-                  <Td><strong>{profile.name}</strong><div style={{ color: "#64748b", fontSize: 11 }}>{profile.id} / v{profile.version}</div></Td>
+                <tr key={profile.id} style={{ borderBottom: "1px solid var(--ef-border)", background: profile.id === activeProfileId ? "var(--ef-info-soft)" : undefined }}>
+                  <Td><strong>{profile.name}</strong><div style={{ color: "var(--ef-muted)", fontSize: 11 }}>{profile.id} / v{profile.version}</div></Td>
                   <Td><code>{profile.key}</code></Td>
                   <Td>{profile.status}</Td>
                   <Td>{profile.sections.length}</Td>
@@ -405,7 +413,7 @@ export function StandardsTab({ locale, authToken, rows }: { locale: Locale; auth
       </section>
 
       {loading || !detail || !activeProfile ? (
-        <p style={{ color: "#64748b" }}>Loading...</p>
+        <p style={{ color: "var(--ef-muted)" }}>Loading...</p>
       ) : (
         <>
           <section style={summaryStyle}>
@@ -420,7 +428,7 @@ export function StandardsTab({ locale, authToken, rows }: { locale: Locale; auth
             <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", marginBottom: 12 }}>
               <div>
                 <h3 style={{ margin: 0, fontSize: 15 }}>{detail.item.name}</h3>
-                <p style={{ margin: "4px 0 0 0", color: "#64748b" }}>
+                <p style={{ margin: "4px 0 0 0", color: "var(--ef-muted)" }}>
                   <code>{detail.item.id}</code> / <code>{detail.item.capabilityKey ?? "-"}</code> / {detail.item.category} / <code>{detail.activeProfile.name}</code>
                 </p>
               </div>
@@ -448,13 +456,13 @@ export function StandardsTab({ locale, authToken, rows }: { locale: Locale; auth
                 const state = sections[section.id] ?? { status: "pending" as const, evidence: [] };
                 const result = latestRun?.sectionResults?.[section.id];
                 return (
-                  <div key={section.id} style={{ border: "1px solid #e2e8f0", borderRadius: 8, padding: 12, display: "grid", gap: 8 }}>
+                  <div key={section.id} style={{ border: "1px solid var(--ef-border)", borderRadius: 8, padding: 12, display: "grid", gap: 8 }}>
                     <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
                       <div>
                         <strong>{REQUIREMENT_LABELS[section.id]?.[locale] ?? section.label}</strong>
-                        <span style={{ marginLeft: 8, color: section.severity === "critical" ? "#991b1b" : "#64748b", fontSize: 11 }}>{section.severity}</span>
-                        <p style={{ margin: "2px 0 0 0", color: "#64748b", fontSize: 12 }}>{section.description}</p>
-                        {result && !result.ok ? <p style={{ margin: "3px 0 0 0", color: "#b45309", fontSize: 12 }}>{result.reason}</p> : null}
+                        <span style={{ marginLeft: 8, color: section.severity === "critical" ? "var(--ef-danger)" : "var(--ef-muted)", fontSize: 11 }}>{section.severity}</span>
+                        <p style={{ margin: "2px 0 0 0", color: "var(--ef-muted)", fontSize: 12 }}>{section.description}</p>
+                        {result && !result.ok ? <p style={{ margin: "3px 0 0 0", color: "var(--ef-warning)", fontSize: 12 }}>{result.reason}</p> : null}
                       </div>
                       <select value={state.status} onChange={(event) => updateSection(section.id, { status: event.target.value as CapabilityRequirementSectionState["status"] })}>
                         <option value="pending">pending</option>
@@ -468,21 +476,21 @@ export function StandardsTab({ locale, authToken, rows }: { locale: Locale; auth
                       onChange={(event) => updateSection(section.id, { notes: event.target.value })}
                       placeholder="Notes / evidence summary"
                       rows={2}
-                      style={{ border: "1px solid #cbd5e1", borderRadius: 6, padding: "8px 10px", resize: "vertical" }}
+                      style={{ border: "1px solid var(--ef-border)", borderRadius: 6, padding: "8px 10px", resize: "vertical" }}
                     />
                     <textarea
                       value={(state.evidence ?? []).join("\n")}
                       onChange={(event) => updateSection(section.id, { evidence: event.target.value.split("\n").map((line) => line.trim()).filter(Boolean) })}
                       placeholder="Evidence links or commands, one per line"
                       rows={2}
-                      style={{ border: "1px solid #cbd5e1", borderRadius: 6, padding: "8px 10px", resize: "vertical" }}
+                      style={{ border: "1px solid var(--ef-border)", borderRadius: 6, padding: "8px 10px", resize: "vertical" }}
                     />
                     {state.status === "notApplicable" ? (
                       <input
                         value={state.notApplicableReason ?? ""}
                         onChange={(event) => updateSection(section.id, { notApplicableReason: event.target.value })}
                         placeholder="Not-applicable reason"
-                        style={{ border: "1px solid #f59e0b", borderRadius: 6, padding: "8px 10px" }}
+                        style={{ border: "1px solid var(--ef-warning)", borderRadius: 6, padding: "8px 10px" }}
                       />
                     ) : null}
                   </div>
@@ -538,7 +546,7 @@ function StandardProfileEditor({
     onChange({ ...editor, sections: editor.sections.filter((_, i) => i !== index) });
   }
   return (
-    <div style={{ marginTop: 14, borderTop: "1px solid #e2e8f0", paddingTop: 12, display: "grid", gap: 10 }}>
+    <div style={{ marginTop: 14, borderTop: "1px solid var(--ef-border)", paddingTop: 12, display: "grid", gap: 10 }}>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 10 }}>
         <label style={compactLabelStyle}>
           <span>Key</span>
@@ -567,7 +575,7 @@ function StandardProfileEditor({
       </div>
       <div style={{ display: "grid", gap: 8 }}>
         {editor.sections.map((section, index) => (
-          <div key={`${section.id}-${index}`} style={{ border: "1px solid #e2e8f0", borderRadius: 6, padding: 10, display: "grid", gap: 8 }}>
+          <div key={`${section.id}-${index}`} style={{ border: "1px solid var(--ef-border)", borderRadius: 6, padding: 10, display: "grid", gap: 8 }}>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 8 }}>
               <label style={compactLabelStyle}>
                 <span>Id</span>
@@ -632,9 +640,9 @@ function StandardsHistoryFull({
     <section style={panelStyle}>
       <h3 style={{ marginTop: 0 }}>Certification runs, versions, and audit log</h3>
       {latestRun ? (
-        <div style={{ marginBottom: 12, color: latestRun.status === "certified" ? "#166534" : "#92400e" }}>
+        <div style={{ marginBottom: 12, color: latestRun.status === "certified" ? "var(--ef-success)" : "var(--ef-warning)" }}>
           <strong>{latestRun.status}</strong>
-          <span style={{ marginLeft: 8, color: "#64748b" }}>{new Date(latestRun.createdAt).toLocaleString()}</span>
+          <span style={{ marginLeft: 8, color: "var(--ef-muted)" }}>{new Date(latestRun.createdAt).toLocaleString()}</span>
           {latestRun.reasons.length > 0 ? (
             <ul style={{ margin: "6px 0 0 16px" }}>
               {latestRun.reasons.slice(0, 6).map((reason) => <li key={reason}>{reason}</li>)}
@@ -642,25 +650,25 @@ function StandardsHistoryFull({
           ) : null}
         </div>
       ) : (
-        <p style={{ color: "#64748b" }}>No simulation run yet.</p>
+        <p style={{ color: "var(--ef-muted)" }}>No simulation run yet.</p>
       )}
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 12 }}>
         <div style={{ overflowX: "auto" }}>
           <h4 style={{ margin: "0 0 8px 0" }}>Published versions</h4>
           {versions.length === 0 ? (
-            <p style={{ color: "#64748b" }}>No published versions yet.</p>
+            <p style={{ color: "var(--ef-muted)" }}>No published versions yet.</p>
           ) : (
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-              <thead style={{ background: "#f1f5f9" }}>
+              <thead style={{ background: "var(--ef-surface-soft)" }}>
                 <tr><Th>Version</Th><Th>Status</Th><Th>Published</Th><Th>Action</Th></tr>
               </thead>
               <tbody>
                 {versions.map((version) => (
-                  <tr key={version.id} style={{ borderBottom: "1px solid #e2e8f0" }}>
+                  <tr key={version.id} style={{ borderBottom: "1px solid var(--ef-border)" }}>
                     <Td>
                       <strong>v{version.version}</strong>
-                      {version.rollbackOfVersionId ? <div style={{ color: "#64748b", fontSize: 11 }}>rollback of {version.rollbackOfVersionId}</div> : null}
+                      {version.rollbackOfVersionId ? <div style={{ color: "var(--ef-muted)", fontSize: 11 }}>rollback of {version.rollbackOfVersionId}</div> : null}
                     </Td>
                     <Td>{version.status}</Td>
                     <Td>{new Date(version.publishedAt).toLocaleString()}</Td>
@@ -679,15 +687,15 @@ function StandardsHistoryFull({
         <div style={{ overflowX: "auto" }}>
           <h4 style={{ margin: "0 0 8px 0" }}>Recent runs</h4>
           {runs.length === 0 ? (
-            <p style={{ color: "#64748b" }}>No runs recorded.</p>
+            <p style={{ color: "var(--ef-muted)" }}>No runs recorded.</p>
           ) : (
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-              <thead style={{ background: "#f1f5f9" }}>
+              <thead style={{ background: "var(--ef-surface-soft)" }}>
                 <tr><Th>Status</Th><Th>Missing</Th><Th>Created</Th></tr>
               </thead>
               <tbody>
                 {runs.map((run) => (
-                  <tr key={run.id} style={{ borderBottom: "1px solid #e2e8f0" }}>
+                  <tr key={run.id} style={{ borderBottom: "1px solid var(--ef-border)" }}>
                     <Td>{run.status}</Td>
                     <Td>{run.missingSections.length}</Td>
                     <Td>{new Date(run.createdAt).toLocaleString()}</Td>
@@ -702,15 +710,15 @@ function StandardsHistoryFull({
       <div style={{ marginTop: 14, overflowX: "auto" }}>
         <h4 style={{ margin: "0 0 8px 0" }}>{locale === "zh" ? "管理审计日志" : "Admin audit log"}</h4>
         {auditEntries.length === 0 ? (
-          <p style={{ color: "#64748b" }}>{locale === "zh" ? "暂无审计记录。" : "No audit entries."}</p>
+          <p style={{ color: "var(--ef-muted)" }}>{locale === "zh" ? "暂无审计记录。" : "No audit entries."}</p>
         ) : (
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-            <thead style={{ background: "#f1f5f9" }}>
+            <thead style={{ background: "var(--ef-surface-soft)" }}>
               <tr><Th>Action</Th><Th>Admin</Th><Th>Feedback</Th><Th>Time</Th></tr>
             </thead>
             <tbody>
               {auditEntries.map((entry) => (
-                <tr key={entry.id} style={{ borderBottom: "1px solid #e2e8f0" }}>
+                <tr key={entry.id} style={{ borderBottom: "1px solid var(--ef-border)" }}>
                   <Td><code>{entry.action}</code></Td>
                   <Td>{entry.adminId}</Td>
                   <Td>{entry.feedback ?? "-"}</Td>

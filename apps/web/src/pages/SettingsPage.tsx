@@ -27,6 +27,9 @@ import {
   type ConnectionProfile, type StoredPlaybook, type CatalogItem
 } from "../api";
 import type { Locale } from "../lib/types";
+import { useEscapeToClose } from "../lib/useEscapeToClose";
+import { toast } from "../lib/dialogs";
+import { confirmDialog } from "../lib/dialogs";
 
 export function SchedulesPanel({
   locale, authToken, connections, playbooks, catalog
@@ -89,7 +92,7 @@ export function SchedulesPanel({
                   {locale === "zh" ? "启用" : "Enabled"}
                 </label>
                 <button type="button" className="conn-btn conn-btn-danger" onClick={async () => {
-                  if (!confirm(locale === "zh" ? "删除该定时任务？" : "Delete this schedule?")) return;
+                  if (!(await confirmDialog({ message: locale === "zh" ? "删除该定时任务？" : "Delete this schedule?", danger: true }))) return;
                   await deleteSchedule(authToken, s.id);
                   void reload();
                 }}>{locale === "zh" ? "删除" : "Delete"}</button>
@@ -135,6 +138,7 @@ function ScheduleForm({
   const [dryRun, setDryRun] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [err, setErr] = useState("");
+  useEscapeToClose(onCancel, !submitting);
 
   return (
     <div className="modal-overlay" role="dialog" aria-modal="true" onClick={(e) => { if (e.target === e.currentTarget) onCancel(); }}>
@@ -144,7 +148,7 @@ function ScheduleForm({
             <p className="eyebrow">{locale === "zh" ? "定时任务" : "Schedule"}</p>
             <h2>{locale === "zh" ? "新建定时任务" : "New schedule"}</h2>
           </div>
-          <button type="button" className="ghost-action icon-action" onClick={onCancel}>×</button>
+          <button type="button" className="ghost-action icon-action" onClick={onCancel} aria-label={locale === "zh" ? "关闭" : "Close"}>×</button>
         </header>
         <div className="upload-form">
           <label>
@@ -154,7 +158,7 @@ function ScheduleForm({
           <label>
             <span>{locale === "zh" ? "Cron 表达式（UTC）" : "Cron (UTC)"}</span>
             <input value={cron} onChange={(e) => setCron(e.target.value)} placeholder="0 3 * * *" />
-            <small style={{ color: "#64748b", fontSize: 11 }}>
+            <small style={{ color: "var(--ef-muted)", fontSize: 11 }}>
               {locale === "zh"
                 ? "5 字段：分 时 日 月 周。例：0 3 * * * 每天 UTC 03:00；*/15 * * * * 每 15 分钟"
                 : "5 fields: m h dom mon dow. e.g. 0 3 * * * = daily 03:00 UTC; */15 * * * * = every 15 min"}
@@ -366,7 +370,7 @@ export function DriftPanel({ locale, authToken, connections }: { locale: Locale;
                 {locale === "zh" ? "生成修复计划" : "Generate Repair Plan"}
               </button>
               {generatedPlanId ? (
-                <span className="settings-row-meta" style={{ color: "#16a34a" }}>
+                <span className="settings-row-meta" style={{ color: "var(--ef-success)" }}>
                   {locale === "zh" ? "已生成计划：" : "Plan created: "}
                   <code>{generatedPlanId}</code>
                 </span>
@@ -442,11 +446,11 @@ export function WebhooksPanel({ locale, authToken }: { locale: Locale; authToken
               <div className="settings-row-actions">
                 <button type="button" className="ghost-action" onClick={async () => {
                   const r = await testWebhook(authToken, w.id);
-                  alert(`${locale === "zh" ? "测试结果" : "Test result"}: ${r.delivered}${r.error ? ` · ${r.error}` : ""}`);
+                  toast(`${locale === "zh" ? "测试结果" : "Test result"}: ${r.delivered}${r.error ? ` · ${r.error}` : ""}`, r.error ? "error" : "success");
                   void reload();
                 }}>{locale === "zh" ? "测试" : "Test"}</button>
                 <button type="button" className="conn-btn conn-btn-danger" onClick={async () => {
-                  if (!confirm(locale === "zh" ? "删除该外发通知？" : "Delete?")) return;
+                  if (!(await confirmDialog({ message: locale === "zh" ? "删除该外发通知？" : "Delete?", danger: true }))) return;
                   await deleteWebhook(authToken, w.id);
                   void reload();
                 }}>{locale === "zh" ? "删除" : "Delete"}</button>
@@ -522,7 +526,7 @@ function TokensPanel({ locale, authToken }: { locale: Locale; authToken: string 
                 </span>
               </div>
               <button type="button" className="conn-btn conn-btn-danger" onClick={async () => {
-                if (!confirm(locale === "zh" ? "撤销该令牌？" : "Revoke?")) return;
+                if (!(await confirmDialog({ message: locale === "zh" ? "撤销该令牌？" : "Revoke?", danger: true }))) return;
                 await deleteApiToken(authToken, t.id);
                 void reload();
               }}>{locale === "zh" ? "撤销" : "Revoke"}</button>

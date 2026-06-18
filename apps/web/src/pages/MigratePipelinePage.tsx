@@ -51,6 +51,7 @@ import {
 } from "../api";
 import type { Locale } from "../lib/types";
 import { Button } from "../components/ui/Button";
+import { useEscapeToClose } from "../lib/useEscapeToClose";
 
 const selectedDecisions = new Set<ReviewDecision>(["approved", "add-to-plan", "migrate-artifact"]);
 const stepOrder: MigrationSessionStep[] = ["source", "analysis", "select", "unknown", "config-data", "plan", "target", "apply", "report"];
@@ -957,6 +958,7 @@ function ConfigDataReviewStep({ locale, analysis, configBundles, configDecisions
 }
 
 function ConfigBundleDrawer({ locale, bundle, decision, onClose }: { locale: Locale; bundle: ConfigBundle; decision?: MigrationConfigDecision; onClose: () => void }) {
+  useEscapeToClose(onClose);
   const zh = locale === "zh";
   const safePaths = bundle.paths.map((file) => ({
     path: file.path,
@@ -1181,6 +1183,7 @@ function RunSummaryCard({ title, ok, total, failed }: { title: string; ok?: bool
 }
 
 function EvidenceDrawer({ locale, candidate, onClose }: { locale: Locale; candidate: MigrationCandidate; onClose: () => void }) {
+  useEscapeToClose(onClose);
   const zh = locale === "zh";
   return (
     <div className="drawer-overlay" role="dialog" aria-modal="true">

@@ -735,6 +735,31 @@ export interface CatalogRuleOverride {
   updatedAt: string;
   /** Admin who authored this rule. */
   modifiedBy: string;
+  /**
+   * Phase C promotion lifecycle. Absent ⇒ "detection-only". `certified` is set
+   * ONLY by reconciliation once a matching rule lands in the static baseline
+   * (i.e. the PR merged) — it can never be set manually, so runtime rules
+   * never self-certify.
+   */
+  promotion?: RulePromotionState;
+}
+
+export type RulePromotionStatus =
+  | "detection-only"
+  | "promotion-requested"
+  | "bundle-generated"
+  | "in-review"
+  | "certified";
+
+export interface RulePromotionState {
+  status: RulePromotionStatus;
+  /** Admin who last advanced the promotion. */
+  requestedBy?: string;
+  requestedAt?: string;
+  /** PR that lands the promotion artifacts in code. */
+  prUrl?: string;
+  notes?: string;
+  updatedAt?: string;
 }
 
 /** API token for CI/CD integration (separate from session tokens) */

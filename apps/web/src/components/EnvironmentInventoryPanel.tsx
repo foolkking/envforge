@@ -5,37 +5,37 @@ import type { LucideIcon } from "lucide-react";
 import { RemoveCapabilityPanel } from "./RemoveCapabilityPanel";
 
 const SOURCE_COLORS: Record<string, { bg: string; fg: string }> = {
-  apt: { bg: "#fef3c7", fg: "#92400e" },
-  "apt-manual": { bg: "#fde68a", fg: "#78350f" },
-  rpm: { bg: "#fee2e2", fg: "#991b1b" },
+  apt: { bg: "var(--ef-warning-soft)", fg: "var(--ef-warning)" },
+  "apt-manual": { bg: "var(--ef-warning)", fg: "#78350f" },
+  rpm: { bg: "var(--ef-danger-soft)", fg: "var(--ef-danger)" },
   snap: { bg: "#e0e7ff", fg: "#3730a3" },
   flatpak: { bg: "#ede9fe", fg: "#5b21b6" },
-  npm: { bg: "#dcfce7", fg: "#166534" },
-  pip: { bg: "#f0fdf4", fg: "#14532d" },
+  npm: { bg: "var(--ef-success-soft)", fg: "var(--ef-success)" },
+  pip: { bg: "var(--ef-success-soft)", fg: "#14532d" },
   gem: { bg: "#fce7f3", fg: "#9d174d" },
   cargo: { bg: "#fff7ed", fg: "#9a3412" },
-  "local-bin": { bg: "#f1f5f9", fg: "#334155" },
-  opt: { bg: "#f8fafc", fg: "#475569" },
+  "local-bin": { bg: "var(--ef-surface-soft)", fg: "var(--ef-text)" },
+  opt: { bg: "var(--ef-surface-soft)", fg: "var(--ef-muted)" },
   "user-bin": { bg: "#f5f3ff", fg: "#6d28d9" },
-  nvm: { bg: "#ecfdf5", fg: "#065f46" },
-  pyenv: { bg: "#eff6ff", fg: "#1d4ed8" },
-  rbenv: { bg: "#fef2f2", fg: "#b91c1c" },
+  nvm: { bg: "var(--ef-success-soft)", fg: "var(--ef-success)" },
+  pyenv: { bg: "var(--ef-info-soft)", fg: "var(--ef-info)" },
+  rbenv: { bg: "var(--ef-danger-soft)", fg: "var(--ef-danger)" },
   asdf: { bg: "#f0fdfa", fg: "#115e59" },
   sdkman: { bg: "#fefce8", fg: "#854d0e" },
-  docker: { bg: "#dbeafe", fg: "#1e40af" },
-  runtime: { bg: "#eff6ff", fg: "#1d4ed8" },
-  system: { bg: "#f1f5f9", fg: "#475569" },
-  container: { bg: "#dbeafe", fg: "#1e40af" },
-  "local-app": { bg: "#fef3c7", fg: "#92400e" },
+  docker: { bg: "var(--ef-info-soft)", fg: "#1e40af" },
+  runtime: { bg: "var(--ef-info-soft)", fg: "var(--ef-info)" },
+  system: { bg: "var(--ef-surface-soft)", fg: "var(--ef-muted)" },
+  container: { bg: "var(--ef-info-soft)", fg: "#1e40af" },
+  "local-app": { bg: "var(--ef-warning-soft)", fg: "var(--ef-warning)" },
   systemd: { bg: "#e0e7ff", fg: "#3730a3" },
-  srv: { bg: "#fef9c3", fg: "#854d0e" },
-  "go-bin": { bg: "#ecfdf5", fg: "#065f46" },
+  srv: { bg: "var(--ef-warning-soft)", fg: "#854d0e" },
+  "go-bin": { bg: "var(--ef-success-soft)", fg: "var(--ef-success)" },
   cron: { bg: "#fce7f3", fg: "#9d174d" },
   "systemd-timer": { bg: "#e0e7ff", fg: "#4338ca" }
 };
 
 function getSourceStyle(source: string) {
-  return SOURCE_COLORS[source] ?? { bg: "#f8fafc", fg: "#475569" };
+  return SOURCE_COLORS[source] ?? { bg: "var(--ef-surface-soft)", fg: "var(--ef-muted)" };
 }
 
 export interface InventoryRow {
@@ -239,7 +239,7 @@ export function EnvironmentInventoryPanel({
                   <strong>{row.name}</strong>
                   <small style={{ display: "flex", alignItems: "center", gap: 6 }}>
                     <span style={{ background: srcStyle.bg, color: srcStyle.fg, borderRadius: 4, fontSize: 10, fontWeight: 700, padding: "1px 5px" }}>{row.source ?? "system"}</span>
-                    <span style={{ color: "#64748b" }}>{row.value}</span>
+                    <span style={{ color: "var(--ef-muted)" }}>{row.value}</span>
                   </small>
                 </span>
                 <div className="inventory-item-actions">

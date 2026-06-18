@@ -179,7 +179,7 @@ export function ReviewQueuePanel({
         <h2 style={{ margin: 0 }}>{locale === "zh" ? "审查队列工作台" : "Review Queue Workbench"}</h2>
         <span className="panel-count">{filteredCandidates.length} / {candidates.length}</span>
       </div>
-      <p style={{ margin: "8px 0", color: "#475569", fontSize: 13 }}>
+      <p style={{ margin: "8px 0", color: "var(--ef-muted)", fontSize: 13 }}>
         {locale === "zh"
           ? "未知或低置信度的迁移候选不会被自动忽略，也不会自动迁移。请审查证据，选择决策，必要时生成 catalog 草稿。"
           : "Unknown or low-confidence candidates are neither silently ignored nor silently migrated. Inspect evidence, pick a decision, and generate a catalog draft when needed."}
@@ -203,7 +203,7 @@ export function ReviewQueuePanel({
       </div>
 
       {selected.size > 0 ? (
-        <div className="review-queue-bulk" style={{ display: "flex", flexWrap: "wrap", gap: 6, padding: 10, background: "#f8fafc", borderRadius: 6, marginBottom: 12 }}>
+        <div className="review-queue-bulk" style={{ display: "flex", flexWrap: "wrap", gap: 6, padding: 10, background: "var(--ef-surface-soft)", borderRadius: 6, marginBottom: 12 }}>
           <strong style={{ marginRight: 8, fontSize: 13 }}>
             {locale === "zh" ? `已选 ${selected.size} 项` : `${selected.size} selected`}
           </strong>
@@ -234,10 +234,10 @@ export function ReviewQueuePanel({
                 className={`review-queue-card ${isActive ? "active" : ""}`}
                 style={{
                   padding: 10,
-                  border: `1px solid ${isActive ? "#0ea5e9" : "#e2e8f0"}`,
+                  border: `1px solid ${isActive ? "#0ea5e9" : "var(--ef-border)"}`,
                   borderRadius: 6,
                   cursor: "pointer",
-                  background: "#fff"
+                  background: "var(--ef-surface)"
                 }}
                 onClick={() => setActiveId(candidate.id)}
               >
@@ -250,13 +250,13 @@ export function ReviewQueuePanel({
                   />
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <strong style={{ display: "block" }}>{candidate.name}</strong>
-                    <small style={{ color: "#64748b" }}>{candidate.source} · {candidate.version || "-"} · {candidate.migrationClass}</small>
+                    <small style={{ color: "var(--ef-muted)" }}>{candidate.source} · {candidate.version || "-"} · {candidate.migrationClass}</small>
                   </div>
-                  <span className="review-queue-decision-tag" style={{ background: decisionTone(decision), color: "#fff", fontSize: 11, padding: "2px 8px", borderRadius: 999 }}>
+                  <span className="review-queue-decision-tag" style={{ background: decisionTone(decision), color: "var(--ef-surface)", fontSize: 11, padding: "2px 8px", borderRadius: 999 }}>
                     {labelFor(decision, locale)}
                   </span>
                 </div>
-                <div style={{ marginTop: 6, fontSize: 12, color: "#475569" }}>
+                <div style={{ marginTop: 6, fontSize: 12, color: "var(--ef-muted)" }}>
                   {locale === "zh" ? "置信度" : "Confidence"}: {Math.round(candidate.confidence * 100)}% · band {candidate.band}
                 </div>
               </div>
@@ -264,16 +264,16 @@ export function ReviewQueuePanel({
           })}
         </div>
 
-        <aside className="review-queue-detail" style={{ padding: 12, border: "1px solid #e2e8f0", borderRadius: 6, background: "#fafafa", maxHeight: 540, overflow: "auto" }}>
+        <aside className="review-queue-detail" style={{ padding: 12, border: "1px solid var(--ef-border)", borderRadius: 6, background: "#fafafa", maxHeight: 540, overflow: "auto" }}>
           {!active ? (
-            <p style={{ color: "#64748b", fontSize: 13 }}>
+            <p style={{ color: "var(--ef-muted)", fontSize: 13 }}>
               {locale === "zh" ? "选择左侧候选项以查看证据和决策选项。" : "Pick a candidate on the left to inspect evidence and decisions."}
             </p>
           ) : (
             <div style={{ display: "grid", gap: 10 }}>
               <header>
                 <strong style={{ fontSize: 16 }}>{active.name}</strong>
-                <div style={{ color: "#64748b", fontSize: 12 }}>{active.source} · {active.version || "-"}</div>
+                <div style={{ color: "var(--ef-muted)", fontSize: 12 }}>{active.source} · {active.version || "-"}</div>
               </header>
               <Section title={locale === "zh" ? "迁移分类" : "Migration class"}>
                 <code>{active.migrationClass}</code>
@@ -284,7 +284,7 @@ export function ReviewQueuePanel({
                 </Section>
               ) : null}
               <Section title={locale === "zh" ? "证据" : "Evidence"}>
-                <ul style={{ margin: 0, paddingLeft: 18, fontSize: 12, color: "#1e293b" }}>
+                <ul style={{ margin: 0, paddingLeft: 18, fontSize: 12, color: "var(--ef-text)" }}>
                   {active.reasons.map((reason, idx) => <li key={`reason-${idx}`}>{reason}</li>)}
                 </ul>
               </Section>
@@ -297,7 +297,7 @@ export function ReviewQueuePanel({
               ) : null}
               {active.recommendedActions.length ? (
                 <Section title={locale === "zh" ? "建议操作" : "Recommended actions"}>
-                  <ul style={{ margin: 0, paddingLeft: 18, fontSize: 12, color: "#1e293b" }}>
+                  <ul style={{ margin: 0, paddingLeft: 18, fontSize: 12, color: "var(--ef-text)" }}>
                     {active.recommendedActions.map((action, idx) => <li key={`act-${idx}`}>{action}</li>)}
                   </ul>
                 </Section>
@@ -341,7 +341,7 @@ export function ReviewQueuePanel({
         </aside>
       </div>
 
-      {error ? <div style={{ color: "#b91c1c", fontSize: 13, marginTop: 8 }}>{error}</div> : null}
+      {error ? <div style={{ color: "var(--ef-danger)", fontSize: 13, marginTop: 8 }}>{error}</div> : null}
     </section>
   );
 }
@@ -349,7 +349,7 @@ export function ReviewQueuePanel({
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div>
-      <div style={{ fontSize: 12, color: "#64748b", marginBottom: 4 }}>{title}</div>
+      <div style={{ fontSize: 12, color: "var(--ef-muted)", marginBottom: 4 }}>{title}</div>
       <div>{children}</div>
     </div>
   );
@@ -385,17 +385,17 @@ function labelFor(value: ReviewDecision | "all" | "pending", locale: Locale): st
 
 function decisionTone(decision: ReviewDecision): string {
   const map: Record<ReviewDecision, string> = {
-    pending: "#94a3b8",
-    approved: "#16a34a",
-    "add-to-plan": "#2563eb",
+    pending: "var(--ef-muted-2)",
+    approved: "var(--ef-success)",
+    "add-to-plan": "var(--ef-info)",
     "migrate-artifact": "#0ea5e9",
     "create-catalog-draft": "#7c3aed",
     "needs-manual-instruction": "#ea580c",
-    "record-only": "#475569",
-    skipped: "#64748b",
-    ignore: "#64748b"
+    "record-only": "var(--ef-muted)",
+    skipped: "var(--ef-muted)",
+    ignore: "var(--ef-muted)"
   };
-  return map[decision] ?? "#94a3b8";
+  return map[decision] ?? "var(--ef-muted-2)";
 }
 
 function downloadAsFile(name: string, content: string) {

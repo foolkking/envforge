@@ -13,6 +13,7 @@ import React, { useState } from "react";
 import { Plus, Trash2, ChevronUp, ChevronDown, Eye, EyeOff } from "lucide-react";
 import type { VarsSchema, VarsSchemaField } from "../api";
 import type { Locale } from "../lib/types";
+import { confirmDialog } from "../lib/dialogs";
 
 type FieldType = VarsSchemaField["type"];
 
@@ -121,8 +122,8 @@ export function SchemaEditor({
           <button
             type="button"
             className="ghost-action"
-            onClick={() => { if (confirm(t.clearConfirm)) onClear(); }}
-            style={{ color: "#dc2626", borderColor: "#fecaca", fontSize: 12 }}
+            onClick={async () => { if (await confirmDialog({ message: t.clearConfirm, danger: true })) onClear(); }}
+            style={{ color: "var(--ef-danger)", borderColor: "var(--ef-danger)", fontSize: 12 }}
           >
             {t.clearSchema}
           </button>
@@ -132,7 +133,7 @@ export function SchemaEditor({
       {fields.length === 0 ? (
         <div className="schema-editor-empty">
           <p><strong>{t.emptyTitle}</strong></p>
-          <p style={{ fontSize: 13, color: "#64748b" }}>{t.emptyDesc}</p>
+          <p style={{ fontSize: 13, color: "var(--ef-muted)" }}>{t.emptyDesc}</p>
           {!adding && (
             <button type="button" className="primary-action" onClick={() => setAdding(true)}>
               {t.addField}
@@ -516,7 +517,7 @@ function Col({ label, children, required, full }: { label: string; children: Rea
   return (
     <label className={`schema-form-col ${full ? "full" : ""}`}>
       <span className="schema-form-label">
-        {label}{required && <span style={{ color: "#dc2626", marginLeft: 4 }}>*</span>}
+        {label}{required && <span style={{ color: "var(--ef-danger)", marginLeft: 4 }}>*</span>}
       </span>
       {children}
     </label>

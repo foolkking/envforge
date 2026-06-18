@@ -39,12 +39,15 @@ import {
   fetchPackageIntegrations,
   listCapabilityRules,
   deleteCapabilityRule,
+  generatePromotionBundle,
+  setRulePromotion,
   type AdminSuggestionRecord,
   type AdminCatalogInput,
   type CapabilityWorkflowQueue,
   type CapabilityWorkflowUser,
   type PackageIntegrationRow,
-  type RuntimeRuleOverride
+  type RuntimeRuleOverride,
+  type PromotionBundle
 } from "../api";
 import type { Locale } from "../lib/types";
 import {
@@ -63,6 +66,7 @@ import { PackageIntegrationsTab } from "./governance/PackageIntegrationsTab";
 import { UsersQueuesTab } from "./governance/UsersQueuesTab";
 import { CapabilityEditorDrawer } from "../components/CapabilityEditorDrawer";
 import { ArchetypeRuleDrawer } from "../components/ArchetypeRuleDrawer";
+import { PromotionBundleModal } from "../components/PromotionBundleModal";
 
 const CATALOG_CATEGORIES = new Set(["runtime", "developer", "database", "container", "security", "network", "service"]);
 
@@ -99,6 +103,7 @@ export function CapabilityRulesAdminPage({ authToken, isAdmin, locale }: Props):
   // migrate detection only (never certify). `ruleDrawer` opens the editor.
   const [runtimeRules, setRuntimeRules] = useState<RuntimeRuleOverride[]>([]);
   const [ruleDrawer, setRuleDrawer] = useState<{ existing?: RuntimeRuleOverride } | null>(null);
+  const [bundleModal, setBundleModal] = useState<PromotionBundle | null>(null);
 
   async function reloadRuntimeRules() {
     const res = await listCapabilityRules(authToken);
@@ -178,7 +183,7 @@ export function CapabilityRulesAdminPage({ authToken, isAdmin, locale }: Props):
     return (
       <div className="capability-rules-admin" style={{ padding: 24 }}>
         <h1 style={{ marginTop: 0 }}>{locale === "zh" ? "管理员视图" : "Admin view"}</h1>
-        <p style={{ color: "#b91c1c" }}>
+        <p style={{ color: "var(--ef-danger)" }}>
           {locale === "zh"
             ? "能力管理仅对管理员开放。普通用户请使用构建页面。"
             : "Capability Admin is admin-only. End users should use the Build page."}
@@ -196,7 +201,7 @@ export function CapabilityRulesAdminPage({ authToken, isAdmin, locale }: Props):
         <h1 style={{ margin: 0, display: "flex", alignItems: "center", gap: 8 }}>
           <BookOpen aria-hidden /> {locale === "zh" ? "能力管理" : "Capability Admin"}
         </h1>
-        <p style={{ color: "#475569", margin: "4px 0 0 0", maxWidth: 760 }}>
+        <p style={{ color: "var(--ef-muted)", margin: "4px 0 0 0", maxWidth: 760 }}>
           {locale === "zh"
             ? "管理员能力规则工作台：用于治理软件 / 组合规则、处理用户建议、推进认证升级与软件包支持映射。"
             : "Admin capability rules workbench: govern software / combo rules, process user suggestions, drive certification upgrades, maintain package integrations, and assign queues."}
@@ -204,7 +209,7 @@ export function CapabilityRulesAdminPage({ authToken, isAdmin, locale }: Props):
       </header>
 
       <nav className="capability-admin-tabs" role="tablist" data-testid="capability-admin-tabs"
-        style={{ display: "flex", gap: 4, borderBottom: "1px solid #e2e8f0", marginBottom: 16 }}>
+        style={{ display: "flex", gap: 4, borderBottom: "1px solid var(--ef-border)", marginBottom: 16 }}>
         <TabButton active={tab === "overview"} onClick={() => setTab("overview")}
           icon={<LayoutDashboard size={14} aria-hidden />} testId="tab-overview"
           label={locale === "zh" ? "概览" : "Overview"} />
@@ -228,7 +233,7 @@ export function CapabilityRulesAdminPage({ authToken, isAdmin, locale }: Props):
       </nav>
 
       {error ? (
-        <div style={{ background: "#fee2e2", color: "#991b1b", padding: 12, borderRadius: 6, marginBottom: 12 }}>
+        <div style={{ background: "var(--ef-danger-soft)", color: "var(--ef-danger)", padding: 12, borderRadius: 6, marginBottom: 12 }}>
           <AlertTriangle aria-hidden /> {error}
         </div>
       ) : null}
@@ -253,6 +258,23 @@ export function CapabilityRulesAdminPage({ authToken, isAdmin, locale }: Props):
               await reloadRuntimeRules();
             } catch (err) {
               setError(err instanceof Error ? err.message : "Delete rule failed");
+            }
+          }}
+          onPromoteDetectionRule={async (rule) => {
+            try {
+              const res = await generatePromotionBundle(authToken, rule.id);
+              setBundleModal(res.bundle);
+              await reloadRuntimeRules();
+            } catch (err) {
+              setError(err instanceof Error ? err.message : "Generate bundle failed");
+            }
+          }}
+          onSetPromotion={async (id, patch) => {
+            try {
+              await setRulePromotion(authToken, id, patch);
+              await reloadRuntimeRules();
+            } catch (err) {
+              setError(err instanceof Error ? err.message : "Update promotion failed");
             }
           }}
         />
@@ -354,6 +376,14 @@ export function CapabilityRulesAdminPage({ authToken, isAdmin, locale }: Props):
           }}
         />
       ) : null}
+
+      {bundleModal ? (
+        <PromotionBundleModal
+          bundle={bundleModal}
+          locale={locale}
+          onClose={() => setBundleModal(null)}
+        />
+      ) : null}
     </div>
   );
 }
@@ -372,9 +402,9 @@ function TabButton({ active, onClick, icon, label, testId, badge }: {
         display: "flex", alignItems: "center", gap: 6,
         padding: "8px 12px",
         border: "none",
-        borderBottom: active ? "2px solid #1e293b" : "2px solid transparent",
+        borderBottom: active ? "2px solid var(--ef-text)" : "2px solid transparent",
         background: "transparent",
-        color: active ? "#1e293b" : "#64748b",
+        color: active ? "var(--ef-text)" : "var(--ef-muted)",
         fontWeight: active ? 600 : 500,
         fontSize: 13,
         cursor: "pointer"
@@ -383,7 +413,7 @@ function TabButton({ active, onClick, icon, label, testId, badge }: {
       <span>{label}</span>
       {badge ? (
         <span style={{
-          background: "#fef3c7", color: "#92400e",
+          background: "var(--ef-warning-soft)", color: "var(--ef-warning)",
           padding: "1px 6px", borderRadius: 999, fontSize: 11
         }}>{badge}</span>
       ) : null}

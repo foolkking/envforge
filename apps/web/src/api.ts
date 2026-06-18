@@ -3555,13 +3555,40 @@ export interface RuntimeRuleOverride {
   createdAt: string;
   updatedAt: string;
   modifiedBy: string;
+  /** Phase C: live "how close to certified?" diagnostics (never certifies). */
+  readiness?: RuleReadiness;
+  /** Phase C3: promotion lifecycle state. */
+  promotion?: RulePromotionState;
+}
+
+export type RulePromotionStatus =
+  | "detection-only"
+  | "promotion-requested"
+  | "bundle-generated"
+  | "in-review"
+  | "certified";
+
+export interface RulePromotionState {
+  status: RulePromotionStatus;
+  requestedBy?: string;
+  requestedAt?: string;
+  prUrl?: string;
+  notes?: string;
+  updatedAt?: string;
+}
+
+/** Result of the shared 13-section certification audit against a draft item. */
+export interface RuleReadiness {
+  certificationScore: number;
+  missingRequirements: string[];
+  sectionResults: Record<string, { ok: boolean; reasons: string[] }>;
 }
 
 export async function generateCapabilityRule(
   token: string,
   archetype: RuleArchetype,
   params: Record<string, unknown>
-): Promise<{ rule: CatalogDetectionRule; conflict: string | null }> {
+): Promise<{ rule: CatalogDetectionRule; conflict: string | null; readiness?: RuleReadiness }> {
   const r = await fetch("/api/admin/capability-rules/generate", {
     method: "POST",
     headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
@@ -3596,6 +3623,45 @@ export async function deleteCapabilityRule(token: string, id: string): Promise<v
     headers: { "Authorization": `Bearer ${token}` }
   });
   await readJsonOrThrow(r, "Delete runtime rule failed");
+}
+
+/** A single artifact in a Phase C promotion bundle (text the dev applies). */
+export interface PromotionBundleFile {
+  path: string;
+  language: "typescript" | "json";
+  action: "create" | "edit";
+  title: string;
+  contents: string;
+}
+
+/** PR-ready set of artifacts to graduate a runtime rule to certified. */
+export interface PromotionBundle {
+  id: string;
+  capabilityKey: string;
+  readiness: RuleReadiness;
+  files: PromotionBundleFile[];
+  instructions: string[];
+}
+
+export async function generatePromotionBundle(token: string, id: string): Promise<{ bundle: PromotionBundle }> {
+  const r = await fetch(`/api/admin/capability-rules/${encodeURIComponent(id)}/promotion-bundle`, {
+    method: "POST",
+    headers: { "Authorization": `Bearer ${token}` }
+  });
+  return readJsonOrThrow(r, "Generate promotion bundle failed");
+}
+
+export async function setRulePromotion(
+  token: string,
+  id: string,
+  patch: { status?: RulePromotionStatus; prUrl?: string; notes?: string }
+): Promise<{ ok: true; rule: RuntimeRuleOverride }> {
+  const r = await fetch(`/api/admin/capability-rules/${encodeURIComponent(id)}/promotion`, {
+    method: "POST",
+    headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify(patch)
+  });
+  return readJsonOrThrow(r, "Update promotion failed");
 }
 
 export interface AdminUser {

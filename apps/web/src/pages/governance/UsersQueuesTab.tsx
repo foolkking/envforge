@@ -18,7 +18,7 @@ export function UsersQueuesTab({
 }): JSX.Element {
   return (
     <div data-testid="users-queues-tab">
-      <p style={{ color: "#475569", margin: "0 0 12px 0", maxWidth: 760 }}>
+      <p style={{ color: "var(--ef-muted)", margin: "0 0 12px 0", maxWidth: 760 }}>
         {locale === "zh"
           ? "这里管理规则维护负责人、认证审核人、建议处理人和队列分派，不是账号中心，也不是主机用户管理。"
           : "This workspace manages rule maintainers, certification reviewers, suggestion triage, and queue assignment. It is not an account center or a host user manager."}
@@ -27,12 +27,12 @@ export function UsersQueuesTab({
       <section style={{ marginBottom: 16 }}>
         <h3 style={{ margin: "0 0 8px 0", fontSize: 14 }}>Users / Maintainers</h3>
         {loading ? (
-          <p style={{ color: "#64748b" }}>Loading...</p>
+          <p style={{ color: "var(--ef-muted)" }}>Loading...</p>
         ) : users.length === 0 ? (
-          <p style={{ color: "#64748b" }}>{locale === "zh" ? "暂无成员" : "No users yet."}</p>
+          <p style={{ color: "var(--ef-muted)" }}>{locale === "zh" ? "暂无成员" : "No users yet."}</p>
         ) : (
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-            <thead style={{ background: "#f1f5f9" }}>
+            <thead style={{ background: "var(--ef-surface-soft)" }}>
               <tr>
                 <Th>User</Th>
                 <Th>Role</Th>
@@ -45,8 +45,8 @@ export function UsersQueuesTab({
             </thead>
             <tbody>
               {users.map((user) => (
-                <tr key={user.id} style={{ borderBottom: "1px solid #e2e8f0" }}>
-                  <Td><strong>{user.name}</strong><div style={{ color: "#64748b", fontSize: 11 }}>{user.id}</div></Td>
+                <tr key={user.id} style={{ borderBottom: "1px solid var(--ef-border)" }}>
+                  <Td><strong>{user.name}</strong><div style={{ color: "var(--ef-muted)", fontSize: 11 }}>{user.id}</div></Td>
                   <Td>{user.role}</Td>
                   <Td>{user.assignedCapabilities.join(", ") || "-"}</Td>
                   <Td>{user.openSuggestions}</Td>
@@ -63,12 +63,12 @@ export function UsersQueuesTab({
       <section>
         <h3 style={{ margin: "0 0 8px 0", fontSize: 14 }}>Queues</h3>
         {loading ? (
-          <p style={{ color: "#64748b" }}>Loading...</p>
+          <p style={{ color: "var(--ef-muted)" }}>Loading...</p>
         ) : queues.length === 0 ? (
-          <p style={{ color: "#64748b" }}>{locale === "zh" ? "暂无队列" : "No queues yet."}</p>
+          <p style={{ color: "var(--ef-muted)" }}>{locale === "zh" ? "暂无队列" : "No queues yet."}</p>
         ) : (
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-            <thead style={{ background: "#f1f5f9" }}>
+            <thead style={{ background: "var(--ef-surface-soft)" }}>
               <tr>
                 <Th>Queue</Th>
                 <Th>Type</Th>
@@ -80,8 +80,8 @@ export function UsersQueuesTab({
             </thead>
             <tbody>
               {queues.map((queue) => (
-                <tr key={queue.id} style={{ borderBottom: "1px solid #e2e8f0" }}>
-                  <Td><strong>{queue.name}</strong><div style={{ color: "#64748b", fontSize: 11 }}>{queue.status}</div></Td>
+                <tr key={queue.id} style={{ borderBottom: "1px solid var(--ef-border)" }}>
+                  <Td><strong>{queue.name}</strong><div style={{ color: "var(--ef-muted)", fontSize: 11 }}>{queue.status}</div></Td>
                   <Td>{queue.type}</Td>
                   <Td>{queue.openItems}</Td>
                   <Td>{queue.priority}</Td>
