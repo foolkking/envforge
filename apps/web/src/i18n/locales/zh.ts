@@ -58,14 +58,14 @@ export const zh = {
   public: {
     nav: {
       workflow: "核心流程",
-      matrix: "功能矩阵",
+      matrix: "优势",
       safety: "安全门禁",
       docs: "文档",
       quickstart: "快速开始"
     },
     kicker: "从源环境证据到可审计重建",
     headline: "EnvForge 让 Linux 迁移和重建可验证、可回滚、可治理",
-    intro: "公共首页只展示产品介绍、流程、文档和登录入口；连接、计划、报告、通知、账号安全和管理员数据全部保留在登录后的 /app 工作台。",
+    intro: "连接源 Linux 主机，只读采集环境证据，再基于「完整迁移认证」能力重建——每一处变更都经过风险审查与审批门禁，可回滚，并留存完整审计记录。",
     getStarted: "开始使用",
     openConsole: "进入控制台",
     viewQuickstart: "查看快速开始",
@@ -80,10 +80,22 @@ export const zh = {
     certifiedV2: "完整迁移认证 v2",
     requirementDraft: "需求草稿",
     workflowTitle: "迁移 → 构建 → 审查 → 执行 → 验证 → 报告",
-    matrixTitle: "公共介绍和登录后工作台严格分离",
-    safetyTitle: "公共页面不注入任何用户或密钥数据",
+    matrixTitle: "一个工作台，从源主机到可审计的重建",
+    safetyTitle: "默认安全，可审计",
     quickstartTitle: "登录后进入控制台开始工作",
     quickstartBody: "连接源主机，采集主机快照，选择已认证能力，审查计划，然后再执行。",
+    points: { verifiable: "可验证", reversible: "可回滚", governed: "可治理" },
+    metrics: {
+      certified: ["105", "已认证能力"],
+      standard: ["13 项", "完整迁移标准"],
+      readonly: ["只读", "源主机采集"],
+      rollback: ["一键", "回滚"]
+    },
+    previewTitle: "重建计划",
+    previewRisk: "风险：低",
+    previewGate: "执行门禁：待审批",
+    certifiedTag: "已认证",
+    pillarsTitle: "为什么选择 EnvForge",
     workflow: {
       migrate: ["迁移", "采集源环境", "连接 Linux 主机，生成只读主机快照，保留迁移证据。"],
       build: ["构建", "选择已认证能力", "普通用户只看到已通过完整迁移认证的能力。"],
@@ -100,8 +112,14 @@ export const zh = {
       admin: ["能力管理", "管理员维护规则、标准、队列。"],
       docs: ["文档", "公共文档和快速开始。"]
     },
+    pillars: {
+      verifiable: ["可验证", "证据驱动的 dry-run 计划，执行前先看清每一步动作和受影响文件。"],
+      reversible: ["可回滚", "主机快照、一键回滚，失败项可自动转为修复计划。"],
+      governed: ["可治理", "每一次真实变更都有审批门禁、完整审计与基于角色的权限。"],
+      certified: ["已认证", "用户只能基于「完整迁移认证」能力构建——13 项检查，绝不走捷径。"]
+    },
     safety: {
-      anonymous: "匿名用户只能访问 /、/login、/register、/docs、/demo。",
+      anonymous: "源主机采集严格只读——EnvForge 不会改动被检查的主机。",
       tokens: "安装脚本必须登录后生成短期令牌，默认脱敏，点击显示后才展示。",
       destructive: "所有删除、发布、回滚、真实执行动作必须二次确认并写入审计日志。"
     }

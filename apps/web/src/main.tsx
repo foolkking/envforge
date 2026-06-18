@@ -1122,15 +1122,19 @@ function PublicLanding({
     [t("public.workflow.verify.0"), t("public.workflow.verify.1"), t("public.workflow.verify.2")],
     [t("public.workflow.report.0"), t("public.workflow.report.1"), t("public.workflow.report.2")]
   ];
-  const matrix = [
-    [t("public.matrix.migrate.0"), t("public.matrix.migrate.1")],
-    [t("public.matrix.build.0"), t("public.matrix.build.1")],
-    [t("public.matrix.plans.0"), t("public.matrix.plans.1")],
-    [t("public.matrix.reports.0"), t("public.matrix.reports.1")],
-    [t("public.matrix.admin.0"), t("public.matrix.admin.1")],
-    [t("public.matrix.docs.0"), t("public.matrix.docs.1")]
-  ];
   const navPreview = [t("nav.pages.dashboard"), t("nav.pages.migrate"), t("nav.pages.build"), t("nav.pages.plans"), t("nav.pages.reports"), t("nav.pages.catalog")];
+  const pillars = [
+    [t("public.pillars.verifiable.0"), t("public.pillars.verifiable.1")],
+    [t("public.pillars.reversible.0"), t("public.pillars.reversible.1")],
+    [t("public.pillars.governed.0"), t("public.pillars.governed.1")],
+    [t("public.pillars.certified.0"), t("public.pillars.certified.1")]
+  ];
+  const metrics = [
+    [t("public.metrics.certified.0"), t("public.metrics.certified.1")],
+    [t("public.metrics.standard.0"), t("public.metrics.standard.1")],
+    [t("public.metrics.readonly.0"), t("public.metrics.readonly.1")],
+    [t("public.metrics.rollback.0"), t("public.metrics.rollback.1")]
+  ];
 
   return (
     <main className="public-shell">
@@ -1181,6 +1185,11 @@ function PublicLanding({
           <span className="public-kicker">{t("public.kicker")}</span>
           <h1>{t("public.headline")}</h1>
           <p>{t("public.intro")}</p>
+          <ul className="public-hero-points">
+            <li><CheckCircle2 aria-hidden />{t("public.points.verifiable")}</li>
+            <li><CheckCircle2 aria-hidden />{t("public.points.reversible")}</li>
+            <li><CheckCircle2 aria-hidden />{t("public.points.governed")}</li>
+          </ul>
           <div className="public-hero-actions">
             <button className="primary-action" type="button" onClick={isAuthenticated ? onEnterApp : onLogin}>
               {isAuthenticated ? t("public.openConsole") : t("public.getStarted")}
@@ -1195,19 +1204,26 @@ function PublicLanding({
           </div>
           <div className="shot-main">
             <div className="shot-topline" />
-            <h2>{t("nav.pages.catalog")}</h2>
-            <p>{t("public.standardsLayer")}</p>
-            <div className="shot-tabs">
-              <span>{t("public.overview")}</span>
-              <span>{t("public.ruleRegistry")}</span>
-              <strong>{t("public.standards")}</strong>
-            </div>
+            <h2>{t("public.previewTitle")}</h2>
+            <p>{t("public.workflowTitle")}</p>
             <div className="shot-table">
-              {[t("public.certifiedV1"), t("public.certifiedV2"), t("public.requirementDraft")].map((row, index) => (
-                <div key={row}><span>{row}</span><small>{index === 0 ? t("public.active") : t("public.draft")}</small><b>13/13</b></div>
+              {["nginx", "postgresql", "redis"].map((row) => (
+                <div key={row}><span>{row}</span><small>{t("public.certifiedTag")}</small><b>✓</b></div>
               ))}
             </div>
+            <div className="shot-tabs">
+              <span>{t("public.previewRisk")}</span>
+              <strong>{t("public.previewGate")}</strong>
+            </div>
           </div>
+        </div>
+      </section>
+
+      <section className="public-section">
+        <div className="public-metrics">
+          {metrics.map(([value, label]) => (
+            <div className="public-metric" key={label}><strong>{value}</strong><span>{label}</span></div>
+          ))}
         </div>
       </section>
 
@@ -1230,10 +1246,10 @@ function PublicLanding({
       <section className="public-section" id="matrix">
         <div className="public-section-heading">
           <span>{t("public.nav.matrix")}</span>
-          <h2>{t("public.matrixTitle")}</h2>
+          <h2>{t("public.pillarsTitle")}</h2>
         </div>
         <div className="matrix-grid">
-          {matrix.map(([title, body]) => (
+          {pillars.map(([title, body]) => (
             <article key={title} className="matrix-card">
               <CheckCircle2 aria-hidden />
               <h3>{title}</h3>

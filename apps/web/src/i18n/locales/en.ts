@@ -58,14 +58,14 @@ export const en = {
   public: {
     nav: {
       workflow: "Workflow",
-      matrix: "Matrix",
+      matrix: "Why",
       safety: "Safety",
       docs: "Docs",
       quickstart: "Quick start"
     },
     kicker: "From source evidence to audited rebuilds",
     headline: "EnvForge makes Linux migration verifiable, reversible, and governed",
-    intro: "The public site shows product context, workflows, docs, and auth CTAs. Connections, plans, reports, notifications, account security, and admin data stay inside /app.",
+    intro: "Connect a source Linux host, capture read-only evidence, and rebuild it from Full Migration Certified capabilities — every change reviewed for risk, gated by approvals, reversible, and backed by a complete audit trail.",
     getStarted: "Get started",
     openConsole: "Open console",
     viewQuickstart: "View quick start",
@@ -80,10 +80,22 @@ export const en = {
     certifiedV2: "Full Migration Certified v2",
     requirementDraft: "Requirement draft",
     workflowTitle: "Migrate -> Build -> Review -> Apply -> Verify -> Report",
-    matrixTitle: "Public content and authenticated workspace are separated",
-    safetyTitle: "No user or secret data is injected into the public site",
+    matrixTitle: "One workspace, from source host to audited rebuild",
+    safetyTitle: "Safe by default, audited by design",
     quickstartTitle: "Sign in to start from /app/dashboard",
     quickstartBody: "Connect a host, capture evidence, select certified capabilities, review the plan, then apply.",
+    points: { verifiable: "Verifiable", reversible: "Reversible", governed: "Governed" },
+    metrics: {
+      certified: ["105", "certified capabilities"],
+      standard: ["13-point", "full-migration standard"],
+      readonly: ["Read-only", "source capture"],
+      rollback: ["One-click", "rollback"]
+    },
+    previewTitle: "Rebuild Plan",
+    previewRisk: "Risk: low",
+    previewGate: "Apply gate: approval",
+    certifiedTag: "certified",
+    pillarsTitle: "Why teams choose EnvForge",
     workflow: {
       migrate: ["Migrate", "Capture source", "Connect Linux hosts and capture read-only HostSnapshot evidence."],
       build: ["Build", "Select certified capabilities", "Users only see Full Migration Certified capabilities."],
@@ -100,8 +112,14 @@ export const en = {
       admin: ["Capability Admin", "Admin rule, standard, and queue governance."],
       docs: ["Docs", "Public docs and quick start."]
     },
+    pillars: {
+      verifiable: ["Verifiable", "Evidence-based dry-run plans show every action and affected file before anything runs."],
+      reversible: ["Reversible", "Host snapshots, one-click rollback, and repair plans auto-generated from failures."],
+      governed: ["Governed", "Approval gates, a full audit trail, and role-based access on every real change."],
+      certified: ["Certified", "Users build only from Full Migration Certified capabilities — 13 checks, no shortcuts."]
+    },
     safety: {
-      anonymous: "Anonymous users can only access /, /login, /register, /docs, and /demo.",
+      anonymous: "Source capture is strictly read-only — EnvForge never mutates the host it inspects.",
       tokens: "Install scripts use authenticated short-lived tokens, masked by default.",
       destructive: "Delete, publish, rollback, and real apply actions require confirmation and audit logs."
     }

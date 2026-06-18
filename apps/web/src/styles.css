@@ -12818,3 +12818,45 @@ body {
   .main-nav { display: flex; flex-direction: column; overflow-x: visible; }
   .main-nav button { flex: 0 0 auto; }
 }
+
+/* ── Homepage: hero value points + metrics strip ───────────────────── */
+.public-hero-points {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  margin: 14px 0 0;
+  padding: 0;
+}
+.public-hero-points li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--ef-text);
+}
+.public-hero-points svg { width: 16px; height: 16px; color: var(--ef-success); flex: 0 0 auto; }
+.public-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+.public-metric {
+  background: var(--ef-surface);
+  border: 1px solid var(--ef-border);
+  border-radius: 12px;
+  padding: 18px 16px;
+  text-align: center;
+}
+.public-metric strong {
+  display: block;
+  font-size: 26px;
+  line-height: 1.1;
+  color: var(--ef-primary-strong);
+  letter-spacing: -0.01em;
+}
+.public-metric span { font-size: 13px; color: var(--ef-muted); }
+@media (max-width: 720px) {
+  .public-metrics { grid-template-columns: repeat(2, 1fr); }
+}
