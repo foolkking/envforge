@@ -1,0 +1,47 @@
+name: Install and start PHP-FPM
+hosts: all
+
+tasks:
+  - name: Install PHP-FPM package
+    module: package
+    args:
+      name: php-fpm
+      state: present
+
+  - name: Validate PHP-FPM configuration
+    module: shell
+    args:
+      cmd: |
+        if command -v php-fpm >/dev/null 2>&1; then
+          sudo php-fpm -t
+        elif command -v php-fpm8.3 >/dev/null 2>&1; then
+          sudo php-fpm8.3 -t
+        elif command -v php-fpm8.2 >/dev/null 2>&1; then
+          sudo php-fpm8.2 -t
+        else
+          echo "No supported php-fpm binary found" >&2
+          exit 1
+        fi
+
+  - name: Enable and start detected PHP-FPM service
+    module: shell
+    args:
+      cmd: |
+        for svc in php-fpm php8.3-fpm php8.2-fpm php8.1-fpm; do
+          if systemctl list-unit-files --type=service 2>/dev/null | grep -q "^${svc}\\.service"; then
+            sudo systemctl enable --now "$svc"
+            exit 0
+          fi
+        done
+        echo "No supported php-fpm systemd unit found" >&2
+        exit 1
+
+verify:
+  - name: PHP-FPM configuration is valid
+    cmd: "php-fpm -t 2>&1 || php-fpm8.3 -t 2>&1 || php-fpm8.2 -t 2>&1"
+    hint: "Inspect php-fpm.conf and pool.d files for an invalid directive or missing include."
+
+  - name: PHP-FPM service is active
+    cmd: "systemctl is-active php-fpm 2>/dev/null || systemctl is-active php8.3-fpm 2>/dev/null || systemctl is-active php8.2-fpm"
+    expect_stdout: "active"
+    hint: "Check journalctl for the detected PHP-FPM service and verify its socket directory exists."

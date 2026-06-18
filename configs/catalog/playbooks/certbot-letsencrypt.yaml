@@ -1,0 +1,27 @@
+name: Detect existing Certbot Let's Encrypt installation
+hosts: all
+
+tasks:
+  - name: Detect Certbot binary and certificate inventory
+    module: shell
+    args:
+      cmd: |
+        set -eu
+        command -v certbot >/dev/null 2>&1
+        certbot --version
+        if [ -d /etc/letsencrypt ]; then
+          sudo find /etc/letsencrypt/live -mindepth 1 -maxdepth 1 -type d -printf '%f\n' 2>/dev/null || true
+        fi
+
+  - name: Detect Certbot renewal timer
+    module: shell
+    args:
+      cmd: |
+        systemctl list-timers --all 2>/dev/null \
+          | grep -E 'certbot|snap\.certbot|certbot-renew' \
+          | head -1 || true
+
+verify:
+  - name: Certbot is installed
+    cmd: "certbot --version"
+    hint: "Use the certbot-ssl catalog item if installation or certificate issuance is required."

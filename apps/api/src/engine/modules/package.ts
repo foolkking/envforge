@@ -36,6 +36,7 @@ const SAFE_PACKAGE_NAME = /^[a-zA-Z0-9._@/+:-]{1,100}$/;
  * "(skip)" means the package isn't applicable on that distro and should be silently skipped.
  */
 const PACKAGE_ALIASES: Record<string, { rhel?: string; fedora?: string }> = {
+  "apache2":                 { rhel: "httpd", fedora: "httpd" },
   "redis-server":            { rhel: "redis", fedora: "redis" },
   "mysql-server":            { rhel: "mysql-server", fedora: "mysql-server" },
   "mariadb-server":          { rhel: "mariadb-server", fedora: "mariadb-server" },

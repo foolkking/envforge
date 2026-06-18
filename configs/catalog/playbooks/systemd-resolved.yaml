@@ -1,0 +1,23 @@
+name: Detect systemd-resolved DNS stub listener
+hosts: all
+
+tasks:
+  - name: Inspect systemd-resolved service state
+    module: shell
+    args:
+      cmd: |
+        systemctl status systemd-resolved --no-pager 2>/dev/null || true
+        systemctl is-active systemd-resolved 2>/dev/null || true
+
+  - name: Inspect DNS stub listener and resolver link
+    module: shell
+    args:
+      cmd: |
+        grep -E '^[[:space:]]*DNSStubListener=' /etc/systemd/resolved.conf 2>/dev/null || true
+        readlink -f /etc/resolv.conf 2>/dev/null || true
+        ss -lntup 2>/dev/null | grep -E '(:53[[:space:]]|127\.0\.0\.53:53)' || true
+
+verify:
+  - name: Resolver state can be inspected
+    cmd: "resolvectl status 2>/dev/null || systemctl status systemd-resolved --no-pager"
+    hint: "This detect-only card does not modify DNS. Resolve Pi-hole or AdGuard Home conflicts in an explicitly approved plan."

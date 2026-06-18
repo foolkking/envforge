@@ -1,0 +1,76 @@
+name: Install and configure Apache HTTP Server
+hosts: all
+
+vars:
+  apache_server_name: localhost
+  apache_document_root: /var/www/html
+
+tasks:
+  - name: Install Apache package
+    module: package
+    args:
+      name: apache2
+      state: present
+
+  - name: Create Apache document root
+    module: file
+    args:
+      path: "{{ apache_document_root }}"
+      state: directory
+      mode: "0755"
+
+  - name: Write EnvForge Apache virtual host
+    module: shell
+    args:
+      cmd: |
+        set -eu
+        if [ -d /etc/apache2/sites-available ]; then
+          CONF=/etc/apache2/sites-available/envforge.conf
+          LOG_DIR=/var/log/apache2
+          ENABLE_CMD="a2ensite envforge.conf"
+        else
+          CONF=/etc/httpd/conf.d/envforge.conf
+          LOG_DIR=/var/log/httpd
+          ENABLE_CMD=true
+        fi
+        sudo tee "$CONF" >/dev/null <<EOF
+        <VirtualHost *:80>
+            ServerName {{ apache_server_name }}
+            DocumentRoot {{ apache_document_root }}
+            <Directory "{{ apache_document_root }}">
+                Require all granted
+                AllowOverride All
+            </Directory>
+            ErrorLog ${LOG_DIR}/envforge-error.log
+            CustomLog ${LOG_DIR}/envforge-access.log combined
+        </VirtualHost>
+        EOF
+        sudo sh -c "$ENABLE_CMD"
+
+  - name: Validate Apache configuration
+    module: shell
+    args:
+      cmd: "sudo apachectl configtest"
+
+  - name: Enable and restart Apache service
+    module: shell
+    args:
+      cmd: |
+        if systemctl list-unit-files --type=service 2>/dev/null | grep -q '^apache2\.service'; then
+          sudo systemctl enable --now apache2
+          sudo systemctl restart apache2
+        else
+          sudo systemctl enable --now httpd
+          sudo systemctl restart httpd
+        fi
+
+verify:
+  - name: Apache configuration is valid
+    cmd: "sudo apachectl configtest"
+    expect_stdout: "Syntax OK"
+    hint: "Review the generated envforge.conf and any included vhost or module files."
+
+  - name: Apache service is active
+    cmd: "systemctl is-active apache2 2>/dev/null || systemctl is-active httpd"
+    expect_stdout: "active"
+    hint: "Inspect journalctl for apache2/httpd and check whether another service owns the listen port."
