@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { useTranslation } from "react-i18next";
-import { Bell, CheckCircle2, Home, Languages, LogOut, Moon, MoreHorizontal, Search, Sun, Trash2, UserRound, X } from "lucide-react";
+import { Bell, CheckCircle2, Home, Languages, LogOut, Menu, Moon, MoreHorizontal, Search, Sun, Trash2, UserRound, X } from "lucide-react";
 import {
   connectServer,
   deleteConnection,
@@ -127,6 +127,7 @@ function App() {
   const [inboxUnreadCount, setInboxUnreadCount] = useState(0);
   const [accountModalOpen, setAccountModalOpen] = useState(false);
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
+  const [navOpen, setNavOpen] = useState(false);
   const [themeMode, setThemeMode] = useState<"light" | "dark">(() => localStorage.getItem("envforge_theme") === "dark" ? "dark" : "light");
   const [connected, setConnected] = useState(false);
   const [method, setMethod] = useState<ConnectionMethod>("ssh-password");
@@ -258,6 +259,7 @@ function App() {
 
   function navigateApp(target: Page = page, view?: string) {
     setMoreMenuOpen(false);
+    setNavOpen(false);
     setRequestedView(view ?? null);
     if (!authToken) {
       setShellMode("public");
@@ -721,7 +723,8 @@ function App() {
 
   return (
     <main className="app-shell">
-      <aside className="sidebar">
+      {navOpen ? <div className="nav-backdrop" onClick={() => setNavOpen(false)} aria-hidden /> : null}
+      <aside className={`sidebar ${navOpen ? "sidebar-open" : ""}`}>
         <div className="brand">
           <div className="brand-mark">E</div>
           <div>
@@ -759,6 +762,9 @@ function App() {
 
       <section className="workspace">
         <header className="topbar workbench-topbar">
+          <button type="button" className="nav-toggle" aria-label={locale === "zh" ? "菜单" : "Menu"} onClick={() => setNavOpen(true)}>
+            <Menu aria-hidden />
+          </button>
           <div className="topbar-context compact-topbar-context">
             <h1>{t[page]}</h1>
           </div>

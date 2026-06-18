@@ -76,6 +76,10 @@ export function CapabilityCatalogPage({
   const [taskError, setTaskError] = useState("");
   const [batchInstalling, setBatchInstalling] = useState(false);
   const [categoryFilter, setCategoryFilter] = useState("all");
+  // Paginate the catalog so the grid doesn't render ~120 cards at once
+  // (an endless scroll, especially on mobile). Reset when the filter changes.
+  const [visibleCount, setVisibleCount] = useState(30);
+  useEffect(() => { setVisibleCount(30); }, [categoryFilter]);
   const [phase, setPhase] = useState<"select" | "review">("select");
   const [batchProgress, setBatchProgress] = useState<{ done: number; total: number } | null>(null);
   const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
@@ -722,6 +726,7 @@ export function CapabilityCatalogPage({
       <div className="catalog-grid build-catalog-grid">
         {items
           .filter((item) => categoryFilter === "all" || item.category === categoryFilter)
+          .slice(0, visibleCount)
           .map((item) => {
           const Icon = categoryIcons[item.category];
           const isSelected = selected.has(item.id);
@@ -803,6 +808,16 @@ export function CapabilityCatalogPage({
           );
         })}
       </div>
+        {(() => {
+          const total = items.filter((item) => categoryFilter === "all" || item.category === categoryFilter).length;
+          return total > visibleCount ? (
+            <div style={{ display: "flex", justifyContent: "center", padding: "16px 0" }}>
+              <button type="button" className="secondary-action" onClick={() => setVisibleCount((c) => c + 30)}>
+                {locale === "zh" ? `加载更多（剩余 ${total - visibleCount}）` : `Load more (${total - visibleCount} more)`}
+              </button>
+            </div>
+          ) : null;
+        })()}
         </section>
       </div>
       {/* 缂傚倸鍊搁崐鎼佸磹閹间礁纾归柟闂寸绾惧綊鏌熼梻瀵割槮缁炬儳缍婇弻鐔兼⒒鐎靛壊妲紒鐐劤缂嶅﹪寮婚悢鍏尖拻閻庨潧澹婂Σ顔剧磼閹冣挃闁硅櫕鎹囬垾鏃堝礃椤忎礁浜鹃柨婵嗙凹缁ㄥジ鏌熼惂鍝ョМ闁哄矉缍侀、姗€鎮欓幖顓燁棧闂備線娼уΛ娆戞暜閹烘缍栨繝闈涱儐閺呮煡鏌涘☉鍗炲妞ゃ儲宀稿濠氬磼濞嗘劗銈板銈嗘礃閻楃姴鐣烽鐑嗘晝闁挎洍鍋撴鐐灪缁绘盯宕卞Ο铏逛桓濠电姰鍨洪崹鍓佹崲濠靛鍋ㄩ梻鍫熺◥濞岊亪姊洪幖鐐插闁告艾顑夋俊鐢稿籍閸繄顔愭繛杈剧到閹芥粓寮昏閳规垿鎮╃拠褍浼愰梺鍝ュУ閼归箖濡撮幒鎾剁瘈婵﹩鍘鹃崢顏堟⒑閸撴彃浜濈紒璇插暣钘熸繝濠傛噽绾惧吋淇婇妶鍕槮婵炴惌鍣ｉ弻鐔碱敊缁涘鐣跺銈庡亝缁诲牓骞冮埄鍐╁劅闁宠棄妫欐鍕⒒閸屾瑨鍏岀紒顕呭灣閸犲﹤顓兼径濠勶紵闂佺懓澧庨悺鏃堝极閸ヮ剚鐓曢煫鍥ㄦ礀鐢墎绱掗崜浣镐槐闁诡喗顨婇弫鎰償閳ユ剚娼婚梺姹囧焺閸ㄩ亶宕曢幎钘夌厴闁硅揪闄勯崑鎰亜閺冨洤浜瑰ù鐓庢搐閳规垿鎮欏顔叫ч梺鐑╂櫓閸ㄥ爼鐛崘顓ф▌閻庤娲栧畷顒勫煡婢跺á鐔哄枈鏉堛剱銉╂⒒閸屾瑧绐旀繛浣冲洦鍋嬮柛鈩冾樅濞差亜惟鐟滃秹藟濮橆兘鏀介柛灞剧閸熺偤鏌ｉ幘璺烘瀾濞ｅ洤锕、娑橆潩閸欐妾搁梻浣圭湽閸斿秴顪冩禒瀣摕婵炴垯鍨归悡娑㈡倵閿濆骸澧扮悮锕傛⒒娴ｅ憡鎯堝璺烘喘閸┾偓妞ゆ巻鍋撶痪缁㈠弮瀵娊宕卞☉娆忊偓鐢告煥濠靛棝顎楀褎澹嗛幃顕€鏁冮埀顒勫煘閹达附鍋愰柟棰佺閺呴亶姊洪崫銉バｉ悽顖椻偓宕囨殾闁硅揪绠戠粻鑽ょ磽娴ｉ姘跺箯閾忓湱纾介柛灞剧懅閸斿秹鏌ㄩ弴妤佹珚闁诡喚鍋為妶锝夊礃閳轰讲鍋撻崼鏇犲彄闁搞儵顥撶€靛ジ姊洪褍鐏ｉ柍褜鍓濋～澶娒哄Ο渚富濞寸姴顑呯粻鏍ㄧ箾閸℃ɑ灏伴柛濠勭帛娣囧﹪顢涢悙瀛樻殸闁诲孩鑹鹃妶绋款潖缂佹ɑ濯撮柛娑橈工閺嗗牏绱撴担鍓插剱闁搞劌娼″顐﹀礃椤旇姤娅囬梺绋挎湰濮樸劑鎮块崶顒佲拺闁告稑锕ゆ慨锕€霉濠婂懎浠у瑙勬礋閹虫牠鍩￠崘顏庣闯濠电偠鎻徊浠嬶綖閺嶎収鏁傞柛鈩冪懅閻ｈ泛鈹戦绛嬬劸濞存粠鍓涙竟鏇熺附閸涘﹦鍘遍柣蹇曞仜婢т粙鍩ユ径瀣闁圭⒈鍘煎▍宥夋煛鐏炵澧查柟宄版噽缁瑩骞愭惔銏╁晪闂佽姘﹂～澶娒哄Ο鍏兼殰闁圭儤顨愮紞鏍ㄧ節闂堟侗鍎忕痪顓涘亾闂備胶绮崝鏍偩?TerminalPanel 闂傚倸鍊搁崐鎼佸磹閹间礁纾归柟闂寸绾惧綊鏌熼梻瀵割槮缁惧墽鎳撻—鍐偓锝庝簼閹癸綁鏌ｉ鐐搭棞闁靛棙甯掗～婵嬫晲閸涱剙顥氬┑掳鍊楁慨鐑藉磻閻愮儤鍋嬮柣妯荤湽閳ь兛绶氬鎾閻樻爠鍥ㄧ厱閻忕偛澧介悡顖氼熆鐟欏嫭绀€闁宠鍨块、娆戠驳鐎ｎ剙濮洪梻浣告啞椤棝宕熼浣哄娇婵＄偑鍊栭悧婊堝磻閻愮儤鍋傛繛鎴欏灪閻撴洘绻涢幋鐐垫噭缂佽埖鐓￠弻锝夊箻閺夋垵顫庣紓浣介哺鐢€崇暦閹烘垟妲堟俊顖溾拡閸庡矂姊绘笟鈧埀顒傚仜閼活垱鏅堕崜褏纾界€广儱鎳忛ˉ銏ゆ煕閳规儳浜?*/}
