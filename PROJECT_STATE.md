@@ -11,6 +11,13 @@ source host over SSH, collects read-only evidence, classifies the real migration
 intent, and produces a reviewable Environment Plan for rebuilding or maintaining
 the target environment.
 
+Productization narrative:
+
+~~~text
+EnvForge turns unknown Linux servers into reviewed, reproducible, verifiable migration plans.
+EnvForge 把不可控的旧 Linux 服务器，转化为可审查、可重建、可验证、可审计的环境计划。
+~~~
+
 Hard invariant:
 
 ```text
@@ -19,6 +26,15 @@ Capability / Evidence -> Environment Plan -> Review -> Apply -> Verify -> Rollba
 
 Direct install, direct uninstall, and unreviewed remote editing are not product
 level actions.
+
+Current Productization Focus:
+
+1. First-run Assessment
+2. Review Inbox
+3. Golden Scenario Lab
+4. Failure / Repair Experience
+5. Capability SDK
+6. Production Team Adoption
 
 ## Stack
 
@@ -57,6 +73,7 @@ docs are intentionally few:
 | `PROJECT_STATE.md` | Current repository snapshot |
 | `docs/index.md` | Documentation map |
 | `docs/product.md` | Product scope, IA, roadmap |
+| `docs/product/README.md` | Productization design map and maturity criteria |
 | `docs/system-design.md` | Architecture, migration engine, execution, config/security |
 | `docs/catalog.md` | Catalog schema, certification, authoring, quality gate |
 | `docs/web-ui.md` | Web IA, UI patterns, design-system rules |

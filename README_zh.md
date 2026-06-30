@@ -1,5 +1,9 @@
 # EnvForge
 
+EnvForge 把不可控的旧 Linux 服务器，转化为可审查、可重建、可验证、可审计的环境计划。
+
+产品化设计路线见：[docs/product/README.md](./docs/product/README.md)。
+
 EnvForge 是一个 Linux 环境迁移与重建平台。
 
 它通过 SSH 分析旧 Linux VM，提取真正重要的软件能力、配置文件、服务状态、语言运行时、容器工作负载、数据依赖和手工安装痕迹，然后生成可审查、可回放、可验证、可回滚的环境计划，用于在新的 VM 上重建环境。

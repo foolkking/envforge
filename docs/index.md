@@ -9,12 +9,29 @@ This is the durable documentation map for EnvForge. Human entry point:
 | Doc | Purpose |
 |---|---|
 | [product.md](./product.md) | Product scope, user roles, workspace IA, roadmap, non-goals |
+| [product/README.md](./product/README.md) | Productization design map for first-run assessment, trust, explainability, support, ecosystem, adoption, and roadmap |
 | [system-design.md](./system-design.md) | Architecture, migration engine, Environment Plan, execution, config/security |
 | [catalog.md](./catalog.md) | Capability Catalog schema, certification, authoring, quality gate, admin governance |
 | [web-ui.md](./web-ui.md) | Web IA, page responsibilities, UI patterns, design-system constraints |
 | [operations.md](./operations.md) | Deployment, runtime configuration, backups, operational SOPs |
 | [validation.md](./validation.md) | E2E scenarios, harness workflow, target readiness, report template |
 | [decisions.md](./decisions.md) | Durable decisions that should not be silently reversed |
+
+## Product Design
+
+- [Product Design Overview](./product/README.md)
+- [Product Strategy](./product/product-strategy.md)
+- [First-run Experience](./product/first-run-experience.md)
+- [Trust Model](./product/trust-model.md)
+- [Explainability](./product/explainability.md)
+- [Failure, Repair, and Support](./product/failure-recovery-support.md)
+- [Service Stack Model](./product/service-stack-model.md)
+- [Review Inbox](./product/review-inbox.md)
+- [Golden Scenarios](./product/golden-scenarios.md)
+- [Capability Ecosystem](./product/capability-ecosystem.md)
+- [Production Adoption](./product/production-adoption.md)
+- [Quality Harness](./product/quality-harness.md)
+- [Roadmap](./product/roadmap.md)
 
 ## Generated outputs
 

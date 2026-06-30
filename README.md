@@ -2,6 +2,8 @@
 
 EnvForge is a Linux environment migration and rebuild platform. It connects to an existing VM over SSH, collects read-only evidence, classifies the software/config/data that matter, and turns that evidence into a reviewable, verifiable, rollback-aware Environment Plan.
 
+EnvForge turns unknown Linux servers into reviewed, reproducible, verifiable migration plans.
+
 ```text
 Source VM -> HostSnapshot -> Environment Plan -> Review -> Apply -> Verify -> Report
 ```
@@ -54,9 +56,11 @@ Start here:
 - Current repository state for AI agents: [PROJECT_STATE.md](./PROJECT_STATE.md)
 - Agent working rules: [AGENTS.md](./AGENTS.md)
 - Full documentation index: [docs/index.md](./docs/index.md)
+- Product design roadmap: [docs/product/README.md](./docs/product/README.md)
 
 Core docs:
 
+- [docs/product/README.md](./docs/product/README.md)
 - [docs/product.md](./docs/product.md)
 - [docs/system-design.md](./docs/system-design.md)
 - [docs/catalog.md](./docs/catalog.md)
