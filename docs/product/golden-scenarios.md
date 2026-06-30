@@ -14,7 +14,7 @@ Each golden scenario needs:
 - report
 - failure example
 
-## 1. Legacy VPS to new VPS
+## 1. 旧 VPS 迁移到新 VPS / Legacy VPS to new VPS
 
 Covers:
 
@@ -27,7 +27,7 @@ Covers:
 - SSH
 - systemd services
 
-## 2. Docker Compose application rebuild
+## 2. Docker Compose 应用重建 / Docker Compose application rebuild
 
 Covers:
 
@@ -41,7 +41,7 @@ Covers:
 - depends_on
 - restart policies
 
-## 3. Safe database migration
+## 3. 数据库安全迁移 / Safe database migration
 
 Covers:
 
@@ -54,7 +54,7 @@ Covers:
 - verify
 - rollback boundary
 
-## 4. Server environment assessment report
+## 4. 服务器环境盘点报告 / Server environment assessment report
 
 Covers:
 
@@ -66,7 +66,7 @@ Covers:
 - 安全基线
 - 迁移建议
 
-## 5. Post-migration continuous verification
+## 5. 迁移后持续验证 / Post-migration continuous verification
 
 Covers:
 

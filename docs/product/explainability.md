@@ -29,6 +29,8 @@ Every service stack needs to explain:
 Mature product behavior is not “I decide for you”; it is “I let you trust the
 decision.”
 
+成熟产品不是“我帮你决定”，而是“我让你相信这个决定”。
+
 ## Example: PostgreSQL Database
 
 Decision:

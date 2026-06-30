@@ -21,6 +21,8 @@ Those are evidence. Users need to understand:
 Migration plans should be based on service relationships, not isolated
 components.
 
+迁移计划应该基于服务关系，而不是孤立组件。
+
 ## Core model
 
 ~~~ts

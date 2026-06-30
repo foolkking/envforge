@@ -26,6 +26,14 @@ they never apply a migration.
 | 6–8 min | EnvForge shows migration readiness and required decisions. |
 | 8–10 min | User exports an Assessment Report or generates a Plan-only draft. |
 
+Chinese product path:
+
+- 0–1 分钟：用户添加源服务器，选择 read-only scan。
+- 1–4 分钟：EnvForge 采集 OS、services、ports、packages、containers、configs、data hints、security baseline。
+- 4–6 分钟：生成服务栈摘要和风险摘要。
+- 6–8 分钟：展示 migration readiness 和 required decisions。
+- 8–10 分钟：用户导出 Assessment Report 或生成 Plan-only draft。
+
 ## First output
 
 The first-run assessment should answer:

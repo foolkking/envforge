@@ -81,13 +81,20 @@ Not required. No write was applied after validation failure.
 Repair Plan should turn failure evidence into a new reviewable Environment Plan.
 It must not bypass the immutable Plan flow.
 
+Failure support must explicitly design:
+
+- Repair Plan
+- Support Bundle
+- Redacted logs
+- ActionRunRecord evidence
+
 Support Bundle should include:
 
 - plan metadata
 - planHash
 - approvedPlanHash
 - applyRunId
-- action records
+- ActionRunRecord evidence
 - redacted stdout/stderr
 - snapshot summary
 - collector completeness
