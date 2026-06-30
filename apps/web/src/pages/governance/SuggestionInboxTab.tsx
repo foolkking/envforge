@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import type { AdminSuggestionRecord } from "../../api";
 import type { Locale } from "../../lib/types";
 import { Badge } from "../../components/ui/Badge";
@@ -16,6 +17,7 @@ export function SuggestionInboxTab({
   onProcess: (id: string, action: "accepted" | "rejected", feedback?: string) => Promise<void>;
   onAuthorFromSuggestion?: (suggestion: AdminSuggestionRecord) => void;
 }): JSX.Element {
+  const { t } = useTranslation();
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [busyId, setBusyId] = useState<string | null>(null);
 
@@ -26,9 +28,7 @@ export function SuggestionInboxTab({
   return (
     <div data-testid="suggestions-tab">
       <p style={{ color: "var(--ef-muted)", margin: "0 0 12px 0", maxWidth: 720 }}>
-        {locale === "zh"
-          ? "处理用户提交的能力建议、组合调整、规则缺失反馈。状态在 pending / accepted / rejected 之间流转。"
-          : "Process user-submitted capability requests, combo adjustments, and rule-gap feedback. Status flows through pending / accepted / rejected."}
+        {t("governance.suggestions.intro")}
       </p>
 
       <div style={{ display: "flex", flexWrap: "wrap", gap: 8, margin: "0 0 12px 0" }}>
@@ -36,29 +36,29 @@ export function SuggestionInboxTab({
           value={statusFilter}
           onChange={setStatusFilter}
           options={[
-            { value: "all", label: locale === "zh" ? "全部" : "All" },
-            { value: "pending", label: locale === "zh" ? "待处理" : "Pending" },
-            { value: "accepted", label: locale === "zh" ? "已接受" : "Accepted" },
-            { value: "rejected", label: locale === "zh" ? "已拒绝" : "Rejected" }
+            { value: "all", label: t("governance.common.all") },
+            { value: "pending", label: t("governance.common.pending") },
+            { value: "accepted", label: t("governance.common.accepted") },
+            { value: "rejected", label: t("governance.common.rejected") }
           ]}
         />
       </div>
 
       {loading ? (
-        <p style={{ color: "var(--ef-muted)" }}>{locale === "zh" ? "加载中..." : "Loading..."}</p>
+        <p style={{ color: "var(--ef-muted)" }}>{t("governance.common.loading")}</p>
       ) : filtered.length === 0 ? (
-        <p style={{ color: "var(--ef-muted)" }}>{locale === "zh" ? "暂无建议" : "No suggestions yet."}</p>
+        <p style={{ color: "var(--ef-muted)" }}>{t("governance.suggestions.noSuggestions")}</p>
       ) : (
         <table data-testid="suggestions-table" style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
           <thead style={{ background: "var(--ef-surface-soft)" }}>
             <tr>
-              <Th>{locale === "zh" ? "标题" : "Title"}</Th>
-              <Th>{locale === "zh" ? "提交人" : "Submitter"}</Th>
-              <Th>{locale === "zh" ? "类型" : "Type"}</Th>
-              <Th>{locale === "zh" ? "关联能力" : "Related capability"}</Th>
-              <Th>Status</Th>
-              <Th>{locale === "zh" ? "提交时间" : "Submitted"}</Th>
-              <Th>Actions</Th>
+              <Th>{t("governance.suggestions.title")}</Th>
+              <Th>{t("governance.suggestions.submitter")}</Th>
+              <Th>{t("governance.common.type")}</Th>
+              <Th>{t("governance.suggestions.relatedCapability")}</Th>
+              <Th>{t("governance.common.status")}</Th>
+              <Th>{t("governance.suggestions.submitted")}</Th>
+              <Th>{t("governance.common.actions")}</Th>
             </tr>
           </thead>
           <tbody>
@@ -83,7 +83,7 @@ export function SuggestionInboxTab({
                           data-testid={`suggestion-author-${s.id}`}
                           onClick={() => onAuthorFromSuggestion(s)}
                           style={{ padding: "2px 8px", background: "var(--ef-success-soft)", border: "1px solid var(--ef-success)", color: "var(--ef-success)", borderRadius: 4 }}>
-                          {locale === "zh" ? (s.catalogId ? "接受并编辑" : "接受并新建") : (s.catalogId ? "Accept & edit" : "Accept & create")}
+                          {s.catalogId ? t("governance.suggestions.acceptAndEdit") : t("governance.suggestions.acceptAndCreate")}
                         </button>
                       ) : (
                         <button type="button" disabled={busyId === s.id}
@@ -93,19 +93,19 @@ export function SuggestionInboxTab({
                             finally { setBusyId(null); }
                           }}
                           style={{ padding: "2px 8px", background: "var(--ef-success-soft)", border: "1px solid var(--ef-success)", color: "var(--ef-success)", borderRadius: 4 }}>
-                          {locale === "zh" ? "接受" : "Accept"}
+                          {t("governance.common.accept")}
                         </button>
                       )}
                       <button type="button" disabled={busyId === s.id}
                         onClick={async () => {
-                          const feedback = await promptDialog({ message: locale === "zh" ? "拒绝理由（可选）" : "Reason (optional)", confirmLabel: locale === "zh" ? "拒绝" : "Reject", cancelLabel: locale === "zh" ? "取消" : "Cancel" });
+                          const feedback = await promptDialog({ message: t("governance.suggestions.rejectReason"), confirmLabel: t("governance.common.reject"), cancelLabel: t("governance.common.cancel") });
                           if (feedback === null) return;
                           setBusyId(s.id);
                           try { await onProcess(s.id, "rejected", feedback); }
                           finally { setBusyId(null); }
                         }}
                         style={{ padding: "2px 8px", background: "var(--ef-danger-soft)", border: "1px solid var(--ef-danger)", color: "var(--ef-danger)", borderRadius: 4 }}>
-                        {locale === "zh" ? "拒绝" : "Reject"}
+                        {t("governance.common.reject")}
                       </button>
                     </div>
                   ) : <span style={{ color: "var(--ef-muted)", fontSize: 11 }}>—</span>}
@@ -120,11 +120,12 @@ export function SuggestionInboxTab({
 }
 
 function SuggestionStatusBadge({ status, locale, testId }: { status: string; locale: Locale; testId: string }): JSX.Element {
-  const map: Record<string, { tone: "ok" | "warn" | "danger" | "neutral"; zh: string; en: string }> = {
-    pending: { tone: "warn", zh: "待处理", en: "Pending" },
-    accepted: { tone: "ok", zh: "已接受", en: "Accepted" },
-    rejected: { tone: "danger", zh: "已拒绝", en: "Rejected" }
+  const { t } = useTranslation();
+  const map: Record<string, { tone: "ok" | "warn" | "danger" | "neutral"; label: string }> = {
+    pending: { tone: "warn", label: t("governance.common.pending") },
+    accepted: { tone: "ok", label: t("governance.common.accepted") },
+    rejected: { tone: "danger", label: t("governance.common.rejected") }
   };
-  const item = map[status] ?? { tone: "neutral", zh: status, en: status };
-  return <span data-testid={testId}><Badge tone={item.tone} size="sm">{locale === "zh" ? item.zh : item.en}</Badge></span>;
+  const item = map[status] ?? { tone: "neutral", label: status };
+  return <span data-testid={testId}><Badge tone={item.tone} size="sm">{item.label}</Badge></span>;
 }

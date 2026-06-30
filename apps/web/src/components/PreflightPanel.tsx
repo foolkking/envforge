@@ -1,4 +1,6 @@
+import { Button } from "./ui/Button";
 import React from "react";
+import { useTranslation } from "react-i18next";
 import type { PreflightCheck, PreflightReport } from "../api";
 import type { Locale } from "../lib/types";
 
@@ -19,7 +21,6 @@ const STATUS_COLOR: Record<PreflightCheck["status"], string> = {
 export function PreflightPanel({
   report,
   loading,
-  locale,
   onClose,
   onProceed,
   proceedDisabled
@@ -31,12 +32,13 @@ export function PreflightPanel({
   onProceed?: () => void;
   proceedDisabled?: boolean;
 }) {
+  const { t } = useTranslation();
   if (loading) {
     return (
       <div className="preflight-panel">
         <p className="preflight-loading">
           <span className="spinning">...</span>
-          {locale === "zh" ? "正在检查计划应用条件..." : "Checking plan apply conditions..."}
+          {t("preflight.loading")}
         </p>
       </div>
     );
@@ -49,13 +51,13 @@ export function PreflightPanel({
     <div className={`preflight-panel ${blocked ? "preflight-panel-blocked" : ""}`}>
       <header className="preflight-header">
         <p className="preflight-title">
-          {locale === "zh" ? "计划应用前检查" : "Plan preflight checks"}
+          {t("preflight.title")}
           <span className="preflight-meta">
-            {" "}· {report.summary.pass} pass · {report.summary.warn} warn · {report.summary.fail} fail · {report.durationMs}ms
+            {" · "}{t("preflight.summary", { pass: report.summary.pass, warn: report.summary.warn, fail: report.summary.fail, duration: report.durationMs })}
           </span>
         </p>
         {onClose ? (
-          <button type="button" className="ghost-action" onClick={onClose} style={{ fontSize: 12, padding: "4px 8px" }}>x</button>
+          <Button variant="ghost" type="button"  onClick={onClose} aria-label="Close" style={{ fontSize: 14, padding: "4px 8px" }}>×</Button>
         ) : null}
       </header>
       <ul className="preflight-checks">
@@ -71,16 +73,14 @@ export function PreflightPanel({
       </ul>
       {onProceed ? (
         <footer className="preflight-footer">
-          <button
+          <Button
             type="button"
-            className={blocked ? "ghost-action" : "primary-action"}
+            variant={blocked ? "ghost" : "primary"}
             onClick={onProceed}
             disabled={proceedDisabled}
           >
-            {blocked
-              ? (locale === "zh" ? "带风险应用计划" : "Apply plan despite failures")
-              : (locale === "zh" ? "应用已审查计划" : "Apply reviewed plan")}
-          </button>
+            {blocked ? t("preflight.proceedWithFailures") : t("preflight.applyReviewed")}
+          </Button>
         </footer>
       ) : null}
     </div>

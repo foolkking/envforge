@@ -30,6 +30,7 @@ Generated files are refreshed by scripts and should not be edited by hand.
 | Path | Policy |
 |---|---|
 | [archive/](./archive/) | Retired historical material only. Not part of the active doc path. |
+| [ui-ia-restructure.md](./ui-ia-restructure.md) | Historical rationale for the implemented UI information-architecture consolidation; not the current UI specification. |
 | `harness-reports/` | Local timestamped harness output. Do not treat as durable docs. |
 | `_work/` | Temporary work area. Should be empty or near-empty after active work is merged. |
 

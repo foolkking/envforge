@@ -20,10 +20,20 @@ export interface CollectorIssue {
   needsPrivilege?: boolean;
 }
 
+export interface CollectorCommandEvidence {
+  command: string;
+  exitCode?: number;
+  timedOut?: boolean;
+  stderr?: string;
+}
+
 export interface CollectorOutput<TData = unknown> {
   id: string;
   label: string;
   status: CollectorStatus;
+  completeness: number;
+  commands: CollectorCommandEvidence[];
+  collectedAt: string;
   data: TData;
   issues: CollectorIssue[];
 }

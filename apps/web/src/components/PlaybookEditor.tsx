@@ -1,4 +1,6 @@
+import { Button } from "./ui/Button";
 import React, { useState, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import type { Locale } from "../lib/types";
 
 export interface PlaybookEditorProps {
@@ -10,7 +12,12 @@ export interface PlaybookEditorProps {
 }
 
 /** Basic YAML syntax check — no external dependency needed */
-function validateYaml(content: string): { valid: boolean; errors: string[] } {
+function validateYaml(content: string, messages: {
+  tab: (line: number) => string;
+  singleQuote: (line: number) => string;
+  doubleQuote: (line: number) => string;
+  duplicate: (line: number, key: string, firstLine: number) => string;
+}): { valid: boolean; errors: string[] } {
   const errors: string[] = [];
   const lines = content.split("\n");
 
@@ -31,17 +38,17 @@ function validateYaml(content: string): { valid: boolean; errors: string[] } {
 
     // Tab characters are not allowed in YAML
     if (line.includes("\t")) {
-      errors.push(`Line ${lineNum}: Tab characters are not allowed in YAML`);
+      errors.push(messages.tab(lineNum));
     }
 
     // Detect unmatched quotes (simple heuristic)
     const singleQuotes = (line.match(/'/g) ?? []).length;
     const doubleQuotes = (line.match(/"/g) ?? []).length;
     if (singleQuotes % 2 !== 0) {
-      errors.push(`Line ${lineNum}: Possible unmatched single quote`);
+      errors.push(messages.singleQuote(lineNum));
     }
     if (doubleQuotes % 2 !== 0) {
-      errors.push(`Line ${lineNum}: Possible unmatched double quote`);
+      errors.push(messages.doubleQuote(lineNum));
     }
 
     // Detect duplicate keys at the same indentation (simple check)
@@ -57,7 +64,7 @@ function validateYaml(content: string): { valid: boolean; errors: string[] } {
         if (nextIndent === indent) {
           const nextKey = nextLine.match(/^(\s*)(\w[\w-]*):/)?.[2];
           if (nextKey === key) {
-            errors.push(`Line ${j + 1}: Duplicate key "${key}" (first seen at line ${lineNum})`);
+            errors.push(messages.duplicate(j + 1, key, lineNum));
           }
           break;
         }
@@ -72,9 +79,9 @@ export function PlaybookEditor({
   yaml,
   onChange,
   onRunDryRun,
-  locale,
   readOnly = false
 }: PlaybookEditorProps) {
+  const { t } = useTranslation();
   const [validation, setValidation] = useState<{ valid: boolean; errors: string[] } | null>(null);
   const [validating, setValidating] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -85,7 +92,12 @@ export function PlaybookEditor({
     setValidating(true);
     // Small timeout so the UI updates before the (synchronous) check
     setTimeout(() => {
-      const result = validateYaml(yaml);
+      const result = validateYaml(yaml, {
+        tab: (line) => t("playbookEditor.errors.tab", { line }),
+        singleQuote: (line) => t("playbookEditor.errors.singleQuote", { line }),
+        doubleQuote: (line) => t("playbookEditor.errors.doubleQuote", { line }),
+        duplicate: (line, key, firstLine) => t("playbookEditor.errors.duplicate", { line, key, firstLine })
+      });
       setValidation(result);
       setValidating(false);
     }, 50);
@@ -121,42 +133,42 @@ export function PlaybookEditor({
   return (
     <div className="playbook-editor">
       <div className="playbook-editor-toolbar">
-        <button
-          className="secondary-action"
+        <Button variant="secondary"
+
           type="button"
           onClick={handleValidate}
           disabled={validating || !yaml.trim()}
         >
           {validating ? <span className="spinning">↻</span> : "✓"}
-          {locale === "zh" ? "验证语法" : "Validate"}
-        </button>
-        <button
-          className="secondary-action"
+          {t("playbookEditor.validate")}
+        </Button>
+        <Button variant="secondary"
+
           type="button"
           onClick={handleDownload}
           disabled={!yaml.trim()}
         >
-          ⬇ {locale === "zh" ? "下载" : "Download"}
-        </button>
+          ⬇ {t("playbookEditor.download")}
+        </Button>
         {onRunDryRun ? (
-          <button
-            className="primary-action"
+          <Button variant="primary"
+
             type="button"
             onClick={onRunDryRun}
             disabled={!yaml.trim()}
           >
-            ⚡ {locale === "zh" ? "预演" : "Run dry-run"}
-          </button>
+            ⚡ {t("playbookEditor.dryRun")}
+          </Button>
         ) : null}
         <span className="playbook-editor-meta">
-          {lineCount} {locale === "zh" ? "行" : "lines"}
+          {t("playbookEditor.lines", { count: lineCount })}
         </span>
       </div>
 
       {validation ? (
         <div className={`playbook-validation ${validation.valid ? "valid" : "invalid"}`}>
           {validation.valid ? (
-            <span>✓ {locale === "zh" ? "YAML 语法正确" : "YAML syntax is valid"}</span>
+            <span>✓ {t("playbookEditor.valid")}</span>
           ) : (
             <ul>
               {validation.errors.map((err, i) => (
@@ -184,7 +196,7 @@ export function PlaybookEditor({
           autoComplete="off"
           autoCorrect="off"
           autoCapitalize="off"
-          aria-label={locale === "zh" ? "编排 YAML 编辑器" : "Playbook YAML editor"}
+          aria-label={t("playbookEditor.ariaLabel")}
         />
       </div>
     </div>

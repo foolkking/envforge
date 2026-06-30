@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { AlertTriangle, CheckCircle2, Folder, Inbox, Package as PackageIcon, RefreshCcw, XCircle } from "lucide-react";
 import type { Locale } from "../../lib/types";
 import { SummaryStat, Th, Td, summaryStyle, type AdminCatalogRow } from "./shared";
@@ -15,38 +16,39 @@ export function OverviewTab({
   pendingSuggestions: number;
   integrationsMeta: { total: number; withRule: number; withoutRule: number } | null;
 }): JSX.Element {
+  const { t } = useTranslation();
   const p0 = useMemo(() => rows.filter((r) => r.certification.status === "not-ready").slice(0, 5), [rows]);
   return (
     <div data-testid="overview-tab">
       <div className="rules-summary" style={summaryStyle}>
-        <SummaryStat label={locale === "zh" ? "已认证" : "Certified"}
+        <SummaryStat label={t("governance.common.certified")}
           value={meta?.certified ?? 0} icon={<CheckCircle2 size={16} aria-hidden />} tone="green" />
-        <SummaryStat label={locale === "zh" ? "未就绪" : "Not Ready"}
+        <SummaryStat label={t("governance.common.notReady")}
           value={meta?.notReady ?? 0} icon={<XCircle size={16} aria-hidden />} tone="amber" />
-        <SummaryStat label={locale === "zh" ? "认证覆盖率" : "Certification Coverage"}
+        <SummaryStat label={t("governance.overview.coverage")}
           value={`${coverage}%`} icon={<RefreshCcw size={16} aria-hidden />} tone="slate" />
-        <SummaryStat label={locale === "zh" ? "总数" : "Total"}
+        <SummaryStat label={t("governance.common.total")}
           value={meta?.total ?? 0} icon={<Folder size={16} aria-hidden />} tone="slate" />
-        <SummaryStat label={locale === "zh" ? "P0 待办" : "P0 Backlog"}
+        <SummaryStat label={t("governance.overview.p0Backlog")}
           value={meta?.notReady ?? 0} icon={<AlertTriangle size={16} aria-hidden />} tone="amber" />
-        <SummaryStat label={locale === "zh" ? "待处理建议" : "Pending Suggestions"}
+        <SummaryStat label={t("governance.overview.pendingSuggestions")}
           value={pendingSuggestions} icon={<Inbox size={16} aria-hidden />} tone="slate" />
         {integrationsMeta ? (
-          <SummaryStat label={locale === "zh" ? "缺少规则" : "Missing rule"}
+          <SummaryStat label={t("governance.overview.missingRule")}
             value={integrationsMeta.withoutRule} icon={<PackageIcon size={16} aria-hidden />} tone="amber" />
         ) : null}
       </div>
 
       <section style={{ marginTop: 16 }}>
         <h2 style={{ fontSize: 15, margin: "0 0 8px 0" }}>
-          {locale === "zh" ? "P0 待升级能力（前 5）" : "P0 Backlog (top 5)"}
+          {t("governance.overview.p0Title")}
         </h2>
         {p0.length === 0 ? (
-          <p style={{ color: "var(--ef-muted)" }}>{locale === "zh" ? "无待办" : "No backlog."}</p>
+          <p style={{ color: "var(--ef-muted)" }}>{t("governance.common.noBacklog")}</p>
         ) : (
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
             <thead style={{ background: "var(--ef-surface-soft)" }}>
-              <tr><Th>Capability</Th><Th>Type</Th><Th>{locale === "zh" ? "缺失项" : "Missing"}</Th></tr>
+              <tr><Th>{t("governance.common.capability")}</Th><Th>{t("governance.common.type")}</Th><Th>{t("governance.common.missing")}</Th></tr>
             </thead>
             <tbody>
               {p0.map((row) => (
@@ -68,9 +70,7 @@ export function OverviewTab({
 
       <section style={{ marginTop: 16, color: "var(--ef-muted)", fontSize: 12 }}>
         <p style={{ margin: 0 }}>
-          {locale === "zh"
-            ? "提示：普通用户的 Build 只展示已认证能力，认证升级请参考 docs/catalog.md。"
-            : "Note: end-user Build only shows certified capabilities. Certification upgrades follow docs/catalog.md."}
+          {t("governance.overview.note")}
         </p>
       </section>
     </div>

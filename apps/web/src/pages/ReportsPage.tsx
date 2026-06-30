@@ -1,8 +1,22 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { fetchEnvironmentPlanReport, listEnvironmentPlans, type PlanListEntry } from "../api";
 import type { Locale } from "../lib/types";
 import { Button } from "../components/ui/Button";
 import { Badge } from "../components/ui/Badge";
+
+const REPORT_STATUS_LABEL_KEYS = {
+  draft: "plansCenter.statuses.draft",
+  "needs-review": "plansCenter.statuses.needsReview",
+  approved: "plansCenter.statuses.approved",
+  applying: "plansCenter.statuses.applying",
+  verifying: "plansCenter.statuses.verifying",
+  succeeded: "plansCenter.statuses.succeeded",
+  "partially-succeeded": "plansCenter.statuses.partiallySucceeded",
+  failed: "plansCenter.statuses.failed",
+  "rolled-back": "plansCenter.statuses.rolledBack",
+  committed: "plansCenter.statuses.committed"
+} as const satisfies Record<NonNullable<PlanListEntry["status"]>, string>;
 
 /**
  * ReportsPage — read-only access to plan reports.
@@ -17,7 +31,8 @@ import { Badge } from "../components/ui/Badge";
  * page never offers re-apply or edit actions; those belong in the Plans
  * center where the lifecycle controls live.
  */
-export function ReportsPage({ authToken, locale }: { authToken: string; locale: Locale }) {
+export function ReportsPage({ authToken }: { authToken: string; locale: Locale }) {
+  const { t } = useTranslation();
   const [plans, setPlans] = useState<PlanListEntry[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -33,7 +48,7 @@ export function ReportsPage({ authToken, locale }: { authToken: string; locale: 
       const list = await listEnvironmentPlans(authToken);
       setPlans(list);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load plans.");
+      setError(err instanceof Error ? err.message : t("reports.errors.plans"));
     } finally {
       setLoading(false);
     }
@@ -46,7 +61,7 @@ export function ReportsPage({ authToken, locale }: { authToken: string; locale: 
       const text = await fetchEnvironmentPlanReport(authToken, id);
       setReport(text);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load report.");
+      setError(err instanceof Error ? err.message : t("reports.errors.report"));
     }
   }
 
@@ -64,23 +79,19 @@ export function ReportsPage({ authToken, locale }: { authToken: string; locale: 
     <div className="reports-page reports-workspace">
       <section className="report-command-strip">
         <div>
-          <p className="eyebrow">{locale === "zh" ? "报告中心" : "Report Center"}</p>
-          <h2>{locale === "zh" ? "迁移、重建与修复报告" : "Migration, rebuild, and repair reports"}</h2>
-          <p>
-            {locale === "zh"
-              ? "报告是终态计划的证据出口，只提供查看、复制和下载，不在这里重新执行变更。"
-              : "Reports are evidence exports for terminal plans. This page only supports viewing, copying, and downloading."}
-          </p>
+          <p className="eyebrow">{t("reports.eyebrow")}</p>
+          <h2>{t("reports.title")}</h2>
+          <p>{t("reports.intro")}</p>
         </div>
         <Button variant="primary" onClick={() => void load()} disabled={loading}>
-          {loading ? (locale === "zh" ? "刷新中..." : "Refreshing...") : (locale === "zh" ? "刷新报告" : "Refresh reports")}
+          {loading ? t("reports.refreshing") : t("reports.refresh")}
         </Button>
       </section>
 
-      <section className="report-summary-grid" aria-label={locale === "zh" ? "报告状态摘要" : "Report status summary"}>
+      <section className="report-summary-grid" aria-label={t("reports.summaryAria")}>
         {statusSummary.map((item) => (
           <article className={`report-summary-card report-status-${item.status}`} key={item.status}>
-            <small>{statusLabel(item.status, locale)}</small>
+            <small>{t(REPORT_STATUS_LABEL_KEYS[item.status])}</small>
             <strong>{item.count}</strong>
           </article>
         ))}
@@ -90,15 +101,13 @@ export function ReportsPage({ authToken, locale }: { authToken: string; locale: 
         <section className="report-list-panel">
           <header className="report-panel-header">
             <div>
-              <p className="eyebrow">{locale === "zh" ? "终态计划" : "Terminal plans"}</p>
-              <h3>{locale === "zh" ? "报告索引" : "Report index"}</h3>
+              <p className="eyebrow">{t("reports.terminalPlans")}</p>
+              <h3>{t("reports.index")}</h3>
             </div>
             <span>{finished.length}</span>
           </header>
           {finished.length === 0 ? (
-            <p className="empty-hint">
-              {locale === "zh" ? "尚无终态计划，执行或验证一些计划后再来。" : "No terminal-state plans yet. Apply / verify some plans first."}
-            </p>
+            <p className="empty-hint">{t("reports.empty")}</p>
           ) : null}
           <ul className="report-list">
             {finished.map((plan) => (
@@ -112,7 +121,7 @@ export function ReportsPage({ authToken, locale }: { authToken: string; locale: 
                     <strong>{plan.name}</strong>
                     <small>{plan.type} · {new Date(plan.updatedAt).toLocaleString()}</small>
                   </span>
-                  <Badge tone={statusTone(plan.status ?? "draft")}>{statusLabel(plan.status ?? "draft", locale)}</Badge>
+                  <Badge tone={statusTone(plan.status ?? "draft")}>{t(REPORT_STATUS_LABEL_KEYS[plan.status ?? "draft"])}</Badge>
                 </button>
               </li>
             ))}
@@ -122,29 +131,29 @@ export function ReportsPage({ authToken, locale }: { authToken: string; locale: 
         <section className="report-reader-panel">
           {!activeId ? (
             <div className="report-reader-empty">
-              <p className="eyebrow">{locale === "zh" ? "Markdown 报告" : "Markdown report"}</p>
-              <h3>{locale === "zh" ? "选择一个报告查看证据内容" : "Select a report to inspect evidence"}</h3>
-              <p>{locale === "zh" ? "左侧列表只展示已进入终态的计划。" : "The left list only shows plans that reached a terminal state."}</p>
+              <p className="eyebrow">{t("reports.markdownReport")}</p>
+              <h3>{t("reports.selectTitle")}</h3>
+              <p>{t("reports.selectBody")}</p>
             </div>
           ) : (
             <>
               <header className="report-reader-header">
                 <div>
-                  <p className="eyebrow">{locale === "zh" ? "Markdown 报告" : "Markdown report"}</p>
-                  <h3>{activePlan?.name ?? (locale === "zh" ? "报告" : "Report")}</h3>
+                  <p className="eyebrow">{t("reports.markdownReport")}</p>
+                  <h3>{activePlan?.name ?? t("reports.reportFallback")}</h3>
                 </div>
                 <div className="report-reader-actions">
-                  <button type="button" className="conn-btn conn-btn-ghost" onClick={() => void navigator.clipboard.writeText(report)} disabled={!report}>
-                    {locale === "zh" ? "复制" : "Copy"}
-                  </button>
-                  <button
+                  <Button variant="connectionGhost" type="button"  onClick={() => void navigator.clipboard.writeText(report)} disabled={!report}>
+                    {t("reports.copy")}
+                  </Button>
+                  <Button variant="connectionGhost"
                     type="button"
-                    className="conn-btn conn-btn-ghost"
+
                     onClick={() => downloadReport(activeId, report)}
                     disabled={!report}
                   >
-                    {locale === "zh" ? "下载" : "Download"}
-                  </button>
+                    {t("reports.download")}
+                  </Button>
                 </div>
               </header>
               <textarea className="report-textarea" readOnly value={report} />
@@ -156,22 +165,6 @@ export function ReportsPage({ authToken, locale }: { authToken: string; locale: 
       {error ? <div className="report-error">{error}</div> : null}
     </div>
   );
-}
-
-function statusLabel(status: NonNullable<PlanListEntry["status"]> | "draft", locale: Locale): string {
-  const zh: Record<string, string> = {
-    draft: "草稿",
-    "needs-review": "待审查",
-    approved: "已批准",
-    applying: "执行中",
-    verifying: "验证中",
-    succeeded: "成功",
-    "partially-succeeded": "部分成功",
-    failed: "失败",
-    "rolled-back": "已回滚",
-    committed: "已归档"
-  };
-  return locale === "zh" ? zh[status] ?? status : status;
 }
 
 function statusTone(status: string): "ok" | "warn" | "danger" | "neutral" | "info" {

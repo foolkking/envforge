@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { BookOpen, CheckCircle2, FileText, RefreshCcw, Shield } from "lucide-react";
 import {
   fetchCapabilityStandards,
@@ -24,7 +25,7 @@ import type { Locale } from "../../lib/types";
 import { Button } from "../../components/ui/Button";
 import { confirmDialog } from "../../lib/dialogs";
 import {
-  REQUIREMENT_LABELS,
+  REQUIREMENT_I18N_KEYS,
   FilterPills,
   SummaryStat,
   Th,
@@ -39,7 +40,30 @@ import {
 
 // ── Standards tab ────────────────────────────────────────────────────
 
+const SECTION_STATUS_KEYS = {
+  pending: "governance.standards.states.pending",
+  satisfied: "governance.standards.states.satisfied",
+  notApplicable: "governance.standards.states.notApplicable",
+  blocked: "governance.standards.states.blocked"
+} as const satisfies Record<CapabilityRequirementSectionState["status"], string>;
+const PROFILE_STATUS_KEYS = {
+  draft: "governance.standards.states.draft",
+  active: "governance.standards.states.active",
+  retired: "governance.standards.states.retired"
+} as const satisfies Record<CapabilityStandardProfile["status"], string>;
+const SEVERITY_KEYS = {
+  required: "governance.standards.states.required",
+  critical: "governance.standards.states.critical",
+  advisory: "governance.standards.states.advisory"
+} as const satisfies Record<CapabilityStandardSection["severity"], string>;
+const VERSION_STATUS_KEYS = {
+  published: "governance.standards.states.published",
+  superseded: "governance.standards.states.superseded",
+  "rolled-back": "governance.standards.states.rolledBack"
+} as const satisfies Record<CapabilityRequirementVersion["status"], string>;
+
 export function StandardsTab({ locale, authToken, rows }: { locale: Locale; authToken: string; rows: AdminCatalogRow[] }): JSX.Element {
+  const { t } = useTranslation();
   const [profiles, setProfiles] = useState<CapabilityStandardProfile[]>([]);
   const [activeProfileId, setActiveProfileId] = useState("");
   const [selectedCapabilityId, setSelectedCapabilityId] = useState(rows[0]?.id ?? "");
@@ -158,7 +182,7 @@ export function StandardsTab({ locale, authToken, rows }: { locale: Locale; auth
       });
       await reloadRequirement(detail.item.id, detail.activeProfile.id);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Save failed");
+      setError(err instanceof Error ? err.message : t("governance.standards.errors.saveFailed"));
     } finally {
       setSaving(false);
     }
@@ -178,7 +202,7 @@ export function StandardsTab({ locale, authToken, rows }: { locale: Locale; auth
       const audit = await fetchCapabilityAuditLog(authToken, { targetId: detail.item.id, limit: 30 });
       setAuditEntries(audit.entries);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Simulation failed");
+      setError(err instanceof Error ? err.message : t("governance.standards.errors.simulationFailed"));
     } finally {
       setSaving(false);
     }
@@ -205,7 +229,7 @@ export function StandardsTab({ locale, authToken, rows }: { locale: Locale; auth
       });
       await reloadRequirement(detail.item.id, detail.activeProfile.id);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Publish failed");
+      setError(err instanceof Error ? err.message : t("governance.standards.errors.publishFailed"));
     } finally {
       setSaving(false);
     }
@@ -214,11 +238,9 @@ export function StandardsTab({ locale, authToken, rows }: { locale: Locale; auth
   async function rollback(version: CapabilityRequirementVersion) {
     if (!detail) return;
     const ok = await confirmDialog({
-      message: locale === "zh"
-        ? `回滚 ${detail.item.id} 到 v${version.version}?将发布一个新版本。`
-        : `Rollback ${detail.item.id} to v${version.version}? This creates a new published version.`,
-      confirmLabel: locale === "zh" ? "回滚" : "Rollback",
-      cancelLabel: locale === "zh" ? "取消" : "Cancel"
+      message: t("governance.standards.rollbackConfirm", { id: detail.item.id, version: version.version }),
+      confirmLabel: t("governance.standards.rollback"),
+      cancelLabel: t("governance.standards.cancel")
     });
     if (!ok) return;
     setSaving(true);
@@ -231,7 +253,7 @@ export function StandardsTab({ locale, authToken, rows }: { locale: Locale; auth
       });
       await reloadRequirement(detail.item.id, detail.activeProfile.id);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Rollback failed");
+      setError(err instanceof Error ? err.message : t("governance.standards.errors.rollbackFailed"));
     } finally {
       setSaving(false);
     }
@@ -252,7 +274,9 @@ export function StandardsTab({ locale, authToken, rows }: { locale: Locale; auth
     const source = detail?.activeProfile ?? profiles.find((profile) => profile.id === activeProfileId) ?? profiles[0];
     setProfileEditor({
       key: source?.key ?? "full-migration",
-      name: source ? `${source.name} draft` : "New standard profile",
+      name: source
+        ? t("governance.standards.profileDraftName", { name: source.name })
+        : t("governance.standards.newStandardProfile"),
       description: source?.description ?? "",
       status: "draft",
       sections: source?.sections.map((section) => ({ ...section })) ?? []
@@ -273,7 +297,7 @@ export function StandardsTab({ locale, authToken, rows }: { locale: Locale; auth
       setActiveProfileId(cloned.profile.id);
       startEditProfile(cloned.profile);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Clone failed");
+      setError(err instanceof Error ? err.message : t("governance.standards.errors.cloneFailed"));
     } finally {
       setSaving(false);
     }
@@ -306,7 +330,7 @@ export function StandardsTab({ locale, authToken, rows }: { locale: Locale; auth
       setProfileEditor(null);
       await reloadRequirement(selectedCapabilityId, saved.profile.id);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Profile save failed");
+      setError(err instanceof Error ? err.message : t("governance.standards.errors.profileSaveFailed"));
     } finally {
       setSaving(false);
     }
@@ -338,22 +362,22 @@ export function StandardsTab({ locale, authToken, rows }: { locale: Locale; auth
       <section style={panelStyle}>
         <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
           <div>
-            <h2 style={{ margin: 0, fontSize: 16 }}>Versioned standards layer</h2>
+            <h2 style={{ margin: 0, fontSize: 16 }}>{t("governance.standards.title")}</h2>
             <p style={{ color: "var(--ef-muted)", margin: "4px 0 0 0", maxWidth: 780 }}>
-              Admins maintain standard profiles, per-capability requirement drafts, simulation runs, published versions, rollback history, and audit logs. Published versions record governance state; the runtime certified-only gate still applies.
+              {t("governance.standards.intro")}
             </p>
           </div>
           <div style={{ display: "flex", gap: 8, alignItems: "end", flexWrap: "wrap" }}>
             <label style={compactLabelStyle}>
-              <span>Profile</span>
+              <span>{t("governance.standards.profile")}</span>
               <select value={activeProfileId} onChange={(event) => setActiveProfileId(event.target.value)}>
                 {profiles.map((profile) => (
-                  <option key={profile.id} value={profile.id}>{profile.name} v{profile.version} ({profile.status})</option>
+                  <option key={profile.id} value={profile.id}>{profile.name} v{profile.version} ({t(PROFILE_STATUS_KEYS[profile.status])})</option>
                 ))}
               </select>
             </label>
             <label style={compactLabelStyle}>
-              <span>Capability</span>
+              <span>{t("governance.standards.capability")}</span>
               <select value={selectedCapabilityId} onChange={(event) => setSelectedCapabilityId(event.target.value)}>
                 {rows.map((row) => (
                   <option key={row.id} value={row.id}>{row.name} ({row.id})</option>
@@ -369,32 +393,32 @@ export function StandardsTab({ locale, authToken, rows }: { locale: Locale; auth
       <section style={panelStyle}>
         <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", marginBottom: 12 }}>
           <div>
-            <h3 style={{ margin: 0, fontSize: 15 }}>Standard profiles</h3>
+            <h3 style={{ margin: 0, fontSize: 15 }}>{t("governance.standards.profilesTitle")}</h3>
             <p style={{ margin: "4px 0 0 0", color: "var(--ef-muted)", fontSize: 12 }}>
-              Edit the default profile by materializing it online, clone profiles for new revisions, activate one profile per key, and retire older profiles only after a replacement exists.
+              {t("governance.standards.profilesIntro")}
             </p>
           </div>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            <Button variant="ghost" onClick={startNewProfile} disabled={saving}>New profile</Button>
-            <Button variant="ghost" onClick={() => cloneProfile("draft")} disabled={saving || !activeProfile}>Clone draft</Button>
-            <Button variant="ghost" onClick={() => cloneProfile("active")} disabled={saving || !activeProfile}>Clone active</Button>
+            <Button variant="ghost" onClick={startNewProfile} disabled={saving}>{t("governance.standards.newProfile")}</Button>
+            <Button variant="ghost" onClick={() => cloneProfile("draft")} disabled={saving || !activeProfile}>{t("governance.standards.cloneDraft")}</Button>
+            <Button variant="ghost" onClick={() => cloneProfile("active")} disabled={saving || !activeProfile}>{t("governance.standards.cloneActive")}</Button>
           </div>
         </div>
         <div style={{ overflowX: "auto" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
             <thead style={{ background: "var(--ef-surface-soft)" }}>
-              <tr><Th>Profile</Th><Th>Key</Th><Th>Status</Th><Th>Sections</Th><Th>Updated</Th><Th>Action</Th></tr>
+              <tr><Th>{t("governance.standards.profile")}</Th><Th>{t("governance.standards.key")}</Th><Th>{t("governance.standards.status")}</Th><Th>{t("governance.standards.sections")}</Th><Th>{t("governance.standards.updated")}</Th><Th>{t("governance.standards.action")}</Th></tr>
             </thead>
             <tbody>
               {profiles.map((profile) => (
                 <tr key={profile.id} style={{ borderBottom: "1px solid var(--ef-border)", background: profile.id === activeProfileId ? "var(--ef-info-soft)" : undefined }}>
                   <Td><strong>{profile.name}</strong><div style={{ color: "var(--ef-muted)", fontSize: 11 }}>{profile.id} / v{profile.version}</div></Td>
                   <Td><code>{profile.key}</code></Td>
-                  <Td>{profile.status}</Td>
+                  <Td>{t(PROFILE_STATUS_KEYS[profile.status])}</Td>
                   <Td>{profile.sections.length}</Td>
                   <Td>{new Date(profile.updatedAt).toLocaleString()}</Td>
                   <Td>
-                    <Button variant="ghost" onClick={() => startEditProfile(profile)} disabled={saving}>Edit</Button>
+                    <Button variant="ghost" onClick={() => startEditProfile(profile)} disabled={saving}>{t("governance.standards.edit")}</Button>
                   </Td>
                 </tr>
               ))}
@@ -413,15 +437,15 @@ export function StandardsTab({ locale, authToken, rows }: { locale: Locale; auth
       </section>
 
       {loading || !detail || !activeProfile ? (
-        <p style={{ color: "var(--ef-muted)" }}>Loading...</p>
+        <p style={{ color: "var(--ef-muted)" }}>{t("governance.standards.loading")}</p>
       ) : (
         <>
           <section style={summaryStyle}>
-            <SummaryStat label="Runtime gate" value={detail.certification.status} icon={<Shield size={16} aria-hidden />} tone={detail.certification.status === "certified" ? "green" : "amber"} />
-            <SummaryStat label="Published version" value={detail.currentVersion ? `v${detail.currentVersion.version}` : "none"} icon={<BookOpen size={16} aria-hidden />} tone="slate" />
-            <SummaryStat label="Draft" value={detail.draft ? `v${detail.draft.draftVersion}` : "none"} icon={<FileText size={16} aria-hidden />} tone="slate" />
-            <SummaryStat label="Sections" value={`${sectionStats.satisfied}/${sectionStats.total}`} icon={<CheckCircle2 size={16} aria-hidden />} tone={sectionStats.open === 0 ? "green" : "amber"} />
-            <SummaryStat label="Last simulation" value={latestRun?.status ?? "none"} icon={<RefreshCcw size={16} aria-hidden />} tone={latestRun?.status === "certified" ? "green" : "amber"} />
+            <SummaryStat label={t("governance.standards.runtimeGate")} value={detail.certification.status === "certified" ? t("governance.common.certified") : t("governance.common.notReady")} icon={<Shield size={16} aria-hidden />} tone={detail.certification.status === "certified" ? "green" : "amber"} />
+            <SummaryStat label={t("governance.standards.publishedVersion")} value={detail.currentVersion ? `v${detail.currentVersion.version}` : t("governance.standards.none")} icon={<BookOpen size={16} aria-hidden />} tone="slate" />
+            <SummaryStat label={t("governance.standards.draft")} value={detail.draft ? `v${detail.draft.draftVersion}` : t("governance.standards.none")} icon={<FileText size={16} aria-hidden />} tone="slate" />
+            <SummaryStat label={t("governance.standards.sections")} value={`${sectionStats.satisfied}/${sectionStats.total}`} icon={<CheckCircle2 size={16} aria-hidden />} tone={sectionStats.open === 0 ? "green" : "amber"} />
+            <SummaryStat label={t("governance.standards.lastSimulation")} value={latestRun ? (latestRun.status === "certified" ? t("governance.common.certified") : t("governance.common.notReady")) : t("governance.standards.none")} icon={<RefreshCcw size={16} aria-hidden />} tone={latestRun?.status === "certified" ? "green" : "amber"} />
           </section>
 
           <section style={panelStyle}>
@@ -437,17 +461,17 @@ export function StandardsTab({ locale, authToken, rows }: { locale: Locale; auth
                   value={sectionFilter}
                   onChange={setSectionFilter}
                   options={[
-                    { value: "all", label: "All" },
-                    { value: "open", label: "Open" },
-                    { value: "satisfied", label: "Satisfied" }
+                    { value: "all", label: t("governance.standards.all") },
+                    { value: "open", label: t("governance.standards.open") },
+                    { value: "satisfied", label: t("governance.standards.satisfied") }
                   ]}
                 />
-                <Button variant="ghost" onClick={() => setAllSections("satisfied")} disabled={saving}>Mark all satisfied</Button>
-                <Button variant="ghost" onClick={() => setAllSections("pending")} disabled={saving}>Mark all pending</Button>
-                <Button variant="ghost" onClick={() => setSections(detail.projectedSections)} disabled={saving}>Reset</Button>
-                <Button variant="ghost" onClick={saveDraft} disabled={saving}>Save draft</Button>
-                <Button variant="ghost" onClick={simulate} disabled={saving}>Simulate</Button>
-                <Button variant="primary" onClick={publish} disabled={saving}>Publish</Button>
+                <Button variant="ghost" onClick={() => setAllSections("satisfied")} disabled={saving}>{t("governance.standards.markAllSatisfied")}</Button>
+                <Button variant="ghost" onClick={() => setAllSections("pending")} disabled={saving}>{t("governance.standards.markAllPending")}</Button>
+                <Button variant="ghost" onClick={() => setSections(detail.projectedSections)} disabled={saving}>{t("governance.standards.reset")}</Button>
+                <Button variant="ghost" onClick={saveDraft} disabled={saving}>{t("governance.standards.saveDraft")}</Button>
+                <Button variant="ghost" onClick={simulate} disabled={saving}>{t("governance.standards.simulate")}</Button>
+                <Button variant="primary" onClick={publish} disabled={saving}>{t("governance.standards.publish")}</Button>
               </div>
             </div>
 
@@ -455,33 +479,34 @@ export function StandardsTab({ locale, authToken, rows }: { locale: Locale; auth
               {visibleSections.map((section) => {
                 const state = sections[section.id] ?? { status: "pending" as const, evidence: [] };
                 const result = latestRun?.sectionResults?.[section.id];
+                const labelKey = REQUIREMENT_I18N_KEYS[section.id as keyof typeof REQUIREMENT_I18N_KEYS];
                 return (
                   <div key={section.id} style={{ border: "1px solid var(--ef-border)", borderRadius: 8, padding: 12, display: "grid", gap: 8 }}>
                     <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
                       <div>
-                        <strong>{REQUIREMENT_LABELS[section.id]?.[locale] ?? section.label}</strong>
-                        <span style={{ marginLeft: 8, color: section.severity === "critical" ? "var(--ef-danger)" : "var(--ef-muted)", fontSize: 11 }}>{section.severity}</span>
+                        <strong>{labelKey ? t(labelKey) : section.label}</strong>
+                        <span style={{ marginLeft: 8, color: section.severity === "critical" ? "var(--ef-danger)" : "var(--ef-muted)", fontSize: 11 }}>{t(SEVERITY_KEYS[section.severity])}</span>
                         <p style={{ margin: "2px 0 0 0", color: "var(--ef-muted)", fontSize: 12 }}>{section.description}</p>
                         {result && !result.ok ? <p style={{ margin: "3px 0 0 0", color: "var(--ef-warning)", fontSize: 12 }}>{result.reason}</p> : null}
                       </div>
                       <select value={state.status} onChange={(event) => updateSection(section.id, { status: event.target.value as CapabilityRequirementSectionState["status"] })}>
-                        <option value="pending">pending</option>
-                        <option value="satisfied">satisfied</option>
-                        <option value="notApplicable">notApplicable</option>
-                        <option value="blocked">blocked</option>
+                        <option value="pending">{t(SECTION_STATUS_KEYS.pending)}</option>
+                        <option value="satisfied">{t(SECTION_STATUS_KEYS.satisfied)}</option>
+                        <option value="notApplicable">{t(SECTION_STATUS_KEYS.notApplicable)}</option>
+                        <option value="blocked">{t(SECTION_STATUS_KEYS.blocked)}</option>
                       </select>
                     </div>
                     <textarea
                       value={state.notes ?? ""}
                       onChange={(event) => updateSection(section.id, { notes: event.target.value })}
-                      placeholder="Notes / evidence summary"
+                      placeholder={t("governance.standards.notesPlaceholder")}
                       rows={2}
                       style={{ border: "1px solid var(--ef-border)", borderRadius: 6, padding: "8px 10px", resize: "vertical" }}
                     />
                     <textarea
                       value={(state.evidence ?? []).join("\n")}
                       onChange={(event) => updateSection(section.id, { evidence: event.target.value.split("\n").map((line) => line.trim()).filter(Boolean) })}
-                      placeholder="Evidence links or commands, one per line"
+                      placeholder={t("governance.standards.evidencePlaceholder")}
                       rows={2}
                       style={{ border: "1px solid var(--ef-border)", borderRadius: 6, padding: "8px 10px", resize: "vertical" }}
                     />
@@ -489,7 +514,7 @@ export function StandardsTab({ locale, authToken, rows }: { locale: Locale; auth
                       <input
                         value={state.notApplicableReason ?? ""}
                         onChange={(event) => updateSection(section.id, { notApplicableReason: event.target.value })}
-                        placeholder="Not-applicable reason"
+                        placeholder={t("governance.standards.notApplicableReason")}
                         style={{ border: "1px solid var(--ef-warning)", borderRadius: 6, padding: "8px 10px" }}
                       />
                     ) : null}
@@ -504,7 +529,6 @@ export function StandardsTab({ locale, authToken, rows }: { locale: Locale; auth
             runs={runs}
             versions={detail.versions}
             auditEntries={auditEntries}
-            locale={locale}
             saving={saving}
             onRollback={rollback}
             onRestoreVersion={(version) => setSections(version.sections)}
@@ -528,6 +552,7 @@ function StandardProfileEditor({
   onCancel: () => void;
   onSave: () => void;
 }): JSX.Element {
+  const { t } = useTranslation();
   function updateSection(index: number, patch: Partial<CapabilityStandardSection>) {
     const sections = editor.sections.map((section, i) => i === index ? { ...section, ...patch } : section);
     onChange({ ...editor, sections });
@@ -549,69 +574,69 @@ function StandardProfileEditor({
     <div style={{ marginTop: 14, borderTop: "1px solid var(--ef-border)", paddingTop: 12, display: "grid", gap: 10 }}>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 10 }}>
         <label style={compactLabelStyle}>
-          <span>Key</span>
+          <span>{t("governance.standards.key")}</span>
           <input value={editor.key} onChange={(event) => onChange({ ...editor, key: event.target.value })} disabled={Boolean(editor.id)} />
         </label>
         <label style={compactLabelStyle}>
-          <span>Name</span>
+          <span>{t("governance.standards.name")}</span>
           <input value={editor.name} onChange={(event) => onChange({ ...editor, name: event.target.value })} />
         </label>
         <label style={compactLabelStyle}>
-          <span>Status</span>
+          <span>{t("governance.standards.status")}</span>
           <select value={editor.status} onChange={(event) => onChange({ ...editor, status: event.target.value as StandardProfileEditorState["status"] })}>
-            <option value="draft">draft</option>
-            <option value="active">active</option>
-            <option value="retired">retired</option>
+            <option value="draft">{t(PROFILE_STATUS_KEYS.draft)}</option>
+            <option value="active">{t(PROFILE_STATUS_KEYS.active)}</option>
+            <option value="retired">{t(PROFILE_STATUS_KEYS.retired)}</option>
           </select>
         </label>
       </div>
       <label style={compactLabelStyle}>
-        <span>Description</span>
+        <span>{t("governance.standards.description")}</span>
         <textarea value={editor.description} onChange={(event) => onChange({ ...editor, description: event.target.value })} rows={2} />
       </label>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-        <strong>Profile sections</strong>
-        <Button variant="ghost" onClick={addSection} disabled={saving}>Add section</Button>
+        <strong>{t("governance.standards.profileSections")}</strong>
+        <Button variant="ghost" onClick={addSection} disabled={saving}>{t("governance.standards.addSection")}</Button>
       </div>
       <div style={{ display: "grid", gap: 8 }}>
         {editor.sections.map((section, index) => (
           <div key={`${section.id}-${index}`} style={{ border: "1px solid var(--ef-border)", borderRadius: 6, padding: 10, display: "grid", gap: 8 }}>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 8 }}>
               <label style={compactLabelStyle}>
-                <span>Id</span>
+                <span>{t("governance.standards.id")}</span>
                 <input value={section.id} onChange={(event) => updateSection(index, { id: event.target.value })} />
               </label>
               <label style={compactLabelStyle}>
-                <span>Label</span>
+                <span>{t("governance.standards.label")}</span>
                 <input value={section.label} onChange={(event) => updateSection(index, { label: event.target.value })} />
               </label>
               <label style={compactLabelStyle}>
-                <span>Severity</span>
+                <span>{t("governance.standards.severity")}</span>
                 <select value={section.severity} onChange={(event) => updateSection(index, { severity: event.target.value as CapabilityStandardSection["severity"] })}>
-                  <option value="required">required</option>
-                  <option value="critical">critical</option>
-                  <option value="advisory">advisory</option>
+                  <option value="required">{t(SEVERITY_KEYS.required)}</option>
+                  <option value="critical">{t(SEVERITY_KEYS.critical)}</option>
+                  <option value="advisory">{t(SEVERITY_KEYS.advisory)}</option>
                 </select>
               </label>
             </div>
-            <textarea value={section.description} onChange={(event) => updateSection(index, { description: event.target.value })} placeholder="Description" rows={2} />
+            <textarea value={section.description} onChange={(event) => updateSection(index, { description: event.target.value })} placeholder={t("governance.standards.description")} rows={2} />
             <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
               <label style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12 }}>
                 <input type="checkbox" checked={section.required} onChange={(event) => updateSection(index, { required: event.target.checked })} />
-                Required
+                {t("governance.standards.required")}
               </label>
               <label style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12 }}>
                 <input type="checkbox" checked={section.allowNotApplicable} onChange={(event) => updateSection(index, { allowNotApplicable: event.target.checked })} />
-                Allow N/A
+                {t("governance.standards.allowNotApplicable")}
               </label>
-              <Button variant="ghost" onClick={() => removeSection(index)} disabled={saving || editor.sections.length <= 1}>Remove</Button>
+              <Button variant="ghost" onClick={() => removeSection(index)} disabled={saving || editor.sections.length <= 1}>{t("governance.standards.remove")}</Button>
             </div>
           </div>
         ))}
       </div>
       <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-        <Button variant="ghost" onClick={onCancel} disabled={saving}>Cancel</Button>
-        <Button variant="primary" onClick={onSave} disabled={saving}>Save profile</Button>
+        <Button variant="ghost" onClick={onCancel} disabled={saving}>{t("governance.standards.cancel")}</Button>
+        <Button variant="primary" onClick={onSave} disabled={saving}>{t("governance.standards.saveProfile")}</Button>
       </div>
     </div>
   );
@@ -622,7 +647,6 @@ function StandardsHistoryFull({
   runs,
   versions,
   auditEntries,
-  locale,
   saving,
   onRollback,
   onRestoreVersion
@@ -631,17 +655,17 @@ function StandardsHistoryFull({
   runs: CapabilityCertificationRun[];
   versions: CapabilityRequirementVersion[];
   auditEntries: AdminAuditLogEntry[];
-  locale: Locale;
   saving: boolean;
   onRollback: (version: CapabilityRequirementVersion) => void;
   onRestoreVersion: (version: CapabilityRequirementVersion) => void;
 }): JSX.Element {
+  const { t } = useTranslation();
   return (
     <section style={panelStyle}>
-      <h3 style={{ marginTop: 0 }}>Certification runs, versions, and audit log</h3>
+      <h3 style={{ marginTop: 0 }}>{t("governance.standards.historyTitle")}</h3>
       {latestRun ? (
         <div style={{ marginBottom: 12, color: latestRun.status === "certified" ? "var(--ef-success)" : "var(--ef-warning)" }}>
-          <strong>{latestRun.status}</strong>
+          <strong>{latestRun.status === "certified" ? t("governance.common.certified") : t("governance.common.notReady")}</strong>
           <span style={{ marginLeft: 8, color: "var(--ef-muted)" }}>{new Date(latestRun.createdAt).toLocaleString()}</span>
           {latestRun.reasons.length > 0 ? (
             <ul style={{ margin: "6px 0 0 16px" }}>
@@ -650,32 +674,32 @@ function StandardsHistoryFull({
           ) : null}
         </div>
       ) : (
-        <p style={{ color: "var(--ef-muted)" }}>No simulation run yet.</p>
+        <p style={{ color: "var(--ef-muted)" }}>{t("governance.standards.noSimulation")}</p>
       )}
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 12 }}>
         <div style={{ overflowX: "auto" }}>
-          <h4 style={{ margin: "0 0 8px 0" }}>Published versions</h4>
+          <h4 style={{ margin: "0 0 8px 0" }}>{t("governance.standards.publishedVersions")}</h4>
           {versions.length === 0 ? (
-            <p style={{ color: "var(--ef-muted)" }}>No published versions yet.</p>
+            <p style={{ color: "var(--ef-muted)" }}>{t("governance.standards.noPublishedVersions")}</p>
           ) : (
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
               <thead style={{ background: "var(--ef-surface-soft)" }}>
-                <tr><Th>Version</Th><Th>Status</Th><Th>Published</Th><Th>Action</Th></tr>
+                <tr><Th>{t("governance.standards.version")}</Th><Th>{t("governance.standards.status")}</Th><Th>{t("governance.standards.published")}</Th><Th>{t("governance.standards.action")}</Th></tr>
               </thead>
               <tbody>
                 {versions.map((version) => (
                   <tr key={version.id} style={{ borderBottom: "1px solid var(--ef-border)" }}>
                     <Td>
                       <strong>v{version.version}</strong>
-                      {version.rollbackOfVersionId ? <div style={{ color: "var(--ef-muted)", fontSize: 11 }}>rollback of {version.rollbackOfVersionId}</div> : null}
+                      {version.rollbackOfVersionId ? <div style={{ color: "var(--ef-muted)", fontSize: 11 }}>{t("governance.standards.rollbackOf", { id: version.rollbackOfVersionId })}</div> : null}
                     </Td>
-                    <Td>{version.status}</Td>
+                    <Td>{t(VERSION_STATUS_KEYS[version.status])}</Td>
                     <Td>{new Date(version.publishedAt).toLocaleString()}</Td>
                     <Td>
                       <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                        <Button variant="ghost" onClick={() => onRestoreVersion(version)} disabled={saving}>Load</Button>
-                        <Button variant="ghost" onClick={() => onRollback(version)} disabled={saving || version.status === "published"}>Rollback</Button>
+                        <Button variant="ghost" onClick={() => onRestoreVersion(version)} disabled={saving}>{t("governance.standards.load")}</Button>
+                        <Button variant="ghost" onClick={() => onRollback(version)} disabled={saving || version.status === "published"}>{t("governance.standards.rollback")}</Button>
                       </div>
                     </Td>
                   </tr>
@@ -685,18 +709,18 @@ function StandardsHistoryFull({
           )}
         </div>
         <div style={{ overflowX: "auto" }}>
-          <h4 style={{ margin: "0 0 8px 0" }}>Recent runs</h4>
+          <h4 style={{ margin: "0 0 8px 0" }}>{t("governance.standards.recentRuns")}</h4>
           {runs.length === 0 ? (
-            <p style={{ color: "var(--ef-muted)" }}>No runs recorded.</p>
+            <p style={{ color: "var(--ef-muted)" }}>{t("governance.standards.noRuns")}</p>
           ) : (
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
               <thead style={{ background: "var(--ef-surface-soft)" }}>
-                <tr><Th>Status</Th><Th>Missing</Th><Th>Created</Th></tr>
+                <tr><Th>{t("governance.standards.status")}</Th><Th>{t("governance.standards.missing")}</Th><Th>{t("governance.standards.created")}</Th></tr>
               </thead>
               <tbody>
                 {runs.map((run) => (
                   <tr key={run.id} style={{ borderBottom: "1px solid var(--ef-border)" }}>
-                    <Td>{run.status}</Td>
+                    <Td>{run.status === "certified" ? t("governance.common.certified") : t("governance.common.notReady")}</Td>
                     <Td>{run.missingSections.length}</Td>
                     <Td>{new Date(run.createdAt).toLocaleString()}</Td>
                   </tr>
@@ -708,13 +732,13 @@ function StandardsHistoryFull({
       </div>
 
       <div style={{ marginTop: 14, overflowX: "auto" }}>
-        <h4 style={{ margin: "0 0 8px 0" }}>{locale === "zh" ? "管理审计日志" : "Admin audit log"}</h4>
+        <h4 style={{ margin: "0 0 8px 0" }}>{t("governance.standards.adminAuditLog")}</h4>
         {auditEntries.length === 0 ? (
-          <p style={{ color: "var(--ef-muted)" }}>{locale === "zh" ? "暂无审计记录。" : "No audit entries."}</p>
+          <p style={{ color: "var(--ef-muted)" }}>{t("governance.standards.noAuditEntries")}</p>
         ) : (
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
             <thead style={{ background: "var(--ef-surface-soft)" }}>
-              <tr><Th>Action</Th><Th>Admin</Th><Th>Feedback</Th><Th>Time</Th></tr>
+              <tr><Th>{t("governance.standards.action")}</Th><Th>{t("governance.standards.admin")}</Th><Th>{t("governance.standards.feedback")}</Th><Th>{t("governance.standards.time")}</Th></tr>
             </thead>
             <tbody>
               {auditEntries.map((entry) => (

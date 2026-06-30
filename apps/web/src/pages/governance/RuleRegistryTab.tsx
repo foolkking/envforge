@@ -1,8 +1,10 @@
+import { Button } from "../../components/ui/Button";
 import React, { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { BookOpen, Box as BoxIcon, CheckCircle2, Cog, Database, FileText, Hand, Key, Network, RefreshCcw, Search, Server, Shield, XCircle, AlertTriangle } from "lucide-react";
 import type { Locale } from "../../lib/types";
 import type { RuntimeRuleOverride, RulePromotionStatus } from "../../api";
-import { CATEGORY_ICONS, REQUIREMENT_LABELS, FilterPills, Th, Td, buildUpgradePrompt, copyToClipboard, type AdminCatalogRow } from "./shared";
+import { CATEGORY_ICONS, REQUIREMENT_I18N_KEYS, FilterPills, Th, Td, buildUpgradePrompt, copyToClipboard, type AdminCatalogRow } from "./shared";
 import { ReadinessChip, ReadinessScorecard } from "../../components/ReadinessScorecard";
 import { PromotionBadge, PromotionControls } from "../../components/PromotionControls";
 import { confirmDialog } from "../../lib/dialogs";
@@ -24,6 +26,7 @@ export function RuleRegistryTab({
   onPromoteDetectionRule?: (rule: RuntimeRuleOverride) => void;
   onSetPromotion?: (id: string, patch: { status?: RulePromotionStatus; prUrl?: string; notes?: string }) => void | Promise<void>;
 }): JSX.Element {
+  const { t } = useTranslation();
   const [statusFilter, setStatusFilter] = useState<"all" | "certified" | "not-ready">("all");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [search, setSearch] = useState("");
@@ -51,7 +54,7 @@ export function RuleRegistryTab({
           <Search size={14} aria-hidden />
           <input
             type="search"
-            placeholder={locale === "zh" ? "搜索能力 / 能力键" : "Search capability / capabilityKey"}
+            placeholder={t("governance.registry.searchPlaceholder")}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             style={{ border: "none", outline: "none", fontSize: 12, padding: "4px 0", minWidth: 220 }}
@@ -62,16 +65,16 @@ export function RuleRegistryTab({
           value={statusFilter}
           onChange={setStatusFilter}
           options={[
-            { value: "all", label: locale === "zh" ? "全部" : "All" },
-            { value: "certified", label: locale === "zh" ? "已认证" : "Certified" },
-            { value: "not-ready", label: locale === "zh" ? "未就绪" : "Not Ready" }
+            { value: "all", label: t("governance.common.all") },
+            { value: "certified", label: t("governance.common.certified") },
+            { value: "not-ready", label: t("governance.common.notReady") }
           ]}
         />
         <FilterPills
           value={categoryFilter}
           onChange={setCategoryFilter}
           options={[
-            { value: "all", label: locale === "zh" ? "全部分类" : "All categories" },
+            { value: "all", label: t("governance.registry.allCategories") },
             ...["service", "network", "database", "container", "security", "developer", "runtime"].map((cat) => ({
               value: cat,
               label: cat
@@ -79,46 +82,46 @@ export function RuleRegistryTab({
           ]}
         />
         {onCreate ? (
-          <button
+          <Button variant="primary"
             type="button"
             onClick={onCreate}
             data-testid="registry-new-capability"
-            className="primary-action"
+
             style={{ marginLeft: "auto", minHeight: 34, padding: "0 14px" }}
           >
-            {locale === "zh" ? "+ 新建能力" : "+ New capability"}
-          </button>
+            {t("governance.registry.newCapability")}
+          </Button>
         ) : null}
         {onNewDetectionRule ? (
-          <button
+          <Button variant="secondary"
             type="button"
             onClick={onNewDetectionRule}
             data-testid="registry-new-detection-rule"
-            className="secondary-action"
+
             style={{ minHeight: 34, padding: "0 14px", ...(onCreate ? {} : { marginLeft: "auto" }) }}
           >
-            {locale === "zh" ? "+ 检测规则(原型)" : "+ Detection rule"}
-          </button>
+            {t("governance.registry.newDetectionRule")}
+          </Button>
         ) : null}
       </div>
 
       {runtimeRules.length > 0 ? (
         <div data-testid="runtime-rules" style={{ margin: "0 0 16px 0", border: "1px solid var(--ef-border)", borderRadius: 10, padding: 12 }}>
           <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>
-            {locale === "zh" ? "运行时检测规则" : "Runtime detection rules"}
+            {t("governance.registry.runtimeRules")}
             <span className="ui-badge ui-badge-warn ui-badge-sm" style={{ marginLeft: 8 }}>
-              {locale === "zh" ? "检测扩展 · 未认证" : "Detection-only · uncertified"}
+              {t("governance.registry.detectionOnlyUncertified")}
             </span>
           </div>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
             <thead style={{ background: "var(--ef-surface-soft)" }}>
               <tr>
-                <Th>{locale === "zh" ? "名称" : "Name"}</Th>
+                <Th>{t("governance.common.name")}</Th>
                 <Th>capabilityKey</Th>
-                <Th>{locale === "zh" ? "类目" : "Category"}</Th>
-                <Th>{locale === "zh" ? "就绪度" : "Readiness"}</Th>
-                <Th>{locale === "zh" ? "晋升" : "Promotion"}</Th>
-                <Th>Actions</Th>
+                <Th>{t("governance.common.category")}</Th>
+                <Th>{t("governance.common.readiness")}</Th>
+                <Th>{t("governance.common.promotion")}</Th>
+                <Th>{t("governance.common.actions")}</Th>
               </tr>
             </thead>
             <tbody>
@@ -132,10 +135,10 @@ export function RuleRegistryTab({
                     <Td><PromotionBadge status={r.promotion?.status ?? "detection-only"} locale={locale} /></Td>
                     <Td>
                       <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                        {r.readiness ? <button type="button" style={{ padding: "2px 8px" }} data-testid={`runtime-rule-readiness-${r.id}`} onClick={() => setOpenReadinessId(openReadinessId === r.id ? null : r.id)}>{openReadinessId === r.id ? (locale === "zh" ? "收起" : "Hide") : (locale === "zh" ? "就绪度" : "Readiness")}</button> : null}
-                        {onPromoteDetectionRule ? <button type="button" style={{ padding: "2px 8px" }} data-testid={`runtime-rule-promote-${r.id}`} onClick={() => onPromoteDetectionRule(r)}>{locale === "zh" ? "晋升包" : "Promote"}</button> : null}
-                        {onEditDetectionRule ? <button type="button" style={{ padding: "2px 8px" }} onClick={() => onEditDetectionRule(r)}>{locale === "zh" ? "编辑" : "Edit"}</button> : null}
-                        {onDeleteDetectionRule ? <button type="button" style={{ padding: "2px 8px", color: "var(--ef-danger)" }} onClick={async () => { if (await confirmDialog({ message: locale === "zh" ? `删除检测规则 ${r.id}?` : `Delete rule ${r.id}?`, danger: true, confirmLabel: locale === "zh" ? "删除" : "Delete", cancelLabel: locale === "zh" ? "取消" : "Cancel" })) onDeleteDetectionRule(r.id); }}>{locale === "zh" ? "删除" : "Delete"}</button> : null}
+                        {r.readiness ? <button type="button" style={{ padding: "2px 8px" }} data-testid={`runtime-rule-readiness-${r.id}`} onClick={() => setOpenReadinessId(openReadinessId === r.id ? null : r.id)}>{openReadinessId === r.id ? t("governance.common.hide") : t("governance.common.readiness")}</button> : null}
+                        {onPromoteDetectionRule ? <button type="button" style={{ padding: "2px 8px" }} data-testid={`runtime-rule-promote-${r.id}`} onClick={() => onPromoteDetectionRule(r)}>{t("governance.registry.promotionPackage")}</button> : null}
+                        {onEditDetectionRule ? <button type="button" style={{ padding: "2px 8px" }} onClick={() => onEditDetectionRule(r)}>{t("governance.common.edit")}</button> : null}
+                        {onDeleteDetectionRule ? <button type="button" style={{ padding: "2px 8px", color: "var(--ef-danger)" }} onClick={async () => { if (await confirmDialog({ message: `${t("governance.registry.deleteRuleConfirmPrefix")} ${r.id}?`, danger: true, confirmLabel: t("governance.common.delete"), cancelLabel: t("governance.common.cancel") })) onDeleteDetectionRule(r.id); }}>{t("governance.common.delete")}</button> : null}
                       </div>
                     </Td>
                   </tr>
@@ -160,12 +163,12 @@ export function RuleRegistryTab({
         style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
         <thead style={{ background: "var(--ef-surface-soft)" }}>
           <tr>
-            <Th>Capability</Th>
+            <Th>{t("governance.common.capability")}</Th>
             <Th>capabilityKey</Th>
-            <Th>Category</Th>
-            <Th>Status</Th>
-            <Th>{locale === "zh" ? "缺失项" : "Missing Metrics"}</Th>
-            <Th>Actions</Th>
+            <Th>{t("governance.common.category")}</Th>
+            <Th>{t("governance.common.status")}</Th>
+            <Th>{t("governance.registry.missingMetrics")}</Th>
+            <Th>{t("governance.common.actions")}</Th>
           </tr>
         </thead>
         <tbody>
@@ -196,7 +199,7 @@ export function RuleRegistryTab({
                         fontSize: 11
                       }}
                     >
-                      {status === "certified" ? (locale === "zh" ? "已认证" : "Certified") : (locale === "zh" ? "未就绪" : "Not Ready")}
+                      {status === "certified" ? t("governance.common.certified") : t("governance.common.notReady")}
                     </span>
                   </Td>
                   <Td>
@@ -218,7 +221,7 @@ export function RuleRegistryTab({
                           data-testid={`rules-edit-${row.id}`}
                           style={{ padding: "2px 8px" }}
                         >
-                          {locale === "zh" ? "编辑" : "Edit"}
+                          {t("governance.common.edit")}
                         </button>
                       ) : null}
                       <button
@@ -226,7 +229,7 @@ export function RuleRegistryTab({
                         onClick={() => setOpenRowId(openRowId === row.id ? null : row.id)}
                         style={{ padding: "2px 8px" }}
                       >
-                        {openRowId === row.id ? (locale === "zh" ? "收起" : "Hide") : (locale === "zh" ? "查看" : "View")}
+                        {openRowId === row.id ? t("governance.common.hide") : t("governance.common.view")}
                       </button>
                     </div>
                   </Td>
@@ -248,9 +251,10 @@ export function RuleRegistryTab({
 }
 
 function RuleDetailDrawer({ row, locale }: { row: AdminCatalogRow; locale: Locale }): JSX.Element {
+  const { t } = useTranslation();
   const reasons = row.certification.reasons;
   const status = row.certification.status;
-  const checklist = ["identity", "detection", "install", "config", "data", "references", "validate", "rollback", "security", "crossDistro", "conflicts", "planIntegration", "harness"];
+  const checklist = Object.keys(REQUIREMENT_I18N_KEYS) as Array<keyof typeof REQUIREMENT_I18N_KEYS>;
   return (
     <div data-testid={`rule-drawer-${row.id}`}>
       <h3 style={{ margin: "0 0 8px 0" }}>{row.name}</h3>
@@ -258,16 +262,16 @@ function RuleDetailDrawer({ row, locale }: { row: AdminCatalogRow; locale: Local
         <code>{row.id}</code> · <code>{row.capabilityKey ?? "—"}</code> · {row.category}
       </p>
       <p>
-        <strong>{locale === "zh" ? "认证状态：" : "Certification status: "}</strong>
-        {status === "certified" ? (locale === "zh" ? "已认证" : "Certified") : (locale === "zh" ? "未就绪" : "Not Ready")}
+        <strong>{t("governance.registry.certificationStatus")}</strong>
+        {status === "certified" ? t("governance.common.certified") : t("governance.common.notReady")}
       </p>
 
-      <h4>{locale === "zh" ? "完整迁移检查项" : "Full Migration Checklist"}</h4>
+      <h4>{t("governance.registry.checklistTitle")}</h4>
       <ul style={{ margin: "0 0 12px 0", padding: 0, listStyle: "none" }}>
         {checklist.map((section) => {
           const missing = reasons.some((r) => r.toLowerCase().includes(section.toLowerCase())) ||
                           reasons.some((r) => r === section);
-          const label = REQUIREMENT_LABELS[section]?.[locale] ?? section;
+          const label = t(REQUIREMENT_I18N_KEYS[section] ?? section);
           const icon = section === "identity" ? <BookOpen size={14} aria-hidden /> :
                        section === "config" ? <Cog size={14} aria-hidden /> :
                        section === "install" ? <BoxIcon size={14} aria-hidden /> :
@@ -294,16 +298,16 @@ function RuleDetailDrawer({ row, locale }: { row: AdminCatalogRow; locale: Local
 
       {status === "not-ready" ? (
         <div style={{ background: "var(--ef-warning-soft)", border: "1px solid var(--ef-warning)", padding: 8, borderRadius: 6 }}>
-          <strong>{locale === "zh" ? "缺失项与升级任务" : "Missing requirements & upgrade tasks"}</strong>
+          <strong>{t("governance.registry.missingTasks")}</strong>
           <ul style={{ margin: "4px 0 0 16px" }}>
             {reasons.map((r) => <li key={r}>{r}</li>)}
           </ul>
           <div style={{ marginTop: 8, display: "flex", gap: 8 }}>
             <button type="button" onClick={() => copyToClipboard(reasons.join("\n"))}>
-              {locale === "zh" ? "复制缺失项" : "Copy Missing Requirements"}
+              {t("governance.registry.copyMissing")}
             </button>
             <button type="button" onClick={() => copyToClipboard(buildUpgradePrompt(row, locale))}>
-              {locale === "zh" ? "生成升级提示词" : "Generate Upgrade Prompt"}
+              {t("governance.registry.generateUpgradePrompt")}
             </button>
           </div>
         </div>

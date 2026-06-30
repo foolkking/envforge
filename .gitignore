@@ -20,6 +20,7 @@ test-results/
 blob-report/
 /screenshots/
 /apps/web/screenshots/
+*.tmp
 
 # Local runtime data
 docker-compose.yml
@@ -33,6 +34,7 @@ data/envforge.db*
 data/runtime-db*.json*
 data/backups/
 data/keys/
+data/plan-artifacts/
 data/snapshots/
 configs/snapshots/
 configs/files/

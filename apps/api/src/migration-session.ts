@@ -5,6 +5,7 @@ import {
   type ConfigBundle,
   type MigrationCandidate,
   type MigrationCandidateReport,
+  type MigrationDecisionPolicyContext,
   type MigrationPlan,
   type ReviewDecision
 } from "./migration-classifier.js";
@@ -75,6 +76,7 @@ export function buildMigrationSessionArtifacts(
   decisions: StoredMigrationDecision[],
   options: {
     host?: string;
+    decisionPolicy?: MigrationDecisionPolicyContext;
     configDecisions?: StoredMigrationConfigDecision[];
     dataDecisions?: StoredMigrationDataDecision[];
   } = {}
@@ -86,7 +88,10 @@ export function buildMigrationSessionArtifacts(
   readiness?: MigrationApplyReadiness;
 } {
   const normalizedSnapshot = snapshot ? normalizeSessionSnapshot(snapshot) : undefined;
-  const report = normalizedSnapshot ? buildMigrationCandidateReport(normalizedSnapshot, { host: options.host }) : undefined;
+  const report = normalizedSnapshot ? buildMigrationCandidateReport(normalizedSnapshot, {
+    host: options.host,
+    decisionPolicy: options.decisionPolicy
+  }) : undefined;
   const reviewQueue = report ? buildUnknownReviewQueue(report, decisions) : [];
   const plan = report ? buildMigrationPlanFromCandidates(report, decisionMap(decisions)) : undefined;
   const readiness = plan ? assessMigrationApplyReadiness(plan) : undefined;

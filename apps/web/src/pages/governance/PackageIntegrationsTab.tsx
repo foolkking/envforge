@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Search } from "lucide-react";
 import {
   fetchPackageIntegrationDetail,
@@ -19,6 +20,7 @@ export function PackageIntegrationsTab({
   loading: boolean;
   authToken: string;
 }): JSX.Element {
+  const { t } = useTranslation();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "with-rule" | "without-rule">("all");
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -52,9 +54,7 @@ export function PackageIntegrationsTab({
   return (
     <div data-testid="integrations-tab">
       <p style={{ color: "var(--ef-muted)", margin: "0 0 12px 0", maxWidth: 720 }}>
-        {locale === "zh"
-          ? "规则级软件包支持映射治理：跨发行版包名 / 服务 / 配置路径 / 端口 / 验证 / 回滚 / 数据策略。这不是主机级包管理器。"
-          : "Rule-level package support governance: cross-distro packages / services / config paths / ports / validate / rollback / data strategy. This is NOT a host-level package manager."}
+        {t("governance.integrations.intro")}
       </p>
 
       <div style={{ display: "flex", flexWrap: "wrap", gap: 8, margin: "0 0 12px 0" }}>
@@ -62,7 +62,7 @@ export function PackageIntegrationsTab({
           <Search size={14} aria-hidden />
           <input
             type="search"
-            placeholder={locale === "zh" ? "搜索能力" : "Search capability"}
+            placeholder={t("governance.integrations.searchPlaceholder")}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             style={{ border: "none", outline: "none", fontSize: 12, padding: "4px 0", minWidth: 220 }}
@@ -73,30 +73,28 @@ export function PackageIntegrationsTab({
           value={statusFilter}
           onChange={setStatusFilter}
           options={[
-            { value: "all", label: locale === "zh" ? "全部" : "All" },
-            { value: "with-rule", label: locale === "zh" ? "已有规则" : "With rule" },
-            { value: "without-rule", label: locale === "zh" ? "缺规则" : "Missing rule" }
+            { value: "all", label: t("governance.common.all") },
+            { value: "with-rule", label: t("governance.common.withRule") },
+            { value: "without-rule", label: t("governance.common.missingRule") }
           ]}
         />
         {meta ? (
           <span style={{ color: "var(--ef-muted)", fontSize: 12, display: "flex", alignItems: "center" }}>
-            {locale === "zh"
-              ? `已有规则 ${meta.withRule} / 缺规则 ${meta.withoutRule} / 共 ${meta.total}`
-              : `with rule ${meta.withRule} / missing ${meta.withoutRule} / total ${meta.total}`}
+            {`${t("governance.integrations.meta.withRule")} ${meta.withRule} / ${t("governance.integrations.meta.missing")} ${meta.withoutRule} / ${t("governance.integrations.meta.total")} ${meta.total}`}
           </span>
         ) : null}
       </div>
 
       {loading ? (
-        <p style={{ color: "var(--ef-muted)" }}>{locale === "zh" ? "加载中..." : "Loading..."}</p>
+        <p style={{ color: "var(--ef-muted)" }}>{t("governance.common.loading")}</p>
       ) : (
         <div className="integrations-grid">
           <div style={{ border: "1px solid var(--ef-border)", borderRadius: 6, maxHeight: 560, overflow: "auto" }} data-testid="integrations-list">
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
               <thead style={{ background: "var(--ef-surface-soft)", position: "sticky", top: 0 }}>
                 <tr>
-                  <Th>Capability</Th>
-                  <Th>{locale === "zh" ? "规则" : "Rule"}</Th>
+                  <Th>{t("governance.common.capability")}</Th>
+                  <Th>{t("governance.common.rule")}</Th>
                 </tr>
               </thead>
               <tbody>
@@ -112,11 +110,11 @@ export function PackageIntegrationsTab({
                     <Td>
                       {row.hasRule ? (
                         <span style={{ background: "var(--ef-success-soft)", color: "var(--ef-success)", padding: "1px 6px", borderRadius: 999, fontSize: 11 }}>
-                          {locale === "zh" ? "有规则" : "rule"}
+                          {t("governance.integrations.withRuleShort")}
                         </span>
                       ) : (
                         <span style={{ background: "var(--ef-warning-soft)", color: "var(--ef-warning)", padding: "1px 6px", borderRadius: 999, fontSize: 11 }}>
-                          {locale === "zh" ? "缺规则" : "missing"}
+                          {t("governance.integrations.missingShort")}
                         </span>
                       )}
                     </Td>
@@ -129,7 +127,7 @@ export function PackageIntegrationsTab({
           <div style={{ border: "1px solid var(--ef-border)", borderRadius: 6, padding: 12 }} data-testid="integration-detail">
             {!activeRow ? (
               <p style={{ color: "var(--ef-muted)" }}>
-                {locale === "zh" ? "选择左侧能力查看规则细节。" : "Pick a capability on the left to view its rule details."}
+                {t("governance.integrations.pickCapability")}
               </p>
             ) : (
               <PackageIntegrationDetailPanel locale={locale} row={activeRow} detail={detail} />
@@ -148,6 +146,7 @@ function PackageIntegrationDetailPanel({
   row: PackageIntegrationRow;
   detail: PackageIntegrationDetail | null;
 }): JSX.Element {
+  const { t } = useTranslation();
   const summary = row.ruleSummary;
   return (
     <div>
@@ -158,44 +157,42 @@ function PackageIntegrationDetailPanel({
 
       {!row.hasRule || !summary ? (
         <div style={{ background: "var(--ef-warning-soft)", border: "1px solid var(--ef-warning)", padding: 12, borderRadius: 6 }}>
-          <strong>{locale === "zh" ? "缺少检测规则" : "Missing CatalogDetectionRule"}</strong>
+          <strong>{t("governance.integrations.missingCatalogRule")}</strong>
           <p style={{ margin: "4px 0 0 0", fontSize: 12 }}>
-            {locale === "zh"
-              ? "该能力没有规则，无法跨发行版安装、检测或验证。请在 catalog-rules.ts 中补充。"
-              : "This capability has no rule entry; cross-distro install / detection / validation is impossible. Add a rule in catalog-rules.ts."}
+            {t("governance.integrations.missingCatalogRuleBody")}
           </p>
         </div>
       ) : (
         <div style={{ display: "grid", gap: 12 }}>
-          <Section title={locale === "zh" ? "跨发行版包映射" : "Cross-distro package map"} testId="package-map">
+          <Section title={t("governance.integrations.packageMap")} testId="package-map">
             <Kvp obj={summary.packageMap} />
           </Section>
-          <Section title={locale === "zh" ? "服务映射" : "Service map"} testId="service-map">
+          <Section title={t("governance.integrations.serviceMap")} testId="service-map">
             <Kvp obj={summary.serviceMap} />
           </Section>
-          <Section title={locale === "zh" ? "二进制 / systemd / 端口检测" : "Binary / systemd / port detection"} testId="detection">
+          <Section title={t("governance.integrations.detection")} testId="detection">
             <DetailList label="binaries" items={summary.binaries} />
             <DetailList label="systemd" items={summary.systemd} />
             <DetailList label="ports" items={summary.ports.map(String)} />
           </Section>
-          <Section title={locale === "zh" ? "配置路径" : "Config paths"} testId="config-paths">
+          <Section title={t("governance.integrations.configPaths")} testId="config-paths">
             <DetailList label="files" items={summary.configFiles} />
             <DetailList label="globs" items={summary.configGlobs} />
             <DetailList label="secret patterns" items={summary.secretPatterns} />
           </Section>
-          <Section title={locale === "zh" ? "数据 & 验证 & 回滚" : "Data / Validate / Rollback hooks"} testId="hooks">
+          <Section title={t("governance.integrations.hooks")} testId="hooks">
             <DetailList label="data paths" items={summary.dataPaths} />
             <DetailList label="validate" items={summary.validate} />
             <DetailList label="restartServices" items={summary.restartServices} />
             <p style={{ margin: "4px 0", fontSize: 12 }}>
-              <span style={{ color: "var(--ef-muted)" }}>data strategy:</span> <code>{summary.dataStrategy}</code>
-              {summary.migrationStrategy ? <> · <span style={{ color: "var(--ef-muted)" }}>migration strategy:</span> <code>{summary.migrationStrategy}</code></> : null}
+              <span style={{ color: "var(--ef-muted)" }}>{t("governance.integrations.dataStrategy")}:</span> <code>{summary.dataStrategy}</code>
+              {summary.migrationStrategy ? <> · <span style={{ color: "var(--ef-muted)" }}>{t("governance.integrations.migrationStrategy")}:</span> <code>{summary.migrationStrategy}</code></> : null}
             </p>
           </Section>
           {detail ? (
             <details>
               <summary style={{ cursor: "pointer", fontSize: 12, color: "var(--ef-muted)" }}>
-                {locale === "zh" ? "完整规则 JSON" : "Raw rule JSON"}
+                {t("governance.integrations.rawJson")}
               </summary>
               <pre style={{ background: "var(--ef-text)", color: "var(--ef-border)", padding: 8, borderRadius: 4, overflow: "auto", fontSize: 11 }}>
                 {JSON.stringify(detail.rule, null, 2)}

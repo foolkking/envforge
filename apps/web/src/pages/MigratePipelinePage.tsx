@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   AlertTriangle,
   ArrowRight,
@@ -16,7 +17,6 @@ import {
 } from "lucide-react";
 import {
   attachMigrationSessionSnapshot,
-  applyMigrationSession,
   createMigrationSession,
   createPlanFromMigrationSession,
   dryRunMigrationSession,
@@ -51,10 +51,68 @@ import {
 } from "../api";
 import type { Locale } from "../lib/types";
 import { Button } from "../components/ui/Button";
+import { MetricPill } from "../components/ui/MetricPill";
+import { Card } from "../components/ui/Card";
+import { FilterPill } from "../components/ui/FilterPill";
 import { useEscapeToClose } from "../lib/useEscapeToClose";
 
 const selectedDecisions = new Set<ReviewDecision>(["approved", "add-to-plan", "migrate-artifact"]);
 const stepOrder: MigrationSessionStep[] = ["source", "analysis", "select", "unknown", "config-data", "plan", "target", "apply", "report"];
+
+const STEP_LABEL_KEYS = {
+  source: "migratePipeline.steps.source",
+  analysis: "migratePipeline.steps.analysis",
+  select: "migratePipeline.steps.select",
+  unknown: "migratePipeline.steps.unknown",
+  "config-data": "migratePipeline.steps.configData",
+  plan: "migratePipeline.steps.plan",
+  target: "migratePipeline.steps.target",
+  apply: "migratePipeline.steps.apply",
+  report: "migratePipeline.steps.report"
+} as const satisfies Record<MigrationSessionStep, string>;
+
+const CONNECTION_STATUS_KEYS = {
+  probed: "migratePipeline.connectionStatuses.probed",
+  ssh_ok: "migratePipeline.connectionStatuses.sshOk",
+  validated: "migratePipeline.connectionStatuses.validated",
+  ssh_failed: "migratePipeline.connectionStatuses.sshFailed",
+  unreachable: "migratePipeline.connectionStatuses.unreachable"
+} as const satisfies Record<ConnectionProfile["status"], string>;
+
+const GROUP_LABEL_KEYS = {
+  all: "migratePipeline.groups.all", web: "migratePipeline.groups.web", database: "migratePipeline.groups.database",
+  runtime: "migratePipeline.groups.runtime", container: "migratePipeline.groups.container", security: "migratePipeline.groups.security",
+  manual: "migratePipeline.groups.manual", unknown: "migratePipeline.groups.unknown"
+} as const;
+
+const DECISION_LABEL_KEYS = {
+  pending: "migratePipeline.decisions.pending",
+  approved: "migratePipeline.decisions.approved",
+  skipped: "migratePipeline.decisions.skipped",
+  ignore: "migratePipeline.decisions.ignore",
+  "record-only": "migratePipeline.decisions.recordOnly",
+  "migrate-artifact": "migratePipeline.decisions.migrateArtifact",
+  "create-catalog-draft": "migratePipeline.decisions.createCatalogDraft",
+  "add-to-plan": "migratePipeline.decisions.addToPlan",
+  "needs-manual-instruction": "migratePipeline.decisions.needsManualInstruction"
+} as const satisfies Record<ReviewDecision, string>;
+
+const RISK_LABEL_KEYS = {
+  safe: "migratePipeline.risks.safe",
+  review: "migratePipeline.risks.review",
+  privileged: "migratePipeline.risks.privileged",
+  dangerous: "migratePipeline.risks.dangerous"
+} as const satisfies Record<MigrationCandidate["riskLevel"], string>;
+
+const PLAN_GROUP_LABEL_KEYS = {
+  Packages: "migratePipeline.planPreview.groups.Packages",
+  Services: "migratePipeline.planPreview.groups.Services",
+  Configs: "migratePipeline.planPreview.groups.Configs",
+  Data: "migratePipeline.planPreview.groups.Data",
+  Verification: "migratePipeline.planPreview.groups.Verification",
+  Rollback: "migratePipeline.planPreview.groups.Rollback",
+  Review: "migratePipeline.planPreview.groups.Review"
+} as const;
 
 export function MigratePipelinePage({
   locale,
@@ -82,7 +140,7 @@ export function MigratePipelinePage({
   /** Phase 3: after the migration plan is promoted into the Plan center. */
   onPlanCreated?: (planId: string) => void;
 }) {
-  const zh = locale === "zh";
+  const { t } = useTranslation();
   const [session, setSession] = useState<MigrationSessionView | null>(null);
   const [analysis, setAnalysis] = useState<MigrationSessionAnalysis | null>(null);
   const [configBundles, setConfigBundles] = useState<ConfigBundle[]>([]);
@@ -127,7 +185,7 @@ export function MigratePipelinePage({
         setActiveStep(next.currentStep);
         if (activeProbe) await loadAnalysis(next.id, cancelled);
       } catch (err) {
-        if (!cancelled) setError(err instanceof Error ? err.message : "Failed to create migration session.");
+        if (!cancelled) setError(err instanceof Error ? err.message : t("migratePipeline.errors.createSession"));
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -169,7 +227,7 @@ export function MigratePipelinePage({
       setDataDecisions(next.dataDecisions ?? []);
       setSession(next.session);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load config bundles.");
+      setError(err instanceof Error ? err.message : t("migratePipeline.errors.loadConfig"));
     } finally {
       setStepLoading(false);
     }
@@ -184,7 +242,7 @@ export function MigratePipelinePage({
       setSession(next.session);
     } catch (err) {
       setPlan(null);
-      setError(err instanceof Error ? err.message : "Failed to load migration plan.");
+      setError(err instanceof Error ? err.message : t("migratePipeline.errors.loadPlan"));
     } finally {
       setStepLoading(false);
     }
@@ -199,7 +257,7 @@ export function MigratePipelinePage({
       setApplyReadiness(next.readiness);
     } catch (err) {
       setApplyReadiness(null);
-      setError(err instanceof Error ? err.message : "Failed to load apply readiness.");
+      setError(err instanceof Error ? err.message : t("migratePipeline.errors.loadReadiness"));
     } finally {
       setStepLoading(false);
     }
@@ -214,7 +272,7 @@ export function MigratePipelinePage({
       setReport(next.report);
     } catch (err) {
       setReport(null);
-      setError(err instanceof Error ? err.message : "Failed to load migration report.");
+      setError(err instanceof Error ? err.message : t("migratePipeline.errors.loadReport"));
     } finally {
       setStepLoading(false);
     }
@@ -240,10 +298,10 @@ export function MigratePipelinePage({
     setError("");
     try {
       const { plan } = await createPlanFromMigrationSession(authToken, session.id, targetConnectionId);
-      pushLog?.("success", zh ? "迁移计划已生成并进入计划中心" : "Migration plan created in the Plan center");
+      pushLog?.("success", t("migratePipeline.logs.planCreated"));
       onPlanCreated?.(plan.id);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Create migration plan failed.");
+      setError(err instanceof Error ? err.message : t("migratePipeline.errors.createPlan"));
     } finally {
       setCreatingPlan(false);
     }
@@ -262,11 +320,11 @@ export function MigratePipelinePage({
         setAnalysis({ session: next.session, report: next.report, reviewQueue: [], decisions: [] });
       }
       setActiveStep("analysis");
-      pushLog?.("success", zh ? "源主机快照已绑定到迁移会话" : "Source snapshot attached to migration session");
+      pushLog?.("success", t("migratePipeline.logs.snapshotAttached"));
       await loadAnalysis(current.id);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Snapshot collection failed.");
-      pushLog?.("error", err instanceof Error ? err.message : "Snapshot collection failed.");
+      setError(err instanceof Error ? err.message : t("migratePipeline.errors.snapshot"));
+      pushLog?.("error", err instanceof Error ? err.message : t("migratePipeline.errors.snapshot"));
     } finally {
       setStepLoading(false);
     }
@@ -282,7 +340,7 @@ export function MigratePipelinePage({
       await loadAnalysis(session.id);
       pushLog?.("success", `migration decision: ${input.decision}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Save decision failed.");
+      setError(err instanceof Error ? err.message : t("migratePipeline.errors.saveDecision"));
     } finally {
       setStepLoading(false);
     }
@@ -300,7 +358,7 @@ export function MigratePipelinePage({
       await loadConfigBundles(session.id);
       pushLog?.("success", `config decision: ${input.bundleId}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Save config decision failed.");
+      setError(err instanceof Error ? err.message : t("migratePipeline.errors.saveConfig"));
     } finally {
       setStepLoading(false);
     }
@@ -318,7 +376,7 @@ export function MigratePipelinePage({
       await loadConfigBundles(session.id);
       pushLog?.("success", `data decision: ${input.candidateId}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Save data decision failed.");
+      setError(err instanceof Error ? err.message : t("migratePipeline.errors.saveData"));
     } finally {
       setStepLoading(false);
     }
@@ -333,7 +391,7 @@ export function MigratePipelinePage({
       setSession(next);
       setActiveStep("target");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Target selection failed.");
+      setError(err instanceof Error ? err.message : t("migratePipeline.errors.target"));
     } finally {
       setStepLoading(false);
     }
@@ -348,26 +406,23 @@ export function MigratePipelinePage({
       setSession(next.session);
       setDryRun(next.result);
       setActiveStep(next.session.currentStep);
-      pushLog?.("success", zh ? "Dry-run 已完成，未修改目标机器" : "Dry-run completed; no target changes were made");
+      pushLog?.("success", t("migratePipeline.logs.dryRunDone"));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Dry-run failed.");
+      setError(err instanceof Error ? err.message : t("migratePipeline.errors.dryRun"));
     } finally {
       setStepLoading(false);
     }
   }
 
   async function runApply() {
-    if (!session) return;
+    if (!session?.targetConnectionId) return;
     setStepLoading(true);
     setError("");
     try {
-      const next = await applyMigrationSession(authToken, session.id, { rollbackOnFailure: true });
-      setSession(next.session);
-      setApplyResult(next.result);
-      await loadApplyReadiness(session.id);
-      pushLog?.("success", next.result.ok ? "migration apply completed" : "migration apply finished with failures");
+      await promoteToPlanCenter(session.targetConnectionId);
+      pushLog?.("success", t("migratePipeline.logs.planCreated"));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Apply failed.");
+      setError(err instanceof Error ? err.message : t("migratePipeline.errors.createPlan"));
     } finally {
       setStepLoading(false);
     }
@@ -384,7 +439,7 @@ export function MigratePipelinePage({
       setActiveStep(next.session.currentStep);
       pushLog?.("success", next.result.ok ? "migration verify passed" : "migration verify finished with failures");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Verify failed.");
+      setError(err instanceof Error ? err.message : t("migratePipeline.errors.verify"));
     } finally {
       setStepLoading(false);
     }
@@ -398,15 +453,14 @@ export function MigratePipelinePage({
   }, [analysis?.decisions]);
 
   const content = (() => {
-    if (!authToken) return <EmptyPipelineState title={zh ? "请先登录" : "Login required"} body={zh ? "迁移会话和候选选择需要登录态。" : "Migration sessions and decisions require an authenticated session."} />;
-    if (!connectionId) return <EmptyPipelineState title={zh ? "选择源主机" : "Select a source host"} body={zh ? "选择或新建连接后，迁移流水线会从源主机快照开始。" : "Select or create a connection to start from a source HostSnapshot."} />;
-    if (loading) return <EmptyPipelineState title={zh ? "正在打开迁移会话" : "Opening migration session"} body={zh ? "正在恢复上次步骤和已选择项。" : "Restoring the current step and staged decisions."} />;
+    if (!authToken) return <EmptyPipelineState title={t("migratePipeline.shell.loginTitle")} body={t("migratePipeline.shell.loginBody")} />;
+    if (!connectionId) return <EmptyPipelineState title={t("migratePipeline.shell.sourceTitle")} body={t("migratePipeline.shell.sourceBody")} />;
+    if (loading) return <EmptyPipelineState title={t("migratePipeline.shell.openingTitle")} body={t("migratePipeline.shell.openingBody")} />;
 
     switch (activeStep) {
       case "source":
         return (
           <SourceStep
-            locale={locale}
             connection={activeConnection}
             probe={activeProbe ?? null}
             connected={connected}
@@ -416,15 +470,14 @@ export function MigratePipelinePage({
           />
         );
       case "analysis":
-        return <AnalysisStep locale={locale} session={session} analysis={analysis} onRefresh={() => session && void loadAnalysis(session.id)} onContinue={() => void goStep("select")} />;
+        return <AnalysisStep session={session} analysis={analysis} onRefresh={() => session && void loadAnalysis(session.id)} onContinue={() => void goStep("select")} />;
       case "select":
-        return <CapabilitySelectionStep locale={locale} analysis={analysis} decisions={decisionByCandidate} loading={stepLoading} onDecision={saveDecision} />;
+        return <CapabilitySelectionStep analysis={analysis} decisions={decisionByCandidate} loading={stepLoading} onDecision={saveDecision} />;
       case "unknown":
-        return <UnknownReviewStep locale={locale} queue={analysis?.reviewQueue ?? []} decisions={decisionByCandidate} loading={stepLoading} onDecision={saveDecision} />;
+        return <UnknownReviewStep queue={analysis?.reviewQueue ?? []} decisions={decisionByCandidate} loading={stepLoading} onDecision={saveDecision} />;
       case "config-data":
         return (
           <ConfigDataReviewStep
-            locale={locale}
             analysis={analysis}
             configBundles={configBundles}
             configDecisions={configDecisions}
@@ -438,7 +491,6 @@ export function MigratePipelinePage({
       case "plan":
         return (
           <PlanPreviewStep
-            locale={locale}
             session={session}
             plan={plan}
             loading={stepLoading}
@@ -452,7 +504,6 @@ export function MigratePipelinePage({
       case "target":
         return (
           <TargetDryRunStep
-            locale={locale}
             sourceConnectionId={connectionId}
             session={session}
             connections={connections}
@@ -465,7 +516,6 @@ export function MigratePipelinePage({
       case "apply":
         return (
           <ApplyReportStep
-            locale={locale}
             mode="apply"
             session={session}
             dryRun={dryRun}
@@ -483,7 +533,6 @@ export function MigratePipelinePage({
       case "report":
         return (
           <ApplyReportStep
-            locale={locale}
             mode="report"
             session={session}
             dryRun={dryRun}
@@ -505,15 +554,13 @@ export function MigratePipelinePage({
 
   return (
     <section className="migrate-pipeline-page">
-      <MigrateStepHeader locale={locale} activeStep={activeStep} session={session} onStep={(step) => void goStep(step)} />
-      <StagedPlanBar locale={locale} session={session} onRecommended={() => session && void goStep(session.recommendedStep)} onPlan={() => void goStep("plan")} />
+      <MigrateStepHeader activeStep={activeStep} session={session} onStep={(step) => void goStep(step)} />
+      <StagedPlanBar session={session} onRecommended={() => session && void goStep(session.recommendedStep)} onPlan={() => void goStep("plan")} />
       {error ? <div className="pipeline-error"><AlertTriangle aria-hidden />{error}</div> : null}
       {content}
       {summary && !error ? (
         <div className="pipeline-footnote">
-          {zh
-            ? `状态来自 migration session：已选 ${summary.selectedCount}，待审 ${summary.pendingReviewCount}，阻塞 ${summary.blockerCount}。`
-            : `State comes from the migration session: ${summary.selectedCount} selected, ${summary.pendingReviewCount} pending, ${summary.blockerCount} blockers.`}
+          {t("migratePipeline.shell.footnote", { selected: summary.selectedCount, pending: summary.pendingReviewCount, blockers: summary.blockerCount })}
         </div>
       ) : null}
     </section>
@@ -521,17 +568,15 @@ export function MigratePipelinePage({
 }
 
 function MigrateStepHeader({
-  locale,
   activeStep,
   session,
   onStep
 }: {
-  locale: Locale;
   activeStep: MigrationSessionStep;
   session: MigrationSessionView | null;
   onStep: (step: MigrationSessionStep) => void;
 }) {
-  const zh = locale === "zh";
+  const { t } = useTranslation();
   const activeIndex = stepOrder.indexOf(activeStep);
 
   // The migrate flow splits at "plan": everything up to and including the
@@ -545,7 +590,7 @@ function MigrateStepHeader({
       <li key={step}>
         <button type="button" className={`migrate-step-tab ${state}`} disabled={blocked} onClick={() => onStep(step)}>
           <span>{index + 1}</span>
-          {stepLabel(step, locale)}
+          {t(STEP_LABEL_KEYS[step])}
         </button>
       </li>
     );
@@ -558,16 +603,16 @@ function MigrateStepHeader({
   return (
     <header className="migrate-step-header">
       <div>
-        <p className="eyebrow">{zh ? "迁移流水线" : "Migrate pipeline"}</p>
-        <h2>{stepLabel(activeStep, locale)}</h2>
+        <p className="eyebrow">{t("migratePipeline.header.eyebrow")}</p>
+        <h2>{t(STEP_LABEL_KEYS[activeStep])}</h2>
       </div>
       <div className="migrate-step-segments">
         <div className="migrate-step-segment">
-          <span className="migrate-step-segment-label">{zh ? "生产计划" : "Produce plan"}</span>
+          <span className="migrate-step-segment-label">{t("migratePipeline.header.produce")}</span>
           <ol className="migrate-step-tabs">{produceSteps.map(renderTab)}</ol>
         </div>
         <div className="migrate-step-segment migrate-step-segment-deliver">
-          <span className="migrate-step-segment-label">{zh ? "交付" : "Deliver"}</span>
+          <span className="migrate-step-segment-label">{t("migratePipeline.header.deliver")}</span>
           <ol className="migrate-step-tabs">{deliverSteps.map(renderTab)}</ol>
         </div>
       </div>
@@ -576,30 +621,28 @@ function MigrateStepHeader({
 }
 
 function StagedPlanBar({
-  locale,
   session,
   onRecommended,
   onPlan
 }: {
-  locale: Locale;
   session: MigrationSessionView | null;
   onRecommended: () => void;
   onPlan: () => void;
 }) {
-  const zh = locale === "zh";
+  const { t } = useTranslation();
   const summary = session?.summary;
   return (
     <div className="staged-plan-bar">
       <div className="staged-plan-metrics">
-        <Metric label={zh ? "已选择" : "Selected"} value={summary?.selectedCount ?? 0} />
-        <Metric label={zh ? "待审查" : "Pending"} value={summary?.pendingReviewCount ?? 0} tone={(summary?.pendingReviewCount ?? 0) > 0 ? "warn" : "safe"} />
-        <Metric label={zh ? "阻塞" : "Blockers"} value={summary?.blockerCount ?? 0} tone={(summary?.blockerCount ?? 0) > 0 ? "danger" : "safe"} />
-        <Metric label={zh ? "配置风险" : "Config risk"} value={summary?.configRiskCount ?? 0} tone={(summary?.configRiskCount ?? 0) > 0 ? "warn" : "neutral"} />
-        <Metric label={zh ? "计划项" : "Plan items"} value={summary?.planItemCount ?? 0} />
+        <Metric label={t("migratePipeline.staged.selected")} value={summary?.selectedCount ?? 0} />
+        <Metric label={t("migratePipeline.staged.pending")} value={summary?.pendingReviewCount ?? 0} tone={(summary?.pendingReviewCount ?? 0) > 0 ? "warn" : "safe"} />
+        <Metric label={t("migratePipeline.staged.blockers")} value={summary?.blockerCount ?? 0} tone={(summary?.blockerCount ?? 0) > 0 ? "danger" : "safe"} />
+        <Metric label={t("migratePipeline.staged.configRisk")} value={summary?.configRiskCount ?? 0} tone={(summary?.configRiskCount ?? 0) > 0 ? "warn" : "neutral"} />
+        <Metric label={t("migratePipeline.staged.planItems")} value={summary?.planItemCount ?? 0} />
       </div>
       <div className="staged-plan-actions">
-        <Button variant="secondary" disabled={!session} onClick={onPlan}><FileText aria-hidden />{zh ? "查看计划" : "View plan"}</Button>
-        <Button variant="primary" disabled={!session} onClick={onRecommended}>{zh ? "继续" : "Continue"}<ArrowRight aria-hidden /></Button>
+        <Button variant="secondary" disabled={!session} onClick={onPlan}><FileText aria-hidden />{t("migratePipeline.staged.viewPlan")}</Button>
+        <Button variant="primary" disabled={!session} onClick={onRecommended}>{t("migratePipeline.staged.continue")}<ArrowRight aria-hidden /></Button>
       </div>
     </div>
   );
@@ -610,7 +653,6 @@ function Metric({ label, value, tone = "neutral" }: { label: string; value: numb
 }
 
 function SourceStep({
-  locale,
   connection,
   probe,
   connected,
@@ -618,7 +660,6 @@ function SourceStep({
   onCollect,
   onOpenHostDetails
 }: {
-  locale: Locale;
   connection?: ConnectionProfile;
   probe: AgentProbeResult | null;
   connected: boolean;
@@ -626,84 +667,140 @@ function SourceStep({
   onCollect: () => void;
   onOpenHostDetails: () => void;
 }) {
-  const zh = locale === "zh";
+  const { t } = useTranslation();
+  const collection = probe?.collection;
+  const collectorSections = Object.values(probe?.collectors ?? {});
+  const attentionSections = collectorSections.filter((section) =>
+    section.status !== "ok" || section.commands.some((command) => command.timedOut || (command.exitCode !== undefined && command.exitCode !== 0))
+  );
+  const completenessPercent = Math.round((collection?.completeness ?? 0) * 100);
+  const partialSnapshotGate = collection !== undefined && collection.completeness < 0.85;
+  const confidenceKey = completenessPercent >= 90
+    ? "migratePipeline.source.confidenceHigh"
+    : completenessPercent >= 70
+      ? "migratePipeline.source.confidenceMedium"
+      : "migratePipeline.source.confidenceLow";
   return (
     <div className="pipeline-step-surface source-step-layout">
       <section className="source-summary-panel">
-        <p className="eyebrow">{zh ? "源主机" : "Source host"}</p>
-        <h3>{connection?.probeSnapshot?.system.hostname || connection?.label || connection?.fields.host || (zh ? "未选择源主机" : "No source selected")}</h3>
+        <p className="eyebrow">{t("migratePipeline.source.eyebrow")}</p>
+        <h3>{connection?.probeSnapshot?.system.hostname || connection?.label || connection?.fields.host || t("migratePipeline.source.noSource")}</h3>
         <div className="source-fact-grid">
           <Fact label="Address" value={connection ? `${connection.fields.host ?? "-"}:${connection.fields.port ?? "22"}` : "-"} />
-          <Fact label={zh ? "连接状态" : "Status"} value={connection ? connectionStatus(connection.status, locale) : "-"} />
-          <Fact label={zh ? "认证" : "Auth"} value={connection?.method === "ssh-key" ? "ssh-key" : connection ? "password" : "-"} />
-          <Fact label={zh ? "快照" : "Snapshot"} value={probe?.collectedAt ? new Date(probe.collectedAt).toLocaleString() : (zh ? "未采集" : "Not collected")} />
+          <Fact label={t("migratePipeline.source.status")} value={connection ? t(CONNECTION_STATUS_KEYS[connection.status]) : "-"} />
+          <Fact label={t("migratePipeline.source.auth")} value={connection?.method === "ssh-key" ? "ssh-key" : connection ? "password" : "-"} />
+          <Fact label={t("migratePipeline.source.snapshot")} value={probe?.collectedAt ? new Date(probe.collectedAt).toLocaleString() : t("migratePipeline.source.notCollected")} />
         </div>
         {probe ? (
-          <div className="source-system-strip">
-            <span>{probe.system.osPretty ?? `${probe.system.platform} ${probe.system.release}`}</span>
-            <span>{probe.system.cpu.cores} CPU</span>
-            <span>{probe.system.memory.totalGb} GB RAM</span>
-            <span>{probe.counts?.total ?? probe.software.length} {zh ? "项证据" : "evidence items"}</span>
-          </div>
+          <>
+            <div className="source-system-strip">
+              <span>{probe.system.osPretty ?? `${probe.system.platform} ${probe.system.release}`}</span>
+              <span>{probe.system.cpu.cores} CPU</span>
+              <span>{probe.system.memory.totalGb} GB RAM</span>
+              <span>{t("migratePipeline.source.evidenceItems", { count: probe.counts?.total ?? probe.software.length })}</span>
+            </div>
+            {collection ? (
+              <section className={`collector-evidence-quality ${collection.status}`} aria-label={t("migratePipeline.source.evidenceQuality")}>
+                <div className="collector-evidence-heading">
+                  <div>
+                    <strong>{t("migratePipeline.source.evidenceQuality")}</strong>
+                    <small>{t("migratePipeline.source.evidenceConfidence", { confidence: t(confidenceKey) })}</small>
+                  </div>
+                  <div className="collector-evidence-metrics">
+                    <span className={`collector-status ${collection.status}`}>{t(`migratePipeline.source.collectorStatus.${collection.status}`)}</span>
+                    <span>{t("migratePipeline.source.completeness", { percent: completenessPercent })}</span>
+                  </div>
+                </div>
+                {partialSnapshotGate ? (
+                  <p className="collector-gate-warning">
+                    <AlertTriangle aria-hidden />
+                    {t("migratePipeline.source.partialGate", { gate: "partial-snapshot-confirm" })}
+                  </p>
+                ) : null}
+                {collection.timedOut ? <p className="collector-timeout"><AlertTriangle aria-hidden />{t("migratePipeline.source.timedOut")}</p> : null}
+                <details className="collector-command-evidence">
+                  <summary>{t("migratePipeline.source.commandEvidence", { count: collectorSections.length })}</summary>
+                  {attentionSections.length ? (
+                    <div className="collector-command-list">
+                      {attentionSections.map((section) => (
+                        <article key={section.id}>
+                          <div>
+                            <strong>{section.id}</strong>
+                            <span className={`collector-status ${section.status}`}>{t(`migratePipeline.source.collectorStatus.${section.status}`)}</span>
+                            <span>{Math.round(section.completeness * 100)}%</span>
+                          </div>
+                          {section.commands.map((command) => (
+                            <code key={`${section.id}:${command.command}`}>
+                              {command.command} · {command.timedOut ? t("migratePipeline.source.commandTimedOut") : `exit ${command.exitCode ?? "?"}`}
+                            </code>
+                          ))}
+                          {section.errors.map((error) => <p key={error}>{error}</p>)}
+                          {section.stderr ? <pre>{section.stderr.slice(0, 800)}</pre> : null}
+                        </article>
+                      ))}
+                    </div>
+                  ) : <p className="pipeline-muted">{t("migratePipeline.source.noCommandFailures")}</p>}
+                </details>
+              </section>
+            ) : null}
+          </>
         ) : (
-          <p className="pipeline-muted">{zh ? "采集 HostSnapshot 后才会进入分析、选择和计划阶段。" : "Collect a HostSnapshot before analysis, selection, and planning."}</p>
+          <p className="pipeline-muted">{t("migratePipeline.source.collectFirst")}</p>
         )}
       </section>
       <aside className="source-action-panel">
-        <h3>{zh ? "只读采集" : "Read-only collection"}</h3>
-        <p>{zh ? "采集 OS、包、服务、端口和配置清单；不会修改源主机。" : "Collect OS, packages, services, ports, and config inventory without mutating the source host."}</p>
+        <h3>{t("migratePipeline.source.readOnly")}</h3>
+        <p>{t("migratePipeline.source.intro")}</p>
         <Button variant="primary" disabled={!connected || loading} onClick={onCollect}>
           {loading ? <RefreshCw className="spinning" aria-hidden /> : <MonitorCog aria-hidden />}
-          {loading ? (zh ? "采集中" : "Collecting") : (probe ? (zh ? "重新采集并分析" : "Recollect and analyze") : (zh ? "采集主机快照" : "Collect HostSnapshot"))}
+          {loading ? t("migratePipeline.source.collecting") : probe ? t("migratePipeline.source.recollect") : t("migratePipeline.source.collect")}
         </Button>
-        <Button variant="secondary" disabled={!connection} onClick={onOpenHostDetails}><Eye aria-hidden />{zh ? "主机详情" : "Host details"}</Button>
+        <Button variant="secondary" disabled={!connection} onClick={onOpenHostDetails}><Eye aria-hidden />{t("migratePipeline.source.details")}</Button>
       </aside>
     </div>
   );
 }
 
-function AnalysisStep({ locale, session, analysis, onRefresh, onContinue }: { locale: Locale; session: MigrationSessionView | null; analysis: MigrationSessionAnalysis | null; onRefresh: () => void; onContinue: () => void }) {
-  const zh = locale === "zh";
+function AnalysisStep({ session, analysis, onRefresh, onContinue }: { session: MigrationSessionView | null; analysis: MigrationSessionAnalysis | null; onRefresh: () => void; onContinue: () => void }) {
+  const { t } = useTranslation();
   const summary = session?.summary;
   return (
     <div className="pipeline-step-surface">
       <div className="pipeline-section-heading">
         <div>
-          <p className="eyebrow">{zh ? "分析摘要" : "Analysis summary"}</p>
-          <h3>{zh ? "系统识别到的迁移能力" : "Detected migration capabilities"}</h3>
+          <p className="eyebrow">{t("migratePipeline.analysis.eyebrow")}</p>
+          <h3>{t("migratePipeline.analysis.title")}</h3>
         </div>
-        <Button variant="secondary" onClick={onRefresh}><RefreshCw aria-hidden />{zh ? "刷新分析" : "Refresh"}</Button>
+        <Button variant="secondary" onClick={onRefresh}><RefreshCw aria-hidden />{t("migratePipeline.analysis.refresh")}</Button>
       </div>
       <div className="analysis-metric-grid">
-        <MetricCard icon={<PackagePlus aria-hidden />} label={zh ? "候选能力" : "Candidates"} value={summary?.totalCandidates ?? 0} />
-        <MetricCard icon={<CheckCircle2 aria-hidden />} label={zh ? "自动建议" : "Auto suggested"} value={summary?.autoCandidates ?? 0} tone="safe" />
-        <MetricCard icon={<AlertTriangle aria-hidden />} label={zh ? "需要确认" : "Needs review"} value={summary?.reviewCandidates ?? 0} tone="warn" />
-        <MetricCard icon={<ShieldAlert aria-hidden />} label={zh ? "配置风险" : "Config risk"} value={summary?.configRiskCount ?? 0} tone="warn" />
-        <MetricCard icon={<Database aria-hidden />} label={zh ? "数据审查" : "Data review"} value={summary?.dataReviewCount ?? 0} tone="warn" />
-        <MetricCard icon={<X aria-hidden />} label={zh ? "已忽略基线" : "Ignored baseline"} value={summary?.ignoredArtifacts ?? 0} />
+        <MetricCard icon={<PackagePlus aria-hidden />} label={t("migratePipeline.analysis.candidates")} value={summary?.totalCandidates ?? 0} />
+        <MetricCard icon={<CheckCircle2 aria-hidden />} label={t("migratePipeline.analysis.autoSuggested")} value={summary?.autoCandidates ?? 0} tone="safe" />
+        <MetricCard icon={<AlertTriangle aria-hidden />} label={t("migratePipeline.analysis.needsReview")} value={summary?.reviewCandidates ?? 0} tone="warn" />
+        <MetricCard icon={<ShieldAlert aria-hidden />} label={t("migratePipeline.analysis.configRisk")} value={summary?.configRiskCount ?? 0} tone="warn" />
+        <MetricCard icon={<Database aria-hidden />} label={t("migratePipeline.analysis.dataReview")} value={summary?.dataReviewCount ?? 0} tone="warn" />
+        <MetricCard icon={<X aria-hidden />} label={t("migratePipeline.analysis.ignoredBaseline")} value={summary?.ignoredArtifacts ?? 0} />
       </div>
       <div className="analysis-callout">
-        <p>{analysis?.report ? (zh ? "下一步按 capability 选择迁移项；包、服务、端口和配置只作为证据。" : "Next, select by capability. Packages, services, ports, and configs stay as evidence.") : (zh ? "当前还没有可分析的快照。" : "No analyzable snapshot is available yet.")}</p>
-        <Button variant="primary" disabled={!analysis?.report} onClick={onContinue}>{zh ? "开始选择迁移项" : "Start selection"}<ArrowRight aria-hidden /></Button>
+        <p>{analysis?.report ? t("migratePipeline.analysis.next") : t("migratePipeline.analysis.unavailable")}</p>
+        <Button variant="primary" disabled={!analysis?.report} onClick={onContinue}>{t("migratePipeline.analysis.start")}<ArrowRight aria-hidden /></Button>
       </div>
     </div>
   );
 }
 
 function CapabilitySelectionStep({
-  locale,
   analysis,
   decisions,
   loading,
   onDecision
 }: {
-  locale: Locale;
   analysis: MigrationSessionAnalysis | null;
   decisions: Record<string, MigrationDecision>;
   loading: boolean;
   onDecision: (input: { candidateId?: string; candidateIds?: string[]; decision: ReviewDecision }) => Promise<void>;
 }) {
-  const zh = locale === "zh";
+  const { t } = useTranslation();
   const [filter, setFilter] = useState("all");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [drawer, setDrawer] = useState<MigrationCandidate | null>(null);
@@ -734,77 +831,77 @@ function CapabilitySelectionStep({
     <div className="pipeline-step-surface">
       <div className="pipeline-section-heading">
         <div>
-          <p className="eyebrow">{zh ? "迁移项选择" : "Capability selection"}</p>
-          <h3>{zh ? "按能力选择，不按包选择" : "Select capabilities, not packages"}</h3>
+          <p className="eyebrow">{t("migratePipeline.selection.eyebrow")}</p>
+          <h3>{t("migratePipeline.selection.title")}</h3>
         </div>
         <span className="selection-count">{filtered.length} / {candidates.length}</span>
       </div>
       <div className="capability-filter-row">
-        {["all", "web", "database", "runtime", "container", "security", "manual", "unknown"].map((id) => (
-          <button key={id} type="button" className={`filter-pill ${filter === id ? "active" : ""}`} onClick={() => setFilter(id)}>{groupLabel(id, locale)}</button>
+        {(Object.keys(GROUP_LABEL_KEYS) as Array<keyof typeof GROUP_LABEL_KEYS>).map((id) => (
+          <FilterPill key={id} active={filter === id} onClick={() => setFilter(id)}>{t(GROUP_LABEL_KEYS[id])}</FilterPill>
         ))}
       </div>
       {selected.size > 0 ? (
         <div className="selection-bulk-bar">
-          <strong>{zh ? `已选择 ${selected.size} 项同类 ${groupLabel(selectedGroup ?? "all", locale)}` : `${selected.size} ${groupLabel(selectedGroup ?? "all", locale)} item(s) selected`}</strong>
-          <Button variant="secondary" disabled={loading} onClick={() => void bulk("add-to-plan")}>{zh ? "批量加入计划" : "Add to plan"}</Button>
-          <Button variant="secondary" disabled={loading} onClick={() => void bulk("record-only")}>{zh ? "仅记录" : "Record only"}</Button>
-          <Button variant="secondary" disabled={loading} onClick={() => void bulk("skipped")}>{zh ? "跳过" : "Skip"}</Button>
-          <Button variant="ghost" onClick={() => setSelected(new Set())}>{zh ? "清空" : "Clear"}</Button>
+          <strong>{t("migratePipeline.selection.selected", { count: selected.size, group: t(GROUP_LABEL_KEYS[selectedGroup ?? "all"]) })}</strong>
+          <Button variant="secondary" disabled={loading} onClick={() => void bulk("add-to-plan")}>{t("migratePipeline.selection.addBulk")}</Button>
+          <Button variant="secondary" disabled={loading} onClick={() => void bulk("record-only")}>{t("migratePipeline.selection.recordOnly")}</Button>
+          <Button variant="secondary" disabled={loading} onClick={() => void bulk("skipped")}>{t("migratePipeline.selection.skip")}</Button>
+          <Button variant="ghost" onClick={() => setSelected(new Set())}>{t("migratePipeline.selection.clear")}</Button>
         </div>
       ) : null}
       <div className="capability-card-grid">
-        {filtered.length === 0 ? <EmptyPipelineState title={zh ? "没有匹配的能力" : "No matching capabilities"} body={zh ? "切换分类或重新采集源主机快照。" : "Change the filter or recollect the source HostSnapshot."} /> : null}
+        {filtered.length === 0 ? <EmptyPipelineState title={t("migratePipeline.selection.emptyTitle")} body={t("migratePipeline.selection.emptyBody")} /> : null}
         {filtered.map((candidate) => {
           const group = candidateGroup(candidate);
           const disabled = Boolean(selectedGroup && selectedGroup !== group && !selected.has(candidate.id));
           const decision = decisions[candidate.id]?.decision ?? "pending";
           return (
-            <article className={`capability-card risk-${candidate.riskLevel}`} key={candidate.id}>
+            <Card as="article" className={`capability-card risk-${candidate.riskLevel}`} key={candidate.id}>
               <label className="capability-select-check">
                 <input type="checkbox" checked={selected.has(candidate.id)} disabled={disabled} onChange={() => toggleCandidate(candidate)} />
-                <span>{groupLabel(group, locale)}</span>
+                <span>{t(GROUP_LABEL_KEYS[group])}</span>
               </label>
               <div className="capability-card-head">
                 <div>
                   <h4>{candidate.catalogRuleName ?? candidate.name}</h4>
-                  <p>{evidenceSummary(candidate, locale)}</p>
+                  <p>{evidenceSummary(candidate) ?? t("migratePipeline.evidenceFallback", { source: candidate.source, version: candidate.version || t("migratePipeline.unknownVersion") })}</p>
                 </div>
-                <span className={`decision-chip decision-${decision}`}>{decisionLabel(decision, locale)}</span>
+                <span className={`decision-chip decision-${decision}`}>{t(DECISION_LABEL_KEYS[decision])}</span>
               </div>
               <div className="capability-score-row">
-                <Score label={zh ? "意图" : "Intent"} value={candidate.intentConfidence} />
-                <Score label={zh ? "准备度" : "Readiness"} value={candidate.migrationReadiness} />
-                <span className={`risk-chip risk-${candidate.riskLevel}`}>{riskLabel(candidate.riskLevel, locale)}</span>
+                <Score label={t("migratePipeline.selection.intent")} value={candidate.intentConfidence} />
+                <Score label={t("migratePipeline.selection.readiness")} value={candidate.migrationReadiness} />
+                <span className={`risk-chip risk-${candidate.riskLevel}`}>{t(RISK_LABEL_KEYS[candidate.riskLevel])}</span>
               </div>
               <div className="capability-actions">
-                <Button variant="primary" disabled={loading} onClick={() => void onDecision({ candidateId: candidate.id, decision: "add-to-plan" })}>{zh ? "加入迁移" : "Add"}</Button>
-                <Button variant="secondary" disabled={loading} onClick={() => void onDecision({ candidateId: candidate.id, decision: "record-only" })}>{zh ? "仅记录" : "Record"}</Button>
-                <Button variant="secondary" disabled={loading} onClick={() => void onDecision({ candidateId: candidate.id, decision: "skipped" })}>{zh ? "跳过" : "Skip"}</Button>
-                <Button variant="ghost" onClick={() => setDrawer(candidate)}><Eye aria-hidden />{zh ? "证据" : "Evidence"}</Button>
+                <Button variant="primary" disabled={loading} onClick={() => void onDecision({ candidateId: candidate.id, decision: "add-to-plan" })}>{t("migratePipeline.selection.add")}</Button>
+                <Button variant="secondary" disabled={loading} onClick={() => void onDecision({ candidateId: candidate.id, decision: "record-only" })}>{t("migratePipeline.selection.record")}</Button>
+                <Button variant="secondary" disabled={loading} onClick={() => void onDecision({ candidateId: candidate.id, decision: "skipped" })}>{t("migratePipeline.selection.skip")}</Button>
+                <Button variant="ghost" onClick={() => setDrawer(candidate)}><Eye aria-hidden />{t("migratePipeline.selection.evidence")}</Button>
               </div>
-            </article>
+            </Card>
           );
         })}
       </div>
-      {drawer ? <EvidenceDrawer locale={locale} candidate={drawer} onClose={() => setDrawer(null)} /> : null}
+      {drawer ? <EvidenceDrawer candidate={drawer} onClose={() => setDrawer(null)} /> : null}
     </div>
   );
 }
 
-function UnknownReviewStep({ locale, queue, decisions, loading, onDecision }: { locale: Locale; queue: MigrationReviewQueueItem[]; decisions: Record<string, MigrationDecision>; loading: boolean; onDecision: (input: { candidateId?: string; candidateIds?: string[]; decision: ReviewDecision }) => Promise<void> }) {
-  const zh = locale === "zh";
+function UnknownReviewStep({ queue, decisions, loading, onDecision }: { queue: MigrationReviewQueueItem[]; decisions: Record<string, MigrationDecision>; loading: boolean; onDecision: (input: { candidateId?: string; candidateIds?: string[]; decision: ReviewDecision }) => Promise<void> }) {
+  const { t } = useTranslation();
   return (
     <div className="pipeline-step-surface">
       <div className="pipeline-section-heading">
         <div>
-          <p className="eyebrow">{zh ? "未知项审查" : "Unknown review"}</p>
-          <h3>{zh ? "未匹配规则库的候选不会消失" : "Unmatched candidates stay visible"}</h3>
+          <p className="eyebrow">{t("migratePipeline.unknown.eyebrow")}</p>
+          <h3>{t("migratePipeline.unknown.title")}</h3>
         </div>
         <span className="selection-count">{queue.length}</span>
       </div>
       <div className="unknown-review-list">
-        {queue.length === 0 ? <EmptyPipelineState title={zh ? "没有未知项" : "No unknown items"} body={zh ? "当前快照没有待处理的未知或低置信度项。" : "The current snapshot has no unknown or low-confidence items."} /> : null}
+        {queue.length === 0 ? <EmptyPipelineState title={t("migratePipeline.unknown.emptyTitle")} body={t("migratePipeline.unknown.emptyBody")} /> : null}
         {queue.map((item) => {
           const decision = decisions[item.candidate.id]?.decision ?? item.decision;
           return (
@@ -812,13 +909,13 @@ function UnknownReviewStep({ locale, queue, decisions, loading, onDecision }: { 
               <div>
                 <strong>{item.candidate.name}</strong>
                 <p>{item.reason}</p>
-                <small>{item.candidate.source} · {item.candidate.version || "-"} · {decisionLabel(decision, locale)}</small>
+                <small>{item.candidate.source} · {item.candidate.version || "-"} · {t(DECISION_LABEL_KEYS[decision])}</small>
               </div>
               <div>
-                <Button variant="secondary" disabled={loading} onClick={() => void onDecision({ candidateId: item.candidate.id, decision: "migrate-artifact" })}>{zh ? "手工迁移" : "Manual item"}</Button>
-                <Button variant="secondary" disabled={loading} onClick={() => void onDecision({ candidateId: item.candidate.id, decision: "create-catalog-draft" })}>{zh ? "生成草稿" : "Catalog draft"}</Button>
-                <Button variant="secondary" disabled={loading} onClick={() => void onDecision({ candidateId: item.candidate.id, decision: "record-only" })}>{zh ? "仅记录" : "Record"}</Button>
-                <Button variant="ghost" disabled={loading} onClick={() => void onDecision({ candidateId: item.candidate.id, decision: "skipped" })}>{zh ? "跳过" : "Skip"}</Button>
+                <Button variant="secondary" disabled={loading} onClick={() => void onDecision({ candidateId: item.candidate.id, decision: "migrate-artifact" })}>{t("migratePipeline.unknown.manualItem")}</Button>
+                <Button variant="secondary" disabled={loading} onClick={() => void onDecision({ candidateId: item.candidate.id, decision: "create-catalog-draft" })}>{t("migratePipeline.unknown.catalogDraft")}</Button>
+                <Button variant="secondary" disabled={loading} onClick={() => void onDecision({ candidateId: item.candidate.id, decision: "record-only" })}>{t("migratePipeline.unknown.record")}</Button>
+                <Button variant="ghost" disabled={loading} onClick={() => void onDecision({ candidateId: item.candidate.id, decision: "skipped" })}>{t("migratePipeline.unknown.skip")}</Button>
               </div>
             </article>
           );
@@ -828,8 +925,8 @@ function UnknownReviewStep({ locale, queue, decisions, loading, onDecision }: { 
   );
 }
 
-function ConfigDataReviewStep({ locale, analysis, configBundles, configDecisions, dataDecisions, loading, onRefresh, onConfigDecision, onDataDecision }: { locale: Locale; analysis: MigrationSessionAnalysis | null; configBundles: ConfigBundle[]; configDecisions: MigrationConfigDecision[]; dataDecisions: MigrationDataDecision[]; loading: boolean; onRefresh: () => void; onConfigDecision: (input: { bundleId: string; strategy: ConfigBundle["migrationStrategy"]; status: "approved" | "blocked"; note?: string }) => Promise<void>; onDataDecision: (input: { candidateId: string; strategy: "no-data" | "backup-restore" | "rsync-copy" | "export-import" | "manual" | "external"; status: "confirmed" | "blocked"; paths?: string[]; note?: string }) => Promise<void> }) {
-  const zh = locale === "zh";
+function ConfigDataReviewStep({ analysis, configBundles, configDecisions, dataDecisions, loading, onRefresh, onConfigDecision, onDataDecision }: { analysis: MigrationSessionAnalysis | null; configBundles: ConfigBundle[]; configDecisions: MigrationConfigDecision[]; dataDecisions: MigrationDataDecision[]; loading: boolean; onRefresh: () => void; onConfigDecision: (input: { bundleId: string; strategy: ConfigBundle["migrationStrategy"]; status: "approved" | "blocked"; note?: string }) => Promise<void>; onDataDecision: (input: { candidateId: string; strategy: "no-data" | "backup-restore" | "rsync-copy" | "export-import" | "manual" | "external"; status: "confirmed" | "blocked"; paths?: string[]; note?: string }) => Promise<void> }) {
+  const { t } = useTranslation();
   const decisions = new Map((analysis?.decisions ?? []).map((row) => [row.candidateId, row.decision]));
   const selectedCandidates = (analysis?.report?.candidates ?? []).filter((candidate) => selectedDecisions.has(decisions.get(candidate.id) ?? "pending"));
   const selectedRuleIds = new Set(selectedCandidates.flatMap((candidate) => [candidate.catalogRuleId, candidate.normalizedArtifactKey]).filter(Boolean) as string[]);
@@ -849,117 +946,85 @@ function ConfigDataReviewStep({ locale, analysis, configBundles, configDecisions
     <div className="pipeline-step-surface">
       <div className="pipeline-section-heading">
         <div>
-          <p className="eyebrow">{zh ? "配置与数据审核" : "Config and data review"}</p>
-          <h3>{zh ? "按 ConfigBundle 审核，不展示整机文件树" : "Review ConfigBundles, not the whole file tree"}</h3>
+          <p className="eyebrow">{t("migratePipeline.configData.eyebrow")}</p>
+          <h3>{t("migratePipeline.configData.title")}</h3>
         </div>
-        <Button variant="secondary" disabled={loading} onClick={onRefresh}><RefreshCw aria-hidden />{zh ? "刷新" : "Refresh"}</Button>
+        <Button variant="secondary" disabled={loading} onClick={onRefresh}><RefreshCw aria-hidden />{t("migratePipeline.configData.refresh")}</Button>
       </div>
       {unresolvedSecrets.length > 0 ? (
-        <div className="pipeline-warning"><ShieldAlert aria-hidden />{zh ? `仍有 ${unresolvedSecrets.length} 个 secret/blocked bundle 未显式确认，apply 会被阻断。` : `${unresolvedSecrets.length} secret/blocked bundle(s) still block apply until explicitly confirmed.`}</div>
+        <div className="pipeline-warning"><ShieldAlert aria-hidden />{t("migratePipeline.configData.blockers", { count: unresolvedSecrets.length })}</div>
       ) : null}
       <div className="config-bundle-grid">
-        {relevant.length === 0 ? <EmptyPipelineState title={zh ? "没有需要审核的 bundle" : "No bundles require review"} body={zh ? "已选择项暂未关联配置或数据 bundle。" : "Selected items do not currently expose config or data bundles."} /> : null}
+        {relevant.length === 0 ? <EmptyPipelineState title={t("migratePipeline.configData.emptyTitle")} body={t("migratePipeline.configData.emptyBody")} /> : null}
         {relevant.map((bundle) => {
           const decision = configById.get(bundle.id);
           return (
-            <article className={`config-bundle-card sensitivity-${bundle.sensitivity}`} key={bundle.id}>
+            <Card as="article" className={`config-bundle-card sensitivity-${bundle.sensitivity}`} key={bundle.id} tone={bundle.sensitivity === "secret" || bundle.sensitivity === "blocked" ? "danger" : "default"}>
               <header>
                 <div>
-                  <strong>{bundle.ownerDisplayName ?? bundle.ownerRuleId ?? bundle.ownerCapabilityKey ?? (zh ? "未知归属" : "Unknown owner")}</strong>
-                  <small>{bundle.paths.length} {zh ? "个路径" : "path(s)"} · {bundle.ownership}</small>
+                  <strong>{bundle.ownerDisplayName ?? bundle.ownerRuleId ?? bundle.ownerCapabilityKey ?? t("migratePipeline.configData.unknownOwner")}</strong>
+                  <small>{t("migratePipeline.configData.paths", { count: bundle.paths.length })} · {bundle.ownership}</small>
                 </div>
-                <span className={`risk-chip risk-${bundle.riskLevel}`}>{riskLabel(bundle.riskLevel, locale)}</span>
+                <span className={`risk-chip risk-${bundle.riskLevel}`}>{t(RISK_LABEL_KEYS[bundle.riskLevel])}</span>
               </header>
               <dl className="bundle-facts">
-                <div><dt>{zh ? "默认状态" : "Default"}</dt><dd>{bundle.defaultStatus}</dd></div>
-                <div><dt>Secret</dt><dd>{bundle.sensitivity}</dd></div>
-                <div><dt>{zh ? "策略" : "Strategy"}</dt><dd>{decision?.strategy ?? bundle.migrationStrategy}</dd></div>
-                <div><dt>{zh ? "决策" : "Decision"}</dt><dd>{decision?.status ?? (zh ? "未确认" : "pending")}</dd></div>
+                <div><dt>{t("migratePipeline.configData.defaultStatus")}</dt><dd>{bundle.defaultStatus}</dd></div>
+                <div><dt>{t("migratePipeline.configData.secret")}</dt><dd>{bundle.sensitivity}</dd></div>
+                <div><dt>{t("migratePipeline.configData.strategy")}</dt><dd>{decision?.strategy ?? bundle.migrationStrategy}</dd></div>
+                <div><dt>{t("migratePipeline.configData.decision")}</dt><dd>{decision?.status ?? t("migratePipeline.configData.pending")}</dd></div>
               </dl>
-              <p>{bundle.rollbackStrategy ?? (zh ? "应用前需要目标备份和回滚点。" : "Target backup and rollback checkpoint required before apply.")}</p>
+              <p>{bundle.rollbackStrategy ?? t("migratePipeline.configData.rollbackFallback")}</p>
               <div className="bundle-decision-actions">
-                <Button variant="secondary" disabled={loading} onClick={() => void onConfigDecision({ bundleId: bundle.id, strategy: bundle.migrationStrategy, status: "approved", note: "ConfigBundle strategy reviewed." })}>{zh ? "确认策略" : "Confirm"}</Button>
+                <Button variant="secondary" disabled={loading} onClick={() => void onConfigDecision({ bundleId: bundle.id, strategy: bundle.migrationStrategy, status: "approved", note: "ConfigBundle strategy reviewed." })}>{t("migratePipeline.configData.confirm")}</Button>
                 {(bundle.sensitivity === "secret" || bundle.migrationStrategy === "secret-out-of-band") ? (
-                  <Button variant="secondary" disabled={loading} onClick={() => void onConfigDecision({ bundleId: bundle.id, strategy: "secret-out-of-band", status: "approved", note: "Secret handled out of band; raw value will not be copied." })}>{zh ? "Secret 线下处理" : "Secret out-of-band"}</Button>
+                  <Button variant="secondary" disabled={loading} onClick={() => void onConfigDecision({ bundleId: bundle.id, strategy: "secret-out-of-band", status: "approved", note: "Secret handled out of band; raw value will not be copied." })}>{t("migratePipeline.configData.secretOutOfBand")}</Button>
                 ) : null}
-                <Button variant="ghost" disabled={loading} onClick={() => void onConfigDecision({ bundleId: bundle.id, strategy: "blocked", status: "blocked", note: "Blocked by operator." })}>{zh ? "阻断" : "Block"}</Button>
-                <Button variant="ghost" onClick={() => setDrawer(bundle)}><Eye aria-hidden />{zh ? "Diff / Raw" : "Diff / Raw"}</Button>
+                <Button variant="ghost" disabled={loading} onClick={() => void onConfigDecision({ bundleId: bundle.id, strategy: "blocked", status: "blocked", note: "Blocked by operator." })}>{t("migratePipeline.configData.block")}</Button>
+                <Button variant="ghost" onClick={() => setDrawer(bundle)}><Eye aria-hidden />{t("migratePipeline.configData.diffRaw")}</Button>
               </div>
-            </article>
+            </Card>
           );
         })}
       </div>
       <section className="data-strategy-panel">
         <div className="pipeline-section-heading">
           <div>
-            <p className="eyebrow">{zh ? "数据策略确认" : "Data strategy confirmation"}</p>
-            <h3>{zh ? "有数据路径的能力必须确认迁移方式" : "Capabilities with data paths require a confirmed strategy"}</h3>
+            <p className="eyebrow">{t("migratePipeline.configData.dataEyebrow")}</p>
+            <h3>{t("migratePipeline.configData.dataTitle")}</h3>
           </div>
           <span className="selection-count">{dataCandidates.length}</span>
         </div>
         <div className="data-strategy-grid">
-          {dataCandidates.length === 0 ? <p className="pipeline-muted">{zh ? "当前已选项没有需要确认的数据路径。" : "Selected items do not require a data strategy."}</p> : null}
+          {dataCandidates.length === 0 ? <p className="pipeline-muted">{t("migratePipeline.configData.noData")}</p> : null}
           {dataCandidates.map((candidate) => {
             const decision = dataByCandidate.get(candidate.id);
             const paths = candidate.dataPaths ?? [];
             return (
-              <article className="data-strategy-card" key={candidate.id}>
+              <Card as="article" className="data-strategy-card" key={candidate.id}>
                 <header>
                   <strong>{candidate.catalogRuleName ?? candidate.name}</strong>
-                  <span className={`decision-chip decision-${decision?.status ?? "pending"}`}>{decision?.status ?? (zh ? "未确认" : "pending")}</span>
+                  <span className={`decision-chip decision-${decision?.status ?? "pending"}`}>{decision?.status ?? t("migratePipeline.configData.pending")}</span>
                 </header>
-                <p>{paths.length ? paths.join(" · ") : (zh ? "规则要求确认数据迁移方式。" : "The rule requires a data movement strategy.")}</p>
+                <p>{paths.length ? paths.join(" · ") : t("migratePipeline.configData.dataFallback")}</p>
                 <div className="bundle-decision-actions">
-                  <Button variant="secondary" disabled={loading} onClick={() => void onDataDecision({ candidateId: candidate.id, strategy: "backup-restore", status: "confirmed", paths, note: "Backup/restore strategy confirmed." })}>{zh ? "备份恢复" : "Backup/restore"}</Button>
-                  <Button variant="secondary" disabled={loading} onClick={() => void onDataDecision({ candidateId: candidate.id, strategy: "rsync-copy", status: "confirmed", paths, note: "Rsync/copy strategy confirmed." })}>{zh ? "同步复制" : "Rsync/copy"}</Button>
-                  <Button variant="secondary" disabled={loading} onClick={() => void onDataDecision({ candidateId: candidate.id, strategy: "manual", status: "confirmed", paths, note: "Manual data migration confirmed." })}>{zh ? "手工迁移" : "Manual"}</Button>
-                  <Button variant="ghost" disabled={loading} onClick={() => void onDataDecision({ candidateId: candidate.id, strategy: "manual", status: "blocked", paths, note: "Data strategy blocked by operator." })}>{zh ? "阻断" : "Block"}</Button>
+                  <Button variant="secondary" disabled={loading} onClick={() => void onDataDecision({ candidateId: candidate.id, strategy: "backup-restore", status: "confirmed", paths, note: "Backup/restore strategy confirmed." })}>{t("migratePipeline.configData.backupRestore")}</Button>
+                  <Button variant="secondary" disabled={loading} onClick={() => void onDataDecision({ candidateId: candidate.id, strategy: "rsync-copy", status: "confirmed", paths, note: "Rsync/copy strategy confirmed." })}>{t("migratePipeline.configData.rsyncCopy")}</Button>
+                  <Button variant="secondary" disabled={loading} onClick={() => void onDataDecision({ candidateId: candidate.id, strategy: "manual", status: "confirmed", paths, note: "Manual data migration confirmed." })}>{t("migratePipeline.configData.manual")}</Button>
+                  <Button variant="ghost" disabled={loading} onClick={() => void onDataDecision({ candidateId: candidate.id, strategy: "manual", status: "blocked", paths, note: "Data strategy blocked by operator." })}>{t("migratePipeline.configData.block")}</Button>
                 </div>
-              </article>
+              </Card>
             );
           })}
         </div>
       </section>
-      {drawer ? <ConfigBundleDrawer locale={locale} bundle={drawer} decision={configById.get(drawer.id)} onClose={() => setDrawer(null)} /> : null}
-    </div>
-  );
-  return (
-    <div className="pipeline-step-surface">
-      <div className="pipeline-section-heading">
-        <div>
-          <p className="eyebrow">{zh ? "配置与数据审查" : "Config and data review"}</p>
-          <h3>{zh ? "按 bundle 审查，不展示整机文件树" : "Review bundles, not the whole file tree"}</h3>
-        </div>
-        <Button variant="secondary" disabled={loading} onClick={onRefresh}><RefreshCw aria-hidden />{zh ? "刷新" : "Refresh"}</Button>
-      </div>
-      <div className="config-bundle-grid">
-        {relevant.length === 0 ? <EmptyPipelineState title={zh ? "没有需要审查的 bundle" : "No bundles require review"} body={zh ? "已选择项暂未关联配置或数据 bundle。" : "Selected items do not currently expose config or data bundles."} /> : null}
-        {relevant.map((bundle) => (
-          <article className={`config-bundle-card sensitivity-${bundle.sensitivity}`} key={bundle.id}>
-            <header>
-              <div>
-                <strong>{bundle.ownerDisplayName ?? bundle.ownerRuleId ?? bundle.ownerCapabilityKey ?? (zh ? "未知归属" : "Unknown owner")}</strong>
-                <small>{bundle.paths.length} {zh ? "个文件" : "file(s)"} · {bundle.ownership}</small>
-              </div>
-              <span className={`risk-chip risk-${bundle.riskLevel}`}>{riskLabel(bundle.riskLevel, locale)}</span>
-            </header>
-            <dl className="bundle-facts">
-              <div><dt>{zh ? "默认状态" : "Default"}</dt><dd>{bundle.defaultStatus}</dd></div>
-              <div><dt>Secret</dt><dd>{bundle.sensitivity}</dd></div>
-              <div><dt>{zh ? "策略" : "Strategy"}</dt><dd>{bundle.migrationStrategy}</dd></div>
-              <div><dt>{zh ? "验证" : "Validation"}</dt><dd>{bundle.validationHint ?? "-"}</dd></div>
-            </dl>
-            <p>{bundle.rollbackStrategy ?? (zh ? "应用前需要目标备份和回滚点。" : "Target backup and rollback checkpoint required before apply.")}</p>
-          </article>
-        ))}
-      </div>
+      {drawer ? <ConfigBundleDrawer bundle={drawer} decision={configById.get(drawer.id)} onClose={() => setDrawer(null)} /> : null}
     </div>
   );
 }
 
-function ConfigBundleDrawer({ locale, bundle, decision, onClose }: { locale: Locale; bundle: ConfigBundle; decision?: MigrationConfigDecision; onClose: () => void }) {
+function ConfigBundleDrawer({ bundle, decision, onClose }: { bundle: ConfigBundle; decision?: MigrationConfigDecision; onClose: () => void }) {
+  const { t } = useTranslation();
   useEscapeToClose(onClose);
-  const zh = locale === "zh";
   const safePaths = bundle.paths.map((file) => ({
     path: file.path,
     defaultStatus: file.defaultStatus,
@@ -975,20 +1040,20 @@ function ConfigBundleDrawer({ locale, bundle, decision, onClose }: { locale: Loc
             <p className="eyebrow">ConfigBundle</p>
             <h2>{bundle.ownerDisplayName ?? bundle.ownerRuleId ?? bundle.id}</h2>
           </div>
-          <Button variant="ghost" className="icon-action" onClick={onClose} aria-label="Close"><X aria-hidden /></Button>
+          <Button variant="ghost" className="icon-action" onClick={onClose} aria-label={t("migratePipeline.configDrawer.close")}><X aria-hidden /></Button>
         </header>
         <section>
-          <h3>{zh ? "审核摘要" : "Review summary"}</h3>
+          <h3>{t("migratePipeline.configDrawer.summary")}</h3>
           <dl className="bundle-facts">
-            <div><dt>{zh ? "策略" : "Strategy"}</dt><dd>{decision?.strategy ?? bundle.migrationStrategy}</dd></div>
-            <div><dt>{zh ? "决策" : "Decision"}</dt><dd>{decision?.status ?? "pending"}</dd></div>
-            <div><dt>{zh ? "敏感度" : "Sensitivity"}</dt><dd>{bundle.sensitivity}</dd></div>
-            <div><dt>{zh ? "风险" : "Risk"}</dt><dd>{bundle.riskLevel}</dd></div>
+            <div><dt>{t("migratePipeline.configDrawer.strategy")}</dt><dd>{decision?.strategy ?? bundle.migrationStrategy}</dd></div>
+            <div><dt>{t("migratePipeline.configDrawer.decision")}</dt><dd>{decision?.status ?? "pending"}</dd></div>
+            <div><dt>{t("migratePipeline.configDrawer.sensitivity")}</dt><dd>{bundle.sensitivity}</dd></div>
+            <div><dt>{t("migratePipeline.configDrawer.risk")}</dt><dd>{bundle.riskLevel}</dd></div>
           </dl>
         </section>
         <section>
-          <h3>{zh ? "Diff / Raw 入口" : "Diff / Raw detail"}</h3>
-          <p className="pipeline-muted">{zh ? "当前阶段只展示脱敏路径、策略和审核原因；真实内容 diff 后续由连接内文件读取能力提供。" : "This view exposes redacted paths, strategy, and reasons. Raw file content is intentionally not loaded here."}</p>
+          <h3>{t("migratePipeline.configDrawer.detail")}</h3>
+          <p className="pipeline-muted">{t("migratePipeline.configDrawer.detailBody")}</p>
           <pre>{JSON.stringify({ id: bundle.id, paths: safePaths, reasons: bundle.reasons, validationHint: bundle.validationHint, rollbackStrategy: bundle.rollbackStrategy }, null, 2)}</pre>
         </section>
       </aside>
@@ -996,8 +1061,8 @@ function ConfigBundleDrawer({ locale, bundle, decision, onClose }: { locale: Loc
   );
 }
 
-function PlanPreviewStep({ locale, session, plan, loading, onRefresh, connections, sourceConnectionId, creating, onCreatePlan }: { locale: Locale; session: MigrationSessionView | null; plan: MigrationPlan | null; loading: boolean; onRefresh: () => void; connections: ConnectionProfile[]; sourceConnectionId: string | null; creating: boolean; onCreatePlan: (targetConnectionId: string) => void | Promise<void> }) {
-  const zh = locale === "zh";
+function PlanPreviewStep({ session, plan, loading, onRefresh, connections, sourceConnectionId, creating, onCreatePlan }: { session: MigrationSessionView | null; plan: MigrationPlan | null; loading: boolean; onRefresh: () => void; connections: ConnectionProfile[]; sourceConnectionId: string | null; creating: boolean; onCreatePlan: (targetConnectionId: string) => void | Promise<void> }) {
+  const { t } = useTranslation();
   const groups = groupPlanActions(plan);
   const blocked = (session?.summary.pendingReviewCount ?? 0) > 0;
   const targetOptions = connections.filter((c) => c.id !== sourceConnectionId);
@@ -1006,18 +1071,18 @@ function PlanPreviewStep({ locale, session, plan, loading, onRefresh, connection
     <div className="pipeline-step-surface">
       <div className="pipeline-section-heading">
         <div>
-          <p className="eyebrow">{zh ? "Migration Plan 预览" : "Migration Plan preview"}</p>
-          <h3>{zh ? "完整计划只在这里显示" : "The full plan appears here"}</h3>
+          <p className="eyebrow">{t("migratePipeline.planPreview.eyebrow")}</p>
+          <h3>{t("migratePipeline.planPreview.title")}</h3>
         </div>
-        <Button variant="secondary" disabled={loading} onClick={onRefresh}><RefreshCw aria-hidden />{zh ? "刷新计划" : "Refresh plan"}</Button>
+        <Button variant="secondary" disabled={loading} onClick={onRefresh}><RefreshCw aria-hidden />{t("migratePipeline.planPreview.refresh")}</Button>
       </div>
-      {blocked ? <div className="pipeline-warning"><AlertTriangle aria-hidden />{zh ? "仍有待审查项，不能继续执行。" : "Pending review remains; execution is blocked."}</div> : null}
-      {!plan ? <EmptyPipelineState title={zh ? "计划尚未生成" : "Plan is not ready"} body={zh ? "选择迁移项并清理阻塞后刷新计划。" : "Select migration items and clear blockers, then refresh the plan."} /> : null}
+      {blocked ? <div className="pipeline-warning"><AlertTriangle aria-hidden />{t("migratePipeline.planPreview.blocked")}</div> : null}
+      {!plan ? <EmptyPipelineState title={t("migratePipeline.planPreview.emptyTitle")} body={t("migratePipeline.planPreview.emptyBody")} /> : null}
       {plan ? (
         <div className="plan-action-groups">
           {Object.entries(groups).map(([group, actions]) => (
             <section className="plan-action-group" key={group}>
-              <h4>{group}</h4>
+              <h4>{t(PLAN_GROUP_LABEL_KEYS[group as keyof typeof PLAN_GROUP_LABEL_KEYS])}</h4>
               {actions.length === 0 ? <p className="pipeline-muted">-</p> : actions.map((action) => (
                 <article key={action.id}>
                   <strong>{action.label}</strong>
@@ -1031,17 +1096,13 @@ function PlanPreviewStep({ locale, session, plan, loading, onRefresh, connection
       {plan ? (
         <div className="migrate-deliver-card">
           <div>
-            <p className="eyebrow">{zh ? "交付" : "Deliver"}</p>
-            <h4>{zh ? "生成计划并交付到计划中心" : "Create plan and hand off to the Plan center"}</h4>
-            <p className="pipeline-muted">
-              {zh
-                ? "审查、执行、验证与报告统一在计划中心完成。请选择目标主机后生成计划。"
-                : "Review, apply, verify, and report all happen in the Plan center. Pick a target host, then create the plan."}
-            </p>
+            <p className="eyebrow">{t("migratePipeline.planPreview.deliver")}</p>
+            <h4>{t("migratePipeline.planPreview.deliverTitle")}</h4>
+            <p className="pipeline-muted">{t("migratePipeline.planPreview.deliverBody")}</p>
           </div>
           <div className="migrate-deliver-actions">
-            <select value={targetId} onChange={(e) => setTargetId(e.target.value)} aria-label={zh ? "目标主机" : "Target host"}>
-              <option value="">{zh ? "选择目标主机…" : "Select target host…"}</option>
+            <select value={targetId} onChange={(e) => setTargetId(e.target.value)} aria-label={t("migratePipeline.planPreview.targetAria")}>
+              <option value="">{t("migratePipeline.planPreview.selectTarget")}</option>
               {targetOptions.map((c) => (
                 <option key={c.id} value={c.id}>{c.label || c.fields.host || c.id}</option>
               ))}
@@ -1052,7 +1113,7 @@ function PlanPreviewStep({ locale, session, plan, loading, onRefresh, connection
               loading={creating}
               onClick={() => targetId && void onCreatePlan(targetId)}
             >
-              {zh ? "生成计划 →" : "Create plan →"}
+              {t("migratePipeline.planPreview.create")}
             </Button>
           </div>
         </div>
@@ -1061,22 +1122,22 @@ function PlanPreviewStep({ locale, session, plan, loading, onRefresh, connection
   );
 }
 
-function TargetDryRunStep({ locale, sourceConnectionId, session, connections, dryRun, loading, onSelectTarget, onDryRun }: { locale: Locale; sourceConnectionId: string; session: MigrationSessionView | null; connections: ConnectionProfile[]; dryRun: MigrationDryRunResult | null; loading: boolean; onSelectTarget: (id: string) => void; onDryRun: () => void }) {
-  const zh = locale === "zh";
+function TargetDryRunStep({ sourceConnectionId, session, connections, dryRun, loading, onSelectTarget, onDryRun }: { sourceConnectionId: string; session: MigrationSessionView | null; connections: ConnectionProfile[]; dryRun: MigrationDryRunResult | null; loading: boolean; onSelectTarget: (id: string) => void; onDryRun: () => void }) {
+  const { t } = useTranslation();
   const targets = connections.filter((connection) => connection.id !== sourceConnectionId);
   return (
     <div className="pipeline-step-surface target-dryrun-layout">
       <section>
-        <p className="eyebrow">{zh ? "目标机器" : "Target machine"}</p>
-        <h3>{zh ? "选择目标并执行 dry-run" : "Choose target and run dry-run"}</h3>
+        <p className="eyebrow">{t("migratePipeline.target.eyebrow")}</p>
+        <h3>{t("migratePipeline.target.title")}</h3>
         <select value={session?.targetConnectionId ?? ""} onChange={(event) => event.target.value && onSelectTarget(event.target.value)}>
-          <option value="">{zh ? "选择目标连接" : "Select target connection"}</option>
+          <option value="">{t("migratePipeline.target.select")}</option>
           {targets.map((connection) => <option key={connection.id} value={connection.id}>{connection.label} · {connection.fields.host ?? "-"}</option>)}
         </select>
-        <Button variant="primary" disabled={!session || loading} onClick={onDryRun}><Play aria-hidden />{zh ? "运行 dry-run" : "Run dry-run"}</Button>
+        <Button variant="primary" disabled={!session || loading} onClick={onDryRun}><Play aria-hidden />{t("migratePipeline.target.run")}</Button>
       </section>
       <section className="dryrun-result-panel">
-        <h4>{zh ? "Dry-run 结果" : "Dry-run result"}</h4>
+        <h4>{t("migratePipeline.target.result")}</h4>
         {dryRun ? (
           <>
             <div className="dryrun-summary">
@@ -1088,14 +1149,14 @@ function TargetDryRunStep({ locale, sourceConnectionId, session, connections, dr
               {dryRun.steps.slice(0, 8).map((step) => <span key={step.id}>{step.status} · {step.label}</span>)}
             </div>
           </>
-        ) : <p className="pipeline-muted">{zh ? "dry-run 不会修改目标机器。" : "Dry-run does not mutate the target machine."}</p>}
+        ) : <p className="pipeline-muted">{t("migratePipeline.target.note")}</p>}
       </section>
     </div>
   );
 }
 
-function ApplyReportStep({ locale, mode, session, dryRun, readiness, applyResult, verifyResult, report, loading, onRefreshReadiness, onApply, onVerify, onReport }: { locale: Locale; mode: "apply" | "report"; session: MigrationSessionView | null; dryRun: MigrationDryRunResult | null; readiness: MigrationSessionApplyReadiness | null; applyResult: MigrationApplyResult | null; verifyResult: MigrationVerificationRunResult | null; report: MigrationSessionReport | null; loading: boolean; onRefreshReadiness: () => void; onApply: () => void; onVerify: () => void; onReport: () => void }) {
-  const zh = locale === "zh";
+function ApplyReportStep({ mode, session, dryRun, readiness, applyResult, verifyResult, report, loading, onRefreshReadiness, onApply, onVerify, onReport }: { mode: "apply" | "report"; session: MigrationSessionView | null; dryRun: MigrationDryRunResult | null; readiness: MigrationSessionApplyReadiness | null; applyResult: MigrationApplyResult | null; verifyResult: MigrationVerificationRunResult | null; report: MigrationSessionReport | null; loading: boolean; onRefreshReadiness: () => void; onApply: () => void; onVerify: () => void; onReport: () => void }) {
+  const { t } = useTranslation();
   const blockers = readiness?.blockers ?? [];
   const warnings = readiness?.warnings ?? [];
   const canApply = Boolean(readiness?.ready && !loading);
@@ -1104,109 +1165,99 @@ function ApplyReportStep({ locale, mode, session, dryRun, readiness, applyResult
     <div className="pipeline-step-surface apply-report-layout">
       <div className="pipeline-section-heading">
         <div>
-          <p className="eyebrow">{mode === "report" ? (zh ? "验证与报告" : "Verify and report") : (zh ? "执行门禁" : "Apply readiness")}</p>
-          <h3>{zh ? "先看 readiness，再执行 apply / verify / report 闭环" : "Check readiness before apply, then verify and report"}</h3>
+          <p className="eyebrow">{mode === "report" ? t("migratePipeline.applyReport.verifyReport") : t("migratePipeline.applyReport.readiness")}</p>
+          <h3>{t("migratePipeline.applyReport.title")}</h3>
         </div>
-        <Button variant="secondary" disabled={loading} onClick={onRefreshReadiness}><RefreshCw aria-hidden />{zh ? "刷新门禁" : "Refresh readiness"}</Button>
+        <Button variant="secondary" disabled={loading} onClick={onRefreshReadiness}><RefreshCw aria-hidden />{t("migratePipeline.applyReport.refresh")}</Button>
       </div>
       <div className="apply-readiness-grid">
-        <article className={`apply-readiness-card ${readiness?.ready ? "ready" : "blocked"}`}>
+        <Card as="article" className={`apply-readiness-card ${readiness?.ready ? "ready" : "blocked"}`} tone={readiness?.ready ? "ok" : "danger"}>
           <header>
-            <strong>{readiness?.ready ? (zh ? "可执行" : "Ready") : (zh ? "被阻断" : "Blocked")}</strong>
-            <span className={`risk-chip ${readiness?.ready ? "risk-safe" : "risk-dangerous"}`}>{readiness?.ready ? "ready" : "blocked"}</span>
+            <strong>{readiness?.ready ? t("migratePipeline.applyReport.ready") : t("migratePipeline.applyReport.blocked")}</strong>
+            <span className={`risk-chip ${readiness?.ready ? "risk-safe" : "risk-dangerous"}`}>{readiness?.ready ? t("migratePipeline.applyReport.ready") : t("migratePipeline.applyReport.blocked")}</span>
           </header>
           <div className="dryrun-summary">
-            <Metric label="dry-run" value={dryRun?.summary.total ?? Number(readiness?.dryRun?.summary?.total ?? 0)} tone={readiness?.dryRun?.status === "passed" ? "safe" : "warn"} />
-            <Metric label="blockers" value={blockers.length} tone={blockers.length ? "danger" : "safe"} />
-            <Metric label="warnings" value={warnings.length} tone={warnings.length ? "warn" : "neutral"} />
+            <Metric label={t("migratePipeline.applyReport.dryRun")} value={dryRun?.summary.total ?? Number(readiness?.dryRun?.summary?.total ?? 0)} tone={readiness?.dryRun?.status === "passed" ? "safe" : "warn"} />
+            <Metric label={t("migratePipeline.applyReport.blockers")} value={blockers.length} tone={blockers.length ? "danger" : "safe"} />
+            <Metric label={t("migratePipeline.applyReport.warnings")} value={warnings.length} tone={warnings.length ? "warn" : "neutral"} />
           </div>
           {blockers.length ? (
             <ul className="readiness-list">
               {blockers.slice(0, 8).map((blocker, index) => <li key={`blocker-${index}`}>{blocker}</li>)}
             </ul>
-          ) : <p className="pipeline-muted">{zh ? "当前没有阻断项。真实执行仍会记录审计与回滚信息。" : "No blockers. Apply will still record audit and rollback details."}</p>}
-        </article>
-        <article className="apply-readiness-card">
-          <header><strong>{zh ? "回滚信息" : "Rollback"}</strong></header>
-          <p className="pipeline-muted">{report?.rollback?.available ? (report.rollback.rolledBack ? (zh ? "最近一次 apply 已触发回滚。" : "The latest apply triggered rollback.") : (zh ? "最近一次 apply 有可见回滚上下文。" : "The latest apply has visible rollback context.")) : (zh ? "apply 前暂无回滚记录；执行时会记录安装包和服务状态回滚点。" : "No rollback record yet; apply captures package/service rollback context.")}</p>
+          ) : <p className="pipeline-muted">{t("migratePipeline.applyReport.noBlockers")}</p>}
+        </Card>
+        <Card as="article" className="apply-readiness-card">
+          <header><strong>{t("migratePipeline.applyReport.rollback")}</strong></header>
+          <p className="pipeline-muted">{report?.rollback?.available ? (report.rollback.rolledBack ? t("migratePipeline.applyReport.rollbackTriggered") : t("migratePipeline.applyReport.rollbackAvailable")) : t("migratePipeline.applyReport.noRollback")}</p>
           {report?.rollback?.steps?.length ? (
             <div className="dryrun-step-list">{report.rollback.steps.slice(0, 5).map((step, index) => <span key={`rollback-${index}`}>{step.status ?? "-"} · {step.label ?? step.message ?? "-"}</span>)}</div>
           ) : null}
-        </article>
+        </Card>
       </div>
       <div className="apply-command-row">
-        <Button variant="primary" disabled={!canApply} onClick={onApply}><Play aria-hidden />{zh ? "执行 apply" : "Apply"}</Button>
-        <Button variant="secondary" disabled={!canVerify} onClick={onVerify}><CheckCircle2 aria-hidden />{zh ? "执行 verify" : "Verify"}</Button>
-        <Button variant="secondary" disabled={!session || loading} onClick={onReport}><FileText aria-hidden />{zh ? "生成报告" : "Report"}</Button>
+        <Button variant="primary" disabled={!canApply} onClick={onApply}><Play aria-hidden />{t("migratePipeline.applyReport.apply")}</Button>
+        <Button variant="secondary" disabled={!canVerify} onClick={onVerify}><CheckCircle2 aria-hidden />{t("migratePipeline.applyReport.verify")}</Button>
+        <Button variant="secondary" disabled={!session || loading} onClick={onReport}><FileText aria-hidden />{t("migratePipeline.applyReport.report")}</Button>
       </div>
       <div className="apply-run-grid">
-        <RunSummaryCard title="Apply" ok={applyResult?.ok} total={applyResult?.summary.total ?? Number(report?.apply?.summary?.total ?? 0)} failed={applyResult?.summary.failed ?? Number(report?.apply?.summary?.failed ?? 0)} />
-        <RunSummaryCard title="Verify" ok={verifyResult?.ok} total={verifyResult?.summary.total ?? Number(report?.verify?.summary?.total ?? 0)} failed={verifyResult?.summary.failed ?? Number(report?.verify?.summary?.failed ?? 0)} />
-        <RunSummaryCard title="Report" ok={Boolean(report)} total={report?.plan?.items ?? session?.summary.planItemCount ?? 0} failed={report?.readiness?.blockers.length ?? 0} />
+        <RunSummaryCard title={t("migratePipeline.applyReport.apply")} ok={applyResult?.ok} total={applyResult?.summary.total ?? Number(report?.apply?.summary?.total ?? 0)} failed={applyResult?.summary.failed ?? Number(report?.apply?.summary?.failed ?? 0)} />
+        <RunSummaryCard title={t("migratePipeline.applyReport.verify")} ok={verifyResult?.ok} total={verifyResult?.summary.total ?? Number(report?.verify?.summary?.total ?? 0)} failed={verifyResult?.summary.failed ?? Number(report?.verify?.summary?.failed ?? 0)} />
+        <RunSummaryCard title={t("migratePipeline.applyReport.report")} ok={Boolean(report)} total={report?.plan?.items ?? session?.summary.planItemCount ?? 0} failed={report?.readiness?.blockers.length ?? 0} />
       </div>
       {report ? (
         <section className="session-report-panel">
-          <h4>{zh ? "报告摘要" : "Report summary"}</h4>
+          <h4>{t("migratePipeline.applyReport.reportSummary")}</h4>
           <div className="dryrun-step-list">
-            <span>{zh ? "源" : "Source"} · {report.sourceHost}</span>
-            <span>{zh ? "目标" : "Target"} · {report.targetConnectionId ?? "-"}</span>
-            <span>{zh ? "验证" : "Verify"} · {report.verify?.status ?? "-"}</span>
-            <span>{zh ? "回滚" : "Rollback"} · {report.rollback?.rolledBack ? "rolled-back" : (report.rollback?.available ? "available" : "-")}</span>
+            <span>{t("migratePipeline.applyReport.source")} · {report.sourceHost}</span>
+            <span>{t("migratePipeline.applyReport.target")} · {report.targetConnectionId ?? "-"}</span>
+            <span>{t("migratePipeline.applyReport.verify")} · {report.verify?.status ?? "-"}</span>
+            <span>{t("migratePipeline.applyReport.rollback")} · {report.rollback?.rolledBack ? t("migratePipeline.applyReport.rolledBackStatus") : (report.rollback?.available ? t("migratePipeline.applyReport.availableStatus") : "-")}</span>
           </div>
         </section>
       ) : null}
     </div>
   );
-  return (
-    <div className="pipeline-step-surface apply-report-placeholder">
-      <CheckCircle2 aria-hidden />
-      <h3>{zh ? "执行、验证、报告将在第八阶段闭环" : "Apply, verify, and report close in phase 8"}</h3>
-      <p>{zh ? "当前第 5/6 阶段先完成流水线外壳和能力级选择。后续会接入 apply、verify、rollback 和 report 端点。" : "This phase focuses on the pipeline shell and capability-level selection. Apply, verify, rollback, and report endpoints come next."}</p>
-      <div className="apply-report-facts">
-        <Metric label={zh ? "会话状态" : "Status"} value={session ? 1 : 0} />
-        <Metric label="dry-run" value={dryRun?.summary.total ?? 0} />
-      </div>
-    </div>
-  );
 }
 
 function RunSummaryCard({ title, ok, total, failed }: { title: string; ok?: boolean; total: number; failed: number }) {
+  const { t } = useTranslation();
   return (
-    <article className={`run-summary-card ${ok === false || failed > 0 ? "failed" : ok ? "ok" : ""}`}>
+    <Card as="article" className={`run-summary-card ${ok === false || failed > 0 ? "failed" : ok ? "ok" : ""}`} tone={ok === false || failed > 0 ? "danger" : ok ? "ok" : "default"}>
       <strong>{title}</strong>
       <div className="dryrun-summary">
-        <Metric label="total" value={total} />
-        <Metric label="failed" value={failed} tone={failed > 0 ? "danger" : "safe"} />
+        <Metric label={t("migratePipeline.applyReport.total")} value={total} />
+        <Metric label={t("migratePipeline.applyReport.failed")} value={failed} tone={failed > 0 ? "danger" : "safe"} />
       </div>
-    </article>
+    </Card>
   );
 }
 
-function EvidenceDrawer({ locale, candidate, onClose }: { locale: Locale; candidate: MigrationCandidate; onClose: () => void }) {
+function EvidenceDrawer({ candidate, onClose }: { candidate: MigrationCandidate; onClose: () => void }) {
+  const { t } = useTranslation();
   useEscapeToClose(onClose);
-  const zh = locale === "zh";
   return (
     <div className="drawer-overlay" role="dialog" aria-modal="true">
       <aside className="evidence-drawer">
         <header className="drawer-header">
           <div>
-            <p className="eyebrow">{zh ? "原始证据" : "Raw evidence"}</p>
+            <p className="eyebrow">{t("migratePipeline.evidenceDrawer.eyebrow")}</p>
             <h2>{candidate.catalogRuleName ?? candidate.name}</h2>
           </div>
-          <Button variant="ghost" className="icon-action" onClick={onClose} aria-label="Close"><X aria-hidden /></Button>
+          <Button variant="ghost" className="icon-action" onClick={onClose} aria-label={t("migratePipeline.evidenceDrawer.close")}><X aria-hidden /></Button>
         </header>
         <section>
-          <h3>{zh ? "证据摘要" : "Evidence summary"}</h3>
+          <h3>{t("migratePipeline.evidenceDrawer.summary")}</h3>
           <ul>
             {candidate.reasons.map((reason, index) => <li key={`reason-${index}`}>{reason}</li>)}
           </ul>
         </section>
         <section>
-          <h3>{zh ? "Raw evidence" : "Raw evidence"}</h3>
+          <h3>{t("migratePipeline.evidenceDrawer.raw")}</h3>
           <pre>{JSON.stringify(candidate.rawEvidence ?? [], null, 2)}</pre>
         </section>
         <section>
-          <h3>{zh ? "Normalized artifacts" : "Normalized artifacts"}</h3>
+          <h3>{t("migratePipeline.evidenceDrawer.normalized")}</h3>
           <pre>{JSON.stringify(candidate.normalizedArtifacts ?? [], null, 2)}</pre>
         </section>
       </aside>
@@ -1215,7 +1266,8 @@ function EvidenceDrawer({ locale, candidate, onClose }: { locale: Locale; candid
 }
 
 function MetricCard({ icon, label, value, tone = "neutral" }: { icon: React.ReactNode; label: string; value: number; tone?: "neutral" | "safe" | "warn" | "danger" }) {
-  return <article className={`analysis-metric-card ${tone}`}>{icon}<strong>{value}</strong><span>{label}</span></article>;
+  const cardTone = tone === "safe" ? "ok" : tone === "warn" ? "warn" : tone === "danger" ? "danger" : "default";
+  return <Card as="article" className={`analysis-metric-card ${tone}`} tone={cardTone}>{icon}<strong>{value}</strong><span>{label}</span></Card>;
 }
 
 function Fact({ label, value }: { label: string; value: string | number }) {
@@ -1223,40 +1275,14 @@ function Fact({ label, value }: { label: string; value: string | number }) {
 }
 
 function Score({ label, value }: { label: string; value: number }) {
-  return <span className="score-pill"><strong>{Math.round(value * 100)}%</strong>{label}</span>;
+  return <MetricPill value={`${Math.round(value * 100)}%`} label={label} />;
 }
 
 function EmptyPipelineState({ title, body }: { title: string; body: string }) {
   return <div className="pipeline-empty-state"><h3>{title}</h3><p>{body}</p></div>;
 }
 
-function stepLabel(step: MigrationSessionStep, locale: Locale): string {
-  const labels: Record<MigrationSessionStep, { zh: string; en: string }> = {
-    source: { zh: "源主机", en: "Source" },
-    analysis: { zh: "分析", en: "Analysis" },
-    select: { zh: "选择", en: "Select" },
-    unknown: { zh: "未知项", en: "Unknown" },
-    "config-data": { zh: "配置/数据", en: "Config/Data" },
-    plan: { zh: "计划", en: "Plan" },
-    target: { zh: "目标/Dry-run", en: "Target/Dry-run" },
-    apply: { zh: "执行", en: "Apply" },
-    report: { zh: "报告", en: "Report" }
-  };
-  return locale === "zh" ? labels[step].zh : labels[step].en;
-}
-
-function connectionStatus(status: ConnectionProfile["status"], locale: Locale): string {
-  const labels: Record<ConnectionProfile["status"], { zh: string; en: string }> = {
-    probed: { zh: "已采集", en: "Collected" },
-    ssh_ok: { zh: "SSH 成功", en: "SSH OK" },
-    validated: { zh: "已保存", en: "Saved" },
-    ssh_failed: { zh: "SSH 失败", en: "SSH failed" },
-    unreachable: { zh: "不可达", en: "Unreachable" }
-  };
-  return locale === "zh" ? labels[status].zh : labels[status].en;
-}
-
-function candidateGroup(candidate: MigrationCandidate): string {
+function candidateGroup(candidate: MigrationCandidate): keyof typeof GROUP_LABEL_KEYS {
   const key = `${candidate.catalogRuleId ?? ""} ${candidate.catalogRuleName ?? ""} ${candidate.name} ${candidate.migrationClass} ${candidate.source}`.toLowerCase();
   if (candidate.migrationClass === "container-workload" || key.includes("docker") || key.includes("container")) return "container";
   if (candidate.migrationClass === "manual-install") return "manual";
@@ -1267,61 +1293,14 @@ function candidateGroup(candidate: MigrationCandidate): string {
   return "runtime";
 }
 
-function groupLabel(group: string, locale: Locale): string {
-  const labels: Record<string, { zh: string; en: string }> = {
-    all: { zh: "全部", en: "All" },
-    web: { zh: "Web", en: "Web" },
-    database: { zh: "数据库", en: "Database" },
-    runtime: { zh: "运行时", en: "Runtime" },
-    container: { zh: "容器", en: "Container" },
-    security: { zh: "安全", en: "Security" },
-    manual: { zh: "手工", en: "Manual" },
-    unknown: { zh: "未知", en: "Unknown" }
-  };
-  return locale === "zh" ? (labels[group]?.zh ?? group) : (labels[group]?.en ?? group);
-}
-
-function evidenceSummary(candidate: MigrationCandidate, locale: Locale): string {
+function evidenceSummary(candidate: MigrationCandidate): string | null {
   const parts = [
     ...(candidate.packageNames ?? []).slice(0, 4).map((name) => `pkg:${name}`),
     ...(candidate.serviceNames ?? []).slice(0, 3).map((name) => `svc:${name}`),
     ...(candidate.ports ?? []).slice(0, 3).map((port) => `:${port}`),
     ...(candidate.configPaths ?? []).slice(0, 2).map((path) => `cfg:${path}`)
   ];
-  if (parts.length) return parts.join(" · ");
-  return locale === "zh" ? `${candidate.source} 证据 · ${candidate.version || "未知版本"}` : `${candidate.source} evidence · ${candidate.version || "unknown version"}`;
-}
-
-function decisionLabel(decision: ReviewDecision, locale: Locale): string {
-  const zh: Record<ReviewDecision, string> = {
-    pending: "待定",
-    approved: "批准",
-    skipped: "跳过",
-    ignore: "忽略",
-    "record-only": "仅记录",
-    "migrate-artifact": "手工迁移",
-    "create-catalog-draft": "规则草稿",
-    "add-to-plan": "加入计划",
-    "needs-manual-instruction": "需手工指引"
-  };
-  const en: Record<ReviewDecision, string> = {
-    pending: "Pending",
-    approved: "Approved",
-    skipped: "Skipped",
-    ignore: "Ignored",
-    "record-only": "Record only",
-    "migrate-artifact": "Manual item",
-    "create-catalog-draft": "Catalog draft",
-    "add-to-plan": "Added",
-    "needs-manual-instruction": "Manual guide"
-  };
-  return locale === "zh" ? zh[decision] : en[decision];
-}
-
-function riskLabel(risk: MigrationCandidate["riskLevel"], locale: Locale): string {
-  const zh = { safe: "安全", review: "需审查", privileged: "高权限", dangerous: "危险" } as const;
-  const en = { safe: "Safe", review: "Review", privileged: "Privileged", dangerous: "Dangerous" } as const;
-  return (locale === "zh" ? zh : en)[risk];
+  return parts.length ? parts.join(" · ") : null;
 }
 
 function groupPlanActions(plan: MigrationPlan | null): Record<string, Array<{ id: string; itemName: string; kind: string; label: string; requiresSudo: boolean }>> {

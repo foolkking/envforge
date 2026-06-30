@@ -1,5 +1,9 @@
 import { defineConfig, devices } from "@playwright/test";
 
+const smokeRunId = process.env.ENVFORGE_SMOKE_RUN_ID ?? `${Date.now().toString(36)}-${process.pid}`;
+process.env.ENVFORGE_SMOKE_RUN_ID = smokeRunId;
+const adminProjects = ["desktop-zh-light", "desktop-en-dark", "mobile-zh-dark", "mobile-en-light"];
+
 export default defineConfig({
   testDir: "./tests/ui",
   timeout: 45_000,
@@ -17,12 +21,9 @@ export default defineConfig({
       env: {
         NODE_ENV: "development",
         PORT: "5174",
-        ENVFORGE_ADMIN_EMAILS: [
-          "codex-ui-admin-desktop-zh-light@example.test",
-          "codex-ui-admin-desktop-en-dark@example.test",
-          "codex-ui-admin-mobile-zh-dark@example.test",
-          "codex-ui-admin-mobile-en-light@example.test"
-        ].join(",")
+        ENVFORGE_ADMIN_EMAILS: adminProjects
+          .map((project) => `codex-ui-admin-${smokeRunId}-${project}@example.test`)
+          .join(",")
       },
       url: "http://127.0.0.1:5174/api/health",
       reuseExistingServer: true,

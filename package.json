@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Self-hosted Linux server configuration management platform",
+  "description": "Linux environment migration, rebuild, verification, and rollback platform",
   "homepage": "https://github.com/foolkking/envforge#readme",
   "repository": {
     "type": "git",

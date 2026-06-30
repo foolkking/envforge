@@ -7,6 +7,8 @@ export async function runCommand(command: string, args: string[] = []): Promise<
   ok: boolean;
   stdout: string;
   stderr: string;
+  exitCode?: number;
+  timedOut: boolean;
 }> {
   try {
     const result = await execFileAsync(command, args, {
@@ -17,19 +19,26 @@ export async function runCommand(command: string, args: string[] = []): Promise<
     return {
       ok: true,
       stdout: result.stdout.trim(),
-      stderr: result.stderr.trim()
+      stderr: result.stderr.trim(),
+      exitCode: 0,
+      timedOut: false
     };
   } catch (error) {
     const commandError = error as {
       stdout?: string;
       stderr?: string;
       message?: string;
+      code?: number | string;
+      killed?: boolean;
+      signal?: string;
     };
 
     return {
       ok: false,
       stdout: commandError.stdout?.trim() ?? "",
-      stderr: commandError.stderr?.trim() || commandError.message || "Command failed"
+      stderr: commandError.stderr?.trim() || commandError.message || "Command failed",
+      exitCode: typeof commandError.code === "number" ? commandError.code : undefined,
+      timedOut: commandError.killed === true || commandError.signal === "SIGTERM"
     };
   }
 }

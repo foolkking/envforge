@@ -92,8 +92,14 @@ export interface ActionRunRecord {
   /** Stable id; usually `<planId>:<itemId>:<actionId>:<runIndex>`. */
   id: string;
   planId: string;
+  /** Canonical immutable Plan hash this execution was authorized against. */
+  planHash: string;
   itemId: string;
   actionId: string;
+  targetConnectionId: string;
+  dryRun: boolean;
+  commandSummaries: Array<{ phase: "snapshot" | "apply" | "verify" | "rollback"; command: string }>;
+  exitCode?: number;
   capabilityKey?: string;
   capabilityId?: string;
   /** Plan item id (for cross-reference with plan.items[*]). */
@@ -371,16 +377,23 @@ export function safePreview(text: string | null | undefined, maxBytes?: number):
  */
 export function newActionRunRecord(input: {
   planId: string;
+  planHash?: string;
   itemId: string;
   actionId: string;
+  targetConnectionId?: string;
+  dryRun?: boolean;
   capabilityKey?: string;
   capabilityId?: string;
 }): ActionRunRecord {
   return {
     id: `${input.planId}::${input.itemId}::${input.actionId}::${Date.now()}`,
     planId: input.planId,
+    planHash: input.planHash ?? "legacy-unbound",
     itemId: input.itemId,
     actionId: input.actionId,
+    targetConnectionId: input.targetConnectionId ?? "unknown-target",
+    dryRun: input.dryRun === true,
+    commandSummaries: [],
     capabilityKey: input.capabilityKey,
     capabilityId: input.capabilityId,
     startedAt: new Date().toISOString(),

@@ -10,6 +10,7 @@
  * refresh the merged detection view).
  */
 import React, { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { X, Eye, Save, AlertTriangle } from "lucide-react";
 import {
   generateCapabilityRule,
@@ -46,7 +47,7 @@ export function ArchetypeRuleDrawer({
   onSaved: () => void;
   onClose: () => void;
 }): JSX.Element {
-  const zh = locale === "zh";
+  const { t } = useTranslation();
   const seed = (existing?.input ?? {}) as Record<string, any>;
 
   const [displayName, setDisplayName] = useState<string>(seed.displayName ?? "");
@@ -116,39 +117,37 @@ export function ArchetypeRuleDrawer({
       setConflict(res.conflict);
       setReadiness(res.readiness ?? null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Preview failed");
+      setError(err instanceof Error ? err.message : t("archetypeRule.errors.previewFailed"));
     } finally { setBusy(false); }
   }
 
   async function handleSave() {
-    if (!displayName.trim()) { setError(zh ? "请填写名称" : "Name is required"); return; }
-    if (!/^[a-z0-9-]{1,60}$/.test(id.trim())) { setError(zh ? "ID 必填,只能含小写字母/数字/连字符" : "ID required: [a-z0-9-]{1,60}"); return; }
-    if (!capabilityKey.trim()) { setError(zh ? "请填写 capabilityKey" : "capabilityKey is required"); return; }
+    if (!displayName.trim()) { setError(t("archetypeRule.errors.nameRequired")); return; }
+    if (!/^[a-z0-9-]{1,60}$/.test(id.trim())) { setError(t("archetypeRule.errors.idInvalid")); return; }
+    if (!capabilityKey.trim()) { setError(t("archetypeRule.errors.capabilityKeyRequired")); return; }
     setBusy(true); setError("");
     try {
       await saveCapabilityRule(authToken, "native", buildParams(), existing?.id);
       onSaved();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Save failed");
+      setError(err instanceof Error ? err.message : t("archetypeRule.errors.saveFailed"));
     } finally { setBusy(false); }
   }
 
   return (
-    <div className="cap-editor-overlay" role="dialog" aria-modal="true" aria-label={zh ? "新建检测规则" : "Detection rule"}>
+    <div className="cap-editor-overlay" role="dialog" aria-modal="true" aria-label={t("archetypeRule.dialogLabel")}>
       <div className="cap-editor-drawer">
         <header className="cap-editor-header">
           <div>
-            <p className="eyebrow">{zh ? "检测规则 · 原生原型" : "Detection rule · native archetype"}</p>
-            <h2>{existing ? (existing.rule.displayName || existing.id) : (zh ? "新建检测规则" : "New detection rule")}</h2>
+            <p className="eyebrow">{t("archetypeRule.eyebrow")}</p>
+            <h2>{existing ? (existing.rule.displayName || existing.id) : t("archetypeRule.newRule")}</h2>
           </div>
-          <button type="button" className="icon-action ghost-action" onClick={onClose} aria-label={zh ? "关闭" : "Close"}><X aria-hidden /></button>
+          <Button variant="ghost" type="button" className="icon-action" onClick={onClose} aria-label={t("archetypeRule.close")}><X aria-hidden /></Button>
         </header>
 
         <div className="cap-editor-body">
           <p className="cap-editor-note">
-            {zh
-              ? "检测规则只扩展迁移分析对源主机软件的识别,不进入 Build 完整迁移认证(认证仍需 harness 场景 + 白名单,走开发流程)。"
-              : "Detection rules only extend what migrate recognizes on source hosts. They never enter Build certification (which still needs a harness scenario + opt-in via the dev flow)."}
+            {t("archetypeRule.notice")}
           </p>
           {error ? <div className="conn-feedback conn-feedback-error"><AlertTriangle aria-hidden />{error}</div> : null}
           {conflict ? <div className="conn-feedback conn-feedback-error"><AlertTriangle aria-hidden />{conflict}</div> : null}
@@ -160,56 +159,56 @@ export function ArchetypeRuleDrawer({
           ) : null}
 
           <section className="cap-editor-section">
-            <h3>{zh ? "身份" : "Identity"}</h3>
+            <h3>{t("archetypeRule.identity")}</h3>
             <div className="cap-editor-grid">
-              <label><span>{zh ? "名称" : "Name"}</span><input value={displayName} onChange={(e) => { setDisplayName(e.target.value); if (!idTouched) setId(slugify(e.target.value)); }} /></label>
+              <label><span>{t("archetypeRule.name")}</span><input value={displayName} onChange={(e) => { setDisplayName(e.target.value); if (!idTouched) setId(slugify(e.target.value)); }} /></label>
               <label><span>ID</span><input value={id} disabled={Boolean(existing)} onChange={(e) => { setId(e.target.value); setIdTouched(true); }} placeholder="e.g. acme-widget" /></label>
               <label><span>capabilityKey</span><input value={capabilityKey} onChange={(e) => setCapabilityKey(e.target.value)} placeholder="e.g. service.acme-widget" /></label>
-              <label><span>{zh ? "类目" : "Category"}</span>
+              <label><span>{t("archetypeRule.category")}</span>
                 <select value={category} onChange={(e) => setCategory(e.target.value)}>{CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}</select>
               </label>
             </div>
           </section>
 
           <section className="cap-editor-section">
-            <h3>{zh ? "检测信号" : "Detection signals"}</h3>
+            <h3>{t("archetypeRule.detectionSignals")}</h3>
             <div className="cap-editor-grid">
-              <label><span>{zh ? "apt 包(逗号分隔)" : "apt packages (comma)"}</span><input value={apt} onChange={(e) => setApt(e.target.value)} /></label>
-              <label><span>{zh ? "二进制" : "Binaries"}</span><input value={binaries} onChange={(e) => setBinaries(e.target.value)} /></label>
+              <label><span>{t("archetypeRule.aptPackages")}</span><input value={apt} onChange={(e) => setApt(e.target.value)} /></label>
+              <label><span>{t("archetypeRule.binaries")}</span><input value={binaries} onChange={(e) => setBinaries(e.target.value)} /></label>
               <label><span>systemd</span><input value={systemd} onChange={(e) => setSystemd(e.target.value)} placeholder="nginx.service" /></label>
-              <label><span>{zh ? "端口" : "Ports"}</span><input value={ports} onChange={(e) => setPorts(e.target.value)} placeholder="80, 443" /></label>
+              <label><span>{t("archetypeRule.ports")}</span><input value={ports} onChange={(e) => setPorts(e.target.value)} placeholder="80, 443" /></label>
             </div>
           </section>
 
           <section className="cap-editor-section">
-            <h3>{zh ? "配置路径" : "Config paths"}</h3>
-            <label className="cap-editor-full"><span>{zh ? "文件(每行一个)" : "Files (one per line)"}</span><textarea className="cap-editor-markdown" value={configFiles} onChange={(e) => setConfigFiles(e.target.value)} /></label>
-            <label className="cap-editor-full"><span>{zh ? "通配(每行一个)" : "Globs (one per line)"}</span><textarea className="cap-editor-markdown" value={configGlobs} onChange={(e) => setConfigGlobs(e.target.value)} /></label>
+            <h3>{t("archetypeRule.configPaths")}</h3>
+            <label className="cap-editor-full"><span>{t("archetypeRule.files")}</span><textarea className="cap-editor-markdown" value={configFiles} onChange={(e) => setConfigFiles(e.target.value)} /></label>
+            <label className="cap-editor-full"><span>{t("archetypeRule.globs")}</span><textarea className="cap-editor-markdown" value={configGlobs} onChange={(e) => setConfigGlobs(e.target.value)} /></label>
           </section>
 
           <section className="cap-editor-section">
-            <h3>{zh ? "跨发行版包名" : "Cross-distro packages"}</h3>
+            <h3>{t("archetypeRule.crossDistroPackages")}</h3>
             <div className="cap-editor-grid">
-              <label><span>apt</span><input value={pkgApt} onChange={(e) => setPkgApt(e.target.value)} placeholder={zh ? "留空则同检测 apt" : "defaults to detect apt"} /></label>
-              <label><span>dnf</span><input value={pkgDnf} onChange={(e) => setPkgDnf(e.target.value)} placeholder={zh ? "留空则同检测 apt" : "defaults to detect apt"} /></label>
+              <label><span>apt</span><input value={pkgApt} onChange={(e) => setPkgApt(e.target.value)} placeholder={t("archetypeRule.defaultsToDetectApt")} /></label>
+              <label><span>dnf</span><input value={pkgDnf} onChange={(e) => setPkgDnf(e.target.value)} placeholder={t("archetypeRule.defaultsToDetectApt")} /></label>
             </div>
           </section>
 
           <section className="cap-editor-section">
-            <h3>{zh ? "迁移与安全" : "Migrate & security"}</h3>
+            <h3>{t("archetypeRule.migrateSecurity")}</h3>
             <div className="cap-editor-grid">
-              <label><span>{zh ? "数据" : "Data"}</span><select value={dataMode} onChange={(e) => setDataMode(e.target.value)}>{DATA_MODES.map((d) => <option key={d} value={d}>{d}</option>)}</select></label>
-              <label><span>{zh ? "策略" : "Strategy"}</span><select value={strategy} onChange={(e) => setStrategy(e.target.value)}>{STRATEGIES.map((s) => <option key={s} value={s}>{s}</option>)}</select></label>
-              <label><span>{zh ? "重启服务" : "Restart services"}</span><input value={restartServices} onChange={(e) => setRestartServices(e.target.value)} placeholder="nginx" /></label>
-              <label><span>{zh ? "风险" : "Risk"}</span><select value={risk} onChange={(e) => setRisk(e.target.value)}>{RISKS.map((r) => <option key={r} value={r}>{r}</option>)}</select></label>
+              <label><span>{t("archetypeRule.data")}</span><select value={dataMode} onChange={(e) => setDataMode(e.target.value)}>{DATA_MODES.map((d) => <option key={d} value={d}>{d}</option>)}</select></label>
+              <label><span>{t("archetypeRule.strategy")}</span><select value={strategy} onChange={(e) => setStrategy(e.target.value)}>{STRATEGIES.map((s) => <option key={s} value={s}>{s}</option>)}</select></label>
+              <label><span>{t("archetypeRule.restartServices")}</span><input value={restartServices} onChange={(e) => setRestartServices(e.target.value)} placeholder="nginx" /></label>
+              <label><span>{t("archetypeRule.risk")}</span><select value={risk} onChange={(e) => setRisk(e.target.value)}>{RISKS.map((r) => <option key={r} value={r}>{r}</option>)}</select></label>
             </div>
-            <label className="cap-editor-full"><span>{zh ? "验证命令(每行一个)" : "Validate commands (one per line)"}</span><textarea className="cap-editor-markdown" value={validate} onChange={(e) => setValidate(e.target.value)} placeholder="systemctl is-active nginx" /></label>
-            <label className="cap-editor-full"><span>{zh ? "安全说明(每行一个)" : "Security notes (one per line)"}</span><textarea className="cap-editor-markdown" value={securityNotes} onChange={(e) => setSecurityNotes(e.target.value)} /></label>
+            <label className="cap-editor-full"><span>{t("archetypeRule.validateCommands")}</span><textarea className="cap-editor-markdown" value={validate} onChange={(e) => setValidate(e.target.value)} placeholder="systemctl is-active nginx" /></label>
+            <label className="cap-editor-full"><span>{t("archetypeRule.securityNotes")}</span><textarea className="cap-editor-markdown" value={securityNotes} onChange={(e) => setSecurityNotes(e.target.value)} /></label>
           </section>
 
           {preview ? (
             <section className="cap-editor-section">
-              <h3>{zh ? "生成的规则预览" : "Generated rule preview"}</h3>
+              <h3>{t("archetypeRule.generatedPreview")}</h3>
               <pre className="cap-editor-preview">{JSON.stringify(preview, null, 2)}</pre>
             </section>
           ) : null}
@@ -217,11 +216,11 @@ export function ArchetypeRuleDrawer({
 
         <footer className="cap-editor-footer">
           <div className="cap-editor-footer-left">
-            <Button variant="ghost" onClick={() => void handlePreview()} loading={busy}><Eye aria-hidden />{zh ? "预览" : "Preview"}</Button>
+            <Button variant="ghost" onClick={() => void handlePreview()} loading={busy}><Eye aria-hidden />{t("archetypeRule.preview")}</Button>
           </div>
           <div className="cap-editor-footer-right">
-            <Button variant="secondary" onClick={onClose} disabled={busy}>{zh ? "取消" : "Cancel"}</Button>
-            <Button variant="primary" onClick={() => void handleSave()} loading={busy}><Save aria-hidden />{zh ? "保存" : "Save"}</Button>
+            <Button variant="secondary" onClick={onClose} disabled={busy}>{t("archetypeRule.cancel")}</Button>
+            <Button variant="primary" onClick={() => void handleSave()} loading={busy}><Save aria-hidden />{t("archetypeRule.save")}</Button>
           </div>
         </footer>
       </div>

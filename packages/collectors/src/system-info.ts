@@ -33,10 +33,14 @@ export function getMachineIdentity(): MachineIdentity {
 }
 
 export function collectSystemInfo(): CollectorOutput<SystemInfoData> {
+  const collectedAt = new Date().toISOString();
   return {
     id: "system-info",
     label: "System info",
     status: "available",
+    completeness: 1,
+    commands: [],
+    collectedAt,
     data: {
       hostname: os.hostname(),
       platform: os.platform(),

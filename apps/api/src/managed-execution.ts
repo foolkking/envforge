@@ -74,15 +74,30 @@ export async function runManagedAction(input: {
   item: EnvironmentPlanItem;
   action: EnvironmentPlanAction;
   adapter: ManagedExecutionAdapter;
+  dryRun?: boolean;
 }): Promise<ActionRunRecord> {
   const { plan, item, action, adapter } = input;
   let record: ActionRunRecord = newActionRunRecord({
     planId: plan.id,
+    planHash: plan.planHash,
     itemId: item.id,
     actionId: action.id,
+    targetConnectionId: action.targetHostId ?? plan.targetConnectionId,
+    dryRun: input.dryRun,
     capabilityKey: item.capabilityKey ?? item.audit?.capabilityKey,
     capabilityId: action.capabilityId
   });
+  const applyCommand = action.applySpec?.command ?? action.command;
+  if (applyCommand) record.commandSummaries.push({ phase: "apply", command: applyCommand });
+  const verifyCommands = [
+    action.verifySpec?.command,
+    ...(action.verifySpec?.checks ?? []).map((check) => check.command),
+    action.verify
+  ].filter((command): command is string => Boolean(command));
+  for (const command of verifyCommands) record.commandSummaries.push({ phase: "verify", command });
+  if (action.rollbackSpec?.command ?? action.rollback) {
+    record.commandSummaries.push({ phase: "rollback", command: action.rollbackSpec?.command ?? action.rollback ?? "" });
+  }
 
   // Detect-only items must not flow through the mutating runner. They
   // emit a single review action; we mark them as `manual-required` so
@@ -92,6 +107,12 @@ export async function runManagedAction(input: {
     record = transition(record, "manual-required");
     record.error = "Detect-only items must not run through the managed mutating runner.";
     return record;
+  }
+
+  if (input.dryRun) {
+    record.applyResult = { ok: true, message: "Dry-run: frozen action validated without target mutation.", steps: [] };
+    record.exitCode = 0;
+    return transition(record, "skipped");
   }
 
   // Non-mutating actions (`review`, `validate`, `manualStep`) get a
@@ -139,6 +160,7 @@ export async function runManagedAction(input: {
   }
 
   record = transition(record, "succeeded");
+  record.exitCode = 0;
   return record;
 }
 
@@ -167,6 +189,7 @@ function applyError(
   const safe = redactSecrets(message);
   const next = transition(record, "failed");
   next.error = `[${phase}] ${safe.text}`;
+  next.exitCode = 1;
   next.redacted = next.redacted || safe.redacted;
   captureStream(next, adapter);
   return next;

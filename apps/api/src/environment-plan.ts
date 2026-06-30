@@ -68,6 +68,8 @@ export interface ActionApplySpec {
   requiresSudo?: boolean;
   /** Optional retries for flaky network installs. */
   retries?: number;
+  /** Frozen content/recipe artifact consumed by this action. */
+  artifactId?: string;
 }
 
 /**
@@ -206,7 +208,10 @@ export type PlanApprovalKind =
   | "firewall-lockout-confirm"
   | "identity-provider-confirm"
   | "backup-restore-confirm"
-  | "manual-dns-confirm";
+  | "manual-dns-confirm"
+  | "target-conflict-confirm"
+  | "partial-snapshot-confirm"
+  | "high-risk-command-confirm";
 
 export interface PlanRequiredApproval {
   /** Stable id used in the apply request body. */
@@ -220,6 +225,25 @@ export interface PlanRequiredApproval {
   prompt: string;
 }
 
+export interface EnvironmentPlanArtifact {
+  id: string;
+  kind: "config" | "recipe" | "data-manifest" | "script" | "report";
+  contentSha256: string;
+  canonicalJsonSha256?: string;
+  storageRef: string;
+  createdAt: string;
+  redactedPreview?: string;
+}
+
+export interface PlanApprovalRecord {
+  planHash: string;
+  approvedBy: string;
+  approvedAt: string;
+  acceptedRisks: string[];
+  acceptedConflicts: string[];
+  confirmedGates: string[];
+}
+
 export interface EnvironmentPlan {
   id: string;
   type: EnvironmentPlanType;
@@ -228,6 +252,14 @@ export interface EnvironmentPlan {
   sourceHost?: string;
   targetConnectionId?: string;
   generatedAt: string;
+  /** New plans are frozen before persistence. Legacy plans may omit these fields. */
+  immutable?: true;
+  planHash?: string;
+  artifacts?: EnvironmentPlanArtifact[];
+  approvedPlanHash?: string;
+  approvedAt?: string;
+  approvedBy?: string;
+  approvalRecord?: PlanApprovalRecord;
   summary: {
     totalItems: number;
     totalActions: number;
@@ -269,6 +301,9 @@ export interface EnvironmentPlan {
     targetStateUnknown?: boolean;
     /** "verified" (snapshot < 24h), "stale" (older), "unknown" (none). */
     targetStateConfidence?: "verified" | "stale" | "unknown";
+    /** Collector evidence coverage used to drive partial-snapshot review. */
+    snapshotCompleteness?: number;
+    partialSnapshot?: boolean;
   };
   /**
    * Acknowledgements collected during Plan Review. Persisted on the
@@ -318,7 +353,11 @@ export interface PlanApprovalState {
   approvals?: Array<{ itemId: string; gateId: string; ackedAt: string }>;
 }
 
-export function migrationPlanToEnvironmentPlan(plan: MigrationPlan, targetConnectionId?: string): EnvironmentPlan {
+export function migrationPlanToEnvironmentPlan(
+  plan: MigrationPlan,
+  targetConnectionId?: string,
+  options: { snapshotCompleteness?: number } = {}
+): EnvironmentPlan {
   const items: EnvironmentPlanItem[] = plan.items.map((item) => ({
     id: item.id,
     name: item.name,
@@ -337,7 +376,12 @@ export function migrationPlanToEnvironmentPlan(plan: MigrationPlan, targetConnec
     targetConnectionId,
     generatedAt: new Date().toISOString(),
     items,
-    review: { required: true, reasons: ["Migration plans are generated from classified HostSnapshot evidence and require human approval."] },
+    review: {
+      required: true,
+      reasons: ["Migration plans are generated from classified HostSnapshot evidence and require human approval."],
+      snapshotCompleteness: options.snapshotCompleteness,
+      partialSnapshot: options.snapshotCompleteness !== undefined && options.snapshotCompleteness < 0.85
+    },
     // Phase 3: migration plans execute through the unified Environment Plan
     // engine (POST /api/plans/:id/apply runs export.yaml). Without this the
     // unified apply rejects with "Plan has no executable recipe".
@@ -368,6 +412,8 @@ export function buildRebuildPlan(
     targetSnapshotAvailable?: boolean;
     /** Snapshot age in milliseconds. >24h is "stale". */
     targetSnapshotAgeMs?: number;
+    /** Collector evidence coverage for the target snapshot. */
+    snapshotCompleteness?: number;
   } = {}
 ): EnvironmentPlan {
   const existing = options.existingCapabilities ?? {};
@@ -427,7 +473,9 @@ export function buildRebuildPlan(
       required: true,
       reasons: reviewReasons,
       targetStateUnknown: targetStateConfidence === "unknown",
-      targetStateConfidence
+      targetStateConfidence,
+      snapshotCompleteness: options.snapshotCompleteness,
+      partialSnapshot: options.snapshotCompleteness !== undefined && options.snapshotCompleteness < 0.85
     },
     export: { yaml, markdown: planItemsToMarkdown("Rebuild Plan", planItems) }
   });
@@ -3475,7 +3523,49 @@ export function attachConflictsAndApprovalAggregate(
     if (seenIds.has(extra.rule.id)) continue;
     detected.push(extra);
   }
+  const conflicts = detected.map((d) => detectedConflictToReviewConflict(d, existing));
+  const conflictIds = new Set(conflicts.map((conflict) => conflict.id));
+  for (const persisted of plan.review.conflicts ?? []) {
+    if (!conflictIds.has(persisted.id)) {
+      conflicts.push(persisted);
+      conflictIds.add(persisted.id);
+    }
+  }
   const approvalsRequired = plan.items.flatMap((item) => item.requiredApprovals ?? []);
+  for (const item of plan.items) {
+    const needsCommandGate = item.actions.some(
+      (action) => action.blockedUntilApproved === true
+        || (action.changesTarget && ["privileged", "dangerous"].includes(normalizeRisk(action.risk)))
+    );
+    if (needsCommandGate) {
+      approvalsRequired.push({
+        id: `${item.id}:gate:high-risk-command-confirm`,
+        kind: "high-risk-command-confirm",
+        itemId: item.id,
+        label: "Confirm high-risk command execution",
+        prompt: "I reviewed the exact frozen command or recipe artifact and accept its target impact."
+      });
+    }
+  }
+  if (conflicts.some((conflict) => conflict.participatingItemIds.some((id) => id.startsWith("target:")))) {
+    approvalsRequired.push({
+      id: "plan:gate:target-conflict-confirm",
+      kind: "target-conflict-confirm",
+      itemId: "plan",
+      label: "Confirm target-state conflict",
+      prompt: "I reviewed the detected target conflict and the selected resolution."
+    });
+  }
+  if (plan.review.partialSnapshot || (plan.review.snapshotCompleteness !== undefined && plan.review.snapshotCompleteness < 0.85)) {
+    approvalsRequired.push({
+      id: "plan:gate:partial-snapshot-confirm",
+      kind: "partial-snapshot-confirm",
+      itemId: "plan",
+      label: "Confirm partial source evidence",
+      prompt: "I understand that collector evidence is incomplete and reviewed the missing sections before applying."
+    });
+  }
+  const uniqueApprovals = [...new Map(approvalsRequired.map((gate) => [gate.id, gate])).values()];
   return {
     ...plan,
     summary: {
@@ -3484,8 +3574,8 @@ export function attachConflictsAndApprovalAggregate(
     },
     review: {
       ...plan.review,
-      conflicts: detected.map((d) => detectedConflictToReviewConflict(d, existing)),
-      approvalsRequired
+      conflicts,
+      approvalsRequired: uniqueApprovals
     }
   };
 }
@@ -3806,8 +3896,25 @@ export function evaluateApplyGate(
 export interface PlanReport {
   generatedAt: string;
   planId: string;
+  planHash?: string;
+  approvedPlanHash?: string;
   planType: EnvironmentPlanType;
   status: EnvironmentPlanStatus;
+  targetConnectionId?: string;
+  applyRun?: {
+    id: string;
+    status: "running" | "succeeded" | "failed";
+    idempotencyKey?: string;
+    createdAt: string;
+    completedAt?: string;
+    error?: string;
+  };
+  artifacts: Array<{
+    id: string;
+    kind: EnvironmentPlanArtifact["kind"];
+    contentSha256: string;
+    canonicalJsonSha256?: string;
+  }>;
   effectiveSupportLevel?: NonNullable<CatalogItem["supportLevel"]>;
   selectedCapabilities: Array<{
     itemId: string;
@@ -3846,11 +3953,19 @@ export interface PlanReport {
    * the plan has not been applied yet.
    */
   actionRuns: Array<{
+    id: string;
+    planHash: string;
     actionId: string;
     itemId: string;
+    targetConnectionId: string;
+    dryRun: boolean;
     status: string;
     startedAt: string;
     endedAt?: string;
+    exitCode?: number;
+    commandSummaries: Array<{ phase: "snapshot" | "apply" | "verify" | "rollback"; command: string }>;
+    stdoutPreview?: string;
+    stderrPreview?: string;
     snapshotKind?: string;
     backupPath?: string;
     redacted: boolean;
@@ -3950,18 +4065,34 @@ export function buildPlanReport(
     verifyResults?: { passed: string[]; failed: string[] };
     /** Optional override of effectiveSupportLevel; defaults to plan.summary.effectiveSupportLevel. */
     effectiveSupportLevel?: NonNullable<CatalogItem["supportLevel"]>;
+    applyRun?: {
+      id: string;
+      status: "running" | "succeeded" | "failed";
+      idempotencyKey?: string;
+      createdAt: string;
+      completedAt?: string;
+      error?: string;
+    };
     /**
      * Action-level run records (one per action that went through the
      * managed orchestrator). Caller supplies them from the runtime
      * store; the plan body itself does not own them.
      */
     actionRuns?: Array<{
+      id: string;
       planId: string;
+      planHash: string;
       itemId: string;
       actionId: string;
+      targetConnectionId: string;
+      dryRun: boolean;
       status: string;
       startedAt: string;
       endedAt?: string;
+      exitCode?: number;
+      commandSummaries: Array<{ phase: "snapshot" | "apply" | "verify" | "rollback"; command: string }>;
+      stdoutPreview?: string;
+      stderrPreview?: string;
       snapshot?: { kind?: string; backupPath?: string };
       applyResult?: { ok: boolean };
       verifyResult?: { ok: boolean };
@@ -4094,8 +4225,18 @@ export function buildPlanReport(
   return {
     generatedAt: new Date().toISOString(),
     planId: plan.id,
+    planHash: plan.planHash,
+    approvedPlanHash: plan.approvedPlanHash,
     planType: plan.type,
     status: plan.status,
+    targetConnectionId: plan.targetConnectionId,
+    applyRun: options.applyRun,
+    artifacts: (plan.artifacts ?? []).map((artifact) => ({
+      id: artifact.id,
+      kind: artifact.kind,
+      contentSha256: artifact.contentSha256,
+      canonicalJsonSha256: artifact.canonicalJsonSha256
+    })),
     effectiveSupportLevel,
     selectedCapabilities,
     conflictsDetected: plan.review.conflicts ?? [],
@@ -4109,11 +4250,22 @@ export function buildPlanReport(
     skippedDetectOnlyItems,
     unresolvedManualSteps,
     actionRuns: (options.actionRuns ?? []).map((run) => ({
+      id: run.id,
+      planHash: run.planHash,
       actionId: run.actionId,
       itemId: run.itemId,
+      targetConnectionId: run.targetConnectionId,
+      dryRun: run.dryRun,
       status: run.status,
       startedAt: run.startedAt,
       endedAt: run.endedAt,
+      exitCode: run.exitCode,
+      commandSummaries: run.commandSummaries.map((entry) => ({
+        ...entry,
+        command: scanAndRedact("command", entry.command).redactedContent
+      })),
+      stdoutPreview: run.stdoutPreview,
+      stderrPreview: run.stderrPreview,
       snapshotKind: run.snapshot?.kind,
       backupPath: run.snapshot?.backupPath,
       redacted: run.redacted,
@@ -4135,11 +4287,25 @@ export function planReportToMarkdown(report: PlanReport): string {
   lines.push(`# Plan Report: ${report.planId}`);
   lines.push("");
   lines.push(`Generated: ${report.generatedAt}`);
+  if (report.planHash) lines.push(`Plan hash: \`${report.planHash}\``);
+  if (report.approvedPlanHash) lines.push(`Approved plan hash: \`${report.approvedPlanHash}\``);
   lines.push(`Type: ${report.planType}`);
   lines.push(`Status: ${report.status}`);
+  if (report.targetConnectionId) lines.push(`Target connection: \`${report.targetConnectionId}\``);
+  if (report.applyRun) {
+    lines.push(`Apply run: \`${report.applyRun.id}\` (${report.applyRun.status})`);
+    if (report.applyRun.idempotencyKey) lines.push(`Idempotency key: \`${report.applyRun.idempotencyKey}\``);
+  }
   lines.push(`Severity: **${report.severity}**`);
   if (report.effectiveSupportLevel) lines.push(`Effective support level: \`${report.effectiveSupportLevel}\``);
   lines.push("");
+  if (report.artifacts.length > 0) {
+    lines.push("## Frozen artifacts");
+    for (const artifact of report.artifacts) {
+      lines.push(`- \`${artifact.id}\` (${artifact.kind}): SHA-256 \`${artifact.contentSha256}\`${artifact.canonicalJsonSha256 ? `, canonical JSON \`${artifact.canonicalJsonSha256}\`` : ""}`);
+    }
+    lines.push("");
+  }
   if (report.severityReasons.length > 0) {
     lines.push("## Severity reasons");
     for (const reason of report.severityReasons) lines.push(`- ${reason}`);
@@ -4221,6 +4387,8 @@ export function planReportToMarkdown(report: PlanReport): string {
       if (run.rollbackOk !== undefined) flags.push(`rollback=${run.rollbackOk ? "ok" : "fail"}`);
       if (run.redacted) flags.push("redacted");
       lines.push(`- \`${run.itemId}/${run.actionId}\` — ${flags.join(", ")}${run.error ? ` — ${run.error}` : ""}`);
+      lines.push(`  - run: \`${run.id}\`, planHash: \`${run.planHash}\`, target: \`${run.targetConnectionId}\`${run.exitCode !== undefined ? `, exit: ${run.exitCode}` : ""}${run.dryRun ? ", dry-run" : ""}`);
+      for (const command of run.commandSummaries) lines.push(`  - ${command.phase}: \`${command.command}\``);
       if (run.backupPath) lines.push(`  - backup: \`${run.backupPath}\``);
     }
   }

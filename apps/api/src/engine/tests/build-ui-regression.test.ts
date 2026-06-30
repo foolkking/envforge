@@ -41,6 +41,7 @@ const webApiPath = path.resolve(repoRoot, "apps/web/src/api.ts");
 const stepperPath = path.resolve(repoRoot, "apps/web/src/components/WorkflowStepper.tsx");
 const settingsPath = path.resolve(repoRoot, "apps/web/src/pages/SettingsPage.tsx");
 const apiRoutesPath = path.resolve(repoRoot, "apps/api/src/routes.ts");
+const enLocalePath = path.resolve(repoRoot, "apps/web/src/i18n/locales/en.ts");
 
 function fileURLToPathSafe(url: string): string {
   // Local helper to avoid importing node:url at top-level twice.
@@ -84,18 +85,21 @@ test("Build page source no longer defines or calls supportLevelLabel", async () 
 
 test("Build page source renders a Certified badge", async () => {
   const src = await fs.readFile(buildPagePath, "utf8");
+  const en = await fs.readFile(enLocalePath, "utf8");
   assert.match(src, /certification-badge/, "Build page must render the certification badge");
-  assert.match(src, /Certified/, "Build page must render the Certified label");
+  assert.match(src, /capabilityCatalog\.certified/, "Build page must render the localized Certified label");
+  assert.match(en, /certified:\s*"Certified"/);
   assert.match(src, /certification\?\.status/, "Build badge must derive from item.certification.status, not supportLevel");
 });
 
 test("Build page source shows the certified-only empty-state copy", async () => {
   const src = await fs.readFile(buildPagePath, "utf8");
+  const en = await fs.readFile(enLocalePath, "utf8");
   // The empty-state copy required by the design (zh + en).
-  assert.match(src, /Full Migration Certified/);
+  assert.match(src, /capabilityCatalog\.certifiedOnly/);
   assert.ok(
     src.includes("当前仅展示已认证能力。更多能力正在管理员规则库中完善。") ||
-      src.includes("being upgraded in the admin Capability Rules registry"),
+      en.includes("being upgraded in the admin Capability Rules registry"),
     "Build page must show the certified-only empty-state copy"
   );
 });
@@ -118,13 +122,26 @@ test("Migrate page source renders the pipeline shell instead of legacy stacked p
 test("Migrate pipeline source keeps capability-level selection and evidence drawer contract", async () => {
   const src = await fs.readFile(migratePipelinePath, "utf8");
   assert.match(src, /StagedPlanBar/, "Pipeline must keep the staged plan bar");
-  assert.match(src, /Select capabilities, not packages|按能力选择，不按包选择/, "Selection step must be capability-level, not package-level");
+  assert.match(src, /migratePipeline\.selection\.title/, "Selection step must use the capability-level localized title");
   assert.match(src, /candidate\.catalogRuleName \?\? candidate\.name/, "Cards must name the capability when a catalog rule exists");
   assert.match(src, /candidateIds/, "Bulk decisions must submit candidateIds");
   assert.match(src, /selectedGroup && selectedGroup !== group/, "Bulk selection must stay within one candidate group");
   assert.match(src, /EvidenceDrawer/, "Raw evidence must live behind an evidence drawer");
   assert.match(src, /candidate\.rawEvidence/, "Evidence drawer must expose raw evidence");
   assert.match(src, /candidate\.normalizedArtifacts/, "Evidence drawer must expose normalized artifacts");
+});
+
+test("Migrate source snapshot exposes collector quality and partial evidence gates", async () => {
+  const src = await fs.readFile(migratePipelinePath, "utf8");
+  const api = await fs.readFile(webApiPath, "utf8");
+  for (const evidenceField of ["collection", "collectors", "completeness", "commands", "stderr", "timedOut"]) {
+    assert.match(api, new RegExp(`\\b${evidenceField}\\b`), `Web snapshot type must expose ${evidenceField}`);
+  }
+  assert.match(src, /probe\?\.collection/, "Migrate source must render overall collector status");
+  assert.match(src, /probe\?\.collectors/, "Migrate source must render per-section command evidence");
+  assert.match(src, /partial-snapshot-confirm/, "Incomplete source evidence must show its required approval gate");
+  assert.match(src, /section\.commands/, "Failed and timed-out collector commands must remain inspectable");
+  assert.match(src, /section\.stderr/, "Collector stderr summary must remain inspectable");
 });
 
 test("Migrate pipeline source implements config/data review decisions", async () => {
@@ -139,24 +156,77 @@ test("Migrate pipeline source implements config/data review decisions", async ()
   assert.match(api, /data-decisions/, "Web API must expose session data decision endpoint");
 });
 
-test("Migrate pipeline source implements apply verify report closed loop", async () => {
+test("Migrate pipeline hands apply off to immutable Environment Plan flow", async () => {
   const src = await fs.readFile(migratePipelinePath, "utf8");
   const api = await fs.readFile(webApiPath, "utf8");
   for (const token of [
     "fetchMigrationSessionApplyReadiness",
-    "applyMigrationSession",
     "verifyMigrationSession",
     "fetchMigrationSessionReport"
   ]) {
     assert.match(src, new RegExp(token), `Migrate pipeline must use ${token}`);
     assert.match(api, new RegExp(token), `Web API must export ${token}`);
   }
+  assert.match(src, /createPlanFromMigrationSession/, "Migrate must create a stored Environment Plan before apply");
+  assert.match(src, /onPlanCreated\?\.\(plan\.id\)/, "Migrate must hand the stored Plan id to the Plan center");
+  assert.doesNotMatch(src, /applyMigrationSession/, "Migrate UI must not directly apply a migration session");
+  assert.doesNotMatch(api, /export async function applyMigrationSession/, "Web API must not expose the legacy direct apply helper");
   assert.match(src, /RunSummaryCard/, "Apply/verify/report results must be summarized in the UI");
   assert.match(src, /rollback/i, "Rollback visibility must remain part of the apply/report UI");
   assert.match(api, /apply-readiness/, "Web API must expose session apply readiness endpoint");
-  assert.match(api, /\/apply/, "Web API must expose session apply endpoint");
+  assert.match(api, /kind:\s*"migration-session"/, "Web API must promote sessions through POST /api/plans");
   assert.match(api, /\/verify/, "Web API must expose session verify endpoint");
   assert.match(api, /\/report/, "Web API must expose session report endpoint");
+});
+
+test("Web apply helper sends only the immutable Plan apply allowlist", async () => {
+  const api = await fs.readFile(webApiPath, "utf8");
+  const match = api.match(/export async function applyEnvironmentPlan[\s\S]*?return readJsonOrThrow\(response, "Apply Environment Plan failed"\);/);
+  assert.ok(match, "applyEnvironmentPlan helper must exist");
+  const helper = match[0]!;
+  const payloadMatch = helper.match(/Object\.entries\(\{[\s\S]*?\}\)\.filter/);
+  assert.ok(payloadMatch, "apply helper must construct an explicit payload object");
+  const payloadBlock = payloadMatch[0]!;
+  for (const allowed of ["dryRun", "targetConnectionId", "idempotencyKey"]) {
+    assert.match(payloadBlock, new RegExp(`\\b${allowed}\\s*:`), `apply helper must allow ${allowed}`);
+  }
+  assert.match(helper, /JSON\.stringify\(payload\)/, "apply helper must serialize the allowlisted payload object");
+  for (const forbidden of ["plan", "path", "content", "yaml", "actions", "export", "acknowledged", "gateAcknowledgements"]) {
+    assert.doesNotMatch(payloadBlock, new RegExp(`\\b${forbidden}\\s*:`), `apply helper must not send ${forbidden}`);
+    assert.doesNotMatch(payloadBlock, new RegExp(`["']${forbidden}["']\\s*:`), `apply helper must not send ${forbidden}`);
+  }
+});
+
+test("Web verification report helper explicitly requests the Markdown representation", async () => {
+  const api = await fs.readFile(webApiPath, "utf8");
+  const match = api.match(/export async function fetchEnvironmentPlanReport[\s\S]*?return body\.report;/);
+  assert.ok(match, "fetchEnvironmentPlanReport helper must exist");
+  assert.match(match[0], /\/report\?format=markdown/);
+});
+
+test("legacy mutation route handlers fail closed in their own bodies", async () => {
+  const routes = await fs.readFile(apiRoutesPath, "utf8");
+  const handlers = [
+    { method: "post", path: "/api/rebuild-plan/apply" },
+    { method: "post", path: "/api/connections/:id/apply-remove-plan" },
+    { method: "post", path: "/api/connections/:id/configs/apply-change-plan" },
+    { method: "post", path: "/api/connections/:id/configs/rollback" },
+    { method: "post", path: "/api/profiles/:id/deploy-stage" },
+    { method: "post", path: "/api/migration/sessions/:sessionId/apply" },
+    { method: "post", path: "/api/connections/:id/migration-plan/apply" },
+    { method: "post", path: "/api/schedules" },
+    { method: "patch", path: "/api/schedules/:id" }
+  ];
+  for (const handler of handlers) {
+    const escapedPath = handler.path.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const match = routes.match(new RegExp(`app\\.${handler.method}\\("${escapedPath}"[\\s\\S]*?\\n  \\}\\);`));
+    assert.ok(match, `routes.ts missing ${handler.method.toUpperCase()} ${handler.path}`);
+    const body = match[0]!;
+    assert.match(body, /legacyMutationGone\(reply\)|reply\.code\(410\)/, `${handler.path} must return 410 in the handler body`);
+    for (const forbidden of ["executePlaybook", "writeConfigFile", "restoreConfigFileFromBackup", "runMigrationApplyPlan", "executeTask", "buildSnapshotDeployTask"]) {
+      assert.doesNotMatch(body, new RegExp(`\\b${forbidden}\\b`), `${handler.path} must not retain ${forbidden}`);
+    }
+  }
 });
 
 test("Migrate session routes enforce phase 8 apply gates", async () => {
@@ -180,9 +250,11 @@ test("Migrate session routes enforce phase 8 apply gates", async () => {
 
 test("Admin registry page renders missing requirements + not-ready status", async () => {
   const src = await readAdminWorkbenchSource();
+  const en = await fs.readFile(enLocalePath, "utf8");
   assert.match(src, /Not Ready|not-ready/);
   assert.match(src, /reasons/, "admin page must render certification reasons (missing requirements)");
-  assert.match(src, /Full Migration Checklist|Full Migration 检查项/, "admin page must render the Full Migration Checklist");
+  assert.match(src, /governance\.registry\.checklistTitle/, "admin page must render the localized checklist title");
+  assert.match(en, /checklistTitle:\s*"Full Migration Checklist"/);
 });
 
 // ── route-level: data the Build page consumes ───────────────────────
@@ -202,8 +274,9 @@ test("main navigation hides Catalog, Maintain, and Account for non-admins", asyn
 
 test("admin navigation exposes Capability Admin", async () => {
   const nav = await fs.readFile(navTypesPath, "utf8");
+  const en = await fs.readFile(enLocalePath, "utf8");
   assert.match(nav, /id: "catalog"[\s\S]*adminOnly: true/, "Catalog route must be admin-only");
-  assert.match(nav, /Capability Admin/);
+  assert.match(en, /catalog:\s*"Capability Admin"/);
 });
 
 test("non-admin catalog route redirects to Build", async () => {
@@ -214,8 +287,8 @@ test("non-admin catalog route redirects to Build", async () => {
 
 test("Build page keeps only category filters and no market controls", async () => {
   const src = await fs.readFile(buildPagePath, "utf8");
-  for (const label of ["All", "Runtime", "Database", "Security", "Network", "Container", "Dev", "Service"]) {
-    assert.ok(src.includes(label), `Build category filter ${label} should remain`);
+  for (const key of ["all", "runtime", "database", "security", "network", "container", "developer", "service"]) {
+    assert.ok(src.includes(`capabilityCatalog.categories.${key}`), `Build category filter ${key} should remain`);
   }
   for (const forbidden of ["market-switch", "CatalogSuggestionCenter", "Rating ", "Profiles", "Suggest"]) {
     assert.ok(!src.includes(forbidden), `Build must not render ${forbidden}`);
@@ -226,13 +299,13 @@ test("Build stepper no longer says Capability Catalog or detect-only", async () 
   const stepper = await fs.readFile(stepperPath, "utf8");
   assert.ok(!stepper.includes("Capability Catalog"));
   assert.ok(!stepper.includes("detect-only"));
-  assert.match(stepper, /Certified Capabilities|Select Capabilities/);
+  assert.match(stepper, /workflow\.build\.catalog/);
 });
 
 test("Dashboard keeps the resource console layout", async () => {
   const src = await fs.readFile(dashboardPagePath, "utf8");
-  for (const label of ["Resource console", "Operations pipeline", "Runtime queue", "Recent plan activity", "Workspace context", "Snapshots and reports"]) {
-    assert.ok(src.includes(label), `Dashboard missing ${label}`);
+  for (const key of ["dashboard.header.eyebrow", "dashboard.pipeline.title", "dashboard.panels.runtimeQueue", "dashboard.panels.recentPlans", "dashboard.panels.workspaceContext", "dashboard.panels.snapshotsReports"]) {
+    assert.ok(src.includes(key), `Dashboard missing localized key ${key}`);
   }
 });
 
@@ -271,17 +344,21 @@ test("Capability Admin renders five governance tabs", async () => {
 
 test("Package Integrations is not an install/uninstall host package manager", async () => {
   const src = await readAdminWorkbenchSource();
+  const en = await fs.readFile(enLocalePath, "utf8");
   assert.ok(!/<button[^>]*>\s*Install\s*<\/button>/i.test(src));
   assert.ok(!/<button[^>]*>\s*Uninstall\s*<\/button>/i.test(src));
-  assert.match(src, /NOT a host-level package manager|not a host-level package manager/i);
+  assert.match(src, /governance\.integrations\.intro/);
+  assert.match(en, /NOT a host-level package manager/);
 });
 
 test("Suggestion Inbox and Users & Queues render workflow assignment language", async () => {
   const src = await readAdminWorkbenchSource();
+  const en = await fs.readFile(enLocalePath, "utf8");
   assert.match(src, /SuggestionStatusBadge/);
-  assert.match(src, /Users \/ Maintainers/);
-  assert.match(src, /reviewer|maintainer/);
-  assert.match(src, /Assigned Capabilities|Open Backlog Items|Queue/);
+  assert.match(src, /governance\.usersQueues\.usersTitle/);
+  assert.match(en, /usersTitle:\s*"Users \/ Maintainers"/);
+  assert.match(en, /reviewer|maintainer/);
+  assert.match(en, /Assigned Capabilities|Open Backlog Items|Queue/);
   assert.ok(!src.includes("Linux user management"));
 });
 

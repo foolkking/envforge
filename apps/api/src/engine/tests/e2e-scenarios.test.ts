@@ -598,6 +598,61 @@ test("e2e: plan report markdown includes severity + selected capabilities + data
   assert.match(md, /dump-restore/);
 });
 
+test("e2e: verification report binds plan, apply run, artifact hashes, and redacted action evidence", async () => {
+  const items = await loadItems("redis-server");
+  const planHash = "a".repeat(64);
+  const plan: EnvironmentPlan = {
+    ...buildRebuildPlan(items, "conn-report-evidence"),
+    planHash,
+    approvedPlanHash: planHash,
+    artifacts: [{
+      id: "artifact-report-test",
+      kind: "script",
+      contentSha256: "b".repeat(64),
+      storageRef: "plan-test/artifact-report-test.bin",
+      createdAt: "2026-06-30T00:00:00.000Z"
+    }]
+  };
+  const report = buildPlanReport(plan, {
+    applyRun: {
+      id: "apply-run-report-test",
+      status: "succeeded",
+      idempotencyKey: "report-key",
+      createdAt: "2026-06-30T00:00:01.000Z",
+      completedAt: "2026-06-30T00:00:02.000Z"
+    },
+    actionRuns: [{
+      id: "action-run-report-test",
+      planId: plan.id,
+      planHash,
+      itemId: plan.items[0]!.id,
+      actionId: plan.items[0]!.actions[0]!.id,
+      targetConnectionId: "conn-report-evidence",
+      dryRun: false,
+      status: "succeeded",
+      startedAt: "2026-06-30T00:00:01.000Z",
+      endedAt: "2026-06-30T00:00:02.000Z",
+      exitCode: 0,
+      commandSummaries: [{ phase: "apply", command: "TOKEN=abcdefghijklmnop" }],
+      redacted: true
+    }]
+  });
+
+  assert.equal(report.planHash, planHash);
+  assert.equal(report.approvedPlanHash, planHash);
+  assert.equal(report.applyRun?.id, "apply-run-report-test");
+  assert.equal(report.applyRun?.idempotencyKey, "report-key");
+  assert.equal(report.artifacts[0]?.contentSha256, "b".repeat(64));
+  assert.match(report.actionRuns[0]?.commandSummaries[0]?.command ?? "", /REDACTED/);
+  assert.doesNotMatch(report.actionRuns[0]?.commandSummaries[0]?.command ?? "", /abcdefghijklmnop/);
+
+  const markdown = planReportToMarkdown(report);
+  assert.match(markdown, /Approved plan hash/);
+  assert.match(markdown, /apply-run-report-test/);
+  assert.match(markdown, /Frozen artifacts/);
+  assert.match(markdown, /action-run-report-test/);
+});
+
 test("e2e: plan report flags severity=error when a detect-only item carries a forged mutating action", async () => {
   const items = await loadItems("systemd-resolved");
   const plan = buildRebuildPlan(items, "conn-report-violation");

@@ -1,11 +1,12 @@
+import { Button } from "./ui/Button";
 import React, { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Clock, Cpu, Edit3, HardDrive, MemoryStick, Server, Trash2, X } from "lucide-react";
 import type { ConnectionProfile } from "../api";
 import type { Locale } from "../lib/types";
 
 export function ConnectionDetailPanel({
   conn,
-  locale,
   onDelete,
   onUpdate
 }: {
@@ -14,6 +15,7 @@ export function ConnectionDetailPanel({
   onDelete: () => void;
   onUpdate: (input: { label?: string; agentUrl?: string; tags?: string[] }) => void;
 }) {
+  const { t } = useTranslation();
   const [editing, setEditing] = useState(false);
   const [label, setLabel] = useState(conn.label);
   const [tagsInput, setTagsInput] = useState(conn.tags?.join(", ") ?? "");
@@ -34,29 +36,29 @@ export function ConnectionDetailPanel({
     <div className="conn-detail-card">
       <div className="conn-detail-top">
         <div className="conn-detail-top-left">
-          <StatusIndicator status={conn.status} locale={locale} />
+          <StatusIndicator status={conn.status} />
           <span className="conn-detail-updated">
             <Clock style={{ width: 12, height: 12 }} />
             {new Date(conn.updatedAt).toLocaleString()}
           </span>
         </div>
         <div className="conn-detail-top-actions">
-          <button className="conn-btn conn-btn-ghost" type="button" onClick={() => setEditing((value) => !value)} title={locale === "zh" ? "编辑连接" : "Edit connection"}>
+          <Button variant="connectionGhost"  type="button" onClick={() => setEditing((value) => !value)} title={t("connectionDetail.edit")}>
             <Edit3 style={{ width: 14, height: 14 }} />
-          </button>
+          </Button>
           {confirmDelete ? (
             <div className="conn-delete-confirm">
-              <button className="conn-btn conn-btn-danger" type="button" onClick={onDelete}>
-                {locale === "zh" ? "确认删除" : "Confirm"}
-              </button>
-              <button className="conn-btn conn-btn-ghost" type="button" onClick={() => setConfirmDelete(false)}>
+              <Button variant="danger"  type="button" onClick={onDelete}>
+                {t("connectionDetail.confirmDelete")}
+              </Button>
+              <Button variant="connectionGhost"  type="button" onClick={() => setConfirmDelete(false)}>
                 <X style={{ width: 14, height: 14 }} />
-              </button>
+              </Button>
             </div>
           ) : (
-            <button className="conn-btn conn-btn-ghost conn-btn-danger-text" type="button" onClick={() => setConfirmDelete(true)} title={locale === "zh" ? "删除连接" : "Delete connection"}>
+            <Button variant="connectionGhost" className="conn-btn-danger-text" type="button" onClick={() => setConfirmDelete(true)} title={t("connectionDetail.delete")}>
               <Trash2 style={{ width: 14, height: 14 }} />
-            </button>
+            </Button>
           )}
         </div>
       </div>
@@ -64,42 +66,43 @@ export function ConnectionDetailPanel({
       {editing ? (
         <div className="conn-edit-form">
           <label>
-            <span>{locale === "zh" ? "连接名称" : "Connection label"}</span>
+            <span>{t("connectionDetail.label")}</span>
             <input value={label} onChange={(event) => setLabel(event.target.value)} />
           </label>
           <label>
-            <span>{locale === "zh" ? "标签（逗号分隔）" : "Tags, comma separated"}</span>
+            <span>{t("connectionDetail.tags")}</span>
             <input value={tagsInput} onChange={(event) => setTagsInput(event.target.value)} />
           </label>
           <div className="conn-edit-actions">
-            <button className="conn-btn conn-btn-primary" type="button" onClick={saveEdit}>{locale === "zh" ? "保存" : "Save"}</button>
-            <button className="conn-btn conn-btn-ghost" type="button" onClick={() => setEditing(false)}>{locale === "zh" ? "取消" : "Cancel"}</button>
+            <Button variant="connectionPrimary"  type="button" onClick={saveEdit}>{t("connectionDetail.save")}</Button>
+            <Button variant="connectionGhost"  type="button" onClick={() => setEditing(false)}>{t("connectionDetail.cancel")}</Button>
           </div>
         </div>
       ) : null}
 
       {hasProbe && probe ? (
         <div className="conn-system-grid">
-          <SystemCard icon={Server} label={locale === "zh" ? "主机" : "Host"} value={probe.system.hostname} sub={probe.system.osPretty} />
-          <SystemCard icon={Cpu} label="CPU" value={`${probe.system.cpu.cores} cores`} sub={probe.system.cpu.model?.slice(0, 32)} />
-          <SystemCard icon={MemoryStick} label={locale === "zh" ? "内存" : "Memory"} value={`${probe.system.memory.totalGb} GB`} sub={`${probe.system.memory.freeGb} GB ${locale === "zh" ? "可用" : "free"}`} />
-          <SystemCard icon={HardDrive} label={locale === "zh" ? "磁盘" : "Disk"} value={probe.system.disk?.usePercent ?? "-"} sub={probe.system.disk ? `${probe.system.disk.used} / ${probe.system.disk.total}` : undefined} />
+          <SystemCard icon={Server} label={t("connectionDetail.host")} value={probe.system.hostname} sub={probe.system.osPretty} />
+          <SystemCard icon={Cpu} label="CPU" value={t("connectionDetail.cores", { count: probe.system.cpu.cores })} sub={probe.system.cpu.model?.slice(0, 32)} />
+          <SystemCard icon={MemoryStick} label={t("connectionDetail.memory")} value={`${probe.system.memory.totalGb} GB`} sub={t("connectionDetail.freeMemory", { amount: probe.system.memory.freeGb })} />
+          <SystemCard icon={HardDrive} label={t("connectionDetail.disk")} value={probe.system.disk?.usePercent ?? "-"} sub={probe.system.disk ? `${probe.system.disk.used} / ${probe.system.disk.total}` : undefined} />
         </div>
       ) : (
         <div className="conn-feedback conn-feedback-info">
-          {locale === "zh" ? "尚未采集主机快照。请使用下方的采集按钮。" : "No HostSnapshot collected yet. Use the collection action below."}
+          {t("connectionDetail.noSnapshot")}
         </div>
       )}
     </div>
   );
 }
 
-function StatusIndicator({ status, locale }: { status: ConnectionProfile["status"]; locale: Locale }) {
+function StatusIndicator({ status }: { status: ConnectionProfile["status"] }) {
+  const { t } = useTranslation();
   const ok = status === "ssh_ok" || status === "validated";
   return (
     <span className={`conn-status-pill ${ok ? "ok" : "warn"}`}>
       <span />
-      {ok ? (locale === "zh" ? "已采集" : "Collected") : (locale === "zh" ? "需检查" : "Needs check")}
+      {ok ? t("connectionDetail.collected") : t("connectionDetail.needsCheck")}
     </span>
   );
 }

@@ -1,4 +1,6 @@
+import { Button } from "./ui/Button";
 import React, { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Search,
   Shield,
@@ -28,7 +30,8 @@ interface Props {
   connections: ConnectionProfile[];
 }
 
-export function AdminPanel({ locale, authToken, connections }: Props) {
+export function AdminPanel({ authToken, connections }: Props) {
+  const { t } = useTranslation();
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [queues, setQueues] = useState<AdminQueueItem[]>([]);
   const [userLoading, setUserLoading] = useState(false);
@@ -45,7 +48,7 @@ export function AdminPanel({ locale, authToken, connections }: Props) {
       const res = await fetchAdminUsers(authToken);
       setUsers(res.users);
     } catch (err) {
-      setUserError(err instanceof Error ? err.message : "Failed to fetch users");
+      setUserError(err instanceof Error ? err.message : t("adminPanel.errors.fetchUsers"));
     } finally {
       setUserLoading(false);
     }
@@ -58,7 +61,7 @@ export function AdminPanel({ locale, authToken, connections }: Props) {
       const res = await fetchAdminQueues(authToken);
       setQueues(res.queues);
     } catch (err) {
-      setQueueError(err instanceof Error ? err.message : "Failed to fetch queues");
+      setQueueError(err instanceof Error ? err.message : t("adminPanel.errors.fetchQueues"));
     } finally {
       setQueueLoading(false);
     }
@@ -73,9 +76,8 @@ export function AdminPanel({ locale, authToken, connections }: Props) {
 
   async function handleToggleRole(targetUser: AdminUser) {
     const newRole = targetUser.role === "admin" ? "user" : "admin";
-    const confirmMsg = locale === "zh"
-      ? `确定要将用户 ${targetUser.name} 的角色更改为 ${newRole === "admin" ? "管理员" : "普通用户"} 吗？`
-      : `Are you sure you want to change the role of ${targetUser.name} to ${newRole}?`;
+    const roleLabel = newRole === "admin" ? t("adminPanel.admin") : t("adminPanel.userRole");
+    const confirmMsg = t("adminPanel.changeRoleConfirm", { name: targetUser.name, role: roleLabel });
     if (!(await confirmDialog(confirmMsg))) return;
 
     setActionInProgress(targetUser.id);
@@ -83,17 +85,15 @@ export function AdminPanel({ locale, authToken, connections }: Props) {
       const res = await updateAdminUserRole(authToken, targetUser.id, newRole);
       setUsers((prev) => prev.map((u) => (u.id === targetUser.id ? res.user : u)));
     } catch (err) {
-      toast(err instanceof Error ? err.message : "Failed to update role", "error");
+      toast(err instanceof Error ? err.message : t("adminPanel.errors.updateRole"), "error");
     } finally {
       setActionInProgress(null);
     }
   }
 
   async function handleToggleLock(targetUser: AdminUser) {
-    const actionText = targetUser.deletedAt ? (locale === "zh" ? "启用" : "Unlock") : (locale === "zh" ? "锁定/封禁" : "Lock");
-    const confirmMsg = locale === "zh"
-      ? `确定要${actionText}用户 ${targetUser.name} 吗？`
-      : `Are you sure you want to ${actionText.toLowerCase()} user ${targetUser.name}?`;
+    const actionText = targetUser.deletedAt ? t("adminPanel.unlockAction") : t("adminPanel.lockAction");
+    const confirmMsg = t("adminPanel.changeLockConfirm", { action: actionText, name: targetUser.name });
     if (!(await confirmDialog(confirmMsg))) return;
 
     setActionInProgress(targetUser.id);
@@ -101,7 +101,7 @@ export function AdminPanel({ locale, authToken, connections }: Props) {
       const res = await toggleAdminUserLock(authToken, targetUser.id);
       setUsers((prev) => prev.map((u) => (u.id === targetUser.id ? res.user : u)));
     } catch (err) {
-      toast(err instanceof Error ? err.message : "Failed to toggle user lock status", "error");
+      toast(err instanceof Error ? err.message : t("adminPanel.errors.toggleLock"), "error");
     } finally {
       setActionInProgress(null);
     }
@@ -123,34 +123,30 @@ export function AdminPanel({ locale, authToken, connections }: Props) {
         <div className="settings-section-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
             <Layers size={18} style={{ color: "#3b82f6" }} />
-            <h3>{locale === "zh" ? "EnvForge 工作区任务队列" : "EnvForge workspace task queue"}</h3>
+            <h3>{t("adminPanel.queueTitle")}</h3>
           </div>
-          <button
+          <Button variant="ghost"
             type="button"
-            className="ghost-action icon-action"
+            className="icon-action"
             onClick={() => void loadQueues()}
             disabled={queueLoading}
             style={{ display: "flex", alignItems: "center", gap: "4px" }}
           >
             <RefreshCw size={14} className={queueLoading ? "spinning" : ""} />
-            <span style={{ fontSize: "13px" }}>{locale === "zh" ? "刷新" : "Refresh"}</span>
-          </button>
+            <span style={{ fontSize: "13px" }}>{t("adminPanel.refresh")}</span>
+          </Button>
         </div>
         <p className="settings-help">
-          {locale === "zh"
-            ? "EnvForge 工作区内的并发 SSH 任务和排队状态。这是 EnvForge 自身的任务调度面板，不是服务器资源监控，也不是 Linux 系统用户管理。"
-            : "EnvForge workspace concurrency and SSH task queue. This is EnvForge's own job scheduler, not a server resource monitor and not a Linux system user manager."}
+          {t("adminPanel.queueHelp")}
         </p>
 
         {queueError && <p className="settings-error">{queueError}</p>}
 
         {queueLoading && queues.length === 0 ? (
-          <p className="empty-hint"><span className="spinning">↻</span> {locale === "zh" ? "加载队列中…" : "Loading queues…"}</p>
+          <p className="empty-hint"><span className="spinning">↻</span> {t("adminPanel.loadingQueues")}</p>
         ) : queues.length === 0 ? (
           <p className="empty-hint">
-            {locale === "zh"
-              ? "当前没有任何运行中或排队的任务。"
-              : "No active or queued tasks at the moment."}
+            {t("adminPanel.noQueues")}
           </p>
         ) : (
           <div className="admin-queue-list" style={{ display: "flex", flexDirection: "column", gap: "12px", marginTop: "12px" }}>
@@ -190,9 +186,7 @@ export function AdminPanel({ locale, authToken, connections }: Props) {
                         }}
                       />
                       <span style={{ fontSize: "13px", color: q.running ? "#34d399" : "var(--ef-muted-2)" }}>
-                        {q.running
-                          ? (locale === "zh" ? "正在运行中" : "Running")
-                          : (locale === "zh" ? "空闲" : "Idle")}
+                        {q.running ? t("adminPanel.running") : t("adminPanel.idle")}
                       </span>
                     </div>
                     {q.queued > 0 && (
@@ -207,7 +201,7 @@ export function AdminPanel({ locale, authToken, connections }: Props) {
                           fontWeight: "bold"
                         }}
                       >
-                        {q.queued} {locale === "zh" ? "个任务排队中" : "queued"}
+                        {t("adminPanel.queued", { count: q.queued })}
                       </div>
                     )}
                   </div>
@@ -223,7 +217,7 @@ export function AdminPanel({ locale, authToken, connections }: Props) {
         <div className="settings-section-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "12px" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
             <Users size={18} style={{ color: "#3b82f6" }} />
-            <h3>{locale === "zh" ? "EnvForge 平台用户" : "EnvForge platform users"}</h3>
+            <h3>{t("adminPanel.usersTitle")}</h3>
           </div>
           <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
             <div className="search-input-wrapper" style={{ position: "relative" }}>
@@ -239,7 +233,7 @@ export function AdminPanel({ locale, authToken, connections }: Props) {
               />
               <input
                 type="text"
-                placeholder={locale === "zh" ? "搜索用户名/邮箱/ID…" : "Search by name/email/ID…"}
+                placeholder={t("adminPanel.searchPlaceholder")}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 style={{
@@ -253,37 +247,35 @@ export function AdminPanel({ locale, authToken, connections }: Props) {
                 }}
               />
             </div>
-            <button
+            <Button variant="ghost"
               type="button"
-              className="ghost-action icon-action"
+              className="icon-action"
               onClick={() => void loadUsers()}
               disabled={userLoading}
             >
               <RefreshCw size={14} className={userLoading ? "spinning" : ""} />
-            </button>
+            </Button>
           </div>
         </div>
 
         {userError && <p className="settings-error">{userError}</p>}
 
         {userLoading && users.length === 0 ? (
-          <p className="empty-hint"><span className="spinning">↻</span> {locale === "zh" ? "加载用户中…" : "Loading users…"}</p>
+          <p className="empty-hint"><span className="spinning">↻</span> {t("adminPanel.loadingUsers")}</p>
         ) : filteredUsers.length === 0 ? (
           <p className="empty-hint">
-            {searchQuery
-              ? (locale === "zh" ? "未找到匹配的用户。" : "No matching users found.")
-              : (locale === "zh" ? "系统中暂无用户。" : "No users in the system.")}
+            {searchQuery ? t("adminPanel.noMatchingUsers") : t("adminPanel.noUsers")}
           </p>
         ) : (
           <div className="admin-user-table-wrapper" style={{ overflowX: "auto", marginTop: "12px" }}>
             <table className="admin-user-table" style={{ width: "100%", borderCollapse: "collapse", fontSize: "14px" }}>
               <thead>
                 <tr style={{ borderBottom: "1px solid rgba(255, 255, 255, 0.1)", textAlign: "left" }}>
-                  <th style={{ padding: "12px 8px", color: "var(--ef-muted-2)", fontWeight: "600" }}>{locale === "zh" ? "用户" : "User"}</th>
-                  <th style={{ padding: "12px 8px", color: "var(--ef-muted-2)", fontWeight: "600" }}>{locale === "zh" ? "角色" : "Role"}</th>
-                  <th style={{ padding: "12px 8px", color: "var(--ef-muted-2)", fontWeight: "600" }}>{locale === "zh" ? "状态" : "Status"}</th>
-                  <th style={{ padding: "12px 8px", color: "var(--ef-muted-2)", fontWeight: "600" }}>{locale === "zh" ? "注册时间" : "Joined"}</th>
-                  <th style={{ padding: "12px 8px", color: "var(--ef-muted-2)", fontWeight: "600", textAlign: "right" }}>{locale === "zh" ? "操作" : "Actions"}</th>
+                  <th style={{ padding: "12px 8px", color: "var(--ef-muted-2)", fontWeight: "600" }}>{t("adminPanel.user")}</th>
+                  <th style={{ padding: "12px 8px", color: "var(--ef-muted-2)", fontWeight: "600" }}>{t("adminPanel.role")}</th>
+                  <th style={{ padding: "12px 8px", color: "var(--ef-muted-2)", fontWeight: "600" }}>{t("adminPanel.status")}</th>
+                  <th style={{ padding: "12px 8px", color: "var(--ef-muted-2)", fontWeight: "600" }}>{t("adminPanel.joined")}</th>
+                  <th style={{ padding: "12px 8px", color: "var(--ef-muted-2)", fontWeight: "600", textAlign: "right" }}>{t("adminPanel.actions")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -322,18 +314,18 @@ export function AdminPanel({ locale, authToken, connections }: Props) {
                           }}
                         >
                           {u.role === "admin" ? <Shield size={10} /> : null}
-                          {u.role === "admin" ? (locale === "zh" ? "管理员" : "Admin") : (locale === "zh" ? "普通用户" : "User")}
+                          {u.role === "admin" ? t("adminPanel.admin") : t("adminPanel.userRole")}
                         </span>
                       </td>
                       <td style={{ padding: "12px 8px" }}>
                         {isLocked ? (
                           <span style={{ color: "#ef4444", fontSize: "12px", display: "inline-flex", alignItems: "center", gap: "4px" }}>
                             <AlertTriangle size={12} />
-                            {locale === "zh" ? "已封禁/锁定" : "Suspended"}
+                            {t("adminPanel.suspended")}
                           </span>
                         ) : (
                           <span style={{ color: "#10b981", fontSize: "12px" }}>
-                            ✓ {locale === "zh" ? "正常" : "Active"}
+                            ✓ {t("adminPanel.active")}
                           </span>
                         )}
                       </td>
@@ -342,22 +334,20 @@ export function AdminPanel({ locale, authToken, connections }: Props) {
                       </td>
                       <td style={{ padding: "12px 8px", textAlign: "right" }}>
                         <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}>
-                          <button
+                          <Button variant="secondary"
                             type="button"
-                            className="secondary-action"
+
                             disabled={isPending}
                             onClick={() => void handleToggleRole(u)}
                             style={{ padding: "4px 8px", fontSize: "12px", minHeight: "28px" }}
-                            title={locale === "zh" ? "切换用户角色" : "Toggle User Role"}
+                            title={t("adminPanel.toggleRole")}
                           >
                             <UserCheck size={13} style={{ marginRight: "4px", display: "inline" }} />
-                            {u.role === "admin"
-                              ? (locale === "zh" ? "降级" : "Demote")
-                              : (locale === "zh" ? "提拔" : "Promote")}
-                          </button>
-                          <button
+                            {u.role === "admin" ? t("adminPanel.demote") : t("adminPanel.promote")}
+                          </Button>
+                          <Button
                             type="button"
-                            className={`conn-btn ${isLocked ? "conn-btn-success" : "conn-btn-danger"}`}
+                            variant={isLocked ? "connectionSuccess" : "danger"}
                             disabled={isPending}
                             onClick={() => void handleToggleLock(u)}
                             style={{
@@ -372,15 +362,15 @@ export function AdminPanel({ locale, authToken, connections }: Props) {
                             {isLocked ? (
                               <>
                                 <Unlock size={13} style={{ marginRight: "4px", display: "inline" }} />
-                                {locale === "zh" ? "启用" : "Unlock"}
+                                {t("adminPanel.unlock")}
                               </>
                             ) : (
                               <>
                                 <Lock size={13} style={{ marginRight: "4px", display: "inline" }} />
-                                {locale === "zh" ? "锁定" : "Suspend"}
+                                {t("adminPanel.suspend")}
                               </>
                             )}
-                          </button>
+                          </Button>
                         </div>
                       </td>
                     </tr>

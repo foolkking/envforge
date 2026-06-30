@@ -1,71 +1,105 @@
-﻿import React from "react";
+import React from "react";
+import { useTranslation } from "react-i18next";
 import type { Locale } from "../lib/types";
 
-/**
- * WorkflowStepper — visualises the Migrate / Build / Maintain pipelines.
- *
- * EnvForge's three modes share a Plan-centric flow but each one has its own
- * sequence of stages. Rather than scattering progress hints across panels,
- * this component renders the pipeline as a labelled stepper at the top of
- * the page so the operator always knows which step they're on and what
- * remains.
- *
- * Steps can be marked as `done`, `current`, `todo`, or `blocked`; the
- * blocked state is used when an upstream prerequisite has not been met
- * (e.g. Source VM has not been probed yet so Migration Plan cannot be
- * generated).
- */
 export type WorkflowStepStatus = "done" | "current" | "todo" | "blocked";
+
+const STATUS_KEYS = {
+  done: "workflow.status.done",
+  current: "workflow.status.current",
+  todo: "workflow.status.todo",
+  blocked: "workflow.status.blocked"
+} as const;
+
+const MIGRATE_KEYS = {
+  sourceVm: "workflow.migrate.sourceVm",
+  sourceVmHint: "workflow.migrate.sourceVmHint",
+  snapshot: "workflow.migrate.snapshot",
+  snapshotHint: "workflow.migrate.snapshotHint",
+  analysis: "workflow.migrate.analysis",
+  analysisHint: "workflow.migrate.analysisHint",
+  reviewQueue: "workflow.migrate.reviewQueue",
+  reviewPending: "workflow.migrate.reviewPending",
+  reviewDone: "workflow.migrate.reviewDone",
+  plan: "workflow.migrate.plan",
+  planHint: "workflow.migrate.planHint",
+  target: "workflow.migrate.target",
+  targetHint: "workflow.migrate.targetHint",
+  applyVerify: "workflow.migrate.applyVerify",
+  applyVerifyHint: "workflow.migrate.applyVerifyHint",
+  report: "workflow.migrate.report",
+  reportHint: "workflow.migrate.reportHint"
+} as const;
+
+const BUILD_KEYS = {
+  title: "workflow.build.title",
+  targetVm: "workflow.build.targetVm",
+  targetVmHint: "workflow.build.targetVmHint",
+  targetSnapshot: "workflow.build.targetSnapshot",
+  targetSnapshotHint: "workflow.build.targetSnapshotHint",
+  catalog: "workflow.build.catalog",
+  catalogHint: "workflow.build.catalogHint",
+  conflicts: "workflow.build.conflicts",
+  conflictsHint: "workflow.build.conflictsHint",
+  rebuildPlan: "workflow.build.rebuildPlan",
+  rebuildPlanHint: "workflow.build.rebuildPlanHint",
+  review: "workflow.build.review",
+  reviewHint: "workflow.build.reviewHint",
+  apply: "workflow.build.apply",
+  applyHint: "workflow.build.applyHint",
+  verify: "workflow.build.verify",
+  verifyHint: "workflow.build.verifyHint",
+  report: "workflow.build.report",
+  reportHint: "workflow.build.reportHint"
+} as const;
+
+type WorkflowTextKey =
+  | (typeof STATUS_KEYS)[keyof typeof STATUS_KEYS]
+  | (typeof MIGRATE_KEYS)[keyof typeof MIGRATE_KEYS]
+  | (typeof BUILD_KEYS)[keyof typeof BUILD_KEYS];
 
 export interface WorkflowStep {
   id: string;
-  label: { zh: string; en: string };
+  labelKey: WorkflowTextKey;
   status: WorkflowStepStatus;
-  hint?: { zh: string; en: string };
+  hint?: { key: WorkflowTextKey; count?: number };
 }
 
 export function WorkflowStepper({
   steps,
-  locale,
-  title
+  titleKey
 }: {
   steps: WorkflowStep[];
   locale: Locale;
-  title?: { zh: string; en: string };
+  titleKey?: WorkflowTextKey;
 }) {
+  const { t } = useTranslation();
   return (
     <section className="workflow-stepper">
-      {title ? (
-        <div className="workflow-stepper-title">
-          {locale === "zh" ? title.zh : title.en}
-        </div>
-      ) : null}
+      {titleKey ? <div className="workflow-stepper-title">{t(titleKey)}</div> : null}
       <ol className="workflow-stepper-list">
-        {steps.map((step, idx) => (
+        {steps.map((step, index) => (
           <li key={step.id} className="workflow-stepper-item">
             <div className="workflow-stepper-content">
               <div className="workflow-stepper-main">
                 <span
                   className={`workflow-step-bullet workflow-step-${step.status}`}
-                  aria-label={statusLabel(step.status, locale)}
+                  aria-label={t(STATUS_KEYS[step.status])}
                 >
-                  {step.status === "done" ? "✓" : step.status === "blocked" ? "!" : idx + 1}
+                  {step.status === "done" ? "✓" : step.status === "blocked" ? "!" : index + 1}
                 </span>
                 <strong className={`workflow-step-label workflow-step-label-${step.status}`}>
-                  {locale === "zh" ? step.label.zh : step.label.en}
+                  {t(step.labelKey)}
                 </strong>
               </div>
               {step.hint ? (
                 <small className="workflow-step-hint">
-                  {locale === "zh" ? step.hint.zh : step.hint.en}
+                  {t(step.hint.key, { count: step.hint.count ?? 0 })}
                 </small>
               ) : null}
             </div>
-            {idx < steps.length - 1 ? (
-              <span
-                aria-hidden
-                className={`workflow-step-connector ${step.status === "done" ? "done" : ""}`}
-              />
+            {index < steps.length - 1 ? (
+              <span aria-hidden className={`workflow-step-connector ${step.status === "done" ? "done" : ""}`} />
             ) : null}
           </li>
         ))}
@@ -74,20 +108,6 @@ export function WorkflowStepper({
   );
 }
 
-function statusLabel(status: WorkflowStepStatus, locale: Locale): string {
-  const zh = { done: "已完成", current: "进行中", todo: "待办", blocked: "受阻" } as const;
-  const en = { done: "Done", current: "Current", todo: "To do", blocked: "Blocked" } as const;
-  return (locale === "zh" ? zh : en)[status];
-}
-
-/**
- * Build the canonical Migrate Mode pipeline.
- *
- * The pipeline matches docs/product.md and docs/system-design.md:
- *
- *   Source VM -> Snapshot -> Analysis -> Review Queue -> Migration Plan
- *   -> Target VM -> Apply & Verify -> Report
- */
 export function buildMigrateSteps(input: {
   hasConnection: boolean;
   hasSnapshot: boolean;
@@ -97,101 +117,73 @@ export function buildMigrateSteps(input: {
   hasTarget: boolean;
   hasApplied: boolean;
 }): WorkflowStep[] {
-  const status = (cond: boolean, deps = true): WorkflowStepStatus => (cond ? "done" : deps ? "current" : "todo");
+  const status = (condition: boolean, dependencies = true): WorkflowStepStatus => (condition ? "done" : dependencies ? "current" : "todo");
   return [
     {
       id: "source-vm",
-      label: { zh: "源主机", en: "Source VM" },
+      labelKey: MIGRATE_KEYS.sourceVm,
       status: input.hasConnection ? "done" : "current",
-      hint: { zh: "通过 SSH 连接旧机器", en: "Connect to the old VM through SSH" }
+      hint: { key: MIGRATE_KEYS.sourceVmHint }
     },
     {
       id: "snapshot",
-      label: { zh: "主机快照", en: "Snapshot" },
+      labelKey: MIGRATE_KEYS.snapshot,
       status: status(input.hasSnapshot, input.hasConnection),
-      hint: { zh: "只读采集 OS / 包 / 服务 / 配置", en: "Read-only collect OS / packages / services / configs" }
+      hint: { key: MIGRATE_KEYS.snapshotHint }
     },
     {
       id: "analysis",
-      label: { zh: "环境分析", en: "Analysis" },
+      labelKey: MIGRATE_KEYS.analysis,
       status: status(input.hasCandidates, input.hasSnapshot),
-      hint: { zh: "包意图评分与候选分类", en: "Package Intent Score + classifier" }
+      hint: { key: MIGRATE_KEYS.analysisHint }
     },
     {
       id: "review-queue",
-      label: { zh: "审查队列", en: "Review Queue" },
+      labelKey: MIGRATE_KEYS.reviewQueue,
       status: input.reviewPending === 0 && input.hasCandidates ? "done" : input.hasCandidates ? "current" : "todo",
       hint: input.reviewPending > 0
-        ? { zh: `还有 ${input.reviewPending} 项待决策`, en: `${input.reviewPending} item(s) pending decision` }
-        : { zh: "未知项决策已完成", en: "All unknown items decided" }
+        ? { key: MIGRATE_KEYS.reviewPending, count: input.reviewPending }
+        : { key: MIGRATE_KEYS.reviewDone }
     },
     {
       id: "plan",
-      label: { zh: "迁移计划", en: "Migration Plan" },
+      labelKey: MIGRATE_KEYS.plan,
       status: status(input.hasPlan, input.hasCandidates),
-      hint: { zh: "生成可审查的迁移计划", en: "Generate the reviewable migration plan" }
+      hint: { key: MIGRATE_KEYS.planHint }
     },
     {
       id: "target",
-      label: { zh: "目标主机", en: "Target VM" },
+      labelKey: MIGRATE_KEYS.target,
       status: status(input.hasTarget, input.hasPlan),
-      hint: { zh: "选择并连接目标机器", en: "Pick and connect the target VM" }
+      hint: { key: MIGRATE_KEYS.targetHint }
     },
     {
       id: "apply-verify",
-      label: { zh: "执行与验证", en: "Apply & Verify" },
+      labelKey: MIGRATE_KEYS.applyVerify,
       status: status(input.hasApplied, input.hasTarget),
-      hint: { zh: "执行计划并自动验证", en: "Apply the plan and run verifications" }
+      hint: { key: MIGRATE_KEYS.applyVerifyHint }
     },
     {
       id: "report",
-      label: { zh: "报告", en: "Report" },
+      labelKey: MIGRATE_KEYS.report,
       status: input.hasApplied ? "done" : "todo",
-      hint: { zh: "生成迁移报告", en: "Produce the migration report" }
+      hint: { key: MIGRATE_KEYS.reportHint }
     }
   ];
 }
 
-/**
- * Build the canonical Build Mode pipeline.
- *
- * Per the design document the pipeline has 9 explicit stages:
- *
- *   Target VM
- *   -> Target Snapshot
- *   -> Certified Capabilities
- *   -> Resolve Conflicts
- *   -> Rebuild Plan
- *   -> Review
- *   -> Apply
- *   -> Verify
- *   -> Report
- *
- * Each stage has its own state so the operator can see exactly which
- * step is the next blocking action. The `Apply` and `Verify` steps were
- * previously merged into a single `Apply & Verify` step; they are now
- * split because the lifecycle endpoints (`/apply`, `/verify`) and their
- * results live separately.
- */
 export function buildBuildSteps(input: {
   hasConnection: boolean;
-  /** Target VM read-only inventory has been collected at least once. */
   hasTargetSnapshot?: boolean;
   hasSelection: boolean;
   hasConflictsResolved: boolean;
   hasPlan: boolean;
-  /** Plan has moved past `needs-review` (i.e. status === "approved" or later). */
   hasReviewed?: boolean;
   hasApplied: boolean;
-  /** Verify run produced at least one result for the active plan. */
   hasVerified?: boolean;
-  /** Plan has reached a terminal status (`succeeded` / `failed` / `rolled-back` / `committed`). */
   hasReport?: boolean;
 }): WorkflowStep[] {
-  const status = (cond: boolean, deps = true): WorkflowStepStatus => (cond ? "done" : deps ? "current" : "todo");
-  // Backwards-compat: when callers pass only the old 5-step signal set
-  // (no snapshot / reviewed / verified / report), light up the steps from
-  // existing approximations.
+  const status = (condition: boolean, dependencies = true): WorkflowStepStatus => (condition ? "done" : dependencies ? "current" : "todo");
   const hasTargetSnapshot = input.hasTargetSnapshot ?? input.hasConnection;
   const hasReviewed = input.hasReviewed ?? input.hasPlan;
   const hasVerified = input.hasVerified ?? input.hasApplied;
@@ -200,57 +192,59 @@ export function buildBuildSteps(input: {
   return [
     {
       id: "target-vm",
-      label: { zh: "目标主机", en: "Target VM" },
+      labelKey: BUILD_KEYS.targetVm,
       status: input.hasConnection ? "done" : "current",
-      hint: { zh: "连接干净的目标机器", en: "Connect to the clean target VM" }
+      hint: { key: BUILD_KEYS.targetVmHint }
     },
     {
       id: "target-snapshot",
-      label: { zh: "目标快照", en: "Target Snapshot" },
+      labelKey: BUILD_KEYS.targetSnapshot,
       status: status(hasTargetSnapshot, input.hasConnection),
-      hint: { zh: "只读读取目标主机当前状态", en: "Read-only collect the target state" }
+      hint: { key: BUILD_KEYS.targetSnapshotHint }
     },
     {
       id: "catalog",
-      label: { zh: "已认证能力", en: "Certified Capabilities" },
+      labelKey: BUILD_KEYS.catalog,
       status: status(input.hasSelection, hasTargetSnapshot),
-      hint: { zh: "选择已认证能力", en: "Pick certified capabilities" }
+      hint: { key: BUILD_KEYS.catalogHint }
     },
     {
       id: "conflicts",
-      label: { zh: "处理冲突", en: "Resolve Conflicts" },
+      labelKey: BUILD_KEYS.conflicts,
       status: status(input.hasConflictsResolved, input.hasSelection),
-      hint: { zh: "处理兼容性冲突", en: "Resolve compatibility conflicts" }
+      hint: { key: BUILD_KEYS.conflictsHint }
     },
     {
       id: "rebuild-plan",
-      label: { zh: "重建计划", en: "Rebuild Plan" },
+      labelKey: BUILD_KEYS.rebuildPlan,
       status: status(input.hasPlan, input.hasConflictsResolved),
-      hint: { zh: "生成可审查的重建计划", en: "Generate the reviewable rebuild plan" }
+      hint: { key: BUILD_KEYS.rebuildPlanHint }
     },
     {
       id: "review",
-      label: { zh: "审查", en: "Review" },
+      labelKey: BUILD_KEYS.review,
       status: status(hasReviewed, input.hasPlan),
-      hint: { zh: "审查动作、风险与回滚", en: "Review actions, risks, and rollback" }
+      hint: { key: BUILD_KEYS.reviewHint }
     },
     {
       id: "apply",
-      label: { zh: "执行", en: "Apply" },
+      labelKey: BUILD_KEYS.apply,
       status: status(input.hasApplied, hasReviewed),
-      hint: { zh: "执行已审查的计划", en: "Execute the reviewed plan" }
+      hint: { key: BUILD_KEYS.applyHint }
     },
     {
       id: "verify",
-      label: { zh: "验证", en: "Verify" },
+      labelKey: BUILD_KEYS.verify,
       status: status(hasVerified, input.hasApplied),
-      hint: { zh: "运行规则库验证检查", en: "Run catalog-defined verifications" }
+      hint: { key: BUILD_KEYS.verifyHint }
     },
     {
       id: "report",
-      label: { zh: "报告", en: "Report" },
+      labelKey: BUILD_KEYS.report,
       status: hasReport ? "done" : "todo",
-      hint: { zh: "查看 Markdown 报告", en: "View the Markdown report" }
+      hint: { key: BUILD_KEYS.reportHint }
     }
   ];
 }
+
+export const BUILD_PIPELINE_TITLE_KEY = BUILD_KEYS.title;

@@ -1,3 +1,4 @@
+import { Button } from "./ui/Button";
 /**
  * ConfigureRunPanel — split-pane modal for catalog Playbooks.
  *
@@ -14,6 +15,7 @@
  * 预览本身是纯本地计算（不连远端 SSH），即时返回。
  */
 import React, { useState, useEffect, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { X, Eye, EyeOff, RotateCw } from "lucide-react";
 import type { CatalogGuide, VarsSchema, VarsSchemaField, PlaybookPreview } from "../api";
 import type { Locale } from "../lib/types";
@@ -103,6 +105,7 @@ export function ConfigureRunPanel({
   /** Per-field errors returned from the server (after a failed submission) */
   fieldErrors?: Record<string, string>;
 }) {
+  const { t } = useTranslation();
   const [values, setValues] = useState<Record<string, unknown>>(() => initialValues(schema));
   const [revealedPasswords, setRevealedPasswords] = useState<Set<string>>(new Set());
   const [localErrors, setLocalErrors] = useState<Record<string, string>>({});
@@ -141,7 +144,7 @@ export function ConfigureRunPanel({
       if (result.ok) {
         setPreview(result.preview);
       } else {
-        setPreviewError(result.error ?? (locale === "zh" ? "预览失败" : "Preview failed"));
+        setPreviewError(result.error ?? t("configureRun.previewFailed"));
       }
     }).finally(() => {
       // 即使 cancelled 也要清 previewing — 否则父组件 schema 后续变化触发
@@ -176,24 +179,24 @@ export function ConfigureRunPanel({
       const value = values[name];
       if (field.type === "boolean") continue; // always valid
       if (field.required && (value == null || value === "")) {
-        errors[name] = locale === "zh" ? "必填项" : "Required";
+        errors[name] = t("configureRun.required");
         continue;
       }
       if (value == null || value === "") continue; // optional empty → skip further checks
       if ((field.type === "string" || field.type === "password") && "validate" in field && field.validate) {
         try {
           if (!new RegExp(field.validate).test(String(value))) {
-            errors[name] = locale === "zh" ? `格式不符合：${field.validate}` : `Format mismatch: ${field.validate}`;
+            errors[name] = t("configureRun.formatMismatch", { pattern: field.validate });
           }
         } catch { /* server-side will catch malformed regex */ }
       }
       if (field.type === "number" || field.type === "port") {
         const n = Number(value);
-        if (!Number.isFinite(n)) errors[name] = locale === "zh" ? "必须为数字" : "Must be a number";
-        else if (field.type === "port" && (n < 1 || n > 65535)) errors[name] = locale === "zh" ? "端口范围 1-65535" : "Port must be 1-65535";
+        if (!Number.isFinite(n)) errors[name] = t("configureRun.numberRequired");
+        else if (field.type === "port" && (n < 1 || n > 65535)) errors[name] = t("configureRun.portRange");
         else if (field.type === "number") {
-          if ("min" in field && field.min !== undefined && n < field.min) errors[name] = locale === "zh" ? `不小于 ${field.min}` : `Min: ${field.min}`;
-          if ("max" in field && field.max !== undefined && n > field.max) errors[name] = locale === "zh" ? `不大于 ${field.max}` : `Max: ${field.max}`;
+          if ("min" in field && field.min !== undefined && n < field.min) errors[name] = t("configureRun.min", { value: field.min });
+          if ("max" in field && field.max !== undefined && n > field.max) errors[name] = t("configureRun.max", { value: field.max });
         }
       }
     }
@@ -237,7 +240,7 @@ export function ConfigureRunPanel({
           // 服务端字段错误覆盖到本地（与 fieldErrors prop 同级）
           setLocalErrors((prev) => ({ ...prev, ...result.fieldErrors! }));
         }
-        setPreviewError(result.error ?? (locale === "zh" ? "预览失败" : "Preview failed"));
+        setPreviewError(result.error ?? t("configureRun.previewFailed"));
       }
     } finally {
       setPreviewing(false);
@@ -286,31 +289,31 @@ export function ConfigureRunPanel({
           <div>
             <p className="eyebrow">
               {preview
-                ? (locale === "zh" ? "预览：将生成的计划" : "Preview: plan to create")
+                ? t("configureRun.previewEyebrow")
                 : !schema
-                  ? (locale === "zh" ? "计划预览" : "Plan preview")
-                  : (locale === "zh" ? "配置计划" : "Configure Plan")}
+                  ? t("configureRun.planPreview")
+                  : t("configureRun.configurePlan")}
             </p>
-            <h2>{guide ? (locale === "zh" ? guide.item.name : guide.item.nameEn) : (locale === "zh" ? "配置编排" : "Configure Playbook")}</h2>
+            <h2>{guide ? (locale === "zh" ? guide.item.name : guide.item.nameEn) : t("configureRun.configurePlaybook")}</h2>
           </div>
-          <button className="ghost-action icon-action" type="button" onClick={onClose} disabled={submitting} aria-label={locale === "zh" ? "关闭" : "Close"}>
+          <Button variant="ghost" className="icon-action" type="button" onClick={onClose} disabled={submitting} aria-label={t("configureRun.close")}>
             <X aria-hidden />
-          </button>
+          </Button>
         </header>
 
         <div className="configure-run-body">
           {/* Left pane: Markdown guide — 在编辑和预览阶段都显示 */}
-          <section className="configure-run-guide" aria-label={locale === "zh" ? "使用说明" : "Guide"}>
+          <section className="configure-run-guide" aria-label={t("configureRun.guide")}>
             {guide
               ? <div className="markdown-preview">{renderMarkdownPreview(guide.markdown)}</div>
-              : <p className="muted">{locale === "zh" ? "（此编排没有提供使用说明）" : "(No guide available for this Playbook)"}</p>}
+              : <p className="muted">{t("configureRun.noGuide")}</p>}
           </section>
 
           {/* Right pane: 预览 / 表单 / 加载中
               schema 为 null（无表单）：直接显示预览或加载状态
               schema 非 null：根据 preview 是否已 load 切换表单/预览 */}
           {preview ? (
-            <section className="configure-run-form" aria-label={locale === "zh" ? "计划预览" : "Plan preview"}>
+            <section className="configure-run-form" aria-label={t("configureRun.planPreview")}>
               <PreviewPanel
                 preview={preview}
                 locale={locale}
@@ -321,25 +324,25 @@ export function ConfigureRunPanel({
               />
             </section>
           ) : !schema ? (
-            <section className="configure-run-form" aria-label={locale === "zh" ? "加载预览" : "Loading preview"}>
+            <section className="configure-run-form" aria-label={t("configureRun.loadingPreview")}>
               <div className="configure-run-loading">
                 {previewError ? (
                   <>
                     <p className="form-summary-error">{previewError}</p>
-                    <button type="button" className="ghost-action" onClick={onClose}>
-                      {locale === "zh" ? "关闭" : "Close"}
-                    </button>
+                    <Button variant="ghost" type="button"  onClick={onClose}>
+                      {t("configureRun.close")}
+                    </Button>
                   </>
                 ) : (
                   <>
                     <span className="spinning" style={{ fontSize: 28 }}>↻</span>
-                    <p className="muted">{locale === "zh" ? "正在生成预览…" : "Generating preview…"}</p>
+                    <p className="muted">{t("configureRun.generating")}</p>
                   </>
                 )}
               </div>
             </section>
           ) : (
-            <section className="configure-run-form" aria-label={locale === "zh" ? "配置参数" : "Configuration"}>
+            <section className="configure-run-form" aria-label={t("configureRun.configuration")}>
               <div className="form-fields">
                 {visibleFields.map(([name, field]) => (
                   <FormField
@@ -361,24 +364,22 @@ export function ConfigureRunPanel({
                   />
                 ))}
                 {visibleFields.length === 0 && (
-                  <p className="muted">{locale === "zh" ? "无需配置参数。" : "No parameters needed."}</p>
+                  <p className="muted">{t("configureRun.noParameters")}</p>
                 )}
               </div>
 
               <div className="form-actions">
-                <button type="button" className="ghost-action" onClick={resetDefaults} disabled={submitting || previewing}>
-                  <RotateCw size={14} /> {locale === "zh" ? "重置默认值" : "Reset defaults"}
-                </button>
-                <button type="button" className="primary-action" onClick={handleShowPreview} disabled={submitting || previewing}>
-                  {previewing
-                    ? (locale === "zh" ? "生成预览中…" : "Generating preview…")
-                    : (locale === "zh" ? "预览将生成的计划 →" : "Preview generated plan →")}
-                </button>
+                <Button variant="ghost" type="button"  onClick={resetDefaults} disabled={submitting || previewing}>
+                  <RotateCw size={14} /> {t("configureRun.resetDefaults")}
+                </Button>
+                <Button variant="primary" type="button"  onClick={handleShowPreview} disabled={submitting || previewing}>
+                  {previewing ? t("configureRun.generating") : t("configureRun.previewAction")}
+                </Button>
               </div>
 
               {Object.keys(errors).length > 0 && (
                 <p className="form-summary-error">
-                  {locale === "zh" ? "请修正上述高亮的字段后重试。" : "Fix the highlighted fields above to continue."}
+                  {t("configureRun.fixFields")}
                 </p>
               )}
               {previewError && (
@@ -413,6 +414,7 @@ function FormField({
   passwordRevealed: boolean;
   togglePasswordReveal: () => void;
 }) {
+  const { t } = useTranslation();
   const label = fieldLabel(field, locale);
   const help = fieldHelp(field, locale);
   const fieldId = `var-${name}`;
@@ -421,7 +423,7 @@ function FormField({
     <div className={`form-field ${error ? "has-error" : ""}`}>
       <label htmlFor={fieldId} className="form-field-label">
         {label}
-        {field.required && <span className="form-required" aria-label="required">*</span>}
+        {field.required && <span className="form-required" aria-label={t("configureRun.requiredAria")}>*</span>}
         <code className="form-var-name">{name}</code>
       </label>
 
@@ -442,13 +444,13 @@ function FormField({
             return (
               <label className="form-toggle">
                 <input id={fieldId} type="checkbox" checked={Boolean(value)} onChange={(e) => onChange(e.target.checked)} />
-                <span>{Boolean(value) ? (locale === "zh" ? "已启用" : "Enabled") : (locale === "zh" ? "未启用" : "Disabled")}</span>
+                <span>{Boolean(value) ? t("configureRun.enabled") : t("configureRun.disabled")}</span>
               </label>
             );
           case "choice":
             return (
               <select id={fieldId} value={String(value ?? "")} onChange={(e) => onChange(e.target.value)}>
-                <option value="">{locale === "zh" ? "（未选择）" : "(none)"}</option>
+                <option value="">{t("configureRun.none")}</option>
                 {field.options.map((opt) => (
                   <option key={opt.value} value={opt.value}>
                     {locale === "en" && opt.labelEn ? opt.labelEn : opt.label}
@@ -461,10 +463,10 @@ function FormField({
               <div className="form-password-wrap">
                 <input id={fieldId} type={passwordRevealed ? "text" : "password"}
                   value={String(value ?? "")}
-                  placeholder={locale === "zh" ? "（留空自动生成）" : "(empty → auto-generate)"}
+                  placeholder={t("configureRun.autoGenerate")}
                   onChange={(e) => onChange(e.target.value)}
                   autoComplete="new-password" />
-                <button type="button" className="form-password-toggle" onClick={togglePasswordReveal} aria-label={passwordRevealed ? "Hide" : "Show"}>
+                <button type="button" className="form-password-toggle" onClick={togglePasswordReveal} aria-label={passwordRevealed ? t("configureRun.hidePassword") : t("configureRun.showPassword")}>
                   {passwordRevealed ? <EyeOff size={14} /> : <Eye size={14} />}
                 </button>
               </div>

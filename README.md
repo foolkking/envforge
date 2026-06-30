@@ -50,6 +50,7 @@ npm run dev:api
 
 Start here:
 
+- Chinese overview: [README_zh.md](./README_zh.md)
 - Current repository state for AI agents: [PROJECT_STATE.md](./PROJECT_STATE.md)
 - Agent working rules: [AGENTS.md](./AGENTS.md)
 - Full documentation index: [docs/index.md](./docs/index.md)

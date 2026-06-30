@@ -1,4 +1,6 @@
+import { Button } from "./ui/Button";
 import React, { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   changePassword,
   confirmEmailChange,
@@ -28,7 +30,8 @@ interface Props {
   authToken: string;
 }
 
-export function AccountPanel({ locale, authToken }: Props) {
+export function AccountPanel({ authToken }: Props) {
+  const { t } = useTranslation();
   const [me, setMe] = useState<MeFullResponse | null>(null);
   const [providers, setProviders] = useState<{ github: boolean; google: boolean }>({ github: false, google: false });
   const [loading, setLoading] = useState(true);
@@ -46,7 +49,7 @@ export function AccountPanel({ locale, authToken }: Props) {
       setMe(account);
       setProviders(providerStatus);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load account");
+      setError(err instanceof Error ? err.message : t("account.loadFailed"));
     } finally {
       setLoading(false);
     }
@@ -56,30 +59,30 @@ export function AccountPanel({ locale, authToken }: Props) {
     void reload();
   }, [authToken]);
 
-  if (!authToken) return <p className="empty-hint">{locale === "zh" ? "请先登录以访问高级设置。" : "Login to access settings."}</p>;
-  if (loading) return <p className="empty-hint">{locale === "zh" ? "正在加载账号设置..." : "Loading account settings..."}</p>;
+  if (!authToken) return <p className="empty-hint">{t("account.loginRequired")}</p>;
+  if (loading) return <p className="empty-hint">{t("account.loading")}</p>;
   if (error) return <p className="connection-error">{error}</p>;
   if (!me) return null;
 
   return (
     <div className="account-settings-grid">
-      <ProfileSection locale={locale} authToken={authToken} me={me} onRefresh={reload} />
-      <EmailSection locale={locale} authToken={authToken} me={me} onRefresh={reload} />
-      <SecuritySection locale={locale} authToken={authToken} me={me} onRefresh={reload} />
-      <IdentitiesSection locale={locale} authToken={authToken} identities={me.identities} providers={providers} onRefresh={reload} />
-      <NotificationsSection locale={locale} authToken={authToken} prefs={me.notificationPrefs} />
-      <ActivitySection locale={locale} activity={me.activity} />
-      <DangerSection locale={locale} authToken={authToken} onRefresh={reload} />
+      <ProfileSection authToken={authToken} me={me} onRefresh={reload} />
+      <EmailSection authToken={authToken} me={me} onRefresh={reload} />
+      <SecuritySection authToken={authToken} me={me} onRefresh={reload} />
+      <IdentitiesSection authToken={authToken} identities={me.identities} providers={providers} onRefresh={reload} />
+      <NotificationsSection authToken={authToken} prefs={me.notificationPrefs} />
+      <ActivitySection activity={me.activity} />
+      <DangerSection authToken={authToken} onRefresh={reload} />
     </div>
   );
 }
 
-function ProfileSection({ locale, authToken, me, onRefresh }: {
-  locale: Locale;
+function ProfileSection({ authToken, me, onRefresh }: {
   authToken: string;
   me: MeFullResponse;
   onRefresh: () => Promise<void>;
 }) {
+  const { t } = useTranslation();
   const [displayName, setDisplayName] = useState(me.user.displayName ?? "");
   const [username, setUsername] = useState(me.user.username ?? "");
   const [bio, setBio] = useState(me.user.bio ?? "");
@@ -93,10 +96,10 @@ function ProfileSection({ locale, authToken, me, onRefresh }: {
     setMessage("");
     try {
       await patchProfile(authToken, { displayName, username, bio, avatarUrl, defaultSshUser });
-      setMessage(locale === "zh" ? "资料已保存。" : "Profile saved.");
+      setMessage(t("account.profile.saved"));
       await onRefresh();
     } catch (err) {
-      setMessage(err instanceof Error ? err.message : "Save failed");
+      setMessage(err instanceof Error ? err.message : t("account.profile.saveFailed"));
     } finally {
       setSaving(false);
     }
@@ -106,29 +109,29 @@ function ProfileSection({ locale, authToken, me, onRefresh }: {
     <section className="settings-section">
       <div className="settings-section-heading">
         <div>
-          <h3>{locale === "zh" ? "个人资料" : "Profile"}</h3>
-          <p>{locale === "zh" ? "用于能力规则库、评论和建议中的公开身份。" : "Public identity used in capability catalog comments and suggestions."}</p>
+          <h3>{t("account.profile.title")}</h3>
+          <p>{t("account.profile.intro")}</p>
         </div>
       </div>
       <div className="settings-form-grid">
-        <label>{locale === "zh" ? "显示名" : "Display name"}<input value={displayName} onChange={(e) => setDisplayName(e.target.value)} /></label>
-        <label>{locale === "zh" ? "用户名" : "Username"}<input value={username} onChange={(e) => setUsername(e.target.value)} /></label>
-        <label>{locale === "zh" ? "头像 URL" : "Avatar URL"}<input value={avatarUrl} onChange={(e) => setAvatarUrl(e.target.value)} /></label>
-        <label>{locale === "zh" ? "默认 SSH 用户" : "Default SSH user"}<input value={defaultSshUser} onChange={(e) => setDefaultSshUser(e.target.value)} /></label>
+        <label>{t("account.profile.displayName")}<input value={displayName} onChange={(e) => setDisplayName(e.target.value)} /></label>
+        <label>{t("account.profile.username")}<input value={username} onChange={(e) => setUsername(e.target.value)} /></label>
+        <label>{t("account.profile.avatarUrl")}<input value={avatarUrl} onChange={(e) => setAvatarUrl(e.target.value)} /></label>
+        <label>{t("account.profile.sshUser")}<input value={defaultSshUser} onChange={(e) => setDefaultSshUser(e.target.value)} /></label>
       </div>
-      <label className="settings-full-field">{locale === "zh" ? "简介" : "Bio"}<textarea value={bio} onChange={(e) => setBio(e.target.value)} rows={3} /></label>
-      <button className="primary-action" type="button" disabled={saving} onClick={() => void save()}>{saving ? "..." : locale === "zh" ? "保存资料" : "Save profile"}</button>
+      <label className="settings-full-field">{t("account.profile.bio")}<textarea value={bio} onChange={(e) => setBio(e.target.value)} rows={3} /></label>
+      <Button variant="primary"  type="button" disabled={saving} onClick={() => void save()}>{saving ? "..." : t("account.profile.save")}</Button>
       {message ? <p className="settings-note">{message}</p> : null}
     </section>
   );
 }
 
-function EmailSection({ locale, authToken, me, onRefresh }: {
-  locale: Locale;
+function EmailSection({ authToken, me, onRefresh }: {
   authToken: string;
   me: MeFullResponse;
   onRefresh: () => Promise<void>;
 }) {
+  const { t } = useTranslation();
   const [newEmail, setNewEmail] = useState("");
   const [pendingId, setPendingId] = useState("");
   const [code, setCode] = useState("");
@@ -139,9 +142,9 @@ function EmailSection({ locale, authToken, me, onRefresh }: {
     try {
       const result = await requestEmailChange(authToken, newEmail.trim());
       setPendingId(result.pendingId);
-      setMessage(result.devCode ? `Dev code: ${result.devCode}` : (locale === "zh" ? "验证码已发送。" : "Verification code sent."));
+      setMessage(result.devCode ? `Dev code: ${result.devCode}` : t("account.email.sent"));
     } catch (err) {
-      setMessage(err instanceof Error ? err.message : "Request failed");
+      setMessage(err instanceof Error ? err.message : t("account.email.requestFailed"));
     }
   }
 
@@ -149,13 +152,13 @@ function EmailSection({ locale, authToken, me, onRefresh }: {
     setMessage("");
     try {
       const result = await confirmEmailChange(authToken, { pendingId, code: code.trim() });
-      setMessage(locale === "zh" ? `邮箱已更新为 ${result.email}` : `Email updated to ${result.email}`);
+      setMessage(t("account.email.updated", { email: result.email }));
       setNewEmail("");
       setPendingId("");
       setCode("");
       await onRefresh();
     } catch (err) {
-      setMessage(err instanceof Error ? err.message : "Confirm failed");
+      setMessage(err instanceof Error ? err.message : t("account.email.confirmFailed"));
     }
   }
 
@@ -163,18 +166,18 @@ function EmailSection({ locale, authToken, me, onRefresh }: {
     <section className="settings-section">
       <div className="settings-section-heading">
         <div>
-          <h3>{locale === "zh" ? "邮箱地址" : "Email address"}</h3>
-          <p><strong>{me.user.email}</strong>{me.user.emailVerifiedAt ? ` · ${locale === "zh" ? "已验证" : "verified"}` : ""}</p>
+          <h3>{t("account.email.title")}</h3>
+          <p><strong>{me.user.email}</strong>{me.user.emailVerifiedAt ? ` · ${t("account.email.verified")}` : ""}</p>
         </div>
       </div>
       <div className="settings-inline-form">
-        <input type="email" placeholder={locale === "zh" ? "新邮箱地址" : "New email"} value={newEmail} onChange={(e) => setNewEmail(e.target.value)} />
-        <button className="secondary-action" type="button" onClick={() => void requestChange()}>{locale === "zh" ? "发送验证码" : "Send code"}</button>
+        <input type="email" placeholder={t("account.email.newEmail")} value={newEmail} onChange={(e) => setNewEmail(e.target.value)} />
+        <Button variant="secondary"  type="button" onClick={() => void requestChange()}>{t("account.email.sendCode")}</Button>
       </div>
       {pendingId ? (
         <div className="settings-inline-form">
-          <input placeholder={locale === "zh" ? "验证码" : "Code"} value={code} onChange={(e) => setCode(e.target.value)} />
-          <button className="primary-action" type="button" onClick={() => void confirmChange()}>{locale === "zh" ? "确认变更" : "Confirm change"}</button>
+          <input placeholder={t("account.email.code")} value={code} onChange={(e) => setCode(e.target.value)} />
+          <Button variant="primary"  type="button" onClick={() => void confirmChange()}>{t("account.email.confirm")}</Button>
         </div>
       ) : null}
       {message ? <p className="settings-note">{message}</p> : null}
@@ -182,12 +185,12 @@ function EmailSection({ locale, authToken, me, onRefresh }: {
   );
 }
 
-function SecuritySection({ locale, authToken, me, onRefresh }: {
-  locale: Locale;
+function SecuritySection({ authToken, me, onRefresh }: {
   authToken: string;
   me: MeFullResponse;
   onRefresh: () => Promise<void>;
 }) {
+  const { t } = useTranslation();
   const [oldPassword, setOldPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [totpCode, setTotpCode] = useState("");
@@ -202,9 +205,9 @@ function SecuritySection({ locale, authToken, me, onRefresh }: {
       setOldPassword("");
       setNewPassword("");
       setTotpCode("");
-      setMessage(locale === "zh" ? "密码已更新。" : "Password updated.");
+      setMessage(t("account.security.passwordUpdated"));
     } catch (err) {
-      setMessage(err instanceof Error ? err.message : "Password update failed");
+      setMessage(err instanceof Error ? err.message : t("account.security.passwordFailed"));
     }
   }
 
@@ -221,10 +224,10 @@ function SecuritySection({ locale, authToken, me, onRefresh }: {
       setRecoveryCodes(result.recoveryCodes);
       setEnroll(null);
       setTotpCode("");
-      setMessage(locale === "zh" ? "2FA 已开启，请保存恢复码。" : "2FA enabled. Save your recovery codes.");
+      setMessage(t("account.security.enabledMessage"));
       await onRefresh();
     } catch (err) {
-      setMessage(err instanceof Error ? err.message : "2FA confirm failed");
+      setMessage(err instanceof Error ? err.message : t("account.security.confirmFailed"));
     }
   }
 
@@ -232,10 +235,10 @@ function SecuritySection({ locale, authToken, me, onRefresh }: {
     setMessage("");
     try {
       await disableTwoFactor(authToken, { password: oldPassword || undefined, code: totpCode || undefined });
-      setMessage(locale === "zh" ? "2FA 已关闭。" : "2FA disabled.");
+      setMessage(t("account.security.disabledMessage"));
       await onRefresh();
     } catch (err) {
-      setMessage(err instanceof Error ? err.message : "Disable failed");
+      setMessage(err instanceof Error ? err.message : t("account.security.disableFailed"));
     }
   }
 
@@ -248,31 +251,31 @@ function SecuritySection({ locale, authToken, me, onRefresh }: {
     <section className="settings-section">
       <div className="settings-section-heading">
         <div>
-          <h3>{locale === "zh" ? "账号安全" : "Account security"}</h3>
-          <p>{locale === "zh" ? `双因素认证：${me.twoFactor.enabled ? "已开启" : "未开启"}` : `Two-factor authentication: ${me.twoFactor.enabled ? "enabled" : "disabled"}`}</p>
+          <h3>{t("account.security.title")}</h3>
+          <p>{t("account.security.state", { state: me.twoFactor.enabled ? t("account.security.enabled") : t("account.security.disabled") })}</p>
         </div>
       </div>
       <div className="settings-form-grid">
-        <label>{locale === "zh" ? "当前密码" : "Current password"}<input type="password" value={oldPassword} onChange={(e) => setOldPassword(e.target.value)} /></label>
-        <label>{locale === "zh" ? "新密码" : "New password"}<input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} /></label>
-        <label>{locale === "zh" ? "2FA/恢复码" : "2FA/recovery code"}<input value={totpCode} onChange={(e) => setTotpCode(e.target.value)} /></label>
+        <label>{t("account.security.currentPassword")}<input type="password" value={oldPassword} onChange={(e) => setOldPassword(e.target.value)} /></label>
+        <label>{t("account.security.newPassword")}<input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} /></label>
+        <label>{t("account.security.code")}<input value={totpCode} onChange={(e) => setTotpCode(e.target.value)} /></label>
       </div>
       <div className="settings-actions-row">
-        <button className="primary-action" type="button" onClick={() => void savePassword()}>{locale === "zh" ? "更新密码" : "Update password"}</button>
+        <Button variant="primary"  type="button" onClick={() => void savePassword()}>{t("account.security.updatePassword")}</Button>
         {me.twoFactor.enabled ? (
           <>
-            <button className="secondary-action" type="button" onClick={() => void regenerate()}>{locale === "zh" ? "重置恢复码" : "Regenerate codes"}</button>
-            <button className="danger-action" type="button" onClick={() => void disable()}>{locale === "zh" ? "关闭 2FA" : "Disable 2FA"}</button>
+            <Button variant="secondary"  type="button" onClick={() => void regenerate()}>{t("account.security.regenerate")}</Button>
+            <button className="danger-action" type="button" onClick={() => void disable()}>{t("account.security.disable")}</button>
           </>
         ) : (
-          <button className="secondary-action" type="button" onClick={() => void startEnroll()}>{locale === "zh" ? "开启 2FA" : "Enable 2FA"}</button>
+          <Button variant="secondary"  type="button" onClick={() => void startEnroll()}>{t("account.security.enable")}</Button>
         )}
       </div>
       {enroll ? (
         <div className="twofa-enroll-box">
-          <img src={enroll.qrDataUrl} alt="2FA QR" />
+          <img src={enroll.qrDataUrl} alt={t("account.security.qrAlt")} />
           <code>{enroll.secret}</code>
-          <button className="primary-action" type="button" onClick={() => void confirmEnroll()}>{locale === "zh" ? "用验证码确认" : "Confirm with code"}</button>
+          <Button variant="primary"  type="button" onClick={() => void confirmEnroll()}>{t("account.security.confirm")}</Button>
         </div>
       ) : null}
       {recoveryCodes.length > 0 ? <pre className="recovery-codes">{recoveryCodes.join("\n")}</pre> : null}
@@ -281,13 +284,13 @@ function SecuritySection({ locale, authToken, me, onRefresh }: {
   );
 }
 
-function IdentitiesSection({ locale, authToken, identities, providers, onRefresh }: {
-  locale: Locale;
+function IdentitiesSection({ authToken, identities, providers, onRefresh }: {
   authToken: string;
   identities: IdentityEntry[];
   providers: { github: boolean; google: boolean };
   onRefresh: () => Promise<void>;
 }) {
+  const { t } = useTranslation();
   const linked = new Set(identities.map((identity) => identity.provider));
   const [message, setMessage] = useState("");
 
@@ -297,7 +300,7 @@ function IdentitiesSection({ locale, authToken, identities, providers, onRefresh
       const result = provider === "github" ? await startGitHubLink(authToken) : await startGoogleLink(authToken);
       window.location.href = result.authorizeUrl;
     } catch (err) {
-      setMessage(err instanceof Error ? err.message : "Link failed");
+      setMessage(err instanceof Error ? err.message : t("account.identities.linkFailed"));
     }
   }
 
@@ -307,7 +310,7 @@ function IdentitiesSection({ locale, authToken, identities, providers, onRefresh
       await unlinkIdentity(authToken, provider);
       await onRefresh();
     } catch (err) {
-      setMessage(err instanceof Error ? err.message : "Unlink failed");
+      setMessage(err instanceof Error ? err.message : t("account.identities.unlinkFailed"));
     }
   }
 
@@ -315,8 +318,8 @@ function IdentitiesSection({ locale, authToken, identities, providers, onRefresh
     <section className="settings-section">
       <div className="settings-section-heading">
         <div>
-          <h3>{locale === "zh" ? "登录方式" : "Sign-in methods"}</h3>
-          <p>{locale === "zh" ? "绑定外部账号后可用 OAuth 登录。" : "Link external identities for OAuth sign-in."}</p>
+          <h3>{t("account.identities.title")}</h3>
+          <p>{t("account.identities.intro")}</p>
         </div>
       </div>
       <div className="identity-list">
@@ -325,25 +328,25 @@ function IdentitiesSection({ locale, authToken, identities, providers, onRefresh
             <strong>{identity.provider}</strong>
             <span className="identity-email">{identity.providerEmail ?? identity.providerLogin ?? "-"}</span>
             {identity.provider === "github" || identity.provider === "google" ? (
-              <button className="secondary-action" type="button" onClick={() => void unlink(identity.provider as "github" | "google")}>{locale === "zh" ? "解绑" : "Unlink"}</button>
+              <Button variant="secondary"  type="button" onClick={() => void unlink(identity.provider as "github" | "google")}>{t("account.identities.unlink")}</Button>
             ) : null}
           </div>
         ))}
       </div>
       <div className="settings-actions-row">
-        {providers.github && !linked.has("github") ? <button className="secondary-action" type="button" onClick={() => void link("github")}>{locale === "zh" ? "绑定 GitHub" : "Link GitHub"}</button> : null}
-        {providers.google && !linked.has("google") ? <button className="secondary-action" type="button" onClick={() => void link("google")}>{locale === "zh" ? "绑定 Google" : "Link Google"}</button> : null}
+        {providers.github && !linked.has("github") ? <Button variant="secondary"  type="button" onClick={() => void link("github")}>{t("account.identities.linkGithub")}</Button> : null}
+        {providers.google && !linked.has("google") ? <Button variant="secondary"  type="button" onClick={() => void link("google")}>{t("account.identities.linkGoogle")}</Button> : null}
       </div>
       {message ? <p className="settings-note">{message}</p> : null}
     </section>
   );
 }
 
-function NotificationsSection({ locale, authToken, prefs }: {
-  locale: Locale;
+function NotificationsSection({ authToken, prefs }: {
   authToken: string;
   prefs: NotificationPrefs;
 }) {
+  const { t } = useTranslation();
   const [local, setLocal] = useState(prefs);
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
@@ -351,18 +354,11 @@ function NotificationsSection({ locale, authToken, prefs }: {
 
   useEffect(() => setLocal(prefs), [prefs.updatedAt]);
 
-  const items: Array<{ key: keyof NotificationPrefs; label: string; desc: string }> = [
-    { key: "emailMentions", label: locale === "zh" ? "@提及" : "Mentions", desc: locale === "zh" ? "有人在评论或建议中提到你。" : "Someone mentions you in comments or suggestions." },
-    { key: "emailComments", label: locale === "zh" ? "评论回复" : "Comment replies", desc: locale === "zh" ? "自己的评论收到回复。" : "Your comments receive replies." },
-    { key: "emailSuggestionStatus", label: locale === "zh" ? "建议状态" : "Suggestion status", desc: locale === "zh" ? "建议被采纳、拒绝或需要补充。" : "Suggestion accepted, rejected, or needs changes." },
-    { key: "emailPublishStatus", label: locale === "zh" ? "发布结果" : "Publish results", desc: locale === "zh" ? "能力规则发布或审核完成。" : "Capability rule publishing or moderation completes." }
-  ];
-
   const visibleItems: Array<{ key: keyof NotificationPrefs; label: string; desc: string }> = [
-    { key: "emailMentions", label: locale === "zh" ? "@提及" : "Mentions", desc: locale === "zh" ? "有人在评论或建议中提到你。" : "Someone mentions you in comments or suggestions." },
-    { key: "emailComments", label: locale === "zh" ? "评论回复" : "Comment replies", desc: locale === "zh" ? "自己的评论收到回复。" : "Your comments receive replies." },
-    { key: "emailSuggestionStatus", label: locale === "zh" ? "建议状态" : "Suggestion status", desc: locale === "zh" ? "建议被采纳、拒绝或需要补充。" : "Suggestion accepted, rejected, or needs changes." },
-    { key: "emailPublishStatus", label: locale === "zh" ? "发布结果" : "Publish results", desc: locale === "zh" ? "能力规则发布或审核完成。" : "Capability rule publishing or moderation completes." }
+    { key: "emailMentions", label: t("account.notifications.mentions"), desc: t("account.notifications.mentionsDesc") },
+    { key: "emailComments", label: t("account.notifications.comments"), desc: t("account.notifications.commentsDesc") },
+    { key: "emailSuggestionStatus", label: t("account.notifications.suggestions"), desc: t("account.notifications.suggestionsDesc") },
+    { key: "emailPublishStatus", label: t("account.notifications.publish"), desc: t("account.notifications.publishDesc") }
   ];
 
   async function save() {
@@ -376,9 +372,9 @@ function NotificationsSection({ locale, authToken, prefs }: {
         emailPublishStatus: local.emailPublishStatus
       });
       setLocal(result);
-      setMessage(locale === "zh" ? "通知偏好已保存。" : "Notification preferences saved.");
+      setMessage(t("account.notifications.saved"));
     } catch (err) {
-      setMessage(err instanceof Error ? err.message : "Save failed");
+      setMessage(err instanceof Error ? err.message : t("account.notifications.saveFailed"));
     } finally {
       setSaving(false);
     }
@@ -390,14 +386,14 @@ function NotificationsSection({ locale, authToken, prefs }: {
     try {
       const result = await sendNotificationTest(authToken);
       if (result.emailEnabled && result.emailQueued) {
-        setMessage(locale === "zh" ? "测试站内信已发送，邮件也已加入发送队列。" : "Test inbox message sent; email was queued.");
+        setMessage(t("account.notifications.queued"));
       } else if (result.emailEnabled) {
-        setMessage(locale === "zh" ? "测试站内信已发送，但邮件受限或队列未接受。" : "Test inbox message sent, but email was not queued.");
+        setMessage(t("account.notifications.notQueued"));
       } else {
-        setMessage(locale === "zh" ? "测试站内信已发送。当前未开启邮件通知。" : "Test inbox message sent. Email notifications are currently off.");
+        setMessage(t("account.notifications.emailOff"));
       }
     } catch (err) {
-      setMessage(err instanceof Error ? err.message : "Notification test failed");
+      setMessage(err instanceof Error ? err.message : t("account.notifications.testFailed"));
     } finally {
       setTesting(false);
     }
@@ -407,8 +403,8 @@ function NotificationsSection({ locale, authToken, prefs }: {
     <section className="settings-section notification-settings">
       <div className="settings-section-heading">
         <div>
-          <h3>{locale === "zh" ? "邮件通知" : "Email notifications"}</h3>
-          <p>{locale === "zh" ? "站内信会始终保留重要事件；这里控制是否额外发送邮件。" : "Important events remain in the in-app inbox; these toggles control extra email delivery."}</p>
+          <h3>{t("account.notifications.title")}</h3>
+          <p>{t("account.notifications.intro")}</p>
         </div>
       </div>
       <ul className="notification-prefs">
@@ -429,27 +425,28 @@ function NotificationsSection({ locale, authToken, prefs }: {
         ))}
       </ul>
       <div className="settings-action-row">
-        <button className="primary-action" type="button" disabled={saving} onClick={() => void save()}>{saving ? "..." : locale === "zh" ? "保存通知设置" : "Save notifications"}</button>
-        <button className="secondary-action" type="button" disabled={testing} onClick={() => void testNotification()}>{testing ? "..." : locale === "zh" ? "发送测试通知" : "Send test"}</button>
+        <Button variant="primary"  type="button" disabled={saving} onClick={() => void save()}>{saving ? "..." : t("account.notifications.save")}</Button>
+        <Button variant="secondary"  type="button" disabled={testing} onClick={() => void testNotification()}>{testing ? "..." : t("account.notifications.test")}</Button>
       </div>
       {message ? <p className="settings-note">{message}</p> : null}
     </section>
   );
 }
 
-function ActivitySection({ locale, activity }: { locale: Locale; activity: MeFullResponse["activity"] }) {
+function ActivitySection({ activity }: { activity: MeFullResponse["activity"] }) {
+  const { t } = useTranslation();
   const items = [
-    { label: locale === "zh" ? "已连接机器" : "Connections", value: activity.connections },
-    { label: locale === "zh" ? "上传配置" : "Uploaded profiles", value: activity.uploadedProfiles },
+    { label: t("account.activity.connections"), value: activity.connections },
+    { label: t("account.activity.profiles"), value: activity.uploadedProfiles },
     { label: "Playbook", value: activity.playbooks },
-    { label: locale === "zh" ? "执行任务" : "Tasks executed", value: activity.tasksExecuted },
-    { label: locale === "zh" ? "OAuth 登录" : "OAuth providers", value: activity.identitiesLinked },
+    { label: t("account.activity.tasks"), value: activity.tasksExecuted },
+    { label: t("account.activity.oauth"), value: activity.identitiesLinked },
     { label: "API tokens", value: activity.apiTokens }
   ];
 
   return (
     <section className="settings-section">
-      <h3>{locale === "zh" ? "活动统计" : "Activity"}</h3>
+      <h3>{t("account.activity.title")}</h3>
       <dl className="activity-grid">
         {items.map((item) => (
           <div key={item.label}>
@@ -462,34 +459,34 @@ function ActivitySection({ locale, activity }: { locale: Locale; activity: MeFul
   );
 }
 
-function DangerSection({ locale, authToken, onRefresh }: {
-  locale: Locale;
+function DangerSection({ authToken, onRefresh }: {
   authToken: string;
   onRefresh: () => Promise<void>;
 }) {
+  const { t } = useTranslation();
   const [password, setPassword] = useState("");
   const [code, setCode] = useState("");
   const [message, setMessage] = useState("");
 
   async function removeAccount() {
-    if (!(await confirmDialog({ message: locale === "zh" ? "确认删除账号？此操作会停用当前账号。" : "Delete this account? This will deactivate the current account.", danger: true }))) return;
+    if (!(await confirmDialog({ message: t("account.danger.confirm"), danger: true }))) return;
     try {
       await deleteAccount(authToken, { password: password || undefined, currentTotpCode: code || undefined });
-      setMessage(locale === "zh" ? "账号已删除。" : "Account deleted.");
+      setMessage(t("account.danger.deleted"));
       await onRefresh();
     } catch (err) {
-      setMessage(err instanceof Error ? err.message : "Delete failed");
+      setMessage(err instanceof Error ? err.message : t("account.danger.deleteFailed"));
     }
   }
 
   return (
     <section className="settings-section danger-zone">
-      <h3>{locale === "zh" ? "危险操作" : "Danger zone"}</h3>
+      <h3>{t("account.danger.title")}</h3>
       <div className="settings-form-grid">
-        <label>{locale === "zh" ? "密码" : "Password"}<input type="password" value={password} onChange={(e) => setPassword(e.target.value)} /></label>
-        <label>{locale === "zh" ? "2FA/恢复码" : "2FA/recovery code"}<input value={code} onChange={(e) => setCode(e.target.value)} /></label>
+        <label>{t("account.danger.password")}<input type="password" value={password} onChange={(e) => setPassword(e.target.value)} /></label>
+        <label>{t("account.danger.code")}<input value={code} onChange={(e) => setCode(e.target.value)} /></label>
       </div>
-      <button className="danger-action" type="button" onClick={() => void removeAccount()}>{locale === "zh" ? "删除账号" : "Delete account"}</button>
+      <button className="danger-action" type="button" onClick={() => void removeAccount()}>{t("account.danger.delete")}</button>
       {message ? <p className="settings-note">{message}</p> : null}
     </section>
   );

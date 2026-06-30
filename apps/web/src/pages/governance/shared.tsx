@@ -10,6 +10,7 @@
 import React from "react";
 import { Box as BoxIcon, Cog, Database, Network, Server, Shield, type LucideIcon } from "lucide-react";
 import { fetchCapabilityRequirements, type CatalogItemCertification, type CapabilityStandardSection } from "../../api";
+import { i18n } from "../../i18n";
 import type { Locale } from "../../lib/types";
 
 export interface AdminCatalogRow {
@@ -43,21 +44,21 @@ export const CATEGORY_ICONS: Record<string, LucideIcon> = {
   runtime: Cog
 };
 
-export const REQUIREMENT_LABELS: Record<string, { zh: string; en: string }> = {
-  identity: { zh: "身份信息", en: "Identity" },
-  detection: { zh: "检测", en: "Detection" },
-  install: { zh: "安装计划", en: "Install / Rebuild" },
-  config: { zh: "配置治理", en: "Config Governance" },
-  data: { zh: "数据策略", en: "Data Strategy" },
-  references: { zh: "依赖图", en: "References" },
-  validate: { zh: "验证", en: "Validation" },
-  rollback: { zh: "回滚", en: "Rollback" },
-  security: { zh: "安全 & 审批", en: "Security" },
-  crossDistro: { zh: "跨发行版", en: "Cross-distro" },
-  conflicts: { zh: "冲突规则", en: "Conflicts" },
-  planIntegration: { zh: "计划集成", en: "Plan Integration" },
-  harness: { zh: "验证框架", en: "Harness" }
-};
+export const REQUIREMENT_I18N_KEYS = {
+  identity: "governance.requirements.identity",
+  detection: "governance.requirements.detection",
+  install: "governance.requirements.install",
+  config: "governance.requirements.config",
+  data: "governance.requirements.data",
+  references: "governance.requirements.references",
+  validate: "governance.requirements.validate",
+  rollback: "governance.requirements.rollback",
+  security: "governance.requirements.security",
+  crossDistro: "governance.requirements.crossDistro",
+  conflicts: "governance.requirements.conflicts",
+  planIntegration: "governance.requirements.planIntegration",
+  harness: "governance.requirements.harness"
+} as const;
 
 export function Section({ title, testId, children }: { title: string; testId: string; children: React.ReactNode }): JSX.Element {
   return (
@@ -102,6 +103,7 @@ export function Kvp({ obj }: { obj: Record<string, string[] | undefined> }): JSX
 }
 
 export function buildUpgradePrompt(row: AdminCatalogRow, locale: Locale): string {
+  const t = i18n.getFixedT(locale);
   const lines = [];
   lines.push(`# Full Migration Certification upgrade — ${row.id}`);
   lines.push("");
@@ -112,9 +114,7 @@ export function buildUpgradePrompt(row: AdminCatalogRow, locale: Locale): string
   lines.push("Missing requirements:");
   for (const r of row.certification.reasons) lines.push(`- ${r}`);
   lines.push("");
-  lines.push(locale === "zh"
-    ? "请按照 docs/catalog.md 补齐上述项后运行 `npm run certification:check`。"
-    : "Address each missing requirement per docs/catalog.md, then run `npm run certification:check`.");
+  lines.push(t("governance.requirements.upgradePromptInstruction"));
   return lines.join("\n");
 }
 

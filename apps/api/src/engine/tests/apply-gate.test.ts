@@ -1,6 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
+  buildImportedRecipePlan,
+  attachConflictsAndApprovalAggregate,
   buildRebuildPlan,
   computeRequiredApprovalsForCatalogItem,
   evaluateApplyGate
@@ -64,10 +66,10 @@ test("apply-gate: passes once risks + approvals are acknowledged", () => {
   const plan = buildRebuildPlan([catalog()], "conn-1");
   const itemId = plan.items[0].id;
   const remaining = plan.items[0].audit?.remainingRisks ?? [];
-  const gates = plan.items[0].requiredApprovals ?? [];
+  const gates = plan.review.approvalsRequired ?? [];
   const verdict = evaluateApplyGate(plan, {
     risks: { [itemId]: remaining },
-    approvals: gates.map((gate) => ({ itemId, gateId: gate.id }))
+    approvals: gates.map((gate) => ({ itemId: gate.itemId, gateId: gate.id }))
   });
   assert.equal(verdict.ok, true);
   assert.equal(verdict.missingRiskAcks.length, 0);
@@ -97,9 +99,7 @@ test("apply-gate: warn-severity conflict can be acknowledged", () => {
     ],
     "conn-1"
   );
-  const ackApprovals = plan.items.flatMap((item) =>
-    (item.requiredApprovals ?? []).map((gate) => ({ itemId: item.id, gateId: gate.id }))
-  );
+  const ackApprovals = (plan.review.approvalsRequired ?? []).map((gate) => ({ itemId: gate.itemId, gateId: gate.id }));
   // Without acking the warn conflict, gate refuses.
   const refused = evaluateApplyGate(plan, { approvals: ackApprovals });
   assert.equal(refused.ok, false);
@@ -115,4 +115,48 @@ test("apply-gate: warn-severity conflict can be acknowledged", () => {
 test("apply-gate: computeRequiredApprovalsForCatalogItem returns empty for low-risk items", () => {
   const result = computeRequiredApprovalsForCatalogItem("capability:htop-tools", catalog({ id: "htop-tools", sensitivity: "safe", supportLevel: "basic-rebuild" }));
   assert.equal(result.length, 0);
+});
+
+test("apply-gate: generic high-risk command confirmation is mandatory", () => {
+  const plan = attachConflictsAndApprovalAggregate(buildImportedRecipePlan({ targetConnectionId: "conn-1", yaml: "steps:\n  - run: sudo rm /tmp/example\n" }));
+  const item = plan.items[0]!;
+  const gate = plan.review.approvalsRequired?.find((entry) => entry.kind === "high-risk-command-confirm");
+  assert.ok(gate);
+  const refused = evaluateApplyGate(plan, { risks: { [item.id]: item.risks } });
+  assert.ok(refused.missingApprovalGates.some((entry) => entry.kind === "high-risk-command-confirm"));
+  const accepted = evaluateApplyGate(plan, {
+    risks: { [item.id]: item.risks },
+    approvals: (plan.review.approvalsRequired ?? []).map((entry) => ({ itemId: entry.itemId, gateId: entry.id }))
+  });
+  assert.equal(accepted.ok, true);
+});
+
+test("apply-gate: target-state conflicts require target-conflict confirmation", () => {
+  const plan = buildRebuildPlan([catalog({ id: "nginx", capabilityKey: "web-server.nginx", audit: { status: "pass", remainingRisks: [] } })], "conn-1", {
+    existingCapabilities: { "web-server.caddy": "caddy" }, targetSnapshotAvailable: true
+  });
+  const targetGate = plan.review.approvalsRequired?.find((entry) => entry.kind === "target-conflict-confirm");
+  assert.ok(targetGate);
+  const reattached = attachConflictsAndApprovalAggregate(plan);
+  assert.ok(reattached.review.conflicts?.some((conflict) => conflict.participatingItemIds.some((id) => id.startsWith("target:"))));
+  assert.ok(reattached.review.approvalsRequired?.some((entry) => entry.kind === "target-conflict-confirm"));
+  const approvals = (plan.review.approvalsRequired ?? [])
+    .filter((entry) => entry.kind !== "target-conflict-confirm")
+    .map((entry) => ({ itemId: entry.itemId, gateId: entry.id }));
+  const refused = evaluateApplyGate(plan, { approvals });
+  assert.ok(refused.missingApprovalGates.some((entry) => entry.kind === "target-conflict-confirm"));
+});
+
+test("apply-gate: partial snapshots require hash-bound partial-snapshot confirmation", () => {
+  const plan = buildRebuildPlan([catalog({ audit: { status: "pass", remainingRisks: [] } })], "conn-1", {
+    targetSnapshotAvailable: true, snapshotCompleteness: 0.5
+  });
+  const partialGate = plan.review.approvalsRequired?.find((entry) => entry.kind === "partial-snapshot-confirm");
+  assert.ok(partialGate);
+  const refused = evaluateApplyGate(plan, {
+    approvals: (plan.review.approvalsRequired ?? [])
+      .filter((entry) => entry.id !== partialGate!.id)
+      .map((entry) => ({ itemId: entry.itemId, gateId: entry.id }))
+  });
+  assert.ok(refused.missingApprovalGates.some((entry) => entry.kind === "partial-snapshot-confirm"));
 });

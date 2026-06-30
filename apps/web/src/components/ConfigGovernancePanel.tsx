@@ -1,4 +1,7 @@
+import { Button } from "./ui/Button";
+import { FilterPill } from "./ui/FilterPill";
 import React, { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   AlertTriangle,
   Camera,
@@ -10,18 +13,15 @@ import {
   RefreshCw,
   Save,
   ShieldCheck,
-  Undo2,
   Variable
 } from "lucide-react";
 import {
   createPlaybook,
   fetchConfigFileDiff,
   fetchConfigFiles,
-  applyConfigChangePlan,
   createConfigChangePlan,
   createConfigMigrationPlan,
   readRemoteConfigFile,
-  rollbackRemoteConfigFile,
   validateRemoteConfigFile,
   type ConfigFileContent,
   type ConfigFileInfo,
@@ -29,10 +29,17 @@ import {
   type EnvironmentPlan
 } from "../api";
 import type { Locale } from "../lib/types";
-import { confirmDialog } from "../lib/dialogs";
+import { PlanReviewPanel } from "./PlanReviewPanel";
 
 type ViewMode = "view" | "edit" | "diff" | "template";
 type FilterMode = "all" | "system" | "user" | "app";
+
+const CATEGORY_KEYS = { all: "configGovernance.categories.all", system: "configGovernance.categories.system", user: "configGovernance.categories.user", app: "configGovernance.categories.app" } as const;
+const SOURCE_KEYS = { "catalog-rule": "configGovernance.sources.catalogRule", "system-default": "configGovernance.sources.systemDefault", "user-dotfile": "configGovernance.sources.userDotfile", "package-manager-modified": "configGovernance.sources.packageModified" } as const;
+const SENSITIVITY_KEYS = { secret: "configGovernance.sensitivities.secret", review: "configGovernance.sensitivities.review", safe: "configGovernance.sensitivities.safe" } as const;
+const DEFAULT_STATUS_KEYS = { default: "configGovernance.statuses.default", modified: "configGovernance.statuses.modified", "user-created": "configGovernance.statuses.userCreated", unknown: "configGovernance.statuses.unknown" } as const;
+const STRATEGY_KEYS = { copy: "configGovernance.strategies.copy", "copy-with-review": "configGovernance.strategies.copyReview", "redact-or-confirm": "configGovernance.strategies.redactConfirm", "do-not-copy": "configGovernance.strategies.doNotCopy", "manual-review": "configGovernance.strategies.manualReview" } as const;
+const VALIDATION_KEYS = { passed: "configGovernance.validation.passed", failed: "configGovernance.validation.failed", skipped: "configGovernance.validation.skipped" } as const;
 
 export function ConfigGovernancePanel({
   locale,
@@ -45,6 +52,7 @@ export function ConfigGovernancePanel({
   connectionId: string;
   pushLog?: (type: "info" | "success" | "error" | "cmd", text: string) => void;
 }) {
+  const { t } = useTranslation();
   const [files, setFiles] = useState<ConfigFileInfo[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -59,7 +67,6 @@ export function ConfigGovernancePanel({
   const [validation, setValidation] = useState<ConfigValidationResult | null>(null);
   const [pendingChangePlan, setPendingChangePlan] = useState<EnvironmentPlan | null>(null);
   const [validating, setValidating] = useState(false);
-  const [rollingBack, setRollingBack] = useState(false);
   const [diffSource, setDiffSource] = useState<"snapshot" | "envforge-bak">("envforge-bak");
   const [snapshots, setSnapshots] = useState<Record<string, string>>(() => {
     try {
@@ -124,36 +131,11 @@ export function ConfigGovernancePanel({
     try {
       const { plan } = await createConfigChangePlan(authToken, connectionId, activeFile.path, editContent);
       setPendingChangePlan(plan);
-      setSaveMsg(locale === "zh" ? "已创建配置变更提案。请审查差异、密钥扫描与验证钩子后再应用。" : "Config Change Plan created. Review diff, secret scan, and validation hook before applying.");
+      setSaveMsg(t("configGovernance.proposalCreated"));
       setViewMode("diff");
       pushLog?.("success", `${plan.name}: ${plan.summary.totalActions} actions`);
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Save failed";
-      setSaveMsg(msg);
-      pushLog?.("error", msg);
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  async function handleApplyPendingChange() {
-    if (!activeFile || !pendingChangePlan) return;
-    setSaving(true);
-    setSaveMsg("");
-    pushLog?.("cmd", `envforge plan apply ${pendingChangePlan.id}`);
-    try {
-      const plan = { ...pendingChangePlan, status: "approved" as const };
-      const result = await applyConfigChangePlan(authToken, connectionId, plan, activeFile.path, editContent, true);
-      setSaveMsg(result.message);
-      setValidation(result.validation);
-      if (result.success) {
-        setActiveFile({ ...activeFile, content: editContent, size: editContent.length });
-        setPendingChangePlan(null);
-        setViewMode("view");
-      }
-      pushLog?.(result.success ? "success" : "error", result.message);
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : "Apply change plan failed";
       setSaveMsg(msg);
       pushLog?.("error", msg);
     } finally {
@@ -198,51 +180,20 @@ export function ConfigGovernancePanel({
       if (plan.export?.yaml) {
         await createPlaybook(authToken, {
           name: `${plan.name}: ${activeFile.path}`,
-          description: locale === "zh"
-            ? "由配置文件治理面板生成的配置迁移计划草稿。请在计划中审查后再执行。"
-            : "Config migration plan draft created from Config Governance. Review it in Plans before applying.",
+          description: t("configGovernance.draftDescription"),
           yaml: plan.export.yaml,
           sourceKind: "user",
           comment: "Generated from Config Governance"
         });
       }
-      setSaveMsg(locale === "zh"
-        ? `已生成配置迁移计划：${plan.summary.totalItems} 个配置项。请在计划中审查后应用。`
-        : `Config migration plan generated with ${plan.summary.totalItems} item(s). Review it in Plans before apply.`);
+      setSaveMsg(t("configGovernance.migrationGenerated", { items: plan.summary.totalItems }));
       pushLog?.("success", `${plan.name}: ${plan.summary.totalActions} actions`);
-      setSaveMsg(locale === "zh"
-        ? `已把 ${activeFile.path} 加入计划：${plan.summary.totalItems} 个配置项，${plan.summary.totalActions} 个动作。请先审查再执行。`
-        : `Added ${activeFile.path} to Plans: ${plan.summary.totalItems} config item(s), ${plan.summary.totalActions} action(s). Review before apply.`);
-      pushLog?.("success", locale === "zh" ? `${plan.name}：${plan.summary.totalActions} 个动作已保存到计划` : `${plan.name}: ${plan.summary.totalActions} actions saved to Plans`);
+      setSaveMsg(t("configGovernance.addedToPlan", { path: activeFile.path, items: plan.summary.totalItems, actions: plan.summary.totalActions }));
+      pushLog?.("success", t("configGovernance.savedToPlans", { name: plan.name, actions: plan.summary.totalActions }));
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Create config migration plan failed";
       setSaveMsg(msg);
       pushLog?.("error", msg);
-    }
-  }
-
-  async function handleRollback() {
-    if (!activeFile) return;
-    const ok = await confirmDialog({ message: locale === "zh" ? "确定要从 EnvForge 备份恢复这个配置文件吗？" : "Restore this config file from the EnvForge backup?", confirmLabel: locale === "zh" ? "恢复" : "Restore", cancelLabel: locale === "zh" ? "取消" : "Cancel" });
-    if (!ok) return;
-    setRollingBack(true);
-    setValidation(null);
-    pushLog?.("cmd", `rollback ${activeFile.path}.envforge.bak`);
-    try {
-      const result = await rollbackRemoteConfigFile(authToken, connectionId, activeFile.path);
-      setSaveMsg(result.message);
-      if (result.validation) setValidation(result.validation);
-      const content = await readRemoteConfigFile(authToken, connectionId, activeFile.path);
-      setActiveFile(content);
-      setEditContent(content.content);
-      setViewMode("view");
-      pushLog?.("success", result.message);
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : "Rollback failed";
-      setSaveMsg(msg);
-      pushLog?.("error", msg);
-    } finally {
-      setRollingBack(false);
     }
   }
 
@@ -251,7 +202,7 @@ export function ConfigGovernancePanel({
     const next = { ...snapshots, [`${connectionId}::${activeFile.path}`]: activeFile.content };
     setSnapshots(next);
     localStorage.setItem("envforge_config_snapshots", JSON.stringify(next));
-    setSaveMsg(locale === "zh" ? "快照已保存，可用于后续对比" : "Snapshot saved for later comparison");
+    setSaveMsg(t("configGovernance.snapshotSaved"));
     setTimeout(() => setSaveMsg(""), 3000);
   }
 
@@ -290,26 +241,25 @@ export function ConfigGovernancePanel({
       <div className="panel-heading">
         <h2>
           <FolderOpen style={{ width: 20, height: 20 }} />
-          {locale === "zh" ? "配置变更治理" : "Config Change Proposals"}
+          {t("configGovernance.title")}
         </h2>
         <span className="panel-count">{files.length}</span>
       </div>
 
       <div className="config-filters">
         {(["all", "system", "user", "app"] as const).map((cat) => (
-          <button
+          <FilterPill
             key={cat}
-            type="button"
-            className={`filter-pill ${filter === cat ? "active" : ""}`}
+            active={filter === cat}
             onClick={() => setFilter(cat)}
           >
-            {categoryLabel(cat, locale)} ({cat === "all" ? files.length : files.filter((f) => f.category === cat).length})
-          </button>
+            {t(CATEGORY_KEYS[cat])} ({cat === "all" ? files.length : files.filter((f) => f.category === cat).length})
+          </FilterPill>
         ))}
-        <button type="button" className="conn-btn conn-btn-ghost" onClick={() => void loadFiles()} style={{ marginLeft: "auto" }}>
+        <Button variant="connectionGhost" type="button"  onClick={() => void loadFiles()} style={{ marginLeft: "auto" }}>
           <RefreshCw style={{ width: 13, height: 13 }} />
-          {locale === "zh" ? "刷新" : "Refresh"}
-        </button>
+          {t("configGovernance.refresh")}
+        </Button>
       </div>
 
       {error ? (
@@ -322,7 +272,7 @@ export function ConfigGovernancePanel({
       {loading ? (
         <div className="config-loading">
           <span className="spinning">↻</span>
-          {locale === "zh" ? "正在扫描配置文件..." : "Scanning config files..."}
+          {t("configGovernance.scanning")}
         </div>
       ) : (
         <div className="config-layout">
@@ -338,10 +288,10 @@ export function ConfigGovernancePanel({
                 <div className="config-file-info">
                   <span className="config-file-path">{file.path}</span>
                   <span className="config-file-meta">
-                    <span className={`config-cat-badge config-cat-${file.category}`}>{categoryLabel(file.category, locale)}</span>
+                    <span className={`config-cat-badge config-cat-${file.category}`}>{t(CATEGORY_KEYS[file.category])}</span>
                     {file.associatedSoftware ? <span className="config-sw-badge">{file.associatedSoftware}</span> : null}
-                    {file.discovery?.source === "catalog-rule" ? <span className="config-sw-badge">{locale === "zh" ? "规则" : "rule"}</span> : null}
-                    {file.governance ? <span className="config-sw-badge">{defaultStatusLabel(file.governance.defaultStatus, locale)}</span> : null}
+                    {file.discovery?.source === "catalog-rule" ? <span className="config-sw-badge">{t("configGovernance.rule")}</span> : null}
+                    {file.governance ? <span className="config-sw-badge">{t(DEFAULT_STATUS_KEYS[file.governance.defaultStatus])}</span> : null}
                     <span>{formatSize(file.size)}</span>
                   </span>
                 </div>
@@ -350,12 +300,8 @@ export function ConfigGovernancePanel({
             {filteredFiles.length === 0 ? (
               <div className="config-empty">
                 <FolderOpen style={{ width: 26, height: 26 }} />
-                <strong>{locale === "zh" ? "暂未加载到配置文件" : "No config files loaded"}</strong>
-                <span>
-                  {locale === "zh"
-                    ? "如果上方提示 SSH key 缺失，请重新上传密钥或修复连接后刷新。"
-                    : "If the banner says the SSH key is missing, re-upload the key or edit the connection, then refresh."}
-                </span>
+                <strong>{t("configGovernance.emptyTitle")}</strong>
+                <span>{t("configGovernance.emptyBody")}</span>
               </div>
             ) : null}
           </div>
@@ -365,100 +311,92 @@ export function ConfigGovernancePanel({
               <div className="config-viewer-header">
                 <span className="config-viewer-path">{activeFile.path}</span>
                 <div className="config-viewer-actions">
-                  <IconModeButton active={viewMode === "view"} title={locale === "zh" ? "查看" : "View"} onClick={() => { setViewMode("view"); setEditContent(activeFile.content); }}>
+                  <IconModeButton active={viewMode === "view"} title={t("configGovernance.view")} onClick={() => { setViewMode("view"); setEditContent(activeFile.content); }}>
                     <Eye style={{ width: 13, height: 13 }} />
                   </IconModeButton>
-                  <IconModeButton active={viewMode === "edit"} title={locale === "zh" ? "编辑候选内容" : "Edit candidate change"} onClick={() => setViewMode("edit")}>
+                  <IconModeButton active={viewMode === "edit"} title={t("configGovernance.edit")} onClick={() => setViewMode("edit")}>
                     <Edit3 style={{ width: 13, height: 13 }} />
                   </IconModeButton>
                   <IconModeButton
                     active={viewMode === "diff"}
-                    title={hasSnapshot ? (locale === "zh" ? "对比快照" : "Compare with snapshot") : (locale === "zh" ? "暂无快照可对比" : "No snapshot to compare")}
+                    title={hasSnapshot ? t("configGovernance.compareSnapshot") : t("configGovernance.noSnapshot")}
                     onClick={() => setViewMode("diff")}
                     disabled={!hasSnapshot}
                   >
                     <GitCompare style={{ width: 13, height: 13 }} />
                   </IconModeButton>
-                  <IconModeButton active={viewMode === "template"} title={locale === "zh" ? "模板变量" : "Template variables"} onClick={() => setViewMode("template")}>
+                  <IconModeButton active={viewMode === "template"} title={t("configGovernance.templateVariables")} onClick={() => setViewMode("template")}>
                     <Variable style={{ width: 13, height: 13 }} />
                   </IconModeButton>
                   <span className="config-viewer-sep" />
-                  <button className="conn-btn conn-btn-ghost" type="button" onClick={handleSnapshot} title={locale === "zh" ? "保存当前内容为快照" : "Save snapshot"}>
+                  <Button variant="connectionGhost"  type="button" onClick={handleSnapshot} title={t("configGovernance.saveSnapshot")}>
                     <Camera style={{ width: 13, height: 13 }} />
-                  </button>
-                  <button
-                    className="conn-btn conn-btn-ghost"
+                  </Button>
+                  <Button variant="connectionGhost"
+
                     type="button"
                     onClick={() => void handleValidate()}
                     disabled={validating || !activeFileInfo?.governance?.validationHint}
                     title={activeFileInfo?.governance?.validationHint ?? "No validation hook"}
                   >
                     <ShieldCheck style={{ width: 13, height: 13 }} />
-                    {validating ? "..." : locale === "zh" ? "验证钩子" : "Validate hook"}
-                  </button>
-                  <button
-                    className="conn-btn conn-btn-primary"
+                    {validating ? "..." : t("configGovernance.validateHook")}
+                  </Button>
+                  <Button variant="connectionPrimary"
+
                     type="button"
                     onClick={() => void handleAddActiveConfigToPlan()}
-                    title={locale === "zh" ? "把此配置文件作为显式迁移项加入计划草稿" : "Add this config file as an explicit migration plan item"}
+                    title={t("configGovernance.addPlanTitle")}
                   >
                     <FileText style={{ width: 13, height: 13 }} />
-                    {locale === "zh" ? "加入迁移计划" : "Add config to plan"}
-                  </button>
-                  <button
-                    className="conn-btn conn-btn-ghost"
-                    type="button"
-                    onClick={() => void handleRollback()}
-                    disabled={rollingBack}
-                    title={locale === "zh" ? "从 .envforge.bak 恢复" : "Restore from .envforge.bak"}
-                  >
-                    <Undo2 style={{ width: 13, height: 13 }} />
-                    {rollingBack ? "..." : locale === "zh" ? "回滚变更" : "Rollback change"}
-                  </button>
+                    {t("configGovernance.addPlan")}
+                  </Button>
                   {viewMode === "edit" ? (
-                    <button className="conn-btn conn-btn-primary" type="button" onClick={() => void handleSave()} disabled={saving}>
+                    <Button variant="connectionPrimary"  type="button" onClick={() => void handleSave()} disabled={saving}>
                       <Save style={{ width: 13, height: 13 }} />
-                      {saving ? "..." : locale === "zh" ? "提交变更提案" : "Create Change Proposal"}
-                    </button>
-                  ) : null}
-                  {pendingChangePlan ? (
-                    <button className="conn-btn conn-btn-primary" type="button" onClick={() => void handleApplyPendingChange()} disabled={saving}>
-                      <ShieldCheck style={{ width: 13, height: 13 }} />
-                      {saving ? "..." : locale === "zh" ? "验证并应用计划" : "Validate & Apply Plan"}
-                    </button>
+                      {saving ? "..." : t("configGovernance.createProposal")}
+                    </Button>
                   ) : null}
                 </div>
               </div>
 
               {saveMsg ? <div className={`config-save-msg ${/fail|denied|error/i.test(saveMsg) ? "error" : "success"}`}>{saveMsg}</div> : null}
               {pendingChangePlan ? (
-                <div className="config-governance-note">
+                <>
+                  <PlanReviewPanel
+                    authToken={authToken}
+                    plan={pendingChangePlan}
+                    locale={locale}
+                    onChanged={(updated) => setPendingChangePlan(updated)}
+                  />
+                  <div className="config-governance-note">
                   <div>
-                    <strong>{locale === "zh" ? "待审查配置变更计划" : "Pending Config Change Plan"}</strong>
+                    <strong>{t("configGovernance.pendingPlan")}</strong>
                     <span>{pendingChangePlan.review.reasons.join(" ")}</span>
                     <small>{pendingChangePlan.summary.totalActions} actions · {pendingChangePlan.summary.requiresSudo} sudo · {pendingChangePlan.summary.rollbackable} rollbackable</small>
                   </div>
                   <span className="config-risk-pill risk-review">{pendingChangePlan.status}</span>
-                </div>
+                  </div>
+                </>
               ) : null}
               {activeFileInfo?.discovery ? (
                 <div className="config-governance-note">
                   <div>
-                    <strong>{activeFileInfo.discovery.ruleName ?? sourceLabel(activeFileInfo.discovery.source, locale)}</strong>
+                    <strong>{activeFileInfo.discovery.ruleName ?? t(SOURCE_KEYS[activeFileInfo.discovery.source])}</strong>
                     <span>{activeFileInfo.discovery.reasons[0]}</span>
                     {activeFileInfo.governance ? (
                       <small>
-                        {defaultStatusLabel(activeFileInfo.governance.defaultStatus, locale)}
+                        {t(DEFAULT_STATUS_KEYS[activeFileInfo.governance.defaultStatus])}
                         {" · "}
-                        {migrationStrategyLabel(activeFileInfo.governance.migrationStrategy, locale)}
+                        {t(STRATEGY_KEYS[activeFileInfo.governance.migrationStrategy])}
                         {activeFileInfo.governance.validationHint ? ` · ${activeFileInfo.governance.validationHint}` : ""}
                       </small>
                     ) : null}
                   </div>
                   <span className={`config-risk-pill risk-${activeFile.secretScan?.hasSecrets ? "secret" : activeFileInfo.discovery.sensitivity}`}>
                     {activeFile.secretScan?.hasSecrets
-                      ? (locale === "zh" ? "发现敏感线索" : "secret signals")
-                      : sensitivityLabel(activeFileInfo.discovery.sensitivity, locale)}
+                      ? t("configGovernance.secretSignals")
+                      : t(SENSITIVITY_KEYS[activeFileInfo.discovery.sensitivity])}
                   </span>
                 </div>
               ) : null}
@@ -470,7 +408,7 @@ export function ConfigGovernancePanel({
               {validation ? (
                 <div className={`config-validation-result validation-${validation.status}`}>
                   <div className="config-validation-head">
-                    <strong>{validationStatusLabel(validation.status, locale)}</strong>
+                    <strong>{t(VALIDATION_KEYS[validation.status])}</strong>
                     {validation.command ? <code>{validation.command}</code> : null}
                     <span>{validation.durationMs}ms</span>
                   </div>
@@ -484,7 +422,7 @@ export function ConfigGovernancePanel({
                 <div className="conn-feedback conn-feedback-error config-error-banner">
                   <AlertTriangle style={{ width: 16, height: 16, flexShrink: 0 }} />
                   <span>
-                    {locale === "zh" ? "内容中可能包含密钥，请在迁移或应用变更前审查：" : "Possible secrets found; review before migration or applying this change:"}
+                    {t("configGovernance.secretWarning")}
                     {" "}
                     {activeFile.secretScan.hits.slice(0, 4).map((hit) => `${hit.pattern}@${hit.line}`).join(", ")}
                   </span>
@@ -497,7 +435,6 @@ export function ConfigGovernancePanel({
                 <textarea className="config-editor" value={editContent} onChange={(e) => setEditContent(e.target.value)} spellCheck={false} />
               ) : viewMode === "diff" ? (
                 <DiffView
-                  locale={locale}
                   diffSource={diffSource}
                   onChangeSource={setDiffSource}
                   oldContent={diffSource === "snapshot" ? snapshots[snapshotKey] ?? "" : bakContent ?? ""}
@@ -507,13 +444,13 @@ export function ConfigGovernancePanel({
                   bakLoading={bakLoading}
                 />
               ) : (
-                <TemplateView locale={locale} content={activeFile.content} vars={templateVars} onVarsChange={handleSaveTemplateVars} />
+                <TemplateView content={activeFile.content} vars={templateVars} onVarsChange={handleSaveTemplateVars} />
               )}
             </div>
           ) : (
             <div className="config-viewer config-viewer-empty">
               <Eye style={{ width: 32, height: 32, opacity: 0.3 }} />
-              <p>{locale === "zh" ? "选择左侧文件查看归属、风险，并创建配置变更提案" : "Select a file to inspect ownership, risk, and create a config change proposal"}</p>
+              <p>{t("configGovernance.selectPrompt")}</p>
             </div>
           )}
         </div>
@@ -536,14 +473,13 @@ function IconModeButton({
   children: React.ReactNode;
 }) {
   return (
-    <button className={`conn-btn ${active ? "conn-btn-primary" : "conn-btn-ghost"}`} type="button" onClick={onClick} disabled={disabled} title={title}>
+    <Button variant={active ? "connectionPrimary" : "connectionGhost"} type="button" onClick={onClick} disabled={disabled} title={title}>
       {children}
-    </button>
+    </Button>
   );
 }
 
 function DiffView({
-  locale,
   oldContent,
   newContent,
   diffSource,
@@ -552,7 +488,6 @@ function DiffView({
   hasEnvforgeBak,
   bakLoading
 }: {
-  locale: Locale;
   oldContent: string;
   newContent: string;
   diffSource: "snapshot" | "envforge-bak";
@@ -561,6 +496,7 @@ function DiffView({
   hasEnvforgeBak: boolean;
   bakLoading: boolean;
 }) {
+  const { t } = useTranslation();
   const diffLines = useMemo(() => computeDiff(oldContent, newContent), [oldContent, newContent]);
   const stats = useMemo(() => {
     let added = 0;
@@ -577,20 +513,20 @@ function DiffView({
   return (
     <div className="config-diff">
       <div className="config-diff-source">
-        <span className="config-diff-source-label">{locale === "zh" ? "对比版本:" : "Compare against:"}</span>
-        <button type="button" className={`conn-btn ${diffSource === "envforge-bak" ? "conn-btn-primary" : "conn-btn-ghost"}`} onClick={() => onChangeSource("envforge-bak")} disabled={bakLoading}>
-          {locale === "zh" ? "原始备份" : "Original backup"}
+        <span className="config-diff-source-label">{t("configGovernance.diff.compare")}</span>
+        <Button type="button" variant={diffSource === "envforge-bak" ? "connectionPrimary" : "connectionGhost"} onClick={() => onChangeSource("envforge-bak")} disabled={bakLoading}>
+          {t("configGovernance.diff.backup")}
           {bakLoading ? " ..." : !hasEnvforgeBak ? " - none" : ""}
-        </button>
-        <button type="button" className={`conn-btn ${diffSource === "snapshot" ? "conn-btn-primary" : "conn-btn-ghost"}`} onClick={() => onChangeSource("snapshot")} disabled={!hasManualSnapshot}>
-          {locale === "zh" ? "手动快照" : "Manual snapshot"}
+        </Button>
+        <Button type="button" variant={diffSource === "snapshot" ? "connectionPrimary" : "connectionGhost"} onClick={() => onChangeSource("snapshot")} disabled={!hasManualSnapshot}>
+          {t("configGovernance.diff.snapshot")}
           {!hasManualSnapshot ? " - none" : ""}
-        </button>
+        </Button>
       </div>
       <div className="config-diff-stats">
         <span className="diff-stat-added">+{stats.added}</span>
         <span className="diff-stat-removed">-{stats.removed}</span>
-        <span className="diff-stat-unchanged">{stats.unchanged} {locale === "zh" ? "行未变" : "unchanged"}</span>
+        <span className="diff-stat-unchanged">{t("configGovernance.diff.unchanged", { count: stats.unchanged })}</span>
       </div>
       <pre className="config-diff-content">
         {diffLines.map((line, i) => (
@@ -605,16 +541,15 @@ function DiffView({
 }
 
 function TemplateView({
-  locale,
   content,
   vars,
   onVarsChange
 }: {
-  locale: Locale;
   content: string;
   vars: Record<string, string>;
   onVarsChange: (vars: Record<string, string>) => void;
 }) {
+  const { t } = useTranslation();
   const detected = useMemo(() => {
     const patterns = new Set<string>();
     for (const match of content.matchAll(/\{\{\s*(\w+)\s*\}\}/g)) patterns.add(match[1]);
@@ -649,14 +584,14 @@ function TemplateView({
     <div className="config-template">
       <div className="config-template-vars">
         <p className="config-template-title">
-          {locale === "zh" ? "模板变量" : "Template variables"}
+          {t("configGovernance.templateVariables")}
           <span className="config-template-hint">
-            {locale === "zh" ? "迁移到新服务器时替换 IP、域名或端口" : "Replace IPs, domains, or ports before migrating"}
+            {t("configGovernance.template.hint")}
           </span>
         </p>
         {detected.length > 0 ? (
           <div className="config-template-detected">
-            <span className="config-template-detected-label">{locale === "zh" ? "检测到:" : "Detected:"}</span>
+            <span className="config-template-detected-label">{t("configGovernance.template.detected")}</span>
             {detected.map((item) => (
               <button key={item} type="button" className="config-template-detected-pill" onClick={() => commit({ ...localVars, [item]: localVars[item] ?? "" })}>
                 {item}
@@ -669,7 +604,7 @@ function TemplateView({
           {Object.entries(localVars).map(([key, value]) => (
             <div key={key} className="config-template-row">
               <code className="config-template-key">{key}</code>
-              <input className="config-template-input" value={value} placeholder={locale === "zh" ? "新值" : "New value"} onChange={(e) => commit({ ...localVars, [key]: e.target.value })} />
+              <input className="config-template-input" value={value} placeholder={t("configGovernance.template.newValue")} onChange={(e) => commit({ ...localVars, [key]: e.target.value })} />
               <button type="button" className="config-template-remove" onClick={() => {
                 const next = { ...localVars };
                 delete next[key];
@@ -682,20 +617,20 @@ function TemplateView({
         </div>
 
         <div className="config-template-add">
-          <input placeholder={locale === "zh" ? "变量名" : "Variable name"} value={newKey} onChange={(e) => setNewKey(e.target.value)} />
-          <input placeholder={locale === "zh" ? "替换值" : "Replace with"} value={newVal} onChange={(e) => setNewVal(e.target.value)} />
-          <button type="button" className="conn-btn conn-btn-ghost" onClick={() => {
+          <input placeholder={t("configGovernance.template.variable")} value={newKey} onChange={(e) => setNewKey(e.target.value)} />
+          <input placeholder={t("configGovernance.template.replace")} value={newVal} onChange={(e) => setNewVal(e.target.value)} />
+          <Button variant="connectionGhost" type="button"  onClick={() => {
             if (!newKey.trim()) return;
             commit({ ...localVars, [newKey.trim()]: newVal });
             setNewKey("");
             setNewVal("");
           }}>
             +
-          </button>
+          </Button>
         </div>
       </div>
       <div className="config-template-preview">
-        <p className="config-template-preview-label">{locale === "zh" ? "替换预览" : "Preview"}</p>
+        <p className="config-template-preview-label">{t("configGovernance.template.preview")}</p>
         <pre className="config-code">{rendered}</pre>
       </div>
     </div>
@@ -738,75 +673,6 @@ function lcsMatrix(a: string[], b: string[]): number[][] {
     }
   }
   return dp;
-}
-
-function categoryLabel(category: FilterMode | ConfigFileInfo["category"], locale: Locale): string {
-  if (category === "all") return locale === "zh" ? "全部" : "All";
-  if (category === "system") return locale === "zh" ? "系统" : "System";
-  if (category === "user") return locale === "zh" ? "用户" : "User";
-  return locale === "zh" ? "应用" : "App";
-}
-
-function sourceLabel(source: NonNullable<ConfigFileInfo["discovery"]>["source"], locale: Locale): string {
-  const zh: Record<typeof source, string> = {
-    "catalog-rule": "Catalog 规则",
-    "system-default": "系统配置",
-    "user-dotfile": "用户配置",
-    "package-manager-modified": "包管理器变更"
-  };
-  const en: Record<typeof source, string> = {
-    "catalog-rule": "Catalog rule",
-    "system-default": "System config",
-    "user-dotfile": "User dotfile",
-    "package-manager-modified": "Package-modified"
-  };
-  return locale === "zh" ? zh[source] : en[source];
-}
-
-function sensitivityLabel(sensitivity: NonNullable<ConfigFileInfo["discovery"]>["sensitivity"], locale: Locale): string {
-  if (sensitivity === "secret") return locale === "zh" ? "敏感" : "secret";
-  if (sensitivity === "review") return locale === "zh" ? "需审查" : "review";
-  return locale === "zh" ? "安全" : "safe";
-}
-
-function defaultStatusLabel(status: NonNullable<ConfigFileInfo["governance"]>["defaultStatus"], locale: Locale): string {
-  const zh: Record<typeof status, string> = {
-    default: "默认",
-    modified: "已修改",
-    "user-created": "用户创建",
-    unknown: "未知状态"
-  };
-  const en: Record<typeof status, string> = {
-    default: "default",
-    modified: "modified",
-    "user-created": "user-created",
-    unknown: "unknown"
-  };
-  return locale === "zh" ? zh[status] : en[status];
-}
-
-function migrationStrategyLabel(strategy: NonNullable<ConfigFileInfo["governance"]>["migrationStrategy"], locale: Locale): string {
-  const zh: Record<typeof strategy, string> = {
-    copy: "可复制",
-    "copy-with-review": "审查后复制",
-    "redact-or-confirm": "脱敏或确认",
-    "do-not-copy": "禁止复制",
-    "manual-review": "人工审查"
-  };
-  const en: Record<typeof strategy, string> = {
-    copy: "copy",
-    "copy-with-review": "copy after review",
-    "redact-or-confirm": "redact or confirm",
-    "do-not-copy": "do not copy",
-    "manual-review": "manual review"
-  };
-  return locale === "zh" ? zh[strategy] : en[strategy];
-}
-
-function validationStatusLabel(status: ConfigValidationResult["status"], locale: Locale): string {
-  if (status === "passed") return locale === "zh" ? "验证通过" : "Validation passed";
-  if (status === "failed") return locale === "zh" ? "验证失败" : "Validation failed";
-  return locale === "zh" ? "已跳过验证" : "Validation skipped";
 }
 
 function escapeRegex(s: string): string {

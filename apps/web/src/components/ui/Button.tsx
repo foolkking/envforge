@@ -7,14 +7,29 @@ import type { ButtonHTMLAttributes, ReactNode } from "react";
  * is visually identical to the buttons it replaces; the value is a
  * single consistent API + built-in loading/icon handling.
  */
-type Variant = "primary" | "secondary" | "ghost" | "danger" | "selected";
+type Variant =
+  | "primary"
+  | "secondary"
+  | "ghost"
+  | "danger"
+  | "destructive"
+  | "selected"
+  | "connection"
+  | "connectionPrimary"
+  | "connectionGhost"
+  | "connectionSuccess";
 
 const VARIANT_CLASS: Record<Variant, string> = {
   primary: "primary-action",
   secondary: "secondary-action",
   ghost: "ghost-action",
   danger: "conn-btn conn-btn-danger",
-  selected: "selected-action"
+  destructive: "primary-action ef-danger-action",
+  selected: "selected-action",
+  connection: "conn-btn",
+  connectionPrimary: "conn-btn conn-btn-primary",
+  connectionGhost: "conn-btn conn-btn-ghost",
+  connectionSuccess: "conn-btn conn-btn-success"
 };
 
 export function Button({

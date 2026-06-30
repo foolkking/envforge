@@ -45,6 +45,7 @@ const typesPath = path.resolve(repoRoot, "apps/web/src/lib/types.ts");
 const settingsPath = path.resolve(repoRoot, "apps/web/src/pages/SettingsPage.tsx");
 const buildPagePath = path.resolve(repoRoot, "apps/web/src/pages/CapabilityCatalogPage.tsx");
 const apiTsPath = path.resolve(repoRoot, "apps/web/src/api.ts");
+const enLocalePath = path.resolve(repoRoot, "apps/web/src/i18n/locales/en.ts");
 
 function fileURLToPathSafe(url: string): string {
   return new URL(url).pathname.replace(/^\/([A-Za-z]:)/, "$1");
@@ -120,6 +121,7 @@ async function makeUser(role: "admin" | "user"): Promise<{ token: string; userId
 
 test("navItemsForRole drops the admin-only catalog entry for non-admins", async () => {
   const src = await fs.readFile(typesPath, "utf8");
+  const en = await fs.readFile(enLocalePath, "utf8");
   // navItems must mark catalog as adminOnly
   assert.match(src, /id:\s*"catalog"[^}]*adminOnly:\s*true/s,
     "catalog navItem must have adminOnly: true");
@@ -129,7 +131,7 @@ test("navItemsForRole drops the admin-only catalog entry for non-admins", async 
   assert.match(src, /export function navItemsForRole/);
   assert.match(src, /role === "admin" \|\| !item\.adminOnly/);
   // Catalog label is renamed to "Capability Admin"
-  assert.match(src, /catalog:\s*"Capability Admin"/);
+  assert.match(en, /catalog:\s*"Capability Admin"/);
 });
 
 test("main.tsx renders the nav with navItemsForRole(authUser?.role)", async () => {
@@ -202,12 +204,15 @@ test("Suggestion Inbox surfaces suggestion status", async () => {
 
 test("Package Integrations panel renders package map + service map + config paths", async () => {
   const src = await readAdminWorkbenchSource();
+  const en = await fs.readFile(enLocalePath, "utf8");
   // Section testIds (rendered via data-testid={testId}).
   assert.match(src, /testId="package-map"/);
   assert.match(src, /testId="service-map"/);
   assert.match(src, /testId="config-paths"/);
-  assert.match(src, /Cross-distro package map/);
-  assert.match(src, /Service map/);
+  assert.match(src, /governance\.integrations\.packageMap/);
+  assert.match(src, /governance\.integrations\.serviceMap/);
+  assert.match(en, /packageMap:\s*"Cross-distro package map"/);
+  assert.match(en, /serviceMap:\s*"Service map"/);
   // Detail-panel hooks: validate + rollback strategy
   assert.match(src, /validate/i);
   assert.match(src, /restartServices/);
@@ -252,11 +257,9 @@ test("Build page only renders the capability-type filter (no supportLevel pills)
   }
   // The capability-type filter pills exist.
   assert.match(src, /market-category-filters/);
-  assert.match(src, /Runtime/);
-  assert.match(src, /Database/);
-  assert.match(src, /Security/);
-  assert.match(src, /Network/);
-  assert.match(src, /Container/);
+  for (const key of ["runtime", "database", "security", "network", "container"]) {
+    assert.match(src, new RegExp(`capabilityCatalog\\.categories\\.${key}`));
+  }
 });
 
 // ── route-level: package-integrations endpoint ───────────────────────

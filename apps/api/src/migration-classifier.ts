@@ -1,5 +1,16 @@
 import type { FullSystemSnapshot, SoftwareItem } from "./collectors/remote-collector.js";
 import { getDetectionRules, findRuleForPackage, type CatalogDetectionRule } from "./catalog-rules.js";
+import {
+  classifyDecision,
+  clampDecisionScore,
+  findBestDecisionPreference,
+  getDecisionProfile,
+  rememberedPreferenceConfidence,
+  riskScoreForLevel,
+  type DecisionOutcome,
+  type DecisionProfile,
+  type UserDecisionPreference
+} from "./decision-engine/index.js";
 
 export type MigrationClass =
   | "managed-software"
@@ -122,6 +133,12 @@ export interface MigrationCandidate {
   riskLevel: RiskLevel;
   supportLevel: MigrationSupportLevel;
   decisionBand: DecisionBand;
+  evidenceStrength?: number;
+  automationConfidence?: number;
+  businessCriticality?: number;
+  reviewCost?: number;
+  userPreferenceConfidence?: number;
+  decisionOutcome?: DecisionOutcome;
   band: ConfidenceBand;
   catalogRuleId?: string;
   catalogRuleName?: string;
@@ -175,6 +192,12 @@ export interface MigrationPlanItem {
   riskLevel?: RiskLevel;
   supportLevel?: MigrationSupportLevel;
   decisionBand?: DecisionBand;
+  evidenceStrength?: number;
+  automationConfidence?: number;
+  businessCriticality?: number;
+  reviewCost?: number;
+  userPreferenceConfidence?: number;
+  decisionOutcome?: DecisionOutcome;
   actions: MigrationPlanAction[];
   risks: string[];
   configBundles?: ConfigBundle[];
@@ -189,8 +212,17 @@ export interface MigrationPlan {
 
 export type MigrationDecisionMap = Record<string, MigrationPlanItem["userDecision"]>;
 
+export interface MigrationDecisionPolicyContext {
+  userId: string;
+  connectionId?: string;
+  projectId?: string;
+  profile?: DecisionProfile;
+  preferences?: readonly UserDecisionPreference[];
+}
+
 type SnapshotForMigration = Pick<FullSystemSnapshot, "software" | "configChecklist"> & {
   system?: Partial<FullSystemSnapshot["system"]>;
+  collection?: FullSystemSnapshot["collection"];
 };
 
 const languageSources = new Set(["npm", "pip", "gem", "cargo", "go-bin", "nvm", "pyenv", "rbenv", "asdf", "sdkman"]);
@@ -200,7 +232,7 @@ const packageInventorySources = new Set(["apt", "rpm", "snap", "flatpak"]);
 
 export function buildMigrationCandidateReport(
   snapshot: SnapshotForMigration,
-  options: { host?: string } = {}
+  options: { host?: string; decisionPolicy?: MigrationDecisionPolicyContext } = {}
 ): MigrationCandidateReport {
   const context = buildSnapshotEvidence(snapshot);
   const classified = snapshot.software.map((item) => classifySoftwareItem(item, context));
@@ -209,7 +241,7 @@ export function buildMigrationCandidateReport(
   const candidates = mergeCandidateEvidence(classified)
     .map((candidate) => attachNormalizedArtifact(candidate, normalizedArtifacts))
     .map((candidate) => attachConfigBundles(candidate, configBundles))
-    .map(applyDecisionModel)
+    .map((candidate) => applyDecisionModel(candidate, snapshot.collection?.completeness ?? 1, options.decisionPolicy))
     .filter(isUserFacingCandidate)
     .sort(sortCandidates);
   const summary: MigrationCandidateReport["summary"] = { high: 0, medium: 0, low: 0, ignore: 0, total: candidates.length };
@@ -239,6 +271,12 @@ export function buildMigrationPlanFromCandidates(report: MigrationCandidateRepor
       riskLevel: candidate.riskLevel,
       supportLevel: candidate.supportLevel,
       decisionBand: candidate.decisionBand,
+      evidenceStrength: candidate.evidenceStrength,
+      automationConfidence: candidate.automationConfidence,
+      businessCriticality: candidate.businessCriticality,
+      reviewCost: candidate.reviewCost,
+      userPreferenceConfidence: candidate.userPreferenceConfidence,
+      decisionOutcome: candidate.decisionOutcome,
       actions: actionsForCandidate(candidate),
       risks: candidate.risks,
       configBundles: candidate.configBundles,
@@ -341,6 +379,12 @@ function finalizeCandidate(
     riskLevel: "review",
     supportLevel: rule?.supportLevel ?? "detect-only",
     decisionBand: "review",
+    evidenceStrength: 0,
+    automationConfidence: 0,
+    businessCriticality: 0,
+    reviewCost: 0,
+    userPreferenceConfidence: 0.5,
+    decisionOutcome: "suggested-decision",
     band: bandForConfidence(confidence, migrationClass),
     catalogRuleId: rule?.id,
     catalogRuleName: rule?.displayName,
@@ -613,14 +657,18 @@ function attachConfigBundles(candidate: MigrationCandidate, configBundles: Confi
   };
 }
 
-function applyDecisionModel(candidate: MigrationCandidate): MigrationCandidate {
+function applyDecisionModel(
+  candidate: MigrationCandidate,
+  collectorCompleteness = 1,
+  policy?: MigrationDecisionPolicyContext
+): MigrationCandidate {
   const rule = ruleForCandidate(candidate);
   const supportLevel = rule?.supportLevel ?? candidate.supportLevel ?? "detect-only";
   const intentConfidence = clampScore(candidate.confidence);
   const riskLevel = riskLevelForCandidate(candidate, rule);
   const migrationReadiness = readinessForCandidate(candidate, rule, riskLevel);
   const { blockers, reviewReasons } = reviewStateForCandidate(candidate, rule, riskLevel, migrationReadiness);
-  const decisionBand = decisionBandForCandidate(candidate, {
+  const legacyBand = decisionBandForCandidate(candidate, {
     intentConfidence,
     migrationReadiness,
     riskLevel,
@@ -628,6 +676,62 @@ function applyDecisionModel(candidate: MigrationCandidate): MigrationCandidate {
     blockers,
     reviewReasons
   });
+  const evidenceStrength = clampDecisionScore(
+    collectorCompleteness * 0.45
+    + Math.min(1, (candidate.evidenceSources?.length ?? 0) / 3) * 0.25
+    + Math.min(1, (candidate.rawEvidence?.length ?? 0) / 2) * 0.3
+  );
+  const riskScore = riskScoreForLevel(riskLevel);
+  const businessCriticality = clampDecisionScore(
+    (candidate.serviceNames?.length ? 0.45 : 0.15)
+    + (candidate.dataPaths?.length ? 0.3 : 0)
+    + (candidate.ports?.length ? 0.15 : 0)
+  );
+  const reviewCost = clampDecisionScore(
+    blockers.length * 0.35
+    + reviewReasons.length * 0.12
+    + (candidate.configBundles?.some((bundle) => bundle.sensitivity === "secret" || bundle.sensitivity === "blocked") ? 0.35 : 0)
+  );
+  const automationConfidence = clampDecisionScore(migrationReadiness * 0.5 + evidenceStrength * 0.45 - riskScore * 0.35);
+  const preference = policy ? findBestDecisionPreference(policy.preferences ?? [], {
+    userId: policy.userId,
+    connectionId: policy.connectionId,
+    projectId: policy.projectId,
+    serviceId: candidate.serviceNames?.[0],
+    capabilityId: rule?.capabilityKey ?? candidate.catalogRuleId,
+    candidateId: candidate.id,
+    candidateName: candidate.name
+  }) : undefined;
+  const userPreferenceConfidence = rememberedPreferenceConfidence(preference);
+  const profile = policy?.profile ?? getDecisionProfile(undefined);
+  const decisionOutcome = classifyDecision({
+    intentConfidence,
+    evidenceStrength,
+    migrationReadiness,
+    riskScore,
+    automationConfidence,
+    businessCriticality,
+    reviewCost,
+    userPreferenceConfidence,
+    collectorCompleteness
+  }, {
+    touchesDatabase: Boolean(candidate.dataPaths?.length) && /postgres|mysql|maria|mongo|redis|database/i.test(candidate.name),
+    dataStrategyConfirmed: false,
+    touchesSecret: candidate.configBundles?.some((bundle) => bundle.sensitivity === "secret" || bundle.sensitivity === "blocked"),
+    secretPolicyConfirmed: false,
+    explicitlyIgnored: candidate.migrationClass === "do-not-migrate",
+    hasBlockers: blockers.length > 0,
+    preferredOutcome: preference?.preferredOutcome
+  }, profile);
+  const decisionBand: DecisionBand = decisionOutcome === "auto-staged"
+    ? "auto"
+    : decisionOutcome === "hidden-noise"
+      ? "ignore"
+      : decisionOutcome === "record-only"
+        ? "manual"
+        : decisionOutcome === "suggested-decision"
+          ? legacyBand
+          : "review";
 
   return {
     ...candidate,
@@ -637,8 +741,16 @@ function applyDecisionModel(candidate: MigrationCandidate): MigrationCandidate {
     riskLevel,
     supportLevel,
     decisionBand,
+    evidenceStrength,
+    automationConfidence,
+    businessCriticality,
+    reviewCost,
+    userPreferenceConfidence,
+    decisionOutcome,
     blockers,
-    reviewReasons,
+    reviewReasons: preference
+      ? [...reviewReasons, `Remembered ${preference.scope} preference ${preference.id} was applied as advisory context.`]
+      : reviewReasons,
     band: bandForConfidence(intentConfidence, candidate.migrationClass)
   };
 }

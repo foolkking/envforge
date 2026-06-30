@@ -1,4 +1,4 @@
-import type { FastifyInstance } from "fastify";
+import type { FastifyInstance, FastifyReply } from "fastify";
 import { collectSnapshotInputs } from "@fool/collectors";
 import { createSnapshotManifest, defaultPolicy, diffSnapshots } from "@fool/core";
 import { createRestorePlan } from "@fool/restorers";
@@ -48,34 +48,60 @@ import { listCurrentUser } from "./catalog.js";
 import { getConfig } from "./config.js";
 import { createConnection, reprobeConnection, listUserConnections } from "./connections.js";
 import { createUserProfile, listUserProfiles, getUserProfile, updateUserProfile as updateProfile, deleteUserProfile, listAllPublicProfilesAsCatalog, createVmSnapshot } from "./profiles.js";
-import { buildInstallTask, buildSnapshotDeployTask, executeTask, getTask, subscribeTask } from "./executor.js";
+import { getTask, subscribeTask } from "./executor.js";
 import { listCatalogFromDatabase, listMigrationStrategies, readCatalogGuide } from "./database.js";
 import { runReadinessChecks } from "./readiness.js";
 import { readRuntimeDatabase, updateRuntimeDatabase, createId, writeAdminAuditLog, readAdminAuditLogs, addComment, getComments, toggleCommentLike, reportComment, getAdminReports, resolveReport, syncCommentsFts, addSuggestion, getSuggestions, getSuggestionById, processSuggestion, addInboxMessage, getUnreadInboxCount, type CapabilityRequirementSectionState, type CapabilityStandardProfile, type StoredMigrationConfigDecision, type StoredMigrationDataDecision, type StoredMigrationDecision, type StoredMigrationSession, type StoredMigrationSessionRun, type StoredConnection } from "./runtime-store.js";
 import { enqueueEmail } from "./email/index.js";
 import { listSnapshots, persistSnapshot } from "./snapshot-store.js";
 import { probeAgent, pingAgent } from "./probe.js";
-import { ConfigConnectionError, listConfigFiles, readConfigFile, writeConfigFile, readConfigFileWithBackup, getConfigRollbackPreview, restoreConfigFileFromBackup, validateConfigFile } from "./config-files.js";
+import { ConfigConnectionError, listConfigFiles, readConfigFile, readConfigFileWithBackup, getConfigRollbackPreview, validateConfigFile } from "./config-files.js";
 import { buildMigrationCandidateReport, buildMigrationPlanFromCandidates } from "./migration-classifier.js";
+import {
+  BUILTIN_DECISION_PROFILES,
+  assignDecisionProfile,
+  deleteDecisionPreference,
+  evaluateAndRecordDecision,
+  findBestDecisionProfileAssignment,
+  getDecisionProfile,
+  listDecisionAudit,
+  listDecisionHistory,
+  listDecisionPreferences,
+  listReviewInbox,
+  resolveDecisionProfile,
+  resolveDecisionReview,
+  riskScoreForLevel,
+  upsertDecisionPreference,
+  type DecisionOutcome,
+  type DecisionPreferenceScope,
+  type ReviewInboxStatus
+} from "./decision-engine/index.js";
 import { exportMigrationPlan, type MigrationExportFormat } from "./migration-exporter.js";
 import { buildMigrationDryRun } from "./migration-dry-run.js";
 import { buildMigrationVerificationPreview } from "./migration-verify.js";
 import { buildUnknownReviewQueue, decisionMap } from "./migration-review.js";
 import { runMigrationVerificationPreview } from "./migration-verify-runner.js";
 import { assessMigrationApplyReadiness } from "./migration-apply-readiness.js";
-import { runMigrationApplyPlan, type MigrationApplyOptions } from "./migration-apply-runner.js";
 import { buildMigrationSessionArtifacts, initialMigrationSessionState, isMigrationSessionStatus, isMigrationSessionStep } from "./migration-session.js";
-import { buildConfigChangePlan, buildConfigMigrationPlan, buildImportedRecipePlan, buildPlanReport, buildRebuildPlan, buildRemovePlan, buildRepairPlan, evaluateApplyGate, migrationPlanToEnvironmentPlan, planReportToMarkdown, type EnvironmentPlan, type EnvironmentPlanStatus, type PlanApprovalState, type RepairFailure } from "./environment-plan.js";
+import { buildConfigChangePlan, buildConfigMigrationPlan, buildImportedRecipePlan, buildPlanReport, buildRebuildPlan, buildRemovePlan, buildRepairPlan, evaluateApplyGate, migrationPlanToEnvironmentPlan, planReportToMarkdown, type EnvironmentPlan, type EnvironmentPlanStatus, type PlanApprovalRecord, type PlanApprovalState, type RepairFailure } from "./environment-plan.js";
 import {
   appendPlanHistory,
+  approveEnvironmentPlan,
   asEnvironmentPlan,
+  claimPlanForApply,
+  createEnvironmentPlan as createStoredEnvironmentPlan,
+  finalizeApplyClaim,
+  getApplyRunResponse,
   getEnvironmentPlan as getStoredPlan,
   listEnvironmentPlans as listStoredPlans,
   mutateEnvironmentPlan,
-  saveEnvironmentPlan,
+  recordPlanDryRun,
   setPlanStatus
 } from "./plan-store.js";
 import { rollbackPlanAndPersist, verifyPlanAndPersist } from "./plan-runner.js";
+import { prepareEnvironmentPlanForCreation } from "./plan-lifecycle.js";
+import { computeEnvironmentPlanHash, verifyEnvironmentPlanHash } from "./plan-hash.js";
+import { executeEnvironmentPlan } from "./engine/managed-execution.js";
 
 /**
  * Build Mode helper: derive existing capabilities + snapshot freshness
@@ -94,6 +120,7 @@ function computeTargetSnapshotMeta(
   existingCapabilities: Record<string, string>;
   available: boolean;
   ageMs?: number;
+  completeness?: number;
 } {
   const snap = connection.probeSnapshot;
   if (!snap) return { existingCapabilities: {}, available: false };
@@ -109,7 +136,8 @@ function computeTargetSnapshotMeta(
       existing[item.capabilityKey] = `target reports software \`${hit}\` installed (catalog item \`${item.id}\`)`;
     }
   }
-  return { existingCapabilities: existing, available: true, ageMs };
+  const completeness = (snap as { collection?: { completeness?: number } }).collection?.completeness;
+  return { existingCapabilities: existing, available: true, ageMs, completeness };
 }
 
 function mergeAcks(
@@ -153,7 +181,39 @@ function mergeAcks(
   };
 }
 
+function legacyMutationGone(reply: FastifyReply) {
+  reply.code(410);
+  return {
+    error: "Legacy direct mutation is disabled.",
+    message: "Create and approve an Environment Plan before applying changes.",
+    code: "ENVIRONMENT_PLAN_REQUIRED"
+  };
+}
+
 export async function registerRoutes(app: FastifyInstance): Promise<void> {
+  const disabledLegacyMutationRoutes: RegExp[] = [
+    /^\/api\/execute$/,
+    /^\/api\/batch-execute$/,
+    /^\/api\/multi-execute$/,
+    /^\/api\/rebuild-plan\/apply$/,
+    /^\/api\/connections\/[^/]+\/apply-remove-plan$/,
+    /^\/api\/connections\/[^/]+\/uninstall$/,
+    /^\/api\/connections\/[^/]+\/configs\/write$/,
+    /^\/api\/connections\/[^/]+\/configs\/apply-change-plan$/,
+    /^\/api\/connections\/[^/]+\/configs\/rollback$/,
+    /^\/api\/profiles\/[^/]+\/deploy-stage$/,
+    /^\/api\/migration\/sessions\/[^/]+\/apply$/,
+    /^\/api\/connections\/[^/]+\/migration-plan\/apply$/
+  ];
+  app.addHook("preHandler", async (request, reply) => {
+    const pathname = request.url.split("?", 1)[0] ?? request.url;
+    const scheduleMutation = /^\/api\/schedules(?:\/[^/]+)?$/.test(pathname)
+      && (request.method === "POST" || request.method === "PATCH");
+    if (scheduleMutation || disabledLegacyMutationRoutes.some((pattern) => pattern.test(pathname))) {
+      return reply.send(legacyMutationGone(reply));
+    }
+  });
+
   app.get("/api/health", async () => ({
     ok: true,
     service: "envforge-api",
@@ -2392,79 +2452,7 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
   app.post("/api/execute", async (request, reply) => {
     const user = await getUserByToken(readBearerToken(request.headers.authorization));
     if (!user) { reply.code(401); return { error: "Login required." }; }
-    if (process.env.ENVFORGE_ENABLE_LEGACY_EXECUTE !== "true") {
-      reply.code(410);
-      return {
-        error: "Legacy direct execute is disabled. Create an Environment Plan, review it, then apply the approved plan."
-      };
-    }
-
-    const body = (request.body ?? {}) as {
-      connectionId?: string;
-      profileId?: string;
-      dryRun?: boolean;
-      /**
-       * Optional user-supplied vars from the configurable Playbook form.
-       * Validated against the catalog item's vars.schema.json before being
-       * passed to the runner. Ignored for items without a schema.
-       */
-      vars?: Record<string, unknown>;
-    };
-    if (!body.connectionId || !body.profileId) {
-      reply.code(400);
-      return { error: "connectionId and profileId are required." };
-    }
-
-    const db = await readRuntimeDatabase();
-    const connection = db.connections.find((c) => c.id === body.connectionId && c.userId === user.id);
-    if (!connection) { reply.code(404); return { error: "Connection not found." }; }
-
-    const dryRun = body.dryRun !== false;
-    const { registerBatchTask, executeCatalogTask, executePlaybookTask, getTask: gt } = await import("./executor.js");
-
-    // Try catalog item first
-    const catalogItems = await listCatalogFromDatabase();
-    const catalogItem = catalogItems.find((c) => c.id === body.profileId);
-    if (catalogItem) {
-      // Validate user vars against the schema (if any). A vars schema makes the
-      // form explicit; if user submits something the schema rejects, we fail
-      // loudly here rather than silently feeding bad values to the runner.
-      let normalizedVars: Record<string, unknown> | undefined;
-      if (body.vars && Object.keys(body.vars).length > 0) {
-        const { loadVarsSchema, validateAndNormalise } = await import("./catalog-vars-schema.js");
-        const schema = await loadVarsSchema(catalogItem.id);
-        if (schema) {
-          const result = validateAndNormalise(schema, body.vars);
-          if (!result.ok) {
-            reply.code(400);
-            return { error: "Invalid vars", fieldErrors: result.errors };
-          }
-          normalizedVars = result.values;
-        } else {
-          // No schema for this item — user vars are silently ignored to avoid
-          // letting arbitrary template data reach the runner unchecked.
-        }
-      }
-
-      const taskId = registerBatchTask(user.id, connection.id, [{ catalogId: catalogItem.id, displayName: catalogItem.name }], dryRun);
-      void executeCatalogTask(user.id, connection, catalogItem.id, catalogItem.name, dryRun, taskId, normalizedVars);
-      const task = gt(taskId);
-      return { taskId, dryRun, steps: task?.steps ?? [] };
-    }
-
-    // Try user profile
-    const profile = db.userProfiles.find((p) => p.id === body.profileId);
-    if (profile) {
-      const { buildPlaybookFromProfile } = await import("./executor.js");
-      const yaml = buildPlaybookFromProfile(profile);
-      const taskId = registerBatchTask(user.id, connection.id, [{ catalogId: profile.id, displayName: profile.name }], dryRun);
-      void executePlaybookTask(user.id, connection, yaml, dryRun, taskId);
-      const task = gt(taskId);
-      return { taskId, dryRun, steps: task?.steps ?? [] };
-    }
-
-    reply.code(404);
-    return { error: "Profile or catalog item not found." };
+    return legacyMutationGone(reply);
   });
 
   // ── 影响范围预估 ────────────────────────────────────────
@@ -2540,6 +2528,7 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
     if (!user) { reply.code(401); return { error: "Login required." }; }
     const { id } = request.params as { id: string };
     const body = (request.body ?? {}) as {
+      plan?: EnvironmentPlan;
       packages?: string[];
       source?: string;
       reason?: string;
@@ -2562,61 +2551,17 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
       managedByEnvForge: body.managedByEnvForge === true,
       preserveDataByDefault: body.preserveData !== false
     });
-    await saveEnvironmentPlan(plan, user.id);
+    const frozen = await prepareEnvironmentPlanForCreation(plan);
+    await createStoredEnvironmentPlan(frozen, user.id);
     reply.header("Deprecation", "true");
     reply.header("Link", '</api/plans>; rel="successor-version"');
-    return { plan };
+    return { plan: frozen };
   });
 
   app.post("/api/connections/:id/apply-remove-plan", async (request, reply) => {
     const user = await getUserByToken(readBearerToken(request.headers.authorization));
     if (!user) { reply.code(401); return { error: "Login required." }; }
-    const { id } = request.params as { id: string };
-    const body = (request.body ?? {}) as {
-      plan?: EnvironmentPlan;
-      packages?: string[];
-      source?: string;
-      dryRun?: boolean;
-      acknowledged?: boolean;
-      unmanagedRiskAcknowledged?: boolean;
-    };
-    if (!body.acknowledged) {
-      reply.code(400); return { error: "Remove plans require explicit risk acknowledgement." };
-    }
-    const db = await readRuntimeDatabase();
-    const conn = db.connections.find((c) => c.id === id && c.userId === user.id);
-    if (!conn) { reply.code(404); return { error: "Connection not found." }; }
-
-    const dryRun = body.dryRun !== false;
-    const plan = body.plan ?? buildRemovePlan({
-      targetConnectionId: conn.id,
-      packages: body.packages ?? [],
-      source: body.source ?? "apt",
-      managedByEnvForge: false,
-      preserveDataByDefault: true
-    });
-    if (plan.type !== "remove" || !plan.export?.yaml) {
-      reply.code(400); return { error: "A valid Remove Capability Plan is required." };
-    }
-    const unmanaged = plan.review.reasons.some((reason) => /unmanaged/i.test(reason));
-    if (unmanaged && body.dryRun === false && !body.unmanagedRiskAcknowledged) {
-      reply.code(400); return { error: "Unmanaged remove plans are blocked until unmanagedRiskAcknowledged=true." };
-    }
-    const pkgNames = plan.items.flatMap((item) => item.actions.flatMap((action) => action.packageNames ?? []));
-    if (pkgNames.length === 0) {
-      reply.code(400); return { error: "Remove plan has no packages." };
-    }
-    await saveEnvironmentPlan(plan, user.id);
-    const { registerBatchTask, executePlaybookTask, getTask: gt } = await import("./executor.js");
-    const taskId = registerBatchTask(user.id, conn.id, [{ catalogId: "remove-capability", displayName: `Remove capability ${pkgNames.join(", ")}` }], dryRun);
-    void executePlaybookTask(user.id, conn, plan.export.yaml, dryRun, taskId);
-    const nextStatus: EnvironmentPlan["status"] = dryRun ? "approved" : "applying";
-    await setPlanStatus(plan.id, user.id, nextStatus);
-    await appendPlanHistory(plan.id, user.id, "applied", dryRun ? "dry-run remove" : "remove applied");
-    const task = gt(taskId);
-    reply.header("Deprecation", "true");
-    reply.header("Link", '</api/plans>; rel="successor-version"');
-    return { taskId, dryRun, planType: "remove", packages: pkgNames, plan, steps: task?.steps ?? [] };
+    return legacyMutationGone(reply);
   });
 
   app.post("/api/connections/:id/uninstall", async (_request, reply) => {
@@ -3143,16 +3088,15 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
         | { kind?: "config-change"; path?: string; content?: string }
         | { kind?: "repair-failures"; failures?: RepairFailure[]; name?: string; sourcePlanId?: string }
         | { kind?: "migration-session"; sessionId?: string }
-        | { kind?: "existing-plan"; plan?: EnvironmentPlan }
       );
     };
     const db = await readRuntimeDatabase();
     const targetConnectionId = body.targetConnectionId;
     let plan: EnvironmentPlan | undefined;
+    let configArtifactContent: string | undefined;
+    let recipeArtifactContent: string | undefined;
 
-    if (body.source?.kind === "existing-plan" && "plan" in body.source && body.source.plan) {
-      plan = body.source.plan;
-    } else if (body.source?.kind === "capability-selection" && "capabilityIds" in body.source) {
+    if (body.source?.kind === "capability-selection" && "capabilityIds" in body.source) {
       if (!targetConnectionId) { reply.code(400); return { error: "targetConnectionId is required." }; }
       const connection = db.connections.find((c) => c.id === targetConnectionId && c.userId === user.id);
       if (!connection) { reply.code(404); return { error: "Connection not found." }; }
@@ -3184,7 +3128,8 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
       plan = buildRebuildPlan(selected, connection.id, {
         existingCapabilities: targetSnapshotMeta.existingCapabilities,
         targetSnapshotAvailable: targetSnapshotMeta.available,
-        targetSnapshotAgeMs: targetSnapshotMeta.ageMs
+        targetSnapshotAgeMs: targetSnapshotMeta.ageMs,
+        snapshotCompleteness: targetSnapshotMeta.completeness
       });
     } else if (body.source?.kind === "recipe" && "yaml" in body.source) {
       if (!targetConnectionId) { reply.code(400); return { error: "targetConnectionId is required." }; }
@@ -3192,6 +3137,7 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
       if (!connection) { reply.code(404); return { error: "Connection not found." }; }
       if (!body.source.yaml?.trim()) { reply.code(400); return { error: "recipe yaml is required." }; }
       plan = buildImportedRecipePlan({ targetConnectionId: connection.id, yaml: body.source.yaml, name: body.source.name });
+      recipeArtifactContent = body.source.yaml;
     } else if (body.source?.kind === "remove-request" && "packages" in body.source) {
       if (!targetConnectionId) { reply.code(400); return { error: "targetConnectionId is required." }; }
       const connection = db.connections.find((c) => c.id === targetConnectionId && c.userId === user.id);
@@ -3223,6 +3169,7 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
         candidateContent: body.source.content,
         validationCommand: validation.command
       });
+      configArtifactContent = body.source.content;
     } else if (body.source?.kind === "repair-failures" && "failures" in body.source) {
       if (!targetConnectionId) { reply.code(400); return { error: "targetConnectionId is required." }; }
       const connection = db.connections.find((c) => c.id === targetConnectionId && c.userId === user.id);
@@ -3250,12 +3197,17 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
       if (!target) { reply.code(400); return { error: "targetConnectionId is required to deliver the migration plan." }; }
       const targetConn = db.connections.find((c) => c.id === target && c.userId === user.id);
       if (!targetConn) { reply.code(404); return { error: "Target connection not found." }; }
-      plan = migrationPlanToEnvironmentPlan(artifacts.plan, target);
+      const completeness = (context.conn.probeSnapshot as { collection?: { completeness?: number } }).collection?.completeness;
+      plan = migrationPlanToEnvironmentPlan(artifacts.plan, target, { snapshotCompleteness: completeness });
     }
 
     if (!plan) { reply.code(400); return { error: "Unsupported Environment Plan source." }; }
-    await saveEnvironmentPlan(plan, user.id);
-    return { plan };
+    const frozen = await prepareEnvironmentPlanForCreation(plan, {
+      configContent: configArtifactContent,
+      recipeYaml: recipeArtifactContent
+    });
+    await createStoredEnvironmentPlan(frozen, user.id);
+    return { plan: frozen };
   });
 
   app.get("/api/plans", async (request, reply) => {
@@ -3275,6 +3227,11 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
         name: row.name,
         sourceHost: row.sourceHost,
         targetConnectionId: row.targetConnectionId,
+        planHash: (row.payload as EnvironmentPlan).planHash,
+        approvedPlanHash: (row.payload as EnvironmentPlan).approvedPlanHash,
+        artifactCount: (row.payload as EnvironmentPlan).artifacts?.length ?? 0,
+        lastDryRunAt: row.lastDryRunAt,
+        lastDryRunResult: row.lastDryRunResult,
         createdAt: row.createdAt,
         updatedAt: row.updatedAt,
         verifyResults: row.verifyResults ?? [],
@@ -3290,7 +3247,17 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
     const record = await getStoredPlan(id, user.id);
     if (!record) { reply.code(404); return { error: "Plan not found." }; }
     const plan = asEnvironmentPlan(record);
-    return { plan, verifyResults: record.verifyResults ?? [], rollbackResults: record.rollbackResults ?? [], history: record.history ?? [] };
+    const database = await readRuntimeDatabase();
+    const actionRuns = (database.actionRuns ?? []).filter((run) => run.planId === plan.id && run.planHash === plan.planHash);
+    return {
+      plan,
+      lastDryRunAt: record.lastDryRunAt,
+      lastDryRunResult: record.lastDryRunResult,
+      actionRuns,
+      verifyResults: record.verifyResults ?? [],
+      rollbackResults: record.rollbackResults ?? [],
+      history: record.history ?? []
+    };
   });
 
   app.post("/api/plans/:id/review", async (request, reply) => {
@@ -3305,53 +3272,47 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
       acknowledgedConflicts?: Array<{ conflictId: string; resolutionId?: string }>;
       acknowledgedApprovals?: Array<{ itemId: string; gateId: string }>;
     };
-    let record = await getStoredPlan(id, user.id);
-    if (!record && body.plan) record = await saveEnvironmentPlan(body.plan, user.id);
+    if (Object.prototype.hasOwnProperty.call(body, "plan")) {
+      reply.code(400); return { error: "Review request must not include plan payload." };
+    }
+    const record = await getStoredPlan(id, user.id);
     if (!record) { reply.code(404); return { error: "Plan not found." }; }
 
     // Persist any acknowledgements supplied during review onto the plan
     // payload so the apply gate can verify them later. Acknowledgements
     // are merged with prior values rather than replaced — the operator
     // builds them up as they tick checkboxes.
-    if (body.acknowledgedRisks?.length || body.acknowledgedConflicts?.length || body.acknowledgedApprovals?.length) {
-      const plan = asEnvironmentPlan(record);
-      const merged = mergeAcks(plan.approvals, {
-        risks: body.acknowledgedRisks,
-        conflicts: body.acknowledgedConflicts,
-        approvals: body.acknowledgedApprovals
-      });
-      const now = new Date().toISOString();
-      const nextApprovals: PlanApprovalState = {
-        risks: merged.risks,
-        conflicts: merged.conflicts.map((entry) => ({
-          conflictId: entry.conflictId,
-          resolutionId: entry.resolutionId,
-          ackedAt: plan.approvals?.conflicts?.find((c) => c.conflictId === entry.conflictId)?.ackedAt ?? now
-        })),
-        approvals: merged.approvals.map((entry) => ({
-          itemId: entry.itemId,
-          gateId: entry.gateId,
-          ackedAt:
-            plan.approvals?.approvals?.find((a) => a.itemId === entry.itemId && a.gateId === entry.gateId)?.ackedAt ?? now
-        }))
-      };
-      record = await saveEnvironmentPlan({ ...plan, approvals: nextApprovals }, user.id);
-    }
-
     // The decision is only honoured when the apply gate would accept the
     // plan — otherwise the plan stays needs-review with the stored
     // acknowledgements visible in the response.
-    let nextStatus: EnvironmentPlanStatus = "needs-review";
-    if (body.decision === "approved") {
-      const plan = asEnvironmentPlan(record);
-      const verdict = evaluateApplyGate(plan, {
-        risks: plan.approvals?.risks,
-        conflicts: plan.approvals?.conflicts,
-        approvals: plan.approvals?.approvals
-      });
-      if (verdict.ok) nextStatus = "approved";
+    const plan = asEnvironmentPlan(record);
+    if (!verifyEnvironmentPlanHash(plan) || !plan.planHash) {
+      reply.code(409); return { error: "Environment Plan is not immutable or its planHash is invalid." };
     }
-    const updated = await setPlanStatus(id, user.id, nextStatus, body.note);
+    if (body.decision === "rejected") {
+      const updated = await setPlanStatus(id, user.id, "needs-review", body.note ?? "review rejected");
+      return { plan: asEnvironmentPlan(updated ?? record) };
+    }
+    if (body.decision !== "approved") {
+      reply.code(400); return { error: "Review decision must be approved or rejected." };
+    }
+    const riskAcks = Object.fromEntries((body.acknowledgedRisks ?? []).map((entry) => [entry.itemId, entry.risks]));
+    const conflictAcks = body.acknowledgedConflicts ?? [];
+    const approvalAcks = body.acknowledgedApprovals ?? [];
+    const verdict = evaluateApplyGate(plan, { risks: riskAcks, conflicts: conflictAcks, approvals: approvalAcks });
+    if (!verdict.ok) {
+      reply.code(400); return { error: "Plan approval gate refused.", gate: verdict };
+    }
+    const approvedAt = new Date().toISOString();
+    const approval: PlanApprovalRecord = {
+      planHash: plan.planHash,
+      approvedBy: user.id,
+      approvedAt,
+      acceptedRisks: (body.acknowledgedRisks ?? []).flatMap((entry) => entry.risks.map((risk) => `${entry.itemId}::${risk}`)),
+      acceptedConflicts: conflictAcks.map((entry) => `${entry.conflictId}::${entry.resolutionId ?? ""}`),
+      confirmedGates: approvalAcks.map((entry) => `${entry.itemId}::${entry.gateId}`)
+    };
+    const updated = await approveEnvironmentPlan(id, user.id, approval);
     return { plan: asEnvironmentPlan(updated ?? record) };
   });
 
@@ -3359,51 +3320,62 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
     const user = await getUserByToken(readBearerToken(request.headers.authorization));
     if (!user) { reply.code(401); return { error: "Login required." }; }
     const { id } = request.params as { id: string };
-    const body = (request.body ?? {}) as {
-      plan?: EnvironmentPlan;
-      dryRun?: boolean;
-      acknowledged?: boolean;
-      path?: string;
-      content?: string;
-      unmanagedRiskAcknowledged?: boolean;
-      acknowledgedRisks?: Array<{ itemId: string; risks: string[] }>;
-      acknowledgedConflicts?: Array<{ conflictId: string; resolutionId?: string }>;
-      acknowledgedApprovals?: Array<{ itemId: string; gateId: string }>;
-    };
-    let record = await getStoredPlan(id, user.id);
-    if (!record && body.plan) record = await saveEnvironmentPlan(body.plan, user.id);
-    if (!record) { reply.code(404); return { error: "Plan not found." }; }
+    const body = (request.body ?? {}) as Record<string, unknown> & { dryRun?: boolean; idempotencyKey?: string; targetConnectionId?: string };
+    const record = await getStoredPlan(id, user.id);
+    if (!record) { reply.code(404); return { error: "Environment Plan not found." }; }
+    const forbiddenFields = [
+      "plan", "path", "content", "yaml", "actions", "export", "approvals", "acknowledged",
+      "gateAcknowledgements", "acknowledgedActionIds", "acknowledgedRisks", "acknowledgedConflicts",
+      "acknowledgedApprovals", "unmanagedRiskAcknowledged"
+    ].filter((field) => Object.prototype.hasOwnProperty.call(body, field));
+    if (forbiddenFields.length > 0) {
+      reply.code(400);
+      return { error: `Apply request contains forbidden field(s): ${forbiddenFields.join(", ")}.` };
+    }
+    const unknownFields = Object.keys(body).filter((field) => !["dryRun", "idempotencyKey", "targetConnectionId"].includes(field));
+    if (unknownFields.length > 0) {
+      reply.code(400);
+      return { error: `Apply request contains unsupported field(s): ${unknownFields.join(", ")}.` };
+    }
     const plan = asEnvironmentPlan(record);
-    if (body.dryRun === false && plan.status !== "approved" && !body.acknowledged) {
-      reply.code(400); return { error: "Only approved Environment Plans can be applied." };
+    if (body.targetConnectionId !== undefined && body.targetConnectionId !== plan.targetConnectionId) {
+      reply.code(400); return { error: "Apply targetConnectionId must match the frozen Environment Plan target." };
     }
-    // Honor `blockedUntilApproved` per-action: if any action is still
-    // explicitly gated, refuse a non-dry apply unless every gated id is
-    // listed in body.acknowledgedActionIds.
-    if (body.dryRun === false) {
-      const ackIds = new Set((body as { acknowledgedActionIds?: string[] }).acknowledgedActionIds ?? []);
-      const gated = plan.items
-        .flatMap((item) => item.actions)
-        .filter((action) => action.blockedUntilApproved && !ackIds.has(action.id));
-      if (gated.length > 0) {
-        reply.code(400);
-        return {
-          error: "Plan contains actions marked blockedUntilApproved that have not been acknowledged.",
-          gated: gated.map((a) => ({ id: a.id, label: a.label, risk: a.risk }))
-        };
-      }
+    const currentPlanHash = computeEnvironmentPlanHash(plan);
+    if (!verifyEnvironmentPlanHash(plan) || !plan.planHash || plan.planHash !== currentPlanHash) {
+      reply.code(409); return { error: "Environment Plan integrity check failed." };
     }
-
+    const dryRun = body.dryRun !== false;
     // Catalog Audit Enforcement: conflict / risk / approval gate.
-    // Acknowledgements arrive in the request body OR have already been
-    // recorded onto plan.approvals during Plan Review. We merge both.
-    if (body.dryRun === false) {
-      const acks = mergeAcks(plan.approvals, {
-        risks: body.acknowledgedRisks,
-        conflicts: body.acknowledgedConflicts,
-        approvals: body.acknowledgedApprovals
+    // Acknowledgements must already be recorded by Plan Review and bound
+    // to the immutable planHash. The Apply body is not allowed to supply
+    // temporary acknowledgements.
+    if (!dryRun) {
+      if (!["approved", "applying", "succeeded", "partially-succeeded", "committed", "failed"].includes(plan.status)) {
+        reply.code(400); return { error: "Only approved Environment Plans can be applied." };
+      }
+      const approval = record.approvalRecord;
+      if (plan.approvedPlanHash !== currentPlanHash || !approval || approval.planHash !== currentPlanHash) {
+        reply.code(409); return { error: "approvedPlanHash does not match the current Environment Plan hash." };
+      }
+      const riskAcks: Record<string, string[]> = {};
+      for (const value of approval.acceptedRisks) {
+        const separator = value.indexOf("::");
+        const itemId = separator >= 0 ? value.slice(0, separator) : "";
+        const risk = separator >= 0 ? value.slice(separator + 2) : value;
+        riskAcks[itemId] = [...(riskAcks[itemId] ?? []), risk];
+      }
+      const verdict = evaluateApplyGate(plan, {
+        risks: riskAcks,
+        conflicts: approval.acceptedConflicts.map((value) => {
+          const separator = value.indexOf("::");
+          return { conflictId: separator >= 0 ? value.slice(0, separator) : value, resolutionId: separator >= 0 ? value.slice(separator + 2) || undefined : undefined };
+        }),
+        approvals: approval.confirmedGates.map((value) => {
+          const separator = value.indexOf("::");
+          return { itemId: separator >= 0 ? value.slice(0, separator) : "", gateId: separator >= 0 ? value.slice(separator + 2) : value };
+        })
       });
-      const verdict = evaluateApplyGate(plan, acks);
       if (!verdict.ok) {
         reply.code(400);
         return {
@@ -3421,40 +3393,103 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
     const db = await readRuntimeDatabase();
     const conn = db.connections.find((c) => c.id === plan.targetConnectionId && c.userId === user.id);
     if (!conn) { reply.code(404); return { error: "Target connection not found." }; }
-    const dryRun = body.dryRun !== false;
-
-    if (plan.type === "remove") {
-      const unmanaged = plan.review.reasons.some((reason) => /unmanaged/i.test(reason));
-      if (unmanaged && body.dryRun === false && !body.unmanagedRiskAcknowledged) {
-        reply.code(400);
-        return { error: "Unmanaged remove plans are blocked until unmanagedRiskAcknowledged=true." };
+    if (
+      dryRun
+      && body.idempotencyKey
+      && record.lastDryRunResult?.idempotencyKey === body.idempotencyKey
+      && record.lastDryRunResult.planHash === currentPlanHash
+      && record.lastDryRunResult.responseSnapshot !== undefined
+    ) {
+      return record.lastDryRunResult.responseSnapshot;
+    }
+    let claim: Awaited<ReturnType<typeof claimPlanForApply>> | undefined;
+    if (!dryRun) {
+      try {
+        claim = await claimPlanForApply({
+          planId: id,
+          userId: user.id,
+          expectedPlanHash: currentPlanHash,
+          approvedPlanHash: plan.approvedPlanHash ?? "",
+          idempotencyKey: body.idempotencyKey
+        });
+      } catch (error) {
+        reply.code(409);
+        return { error: error instanceof Error ? error.message : "Apply claim failed." };
       }
     }
-
-    if (plan.type === "change") {
-      if (!body.path || body.content === undefined) { reply.code(400); return { error: "path and content are required for config change apply." }; }
-      const before = await readConfigFile(conn, body.path);
-      const beforeValidation = await validateConfigFile(conn, body.path);
-      const write = await writeConfigFile(conn, body.path, body.content, true);
-      const afterValidation = await validateConfigFile(conn, body.path);
-      let rollback: Awaited<ReturnType<typeof restoreConfigFileFromBackup>> | undefined;
-      if (afterValidation.status === "failed") rollback = await restoreConfigFileFromBackup(conn, body.path);
-      const finalStatus: EnvironmentPlan["status"] = afterValidation.status === "failed" ? "failed" : "succeeded";
-      const updated = await setPlanStatus(id, user.id, finalStatus, write.message);
-      await appendPlanHistory(id, user.id, "applied", `config write: ${write.message}`);
-      return { plan: asEnvironmentPlan(updated ?? record), dryRun: false, before, beforeValidation, write, validation: afterValidation, rollback };
+    if (claim?.status === "duplicate" && claim.existingRunId) {
+      return await getApplyRunResponse(claim.existingRunId, user.id) ?? {
+        dryRun: false,
+        duplicate: true,
+        applyRun: { id: claim.existingRunId, planId: id, planHash: currentPlanHash, status: "running" }
+      };
     }
-
-    if (!plan.export?.yaml) { reply.code(400); return { error: "Plan has no executable recipe." }; }
-    const { registerBatchTask, executePlaybookTask, getTask: gt } = await import("./executor.js");
-    const taskItems = plan.items.map((item) => ({ catalogId: item.sourceId ?? item.id, displayName: item.name }));
-    const taskId = registerBatchTask(user.id, conn.id, taskItems, dryRun);
-    void executePlaybookTask(user.id, conn, plan.export.yaml, dryRun, taskId);
-    const nextStatus: EnvironmentPlan["status"] = dryRun ? "approved" : "applying";
-    const updated = await setPlanStatus(id, user.id, nextStatus);
-    await appendPlanHistory(id, user.id, "applied", dryRun ? "dry-run" : "applied");
-    const task = gt(taskId);
-    return { taskId, dryRun, plan: asEnvironmentPlan(updated ?? record), totalItems: taskItems.length, items: task?.items ?? [] };
+    if (claim && claim.status !== "claimed") {
+      reply.code(409);
+      return {
+        error: "Plan is already applying or already applied.",
+        status: claim.status,
+        existingRunId: claim.existingRunId
+      };
+    }
+    try {
+      const execution = await executeEnvironmentPlan({
+        userId: user.id,
+        plan,
+        planHash: currentPlanHash,
+        applyRunId: claim?.claimId,
+        connection: conn,
+        dryRun,
+        openClient: () => connectSshForUser(conn, user.id)
+      });
+      if (dryRun) {
+        const responseSnapshot = { dryRun, plan, execution };
+        await recordPlanDryRun({
+          id,
+          userId: user.id,
+          planHash: currentPlanHash,
+          ok: execution.ok,
+          actionRunIds: execution.actionRuns.map((run) => run.id),
+          idempotencyKey: body.idempotencyKey,
+          responseSnapshot
+        });
+        await appendPlanHistory(id, user.id, "reviewed", `dry-run ${execution.ok ? "passed" : "failed"} for ${currentPlanHash}`);
+        return responseSnapshot;
+      } else {
+        const responseSnapshot = {
+          dryRun,
+          applyRunId: claim!.claimId,
+          plan: { ...plan, status: (execution.ok ? "succeeded" : "failed") as EnvironmentPlanStatus },
+          execution
+        };
+        await finalizeApplyClaim({
+          claimId: claim!.claimId,
+          userId: user.id,
+          ok: execution.ok,
+          responseSnapshot
+        });
+      }
+      const refreshed = await getStoredPlan(id, user.id);
+      return { dryRun, applyRunId: claim?.claimId, plan: asEnvironmentPlan(refreshed ?? record), execution };
+    } catch (error) {
+      if (!dryRun && claim?.status === "claimed") {
+        const message = error instanceof Error ? error.message : "Managed execution failed.";
+        await finalizeApplyClaim({
+          claimId: claim.claimId,
+          userId: user.id,
+          ok: false,
+          error: message,
+          responseSnapshot: {
+            dryRun: false,
+            applyRunId: claim.claimId,
+            plan: { ...plan, status: "failed" as EnvironmentPlanStatus },
+            error: message
+          }
+        });
+      }
+      reply.code(409);
+      return { error: error instanceof Error ? error.message : "Managed execution failed." };
+    }
   });
 
   app.post("/api/plans/:id/verify", async (request, reply) => {
@@ -3534,9 +3569,24 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
     // produced by the managed-execution orchestrator (Managed Execution
     // Hardening phase). Empty when the plan has not been applied yet.
     const { listActionRunsForPlan } = await import("./managed-execution.js");
-    const actionRuns = await listActionRunsForPlan(id);
+    const actionRuns = (await listActionRunsForPlan(id)).filter((run) => run.planHash === plan.planHash);
 
-    const structured = buildPlanReport(plan, { verifyResults, actionRuns });
+    const reportDatabase = await readRuntimeDatabase();
+    const applyRun = [...(reportDatabase.applyRuns ?? [])]
+      .filter((run) => run.userId === user.id && run.planId === id && run.planHash === plan.planHash)
+      .sort((left, right) => right.createdAt.localeCompare(left.createdAt))[0];
+    const structured = buildPlanReport(plan, {
+      verifyResults,
+      actionRuns,
+      applyRun: applyRun ? {
+        id: applyRun.id,
+        status: applyRun.status,
+        idempotencyKey: applyRun.idempotencyKey,
+        createdAt: applyRun.createdAt,
+        completedAt: applyRun.completedAt,
+        error: applyRun.error
+      } : undefined
+    });
 
     if (query.format === "markdown") {
       const markdown = planReportToMarkdown(structured);
@@ -3623,8 +3673,9 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
       sourcePlanId: sourcePlan.id,
       failures
     });
-    await saveEnvironmentPlan(plan, user.id);
-    return { plan };
+    const frozen = await prepareEnvironmentPlanForCreation(plan);
+    await createStoredEnvironmentPlan(frozen, user.id);
+    return { plan: frozen };
   });
 
   // Deprecated: use POST /api/plans with source.kind="capability-selection".
@@ -3643,8 +3694,8 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
       .map((id) => catalogItems.find((item) => item.id === id))
       .filter((item): item is NonNullable<typeof item> => Boolean(item));
     if (items.length === 0) { reply.code(400); return { error: "None of the provided catalogIds were found." }; }
-    const plan = buildRebuildPlan(items, connection.id);
-    await saveEnvironmentPlan(plan, user.id);
+    const plan = await prepareEnvironmentPlanForCreation(buildRebuildPlan(items, connection.id));
+    await createStoredEnvironmentPlan(plan, user.id);
     reply.header("Deprecation", "true");
     reply.header("Link", '</api/plans>; rel="successor-version"');
     return { plan };
@@ -3654,56 +3705,13 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
   app.post("/api/rebuild-plan/apply", async (request, reply) => {
     const user = await getUserByToken(readBearerToken(request.headers.authorization));
     if (!user) { reply.code(401); return { error: "Login required." }; }
-    const body = (request.body ?? {}) as { connectionId?: string; plan?: EnvironmentPlan; dryRun?: boolean; acknowledged?: boolean };
-    if (!body.connectionId || !body.plan || body.plan.type !== "rebuild" || !body.plan.export?.yaml) {
-      reply.code(400); return { error: "connectionId and a valid Rebuild Plan are required." };
-    }
-    if (!body.acknowledged && body.dryRun === false) {
-      reply.code(400); return { error: "Applying a Rebuild Plan requires explicit review acknowledgement." };
-    }
-    const db = await readRuntimeDatabase();
-    const connection = db.connections.find((c) => c.id === body.connectionId && c.userId === user.id);
-    if (!connection) { reply.code(404); return { error: "Connection not found." }; }
-    const dryRun = body.dryRun !== false;
-    await saveEnvironmentPlan(body.plan, user.id);
-    const { registerBatchTask, executePlaybookTask, getTask: gt } = await import("./executor.js");
-    const taskItems = body.plan.items.map((item) => ({ catalogId: item.sourceId ?? item.id, displayName: item.name }));
-    const taskId = registerBatchTask(user.id, connection.id, taskItems, dryRun);
-    void executePlaybookTask(user.id, connection, body.plan.export.yaml, dryRun, taskId);
-    const nextStatus: EnvironmentPlan["status"] = dryRun ? "approved" : "applying";
-    await setPlanStatus(body.plan.id, user.id, nextStatus);
-    await appendPlanHistory(body.plan.id, user.id, "applied", dryRun ? "dry-run" : "applied");
-    const task = gt(taskId);
-    reply.header("Deprecation", "true");
-    reply.header("Link", '</api/plans>; rel="successor-version"');
-    return { taskId, dryRun, planType: "rebuild", plan: body.plan, totalItems: taskItems.length, items: task?.items ?? [] };
+    return legacyMutationGone(reply);
   });
 
   app.post("/api/batch-execute", async (request, reply) => {
     const user = await getUserByToken(readBearerToken(request.headers.authorization));
     if (!user) { reply.code(401); return { error: "Login required." }; }
-    if (process.env.ENVFORGE_ENABLE_LEGACY_EXECUTE !== "true") {
-      reply.code(410);
-      return { error: "Batch execute is deprecated. Create /api/plans from capability-selection and apply the approved Environment Plan." };
-    }
-    const body = (request.body ?? {}) as { connectionId?: string; catalogIds?: string[]; dryRun?: boolean };
-    if (!body.connectionId || !Array.isArray(body.catalogIds) || body.catalogIds.length === 0) {
-      reply.code(400); return { error: "connectionId and catalogIds[] are required." };
-    }
-    const db = await readRuntimeDatabase();
-    const connection = db.connections.find((c) => c.id === body.connectionId && c.userId === user.id);
-    if (!connection) { reply.code(404); return { error: "Connection not found." }; }
-    const catalogItems = await listCatalogFromDatabase();
-    const items = body.catalogIds.map((id) => { const item = catalogItems.find((c) => c.id === id); return item ? { catalogId: item.id, displayName: item.name } : null; }).filter((x): x is { catalogId: string; displayName: string } => x !== null);
-    if (items.length === 0) { reply.code(400); return { error: "None of the provided catalogIds were found." }; }
-    const dryRun = body.dryRun !== false;
-    const selectedCatalogItems = catalogItems.filter((item) => body.catalogIds!.includes(item.id));
-    const plan = buildRebuildPlan(selectedCatalogItems, connection.id);
-    const { registerBatchTask, executePlaybookTask, getTask: gt } = await import("./executor.js");
-    const taskId = registerBatchTask(user.id, connection.id, items, dryRun);
-    void executePlaybookTask(user.id, connection, plan.export?.yaml ?? "", dryRun, taskId);
-    const task = gt(taskId);
-    return { taskId, dryRun, planType: "rebuild", plan, totalItems: items.length, items: task?.items ?? [] };
+    return legacyMutationGone(reply);
   });
 
   // ── Multi-execute (deprecated: imported recipe multi-target apply) ────
@@ -3714,32 +3722,7 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
   app.post("/api/multi-execute", async (request, reply) => {
     const user = await getUserByToken(readBearerToken(request.headers.authorization));
     if (!user) { reply.code(401); return { error: "Login required." }; }
-    if (process.env.ENVFORGE_ENABLE_LEGACY_EXECUTE !== "true") {
-      reply.code(410);
-      return { error: "Direct recipe execution is disabled. Import YAML as an Environment Plan with source.kind=recipe." };
-    }
-    const body = (request.body ?? {}) as { yaml?: string; playbookId?: string; connectionIds?: string[]; tags?: string[]; dryRun?: boolean };
-    let yamlText = body.yaml ?? "";
-    if (!yamlText && body.playbookId) {
-      const db = await readRuntimeDatabase();
-      const pb = (db.playbooks ?? []).find((p) => p.id === body.playbookId && p.userId === user.id);
-      if (pb) yamlText = pb.yaml;
-    }
-    if (!yamlText) { reply.code(400); return { error: "yaml or playbookId is required." }; }
-    const db = await readRuntimeDatabase();
-    let targetConns = db.connections.filter((c) => c.userId === user.id);
-    if (body.connectionIds?.length) targetConns = targetConns.filter((c) => body.connectionIds!.includes(c.id));
-    else if (body.tags?.length) targetConns = targetConns.filter((c) => c.tags?.some((t) => body.tags!.includes(t)));
-    if (targetConns.length === 0) { reply.code(400); return { error: "No matching connections found." }; }
-    const dryRun = body.dryRun !== false;
-    const { registerBatchTask, executePlaybookTask, getTask: gt } = await import("./executor.js");
-    const taskIds: Array<{ connectionId: string; label: string; taskId: string }> = [];
-    for (const conn of targetConns) {
-      const taskId = registerBatchTask(user.id, conn.id, [{ catalogId: "playbook", displayName: conn.label }], dryRun);
-      taskIds.push({ connectionId: conn.id, label: conn.label, taskId });
-      void executePlaybookTask(user.id, conn, yamlText, dryRun, taskId);
-    }
-    return { targets: taskIds, dryRun, totalTargets: targetConns.length, message: `Launched on ${targetConns.length} target(s)` };
+    return legacyMutationGone(reply);
   });
 
   // ── Task SSE stream ─────────────────────────────────────
@@ -3894,10 +3877,7 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
   app.post("/api/connections/:id/configs/write", async (request, reply) => {
     const user = await getUserByToken(readBearerToken(request.headers.authorization));
     if (!user) { reply.code(401); return { error: "Login required." }; }
-    reply.code(410);
-    return {
-      error: "Direct config writes are disabled. Create a Config Change Plan and apply it after review."
-    };
+    return legacyMutationGone(reply);
   });
 
   // Deprecated: use POST /api/plans with source.kind="config-change".
@@ -3920,10 +3900,11 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
         candidateContent: body.content,
         validationCommand: validation.command
       });
-      await saveEnvironmentPlan(plan, user.id);
+      const frozen = await prepareEnvironmentPlanForCreation(plan, { configContent: body.content });
+      await createStoredEnvironmentPlan(frozen, user.id);
       reply.header("Deprecation", "true");
       reply.header("Link", '</api/plans>; rel="successor-version"');
-      return { plan, current, validation };
+      return { plan: frozen, current, validation };
     } catch (err) {
       reply.code(err instanceof ConfigConnectionError ? err.statusCode : 500);
       return { error: err instanceof Error ? err.message : "Failed to create config change plan." };
@@ -3947,50 +3928,7 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
   app.post("/api/connections/:id/configs/apply-change-plan", async (request, reply) => {
     const user = await getUserByToken(readBearerToken(request.headers.authorization));
     if (!user) { reply.code(401); return { error: "Login required." }; }
-    const { id } = request.params as { id: string };
-    const body = (request.body ?? {}) as { plan?: EnvironmentPlan; path?: string; content?: string; acknowledged?: boolean };
-    if (!body.plan || body.plan.type !== "change" || !body.path || body.content === undefined) {
-      reply.code(400); return { error: "A Config Change Plan, path, and candidate content are required." };
-    }
-    if (!body.acknowledged) {
-      reply.code(400); return { error: "Config changes require explicit review acknowledgement." };
-    }
-    const db = await readRuntimeDatabase();
-    const conn = db.connections.find((c) => c.id === id && c.userId === user.id);
-    if (!conn) { reply.code(404); return { error: "Connection not found." }; }
-    try {
-      const before = await readConfigFile(conn, body.path);
-      const beforeValidation = await validateConfigFile(conn, body.path);
-      const write = await writeConfigFile(conn, body.path, body.content, true);
-      const afterValidation = await validateConfigFile(conn, body.path);
-      let rollback: Awaited<ReturnType<typeof restoreConfigFileFromBackup>> | undefined;
-      if (afterValidation.status === "failed") {
-        rollback = await restoreConfigFileFromBackup(conn, body.path);
-      }
-      // Persist the plan record so it can be tracked in /api/plans even when
-      // applied through this legacy route.
-      await saveEnvironmentPlan(body.plan, user.id);
-      const finalStatus: EnvironmentPlan["status"] = afterValidation.status === "failed" ? "failed" : "succeeded";
-      await setPlanStatus(body.plan.id, user.id, finalStatus, write.message);
-      await appendPlanHistory(body.plan.id, user.id, "applied", `legacy config apply: ${write.message}`);
-      reply.header("Deprecation", "true");
-      reply.header("Link", '</api/plans>; rel="successor-version"');
-      return {
-        success: afterValidation.status !== "failed",
-        plan: body.plan,
-        before,
-        beforeValidation,
-        write,
-        validation: afterValidation,
-        rollback,
-        message: afterValidation.status === "failed"
-          ? "Validation failed after apply; rollback was attempted."
-          : "Config Change Plan applied and validated."
-      };
-    } catch (err) {
-      reply.code(err instanceof ConfigConnectionError ? err.statusCode : 500);
-      return { error: err instanceof Error ? err.message : "Failed to apply config change plan." };
-    }
+    return legacyMutationGone(reply);
   });
 
   app.post("/api/connections/:id/configs/validate", async (request, reply) => {
@@ -4012,17 +3950,7 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
   app.post("/api/connections/:id/configs/rollback", async (request, reply) => {
     const user = await getUserByToken(readBearerToken(request.headers.authorization));
     if (!user) { reply.code(401); return { error: "Login required." }; }
-    const { id } = request.params as { id: string };
-    const body = (request.body ?? {}) as { path?: string };
-    if (!body.path) { reply.code(400); return { error: "path is required." }; }
-    const db = await readRuntimeDatabase();
-    const conn = db.connections.find((c) => c.id === id && c.userId === user.id);
-    if (!conn) { reply.code(404); return { error: "Connection not found." }; }
-    try { return await restoreConfigFileFromBackup(conn, body.path); }
-    catch (err) {
-      reply.code(err instanceof ConfigConnectionError ? err.statusCode : 500);
-      return { error: err instanceof Error ? err.message : "Failed" };
-    }
+    return legacyMutationGone(reply);
   });
 
   // Diff: current file vs the .envforge.bak created on first write
@@ -4060,6 +3988,163 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
     }
   });
 
+  // Decision Engine product API. These routes only manage advisory policy,
+  // review state and audit evidence; they never execute or mutate a Plan.
+  const decisionOutcomes: DecisionOutcome[] = [
+    "auto-staged", "required-decision", "suggested-decision", "record-only", "hidden-noise", "blocker"
+  ];
+  const decisionScopes: DecisionPreferenceScope[] = ["global", "connection", "project", "service", "capability"];
+  const reviewInboxStatuses: ReviewInboxStatus[] = ["open", "accepted", "rejected", "deferred", "resolved"];
+
+  app.get("/api/decision-engine/preferences", async (request, reply) => {
+    const user = await getUserByToken(readBearerToken(request.headers.authorization));
+    if (!user) { reply.code(401); return { error: "Login required." }; }
+    return { preferences: await listDecisionPreferences(user.id) };
+  });
+
+  app.put("/api/decision-engine/preferences", async (request, reply) => {
+    const user = await getUserByToken(readBearerToken(request.headers.authorization));
+    if (!user) { reply.code(401); return { error: "Login required." }; }
+    const body = (request.body ?? {}) as {
+      scope?: DecisionPreferenceScope;
+      scopeId?: string;
+      pattern?: string;
+      preferredOutcome?: DecisionOutcome;
+      confidence?: number;
+    };
+    if (!body.scope || !decisionScopes.includes(body.scope)
+      || !body.preferredOutcome || !decisionOutcomes.includes(body.preferredOutcome)
+      || !body.pattern?.trim() || body.pattern.trim().length > 256
+      || (body.confidence !== undefined && (!Number.isFinite(body.confidence) || body.confidence < 0 || body.confidence > 1))) {
+      reply.code(400); return { error: "Valid scope, pattern, preferredOutcome, and confidence are required." };
+    }
+    if (body.scope !== "global" && !body.scopeId?.trim()) {
+      reply.code(400); return { error: `${body.scope} preferences require scopeId.` };
+    }
+    const preference = await upsertDecisionPreference({
+      userId: user.id,
+      scope: body.scope,
+      scopeId: body.scopeId,
+      pattern: body.pattern,
+      preferredOutcome: body.preferredOutcome,
+      confidence: body.confidence
+    });
+    return { preference };
+  });
+
+  app.delete("/api/decision-engine/preferences/:preferenceId", async (request, reply) => {
+    const user = await getUserByToken(readBearerToken(request.headers.authorization));
+    if (!user) { reply.code(401); return { error: "Login required." }; }
+    const { preferenceId } = request.params as { preferenceId: string };
+    if (!await deleteDecisionPreference(user.id, preferenceId)) {
+      reply.code(404); return { error: "Decision preference not found." };
+    }
+    return { deleted: true };
+  });
+
+  app.get("/api/decision-engine/review-inbox", async (request, reply) => {
+    const user = await getUserByToken(readBearerToken(request.headers.authorization));
+    if (!user) { reply.code(401); return { error: "Login required." }; }
+    const query = request.query as { status?: string; limit?: string };
+    const status = query.status ?? "open";
+    if (status !== "all" && !reviewInboxStatuses.includes(status as ReviewInboxStatus)) {
+      reply.code(400); return { error: "Invalid review inbox status." };
+    }
+    return {
+      items: await listReviewInbox({
+        userId: user.id,
+        status: status as ReviewInboxStatus | "all",
+        limit: parseDecisionLimit(query.limit)
+      })
+    };
+  });
+
+  app.patch("/api/decision-engine/review-inbox/:itemId", async (request, reply) => {
+    const user = await getUserByToken(readBearerToken(request.headers.authorization));
+    if (!user) { reply.code(401); return { error: "Login required." }; }
+    const { itemId } = request.params as { itemId: string };
+    const body = (request.body ?? {}) as {
+      status?: ReviewInboxStatus;
+      note?: string;
+      remember?: {
+        scope?: DecisionPreferenceScope;
+        scopeId?: string;
+        pattern?: string;
+        preferredOutcome?: DecisionOutcome;
+        confidence?: number;
+      };
+    };
+    if (!body.status || body.status === "open" || !reviewInboxStatuses.includes(body.status)) {
+      reply.code(400); return { error: "Review status must be accepted, rejected, deferred, or resolved." };
+    }
+    if (body.remember && (!body.remember.scope || !decisionScopes.includes(body.remember.scope)
+      || !body.remember.pattern?.trim()
+      || !body.remember.preferredOutcome || !decisionOutcomes.includes(body.remember.preferredOutcome)
+      || (body.remember.scope !== "global" && !body.remember.scopeId?.trim())
+      || (body.remember.confidence !== undefined
+        && (!Number.isFinite(body.remember.confidence) || body.remember.confidence < 0 || body.remember.confidence > 1)))) {
+      reply.code(400); return { error: "A remembered review requires scope, pattern, and preferredOutcome." };
+    }
+    const result = await resolveDecisionReview({
+      userId: user.id,
+      actorId: user.id,
+      itemId,
+      status: body.status,
+      note: body.note,
+      remember: body.remember && body.remember.scope && body.remember.pattern && body.remember.preferredOutcome ? {
+        scope: body.remember.scope,
+        scopeId: body.remember.scopeId,
+        pattern: body.remember.pattern,
+        preferredOutcome: body.remember.preferredOutcome,
+        confidence: body.remember.confidence
+      } : undefined
+    });
+    if (!result) { reply.code(404); return { error: "Review inbox item not found." }; }
+    return result;
+  });
+
+  app.get("/api/decision-engine/history", async (request, reply) => {
+    const user = await getUserByToken(readBearerToken(request.headers.authorization));
+    if (!user) { reply.code(401); return { error: "Login required." }; }
+    const query = request.query as { subjectId?: string; limit?: string };
+    return { history: await listDecisionHistory({ userId: user.id, subjectId: query.subjectId, limit: parseDecisionLimit(query.limit) }) };
+  });
+
+  app.get("/api/decision-engine/audit", async (request, reply) => {
+    const user = await getUserByToken(readBearerToken(request.headers.authorization));
+    if (!user) { reply.code(401); return { error: "Login required." }; }
+    const query = request.query as { subjectId?: string; limit?: string };
+    return { audit: await listDecisionAudit({ userId: user.id, subjectId: query.subjectId, limit: parseDecisionLimit(query.limit) }) };
+  });
+
+  app.get("/api/decision-engine/profiles", async (request, reply) => {
+    const user = await getUserByToken(readBearerToken(request.headers.authorization));
+    if (!user) { reply.code(401); return { error: "Login required." }; }
+    const query = request.query as { connectionId?: string; projectId?: string; serviceId?: string; capabilityId?: string };
+    const active = await resolveDecisionProfile({ userId: user.id, ...query });
+    return { profiles: BUILTIN_DECISION_PROFILES, active };
+  });
+
+  app.put("/api/decision-engine/profiles", async (request, reply) => {
+    const user = await getUserByToken(readBearerToken(request.headers.authorization));
+    if (!user) { reply.code(401); return { error: "Login required." }; }
+    const body = (request.body ?? {}) as { profileId?: string; scope?: DecisionPreferenceScope; scopeId?: string };
+    if (!body.profileId || !BUILTIN_DECISION_PROFILES.some((profile) => profile.id === body.profileId)
+      || (body.scope !== undefined && !decisionScopes.includes(body.scope))) {
+      reply.code(400); return { error: "A valid profileId and scope are required." };
+    }
+    if (body.scope && body.scope !== "global" && !body.scopeId?.trim()) {
+      reply.code(400); return { error: `${body.scope} profile assignments require scopeId.` };
+    }
+    return { assignment: await assignDecisionProfile({ userId: user.id, profileId: body.profileId, scope: body.scope, scopeId: body.scopeId }) };
+  });
+
+  function parseDecisionLimit(value: string | undefined): number | undefined {
+    if (!value) return undefined;
+    const parsed = Number.parseInt(value, 10);
+    return Number.isFinite(parsed) ? parsed : undefined;
+  }
+
   async function loadMigrationSessionContext(userId: string, sessionId: string): Promise<{
     db: Awaited<ReturnType<typeof readRuntimeDatabase>>;
     session: StoredMigrationSession;
@@ -4082,11 +4167,104 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
   }
 
   function buildSessionArtifacts(context: NonNullable<Awaited<ReturnType<typeof loadMigrationSessionContext>>>) {
+    const decisionContext = { userId: context.session.userId, connectionId: context.session.connectionId };
+    const profileAssignment = findBestDecisionProfileAssignment(context.db.decisionProfileAssignments ?? [], decisionContext);
     return buildMigrationSessionArtifacts(context.session, context.conn.probeSnapshot, context.decisions, {
       host: context.conn.fields.host ?? context.conn.label,
       configDecisions: context.configDecisions,
-      dataDecisions: context.dataDecisions
+      dataDecisions: context.dataDecisions,
+      decisionPolicy: {
+        ...decisionContext,
+        preferences: (context.db.decisionUserPreferences ?? []).filter((preference) => preference.userId === context.session.userId),
+        profile: getDecisionProfile(profileAssignment?.profileId)
+      }
     });
+  }
+
+  async function materializeMigrationDecisionProducts(
+    context: NonNullable<Awaited<ReturnType<typeof loadMigrationSessionContext>>>,
+    artifacts: ReturnType<typeof buildSessionArtifacts>
+  ): Promise<void> {
+    if (!artifacts.report) return;
+    const collectorCompleteness = context.conn.probeSnapshot?.collection?.completeness ?? 1;
+    const snapshotId = `${context.session.connectionId}:${context.conn.probeSnapshot?.collectedAt ?? "unknown"}`;
+    for (const candidate of artifacts.report.candidates) {
+      const secretBundles = (candidate.configBundles ?? []).filter((bundle) =>
+        bundle.sensitivity === "secret" || bundle.sensitivity === "blocked"
+      );
+      const secretPolicyConfirmed = secretBundles.length === 0 || secretBundles.every((bundle) =>
+        context.configDecisions.some((decision) =>
+          decision.bundleId === bundle.id && decision.status === "approved"
+          && (decision.strategy === "secret-out-of-band" || decision.strategy === "manual-only")
+        )
+      );
+      const touchesDatabase = Boolean(candidate.dataPaths?.length)
+        && /postgres|mysql|maria|mongo|redis|database/i.test(candidate.name);
+      const dataStrategyConfirmed = !touchesDatabase || context.dataDecisions.some((decision) =>
+        decision.candidateId === candidate.id && decision.status === "confirmed"
+      );
+      const requiredGates = [
+        ...(collectorCompleteness < 0.7 ? ["partial-snapshot-confirm"] : []),
+        ...(candidate.riskLevel === "dangerous" || candidate.riskLevel === "privileged" ? ["high-risk-command-confirm"] : []),
+        ...(!dataStrategyConfirmed ? ["data-strategy-confirm"] : []),
+        ...(!secretPolicyConfirmed ? ["secret-confirm"] : [])
+      ];
+      await evaluateAndRecordDecision({
+        userId: context.session.userId,
+        subjectId: candidate.id,
+        subjectType: "migration-candidate",
+        title: candidate.name,
+        reason: candidate.reviewReasons?.[0] ?? candidate.reasons[0],
+        scores: {
+          intentConfidence: candidate.intentConfidence,
+          evidenceStrength: candidate.evidenceStrength ?? 0.5,
+          migrationReadiness: candidate.migrationReadiness,
+          riskScore: riskScoreForLevel(candidate.riskLevel),
+          automationConfidence: candidate.automationConfidence ?? 0.5,
+          businessCriticality: candidate.businessCriticality ?? 0.5,
+          reviewCost: candidate.reviewCost ?? 0.5,
+          userPreferenceConfidence: candidate.userPreferenceConfidence ?? 0.5,
+          collectorCompleteness
+        },
+        facts: {
+          touchesDatabase,
+          dataStrategyConfirmed,
+          touchesSecret: secretBundles.length > 0,
+          secretPolicyConfirmed,
+          explicitlyIgnored: candidate.migrationClass === "do-not-migrate",
+          hasBlockers: Boolean(candidate.blockers?.length)
+        },
+        requiredGates,
+        snapshotId,
+        targetId: context.session.targetConnectionId,
+        context: {
+          connectionId: context.session.connectionId,
+          candidateId: candidate.id,
+          candidateName: candidate.name,
+          serviceId: candidate.serviceNames?.[0],
+          capabilityId: candidate.catalogRuleId
+        }
+      });
+    }
+  }
+
+  async function resolveMigrationDecisionProducts(
+    userId: string,
+    candidateIds: readonly string[],
+    decision: StoredMigrationDecision["decision"],
+    snapshotId: string,
+    note?: string
+  ): Promise<void> {
+    if (decision === "pending") return;
+    const status = decision === "skipped" || decision === "ignore" ? "rejected" : "accepted";
+    const openItems = await listReviewInbox({ userId, status: "open", limit: 500 });
+    for (const item of openItems.filter((candidate) =>
+      candidate.snapshotId === snapshotId
+      && candidate.candidateId
+      && candidateIds.includes(candidate.candidateId)
+    )) {
+      await resolveDecisionReview({ userId, actorId: userId, itemId: item.id, status, note });
+    }
   }
 
   function latestMigrationSessionRun<T = unknown>(
@@ -4185,6 +4363,7 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
     const context = await loadMigrationSessionContext(user.id, session.id);
     if (!context) { reply.code(404); return { error: "Migration session not found." }; }
     const artifacts = buildSessionArtifacts(context);
+    await materializeMigrationDecisionProducts(context, artifacts);
     return { session: artifacts.view };
   });
 
@@ -4254,6 +4433,7 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
     const context = await loadMigrationSessionContext(user.id, sessionId);
     if (!context) { reply.code(404); return { error: "Migration session not found." }; }
     const artifacts = buildSessionArtifacts(context);
+    await materializeMigrationDecisionProducts(context, artifacts);
     return { session: artifacts.view, report: artifacts.report };
   });
 
@@ -4265,6 +4445,7 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
     if (!context) { reply.code(404); return { error: "Migration session not found." }; }
     if (!context.conn.probeSnapshot) { reply.code(400); return { error: "Probe this connection before session analysis." }; }
     const artifacts = buildSessionArtifacts(context);
+    await materializeMigrationDecisionProducts(context, artifacts);
     return { session: artifacts.view, report: artifacts.report, reviewQueue: artifacts.reviewQueue, decisions: context.decisions };
   });
 
@@ -4309,6 +4490,8 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
     if (!saved) { reply.code(404); return { error: "Migration session not found." }; }
     const context = await loadMigrationSessionContext(user.id, sessionId);
     if (!context) { reply.code(404); return { error: "Migration session not found." }; }
+    const snapshotId = `${context.session.connectionId}:${context.conn.probeSnapshot?.collectedAt ?? "unknown"}`;
+    await resolveMigrationDecisionProducts(user.id, candidateIds, decision, snapshotId, note);
     const artifacts = buildSessionArtifacts(context);
     await updateRuntimeDatabase((db) => {
       const session = (db.migrationSessions ?? []).find((row) => row.id === sessionId && row.userId === user.id);
@@ -4553,85 +4736,7 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
   app.post("/api/migration/sessions/:sessionId/apply", async (request, reply) => {
     const user = await getUserByToken(readBearerToken(request.headers.authorization));
     if (!user) { reply.code(401); return { error: "Login required." }; }
-    const { sessionId } = request.params as { sessionId: string };
-    const options = (request.body ?? {}) as MigrationApplyOptions;
-    const context = await loadMigrationSessionContext(user.id, sessionId);
-    if (!context) { reply.code(404); return { error: "Migration session not found." }; }
-    if (!context.conn.probeSnapshot) { reply.code(400); return { error: "Probe this connection before applying a migration plan." }; }
-    const artifacts = buildSessionArtifacts(context);
-    if (!artifacts.plan) { reply.code(400); return { error: "Migration plan is not available yet." }; }
-    const readiness = migrationSessionApplyReadiness(context, artifacts);
-    if (!readiness.ready) {
-      reply.code(400);
-      return { error: "Migration apply is blocked by readiness gates.", session: artifacts.view, readiness };
-    }
-    const target = targetConnectionForSession(context);
-    if (!target) { reply.code(400); return { error: "Target connection not found." }; }
-    const startedAt = new Date().toISOString();
-    await updateRuntimeDatabase((db) => {
-      const session = (db.migrationSessions ?? []).find((row) => row.id === sessionId && row.userId === user.id);
-      if (!session) return;
-      session.status = "applying";
-      session.currentStep = "apply";
-      session.updatedAt = startedAt;
-    });
-    try {
-      const result = await runMigrationApplyPlan(user.id, target, artifacts.plan, {
-        rollbackOnFailure: options.rollbackOnFailure !== false,
-        restartServices: options.restartServices === true,
-        requireAllActions: options.requireAllActions === true
-      });
-      const completedAt = new Date().toISOString();
-      await updateRuntimeDatabase((db) => {
-        if (!db.migrationSessionRuns) db.migrationSessionRuns = [];
-        db.migrationSessionRuns.push({
-          id: createId("mrun"),
-          userId: user.id,
-          sessionId,
-          connectionId: context.session.connectionId,
-          targetConnectionId: target.id,
-          kind: "apply",
-          status: result.ok ? "passed" : "failed",
-          summary: { ...result.summary, ok: result.ok, rolledBack: result.rolledBack },
-          result,
-          createdAt: completedAt
-        });
-        const session = (db.migrationSessions ?? []).find((row) => row.id === sessionId && row.userId === user.id);
-        if (!session) return;
-        session.status = result.ok ? "applied" : (result.rolledBack ? "rolled-back" : "failed");
-        session.currentStep = result.ok ? "apply" : "apply";
-        session.lastApplyAt = completedAt;
-        session.updatedAt = completedAt;
-      });
-      const refreshed = await loadMigrationSessionContext(user.id, sessionId);
-      const refreshedArtifacts = refreshed ? buildSessionArtifacts(refreshed) : artifacts;
-      return { session: refreshedArtifacts.view, result };
-    } catch (err) {
-      const completedAt = new Date().toISOString();
-      await updateRuntimeDatabase((db) => {
-        if (!db.migrationSessionRuns) db.migrationSessionRuns = [];
-        db.migrationSessionRuns.push({
-          id: createId("mrun"),
-          userId: user.id,
-          sessionId,
-          connectionId: context.session.connectionId,
-          targetConnectionId: target.id,
-          kind: "apply",
-          status: "failed",
-          summary: { ok: false },
-          result: { ok: false, error: err instanceof Error ? err.message : "Migration apply failed.", generatedAt: completedAt },
-          createdAt: completedAt
-        });
-        const session = (db.migrationSessions ?? []).find((row) => row.id === sessionId && row.userId === user.id);
-        if (!session) return;
-        session.status = "failed";
-        session.currentStep = "apply";
-        session.lastApplyAt = completedAt;
-        session.updatedAt = completedAt;
-      });
-      reply.code(500);
-      return { error: err instanceof Error ? err.message : "Migration apply failed." };
-    }
+    return legacyMutationGone(reply);
   });
 
   app.post("/api/migration/sessions/:sessionId/verify", async (request, reply) => {
@@ -5016,21 +5121,7 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
   app.post("/api/connections/:id/migration-plan/apply", async (request, reply) => {
     const user = await getUserByToken(readBearerToken(request.headers.authorization));
     if (!user) { reply.code(401); return { error: "Login required." }; }
-    const { id } = request.params as { id: string };
-    const options = (request.body ?? {}) as MigrationApplyOptions;
-    const db = await readRuntimeDatabase();
-    const conn = db.connections.find((c) => c.id === id && c.userId === user.id);
-    if (!conn) { reply.code(404); return { error: "Connection not found." }; }
-    if (!conn.probeSnapshot) { reply.code(400); return { error: "Probe this connection before applying a migration plan." }; }
-    const decisions = (db.migrationDecisions ?? []).filter((row) => row.userId === user.id && row.connectionId === id);
-    const report = buildMigrationCandidateReport(conn.probeSnapshot, { host: conn.fields.host ?? conn.label });
-    const plan = buildMigrationPlanFromCandidates(report, decisionMap(decisions));
-    try {
-      return { result: await runMigrationApplyPlan(user.id, conn, plan, options) };
-    } catch (err) {
-      reply.code(500);
-      return { error: err instanceof Error ? err.message : "Migration apply failed." };
-    }
+    return legacyMutationGone(reply);
   });
 
   app.get("/api/schedules", async (request, reply) => {
@@ -5043,64 +5134,13 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
   app.post("/api/schedules", async (request, reply) => {
     const user = await getUserByToken(readBearerToken(request.headers.authorization));
     if (!user) { reply.code(401); return { error: "Login required." }; }
-    const { validateScheduleInput } = await import("./scheduler.js");
-    const { nextRunAfter } = await import("./cron.js");
-    const body = (request.body ?? {}) as Partial<import("./runtime-store.js").StoredSchedule>;
-    const err = validateScheduleInput(body);
-    if (err) { reply.code(400); return { error: err }; }
-    const now = new Date();
-    const next = nextRunAfter(body.cron!, now);
-    const created = await updateRuntimeDatabase((db) => {
-      if (!db.schedules) db.schedules = [];
-      const sch: import("./runtime-store.js").StoredSchedule = {
-        id: createId("sched"),
-        userId: user.id,
-        name: body.name!.trim(),
-        playbookId: body.playbookId,
-        catalogId: body.catalogId,
-        connectionIds: body.connectionIds ?? [],
-        tags: body.tags ?? [],
-        cron: body.cron!.trim(),
-        dryRun: body.dryRun ?? false,
-        enabled: body.enabled ?? true,
-        nextRunAt: next ? next.toISOString() : undefined,
-        createdAt: now.toISOString(),
-        updatedAt: now.toISOString()
-      };
-      db.schedules.push(sch);
-      return sch;
-    });
-    return { schedule: created };
+    return legacyMutationGone(reply);
   });
 
   app.patch("/api/schedules/:id", async (request, reply) => {
     const user = await getUserByToken(readBearerToken(request.headers.authorization));
     if (!user) { reply.code(401); return { error: "Login required." }; }
-    const { id } = request.params as { id: string };
-    const body = (request.body ?? {}) as Partial<import("./runtime-store.js").StoredSchedule>;
-    const { validateCron, nextRunAfter } = await import("./cron.js");
-    if (body.cron !== undefined) {
-      const cronErr = validateCron(body.cron);
-      if (cronErr) { reply.code(400); return { error: cronErr }; }
-    }
-    const updated = await updateRuntimeDatabase((db) => {
-      const sch = (db.schedules ?? []).find((s) => s.id === id && s.userId === user.id);
-      if (!sch) return null;
-      if (body.name !== undefined) sch.name = body.name.trim();
-      if (body.cron !== undefined) {
-        sch.cron = body.cron.trim();
-        const next = nextRunAfter(sch.cron, new Date());
-        sch.nextRunAt = next ? next.toISOString() : undefined;
-      }
-      if (body.connectionIds !== undefined) sch.connectionIds = body.connectionIds;
-      if (body.tags !== undefined) sch.tags = body.tags;
-      if (body.dryRun !== undefined) sch.dryRun = body.dryRun;
-      if (body.enabled !== undefined) sch.enabled = body.enabled;
-      sch.updatedAt = new Date().toISOString();
-      return sch;
-    });
-    if (!updated) { reply.code(404); return { error: "Schedule not found." }; }
-    return { schedule: updated };
+    return legacyMutationGone(reply);
   });
 
   app.delete("/api/schedules/:id", async (request, reply) => {

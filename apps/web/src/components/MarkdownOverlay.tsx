@@ -1,4 +1,6 @@
+import { Button } from "./ui/Button";
 import React, { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Flag, Heart, MessageSquare, Send, X } from "lucide-react";
 import { Marked } from "marked";
 import { markedHighlight } from "marked-highlight";
@@ -77,6 +79,7 @@ export function MarkdownOverlay({
   authToken?: string;
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
   const [tab, setTab] = useState<"guide" | "comments" | "suggest">("guide");
   const rendered = useMemo(() => renderMarkdownPreview(guide.markdown), [guide.markdown]);
   useEscapeToClose(onClose);
@@ -86,17 +89,17 @@ export function MarkdownOverlay({
       <article className="markdown-reader community-reader" onClick={(e) => e.stopPropagation()}>
         <header>
           <div>
-            <p className="eyebrow">{guide.item.guideAuthor === "admin" ? "Admin MD" : "User MD"}</p>
+            <p className="eyebrow">{guide.item.guideAuthor === "admin" ? t("markdownOverlay.adminMd") : t("markdownOverlay.userMd")}</p>
             <h2>{locale === "zh" ? guide.item.name : guide.item.nameEn}</h2>
           </div>
-          <button className="ghost-action icon-action" type="button" onClick={onClose} aria-label="Close">
+          <Button variant="ghost" className="icon-action" type="button" onClick={onClose} aria-label={t("markdownOverlay.close")}>
             <X aria-hidden />
-          </button>
+          </Button>
         </header>
-        <nav className="markdown-tabs" aria-label={locale === "zh" ? "文档协作" : "Document collaboration"}>
+        <nav className="markdown-tabs" aria-label={t("markdownOverlay.collaboration")}>
           <button className={tab === "guide" ? "active" : ""} type="button" onClick={() => setTab("guide")}>MD</button>
-          <button className={tab === "comments" ? "active" : ""} type="button" onClick={() => setTab("comments")}><MessageSquare aria-hidden />{locale === "zh" ? "评论" : "Comments"}</button>
-          <button className={tab === "suggest" ? "active" : ""} type="button" onClick={() => setTab("suggest")}><Send aria-hidden />{locale === "zh" ? "建议" : "Suggest"}</button>
+          <button className={tab === "comments" ? "active" : ""} type="button" onClick={() => setTab("comments")}><MessageSquare aria-hidden />{t("markdownOverlay.comments")}</button>
+          <button className={tab === "suggest" ? "active" : ""} type="button" onClick={() => setTab("suggest")}><Send aria-hidden />{t("markdownOverlay.suggest")}</button>
         </nav>
 
         {tab === "guide" ? (
@@ -104,19 +107,20 @@ export function MarkdownOverlay({
             <div className="markdown-meta">
               <span>{guide.item.installMode}</span>
               <span>{guide.item.sensitivity}</span>
-              <span>{guide.item.guideAuthor === "admin" ? "admin guide" : "user guide"}</span>
+              <span>{guide.item.guideAuthor === "admin" ? t("markdownOverlay.adminGuide") : t("markdownOverlay.userGuide")}</span>
             </div>
             {rendered}
           </section>
         ) : null}
-        {tab === "comments" ? <CommentsPane guide={guide} locale={locale} authToken={authToken} /> : null}
-        {tab === "suggest" ? <SuggestionPane guide={guide} locale={locale} authToken={authToken} /> : null}
+        {tab === "comments" ? <CommentsPane guide={guide} authToken={authToken} /> : null}
+        {tab === "suggest" ? <SuggestionPane guide={guide} authToken={authToken} /> : null}
       </article>
     </div>
   );
 }
 
-function CommentsPane({ guide, locale, authToken }: { guide: CatalogGuide; locale: Locale; authToken?: string }) {
+function CommentsPane({ guide, authToken }: { guide: CatalogGuide; authToken?: string }) {
+  const { t } = useTranslation();
   const [comments, setComments] = useState<CatalogComment[]>([]);
   const [cursor, setCursor] = useState<CommentCursor | undefined>();
   const [content, setContent] = useState("");
@@ -131,7 +135,7 @@ function CommentsPane({ guide, locale, authToken }: { guide: CatalogGuide; local
       setComments((prev) => next ? [...prev, ...result.comments] : result.comments);
       setCursor(result.nextCursor);
     } catch (err) {
-      setMessage(err instanceof Error ? err.message : "Load failed");
+      setMessage(err instanceof Error ? err.message : t("markdownOverlay.comment.loadFailed"));
     } finally {
       setLoading(false);
     }
@@ -147,7 +151,7 @@ function CommentsPane({ guide, locale, authToken }: { guide: CatalogGuide; local
       setComments((prev) => [created, ...prev]);
       setContent("");
     } catch (err) {
-      setMessage(err instanceof Error ? err.message : "Post failed");
+      setMessage(err instanceof Error ? err.message : t("markdownOverlay.comment.postFailed"));
     } finally {
       setLoading(false);
     }
@@ -161,17 +165,17 @@ function CommentsPane({ guide, locale, authToken }: { guide: CatalogGuide; local
 
   async function report(comment: CatalogComment) {
     if (!authToken) return;
-    const reason = await promptDialog({ message: locale === "zh" ? "举报原因" : "Report reason", defaultValue: "spam" });
+    const reason = await promptDialog({ message: t("markdownOverlay.comment.reportReason"), defaultValue: "spam" });
     if (!reason) return;
     await reportCatalogComment(authToken, comment.id, reason);
-    setMessage(locale === "zh" ? "已提交举报。" : "Report submitted.");
+    setMessage(t("markdownOverlay.comment.reportSubmitted"));
   }
 
   return (
     <section className="community-pane">
       <div className="comment-composer">
-        <textarea value={content} onChange={(e) => setContent(e.target.value)} maxLength={2000} rows={4} disabled={!authToken} placeholder={authToken ? (locale === "zh" ? "留下使用经验、兼容性说明或修正文档的线索" : "Share usage notes, compatibility findings, or doc corrections") : (locale === "zh" ? "登录后参与评论" : "Sign in to comment")} />
-        <button className="primary-action" type="button" disabled={!authToken || loading || !content.trim()} onClick={() => void post()}>{locale === "zh" ? "发布评论" : "Post comment"}</button>
+        <textarea value={content} onChange={(e) => setContent(e.target.value)} maxLength={2000} rows={4} disabled={!authToken} placeholder={authToken ? t("markdownOverlay.comment.placeholder") : t("markdownOverlay.comment.signInPlaceholder")} />
+        <Button variant="primary"  type="button" disabled={!authToken || loading || !content.trim()} onClick={() => void post()}>{t("markdownOverlay.comment.post")}</Button>
       </div>
       <div className="comment-list">
         {comments.map((comment) => (
@@ -182,19 +186,20 @@ function CommentsPane({ guide, locale, authToken }: { guide: CatalogGuide; local
               <p>{comment.content}</p>
               <div className="comment-actions">
                 <button type="button" onClick={() => void like(comment)}><Heart aria-hidden />{comment.likesCount}</button>
-                <button type="button" onClick={() => void report(comment)}><Flag aria-hidden />{locale === "zh" ? "举报" : "Report"}</button>
+                <button type="button" onClick={() => void report(comment)}><Flag aria-hidden />{t("markdownOverlay.comment.report")}</button>
               </div>
             </div>
           </article>
         ))}
       </div>
-      {cursor ? <button className="ghost-action" type="button" disabled={loading} onClick={() => void load(cursor)}>{locale === "zh" ? "加载更多" : "Load more"}</button> : null}
+      {cursor ? <Button variant="ghost"  type="button" disabled={loading} onClick={() => void load(cursor)}>{t("markdownOverlay.comment.loadMore")}</Button> : null}
       {message ? <p className="settings-help">{message}</p> : null}
     </section>
   );
 }
 
-function SuggestionPane({ guide, locale, authToken }: { guide: CatalogGuide; locale: Locale; authToken?: string }) {
+function SuggestionPane({ guide, authToken }: { guide: CatalogGuide; authToken?: string }) {
+  const { t } = useTranslation();
   const [remark, setRemark] = useState("");
   const [playbookYaml, setPlaybookYaml] = useState("");
   const [guideMarkdown, setGuideMarkdown] = useState("");
@@ -203,7 +208,7 @@ function SuggestionPane({ guide, locale, authToken }: { guide: CatalogGuide; loc
 
   async function submit() {
     if (!authToken) {
-      setMessage(locale === "zh" ? "登录后才能提交建议。" : "Sign in to submit suggestions.");
+      setMessage(t("markdownOverlay.suggestion.signInRequired"));
       return;
     }
     setSaving(true);
@@ -218,12 +223,12 @@ function SuggestionPane({ guide, locale, authToken }: { guide: CatalogGuide; loc
         playbookYaml,
         guideMarkdown
       });
-      setMessage(locale === "zh" ? "建议已提交，等待管理员审核。" : "Suggestion submitted for review.");
+      setMessage(t("markdownOverlay.suggestion.submitted"));
       setRemark("");
       setPlaybookYaml("");
       setGuideMarkdown("");
     } catch (err) {
-      setMessage(err instanceof Error ? err.message : "Submit failed");
+      setMessage(err instanceof Error ? err.message : t("markdownOverlay.suggestion.submitFailed"));
     } finally {
       setSaving(false);
     }
@@ -232,13 +237,13 @@ function SuggestionPane({ guide, locale, authToken }: { guide: CatalogGuide; loc
   return (
     <section className="community-pane suggestion-pane">
       <div className="suggestion-copy compact">
-        <h3>{locale === "zh" ? "针对当前条目提出修改" : "Suggest a change for this item"}</h3>
-        <p>{locale === "zh" ? "适合提交更好的重建计划、变量默认值、文档说明或兼容性补充。" : "Use this for rebuild plan steps, variable defaults, docs, or compatibility notes."}</p>
+        <h3>{t("markdownOverlay.suggestion.title")}</h3>
+        <p>{t("markdownOverlay.suggestion.intro")}</p>
       </div>
-      <textarea value={remark} onChange={(e) => setRemark(e.target.value)} rows={4} placeholder={locale === "zh" ? "修改原因和预期效果" : "Reason and expected outcome"} />
-      <textarea value={playbookYaml} onChange={(e) => setPlaybookYaml(e.target.value)} rows={8} placeholder="playbook.yaml patch (optional)" />
-      <textarea value={guideMarkdown} onChange={(e) => setGuideMarkdown(e.target.value)} rows={8} placeholder="guide.md patch (optional)" />
-      <button className="primary-action" type="button" disabled={saving || !authToken} onClick={() => void submit()}>{saving ? (locale === "zh" ? "提交中..." : "Submitting...") : (locale === "zh" ? "提交条目建议" : "Submit item suggestion")}</button>
+      <textarea value={remark} onChange={(e) => setRemark(e.target.value)} rows={4} placeholder={t("markdownOverlay.suggestion.reasonPlaceholder")} />
+      <textarea value={playbookYaml} onChange={(e) => setPlaybookYaml(e.target.value)} rows={8} placeholder={t("markdownOverlay.suggestion.playbookPlaceholder")} />
+      <textarea value={guideMarkdown} onChange={(e) => setGuideMarkdown(e.target.value)} rows={8} placeholder={t("markdownOverlay.suggestion.guidePlaceholder")} />
+      <Button variant="primary"  type="button" disabled={saving || !authToken} onClick={() => void submit()}>{saving ? t("markdownOverlay.suggestion.submitting") : t("markdownOverlay.suggestion.submit")}</Button>
       {message ? <p className="settings-help">{message}</p> : null}
     </section>
   );

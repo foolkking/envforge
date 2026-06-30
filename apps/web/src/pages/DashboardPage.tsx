@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Activity,
   AlertTriangle,
@@ -56,7 +57,7 @@ export function DashboardPage({
   const [plans, setPlans] = useState<PlanListEntry[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const zh = locale === "zh";
+  const { t } = useTranslation();
 
   useEffect(() => {
     if (!authToken) return;
@@ -85,41 +86,41 @@ export function DashboardPage({
     const notices: Array<{ title: string; body: string; tone?: NoticeTone }> = [];
     if (connections.length === 0) {
       notices.push({
-        title: zh ? "尚未连接源主机" : "No source host connected",
-        body: zh ? "先从迁移页建立连接，再采集主机快照。" : "Connect a source host from Migrate, then capture a HostSnapshot.",
+        title: t("dashboard.notices.noSourceTitle"),
+        body: t("dashboard.notices.noSourceBody"),
         tone: "warning"
       });
     }
     if (connections.some((connection) => connection.status === "ssh_failed")) {
       notices.push({
-        title: zh ? "连接需要检查" : "Connection needs attention",
-        body: zh ? "有主机 SSH 连接失败，请重新测试连接或更新凭证。" : "A host failed SSH connection; retest the connection or update credentials.",
+        title: t("dashboard.notices.connectionAttentionTitle"),
+        body: t("dashboard.notices.connectionAttentionBody"),
         tone: "danger"
       });
     }
     if (failedPlans.length > 0) {
       notices.push({
-        title: zh ? "验证失败需要处理" : "Verification failure needs review",
-        body: zh ? `${failedPlans.length} 个计划有失败验证，可在计划页生成修复计划。` : `${failedPlans.length} plan(s) have failed verification; create a Repair Plan in Plans.`,
+        title: t("dashboard.notices.verificationFailureTitle"),
+        body: t("dashboard.notices.verificationFailureBody", { count: failedPlans.length }),
         tone: "danger"
       });
     }
     if (pendingPlans.length > 0) {
       notices.push({
-        title: zh ? "计划等待审查" : "Plans waiting for review",
-        body: zh ? `${pendingPlans.length} 个计划仍处于草稿或待审查。` : `${pendingPlans.length} plan(s) are still draft / needs-review.`,
+        title: t("dashboard.notices.plansWaitingTitle"),
+        body: t("dashboard.notices.plansWaitingBody", { count: pendingPlans.length }),
         tone: "neutral"
       });
     }
     if (notices.length === 0) {
       notices.push({
-        title: zh ? "暂无阻塞事项" : "No blocking notices",
-        body: zh ? "当前没有需要立即处理的连接、凭证、验证或报告问题。" : "No immediate connection, credential, verification, or report issue needs action.",
+        title: t("dashboard.notices.noBlockingTitle"),
+        body: t("dashboard.notices.noBlockingBody"),
         tone: "neutral"
       });
     }
     return notices;
-  }, [connections, failedPlans.length, pendingPlans.length, zh]);
+  }, [connections, failedPlans.length, pendingPlans.length, t]);
 
   const pipelineSteps: Array<{
     id: string;
@@ -133,65 +134,72 @@ export function DashboardPage({
   }> = [
     {
       id: "connect",
-      title: zh ? "连接源主机" : "Connect source",
-      body: activeConnection ? `${activeConnection.label} · ${activeConnection.fields.host ?? "-"}` : (zh ? "还没有可用连接" : "No source connection yet"),
+      title: t("dashboard.pipeline.connectTitle"),
+      body: activeConnection ? `${activeConnection.label} · ${activeConnection.fields.host ?? "-"}` : t("dashboard.pipeline.noSource"),
       metric: String(connections.length),
       state: activeConnection ? "done" : "active",
       target: "migrate",
       icon: <Server aria-hidden />,
-      action: zh ? "打开迁移" : "Open Migrate"
+      action: t("dashboard.pipeline.openMigrate")
     },
     {
       id: "snapshot",
-      title: zh ? "采集快照" : "Capture snapshot",
-      body: snapshotTime ? new Date(snapshotTime).toLocaleString() : (zh ? "等待主机快照" : "Waiting for HostSnapshot"),
+      title: t("dashboard.pipeline.snapshotTitle"),
+      body: snapshotTime ? new Date(snapshotTime).toLocaleString() : t("dashboard.pipeline.waitingSnapshot"),
       metric: evidenceCount ? `${evidenceCount}` : "0",
       state: evidenceCount > 0 ? "done" : activeConnection ? "active" : "idle",
       target: "migrate",
       icon: <Database aria-hidden />,
-      action: zh ? "采集证据" : "Collect evidence"
+      action: t("dashboard.pipeline.collectEvidence")
     },
     {
       id: "build",
-      title: zh ? "生成计划" : "Build plan",
-      body: latestPlan ? latestPlan.name : (zh ? "从已认证能力生成重建计划" : "Create a Rebuild Plan from certified capabilities"),
+      title: t("dashboard.pipeline.buildTitle"),
+      body: latestPlan ? latestPlan.name : t("dashboard.pipeline.createCertifiedPlan"),
       metric: String(plans.length),
       state: latestPlan ? "done" : evidenceCount > 0 ? "active" : "idle",
       target: "build",
       icon: <PackageCheck aria-hidden />,
-      action: zh ? "打开构建" : "Open Build"
+      action: t("dashboard.pipeline.openBuild")
     },
     {
       id: "review",
-      title: zh ? "审查与批准" : "Review and approve",
-      body: pendingPlans.length ? (zh ? `${pendingPlans.length} 个计划等待处理` : `${pendingPlans.length} plan(s) waiting`) : (zh ? "没有待审计划" : "No review backlog"),
+      title: t("dashboard.pipeline.reviewTitle"),
+      body: pendingPlans.length ? t("dashboard.pipeline.reviewPending", { count: pendingPlans.length }) : t("dashboard.pipeline.noReviewBacklog"),
       metric: String(pendingPlans.length),
       state: pendingPlans.length ? "active" : latestPlan ? "done" : "idle",
       target: "plans",
       icon: <ShieldCheck aria-hidden />,
-      action: zh ? "打开审查" : "Open review"
+      action: t("dashboard.pipeline.openReview")
     },
     {
       id: "apply",
-      title: zh ? "执行与验证" : "Apply and verify",
-      body: failedPlans.length ? (zh ? "存在失败验证，需要修复" : "Failed verification needs repair") : approvedPlans.length ? (zh ? "有已批准计划可执行" : "Approved plans can be applied") : (zh ? "等待批准后执行" : "Waiting for approval"),
+      title: t("dashboard.pipeline.applyTitle"),
+      body: failedPlans.length ? t("dashboard.pipeline.failedVerification") : approvedPlans.length ? t("dashboard.pipeline.approvedPlans") : t("dashboard.pipeline.waitingApproval"),
       metric: failedPlans.length ? String(failedPlans.length) : String(approvedPlans.length),
       state: failedPlans.length ? "blocked" : approvedPlans.length ? "active" : latestPlan ? "idle" : "idle",
       target: "plans",
       icon: <PlayCircle aria-hidden />,
-      action: zh ? "查看执行" : "View runs"
+      action: t("dashboard.pipeline.viewRuns")
     },
     {
       id: "report",
-      title: zh ? "报告沉淀" : "Report evidence",
-      body: reports[0] ? reports[0].name : (zh ? "完成后生成迁移/修复报告" : "Reports appear after completion"),
+      title: t("dashboard.pipeline.reportTitle"),
+      body: reports[0] ? reports[0].name : t("dashboard.pipeline.reportsAfterCompletion"),
       metric: String(reports.length),
       state: reports.length ? "done" : latestPlan ? "idle" : "idle",
       target: "reports",
       icon: <FileText aria-hidden />,
-      action: zh ? "查看报告" : "Open reports"
+      action: t("dashboard.pipeline.openReports")
     }
   ];
+
+  function pipelineStateLabel(state: PipelineState): string {
+    if (state === "done") return t("dashboard.states.done");
+    if (state === "active") return t("dashboard.states.active");
+    if (state === "blocked") return t("dashboard.states.blocked");
+    return t("dashboard.states.idle");
+  }
 
   const completedSteps = pipelineSteps.filter((step) => step.state === "done").length;
   const nextStep = pipelineSteps.find((step) => step.state === "active" || step.state === "blocked") ?? pipelineSteps[0];
@@ -199,35 +207,35 @@ export function DashboardPage({
 
   const resources = [
     {
-      title: zh ? "源环境" : "Source",
-      value: activeConnection ? activeConnection.label : (zh ? "未连接" : "Not connected"),
-      meta: activeConnection?.fields.host ?? (zh ? "从迁移页连接 Linux 主机" : "Connect a Linux VM from Migrate"),
+      title: t("dashboard.resources.sourceTitle"),
+      value: activeConnection ? activeConnection.label : t("dashboard.resources.notConnected"),
+      meta: activeConnection?.fields.host ?? t("dashboard.resources.connectVm"),
       icon: <Server aria-hidden />,
-      action: zh ? "管理连接" : "Manage",
+      action: t("dashboard.resources.manage"),
       target: "migrate" as JumpTarget
     },
     {
-      title: zh ? "证据快照" : "Evidence",
-      value: evidenceCount ? `${evidenceCount} ${zh ? "项" : "items"}` : (zh ? "待采集" : "Pending"),
-      meta: snapshotTime ? new Date(snapshotTime).toLocaleString() : (zh ? "主机快照尚未生成" : "HostSnapshot has not been captured"),
+      title: t("dashboard.resources.evidenceTitle"),
+      value: evidenceCount ? t("dashboard.resources.itemCount", { count: evidenceCount }) : t("dashboard.resources.pending"),
+      meta: snapshotTime ? new Date(snapshotTime).toLocaleString() : t("dashboard.resources.snapshotMissing"),
       icon: <Database aria-hidden />,
-      action: zh ? "采集" : "Collect",
+      action: t("dashboard.resources.collect"),
       target: "migrate" as JumpTarget
     },
     {
-      title: zh ? "计划队列" : "Plan queue",
-      value: `${pendingPlans.length} ${zh ? "待审" : "pending"}`,
-      meta: latestPlan?.name ?? (zh ? "还没有计划" : "No plans yet"),
+      title: t("dashboard.resources.planQueueTitle"),
+      value: t("dashboard.resources.pendingCount", { count: pendingPlans.length }),
+      meta: latestPlan?.name ?? t("dashboard.resources.noPlans"),
       icon: <ClipboardList aria-hidden />,
-      action: zh ? "审查" : "Review",
+      action: t("dashboard.resources.review"),
       target: "plans" as JumpTarget
     },
     {
-      title: zh ? "报告" : "Reports",
+      title: t("dashboard.resources.reportsTitle"),
       value: `${reports.length}`,
-      meta: reports[0] ? new Date(reports[0].updatedAt).toLocaleString() : (zh ? "等待执行结果" : "Waiting for execution results"),
+      meta: reports[0] ? new Date(reports[0].updatedAt).toLocaleString() : t("dashboard.resources.waitingResults"),
       icon: <FileText aria-hidden />,
-      action: zh ? "查看" : "Open",
+      action: t("dashboard.resources.open"),
       target: "reports" as JumpTarget
     }
   ];
@@ -235,25 +243,25 @@ export function DashboardPage({
   const settingsShortcuts: Array<{ title: string; value: string; meta: string; icon: React.ReactNode; onClick: () => void }> = [
     ...(onAccount
       ? [{
-          title: zh ? "账号与安全" : "Account & security",
-          value: authUser?.displayName || authUser?.name || (zh ? "当前账号" : "Current account"),
-          meta: zh ? "资料 / 密码 / 2FA / API Token" : "Profile / password / 2FA / API tokens",
+          title: t("dashboard.settings.accountTitle"),
+          value: authUser?.displayName || authUser?.name || t("dashboard.settings.currentAccount"),
+          meta: t("dashboard.settings.accountMeta"),
           icon: <UserRound aria-hidden />,
           onClick: onAccount
         }]
       : []),
     {
-      title: zh ? "自动化" : "Automation",
-      value: zh ? "排程 / 漂移 / Webhook" : "Schedules / Drift / Webhooks",
-      meta: zh ? "在计划页配置排程、漂移检测与外发通知" : "Configure schedules, drift, and webhooks in Plans",
+      title: t("dashboard.settings.automationTitle"),
+      value: t("dashboard.settings.automationValue"),
+      meta: t("dashboard.settings.automationMeta"),
       icon: <Activity aria-hidden />,
       onClick: () => onJump?.("plans")
     },
     ...(authUser?.role === "admin"
       ? [{
-          title: zh ? "用户与队列" : "Users & queues",
-          value: zh ? "治理" : "Governance",
-          meta: zh ? "在能力管理页管理用户、角色与执行队列" : "Manage users, roles, and queues in Capability Admin",
+          title: t("dashboard.settings.usersQueuesTitle"),
+          value: t("dashboard.settings.governanceValue"),
+          meta: t("dashboard.settings.governanceMeta"),
           icon: <ShieldCheck aria-hidden />,
           onClick: () => onJump?.("catalog")
         }]
@@ -264,16 +272,12 @@ export function DashboardPage({
     <div className="dashboard-page console-dashboard">
       <section className="console-command-strip">
         <div>
-          <p className="eyebrow">{zh ? "资源控制台" : "Resource console"}</p>
-          <h2>{zh ? "从源环境到可审计报告的当前状态" : "Current state from source host to audited report"}</h2>
-          <p>
-            {zh
-              ? "控制台聚焦工作流与资源状态；账号安全、自动化与治理入口见下方「账号与设置」，也可从右上角头像菜单进入。"
-              : "Dashboard focuses on resources and workflow. Account security, automation, and governance shortcuts are in the section below, and also in the avatar menu."}
-          </p>
+          <p className="eyebrow">{t("dashboard.header.eyebrow")}</p>
+          <h2>{t("dashboard.header.title")}</h2>
+          <p>{t("dashboard.header.intro")}</p>
         </div>
         <div className="console-command-actions">
-          <StatusBadge tone={healthTone} label={failedPlans.length ? (zh ? "需要处理" : "Action needed") : (zh ? "运行正常" : "Operational")} />
+          <StatusBadge tone={healthTone} label={failedPlans.length ? t("dashboard.header.actionNeeded") : t("dashboard.header.operational")} />
           <Button variant="primary" onClick={() => onJump?.(nextStep.target)}>
             {nextStep.icon}
             {nextStep.action}
@@ -281,7 +285,7 @@ export function DashboardPage({
         </div>
       </section>
 
-      <section className="resource-overview-grid" aria-label={zh ? "资源概览" : "Resource overview"}>
+      <section className="resource-overview-grid" aria-label={t("dashboard.resources.overviewLabel")}>
         {resources.map((resource) => (
           <button className="resource-status-card" type="button" key={resource.title} onClick={() => onJump?.(resource.target)}>
             <span className="resource-status-icon">{resource.icon}</span>
@@ -298,8 +302,8 @@ export function DashboardPage({
       <section className="operations-pipeline-panel">
         <div className="dashboard-section-heading">
           <div>
-            <p className="eyebrow">{zh ? "运维流水线" : "Operations pipeline"}</p>
-          <h3>{zh ? "迁移 / 构建 / 审查 / 执行 / 验证 / 报告" : "Migrate / Build / Review / Apply / Verify / Report"}</h3>
+            <p className="eyebrow">{t("dashboard.pipeline.eyebrow")}</p>
+          <h3>{t("dashboard.pipeline.title")}</h3>
           </div>
           <span className="pipeline-score">{completedSteps}/6</span>
         </div>
@@ -313,7 +317,7 @@ export function DashboardPage({
                 <small>{step.body}</small>
               </span>
               <span className="pipeline-step-meta">
-                <StatusBadge tone={stateToTone(step.state)} label={stateLabel(step.state, zh)} />
+                <StatusBadge tone={stateToTone(step.state)} label={pipelineStateLabel(step.state)} />
                 <b>{step.metric}</b>
               </span>
             </button>
@@ -324,8 +328,8 @@ export function DashboardPage({
       <section className="operations-pipeline-panel account-settings-shortcuts">
         <div className="dashboard-section-heading">
           <div>
-            <p className="eyebrow">{zh ? "账号与设置" : "Account & settings"}</p>
-            <h3>{zh ? "账号安全 · 自动化 · 治理" : "Account security · Automation · Governance"}</h3>
+            <p className="eyebrow">{t("dashboard.settings.eyebrow")}</p>
+            <h3>{t("dashboard.settings.title")}</h3>
           </div>
         </div>
         <div className="resource-overview-grid">
@@ -345,7 +349,7 @@ export function DashboardPage({
 
       <section className="console-workspace-grid">
         <div className="console-main-column">
-          <Panel title={zh ? "运行队列" : "Runtime queue"} icon={<AlertTriangle aria-hidden />}>
+          <Panel title={t("dashboard.panels.runtimeQueue")} icon={<AlertTriangle aria-hidden />}>
             <div className="notice-list">
               {runtimeNotices.map((notice) => (
                 <article className={`runtime-notice notice-${notice.tone ?? "neutral"}`} key={notice.title}>
@@ -356,8 +360,8 @@ export function DashboardPage({
             </div>
           </Panel>
 
-          <Panel title={zh ? "最近计划活动" : "Recent plan activity"} icon={<Activity aria-hidden />}>
-            <ListEmpty items={recentPlans} empty={zh ? "暂无计划。" : "No plans yet."}>
+          <Panel title={t("dashboard.panels.recentPlans")} icon={<Activity aria-hidden />}>
+            <ListEmpty items={recentPlans} empty={t("dashboard.panels.noPlans")}>
               {(plan) => (
                 <li key={plan.id}>
                   <span>
@@ -372,27 +376,27 @@ export function DashboardPage({
         </div>
 
         <aside className="console-side-column">
-          <Panel title={zh ? "当前工作区" : "Workspace context"} icon={<CircleDot aria-hidden />}>
+          <Panel title={t("dashboard.panels.workspaceContext")} icon={<CircleDot aria-hidden />}>
             <dl className="workspace-context-list">
-              <div><dt>{zh ? "身份" : "Role"}</dt><dd>{authUser?.role ?? "guest"}</dd></div>
-              <div><dt>{zh ? "连接数" : "Connections"}</dt><dd>{connections.length}</dd></div>
-              <div><dt>{zh ? "证据项" : "Evidence"}</dt><dd>{evidenceCount}</dd></div>
-              <div><dt>{zh ? "未读通知" : "Unread"}</dt><dd>{inboxUnreadCount}</dd></div>
+              <div><dt>{t("dashboard.panels.role")}</dt><dd>{authUser?.role ?? "guest"}</dd></div>
+              <div><dt>{t("dashboard.panels.connections")}</dt><dd>{connections.length}</dd></div>
+              <div><dt>{t("dashboard.panels.evidence")}</dt><dd>{evidenceCount}</dd></div>
+              <div><dt>{t("dashboard.panels.unread")}</dt><dd>{inboxUnreadCount}</dd></div>
             </dl>
           </Panel>
 
-          <Panel title={zh ? "快照与报告" : "Snapshots and reports"} icon={<CheckCircle2 aria-hidden />}>
-            <ListEmpty items={snapshots} empty={zh ? "暂无快照。" : "No snapshots yet."}>
+          <Panel title={t("dashboard.panels.snapshotsReports")} icon={<CheckCircle2 aria-hidden />}>
+            <ListEmpty items={snapshots} empty={t("dashboard.panels.noSnapshots")}>
               {(profile) => (
                 <li key={profile.id}>
                   <span>
-                    <strong>{zh ? profile.name : profile.nameEn}</strong>
+                    <strong>{locale === "zh" ? profile.name : profile.nameEn}</strong>
                     <small>{new Date(profile.updatedAt).toLocaleString()}</small>
                   </span>
                 </li>
               )}
             </ListEmpty>
-            <ListEmpty items={reports} empty={zh ? "暂无报告。" : "No reports yet."}>
+            <ListEmpty items={reports} empty={t("dashboard.panels.noReports")}>
               {(plan) => (
                 <li key={plan.id}>
                   <span>
@@ -407,7 +411,7 @@ export function DashboardPage({
       </section>
 
       {error ? <p className="connection-error">{error}</p> : null}
-      {loading ? <p className="empty-hint">{zh ? "正在刷新计划..." : "Refreshing plans..."}</p> : null}
+      {loading ? <p className="empty-hint">{t("dashboard.panels.refreshingPlans")}</p> : null}
     </div>
   );
 }
@@ -434,11 +438,4 @@ function stateToTone(state: PipelineState): NoticeTone {
   if (state === "blocked") return "danger";
   if (state === "active") return "primary";
   return "neutral";
-}
-
-function stateLabel(state: PipelineState, zh: boolean): string {
-  if (state === "done") return zh ? "完成" : "Done";
-  if (state === "active") return zh ? "下一步" : "Next";
-  if (state === "blocked") return zh ? "阻塞" : "Blocked";
-  return zh ? "等待" : "Waiting";
 }

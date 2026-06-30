@@ -40,6 +40,13 @@ test("rebuild plans convert catalog capabilities into reviewable target actions"
   assert.match(plan.export?.yaml ?? "", /EnvForge Rebuild Plan/);
 });
 
+test("partial collector evidence creates a hashable partial-snapshot approval gate", () => {
+  const plan = buildRebuildPlan([catalog()], "conn-1", { snapshotCompleteness: 0.55, targetSnapshotAvailable: true });
+  assert.equal(plan.review.partialSnapshot, true);
+  assert.equal(plan.review.snapshotCompleteness, 0.55);
+  assert.ok(plan.review.approvalsRequired?.some((gate) => gate.kind === "partial-snapshot-confirm"));
+});
+
 test("detect-only catalog rules never generate mutating apply actions", () => {
   const plan = buildRebuildPlan([catalog({ id: "unknown-tool", supportLevel: "detect-only" })], "conn-1");
   assert.equal(plan.items[0]?.actions.length, 1);

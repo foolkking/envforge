@@ -1,16 +1,24 @@
+import { useTranslation } from "react-i18next";
 import type { Locale } from "../../lib/types";
 import { Badge } from "./Badge";
 
 type PillState = "done" | "active" | "blocked" | "idle";
 
-const STATE_MAP: Record<PillState, { tone: "ok" | "warn" | "danger" | "neutral"; zh: string; en: string }> = {
-  done: { tone: "ok", zh: "完成", en: "Done" },
-  active: { tone: "warn", zh: "进行中", en: "Active" },
-  blocked: { tone: "danger", zh: "阻塞", en: "Blocked" },
-  idle: { tone: "neutral", zh: "等待", en: "Idle" }
+const STATE_MAP: Record<PillState, { tone: "ok" | "warn" | "danger" | "neutral" }> = {
+  done: { tone: "ok" },
+  active: { tone: "warn" },
+  blocked: { tone: "danger" },
+  idle: { tone: "neutral" }
 };
+const STATE_KEYS = {
+  done: "statusPill.done",
+  active: "statusPill.active",
+  blocked: "statusPill.blocked",
+  idle: "statusPill.idle"
+} as const satisfies Record<PillState, string>;
 
-export function StatusPill({ state, locale, title }: { state: PillState; locale: Locale; title?: string }) {
+export function StatusPill({ state, title }: { state: PillState; locale: Locale; title?: string }) {
+  const { t } = useTranslation();
   const status = STATE_MAP[state];
-  return <Badge tone={status.tone} title={title}>{locale === "zh" ? status.zh : status.en}</Badge>;
+  return <Badge tone={status.tone} title={title}>{t(STATE_KEYS[state])}</Badge>;
 }

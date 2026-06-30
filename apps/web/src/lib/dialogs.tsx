@@ -1,3 +1,4 @@
+import { Button } from "../components/ui/Button";
 /**
  * dialogs.tsx — in-app toast / confirm / prompt, replacing native
  * window.alert/confirm/prompt (which are jarring, unstyled, and were
@@ -12,6 +13,7 @@
  * the functions fall back to the native dialogs so nothing breaks.
  */
 import React, { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { createPortal } from "react-dom";
 import { X, CheckCircle2, AlertTriangle, Info } from "lucide-react";
 import { useEscapeToClose } from "./useEscapeToClose";
@@ -62,14 +64,8 @@ export function promptDialog(opts: PromptOptions | string): Promise<string | nul
 
 interface ToastItem { id: number; message: string; type: ToastType; }
 
-/** Default OK/Cancel labels follow the saved UI locale so dialogs aren't English-only. */
-function localeLabels(): { ok: string; cancel: string } {
-  let zh = false;
-  try { zh = localStorage.getItem("envforge_locale") === "zh"; } catch { /* ignore */ }
-  return zh ? { ok: "确定", cancel: "取消" } : { ok: "OK", cancel: "Cancel" };
-}
-
 export function DialogHost(): JSX.Element | null {
+  const { t } = useTranslation();
   const [toasts, setToasts] = useState<ToastItem[]>([]);
   const [confirmState, setConfirmState] = useState<{ opts: ConfirmOptions; resolve: (v: boolean) => void } | null>(null);
   const [promptState, setPromptState] = useState<{ opts: PromptOptions; resolve: (v: string | null) => void } | null>(null);
@@ -104,11 +100,11 @@ export function DialogHost(): JSX.Element | null {
     <>
       {toasts.length > 0 ? (
         <div className="ef-toast-stack" role="status" aria-live="polite">
-          {toasts.map((t) => (
-            <div key={t.id} className={`ef-toast ef-toast-${t.type}`} data-testid="ef-toast">
-              {t.type === "success" ? <CheckCircle2 size={16} aria-hidden /> : t.type === "error" ? <AlertTriangle size={16} aria-hidden /> : <Info size={16} aria-hidden />}
-              <span>{t.message}</span>
-              <button type="button" className="ef-toast-close" aria-label="Dismiss" onClick={() => setToasts((list) => list.filter((x) => x.id !== t.id))}><X size={14} aria-hidden /></button>
+          {toasts.map((toastItem) => (
+            <div key={toastItem.id} className={`ef-toast ef-toast-${toastItem.type}`} data-testid="ef-toast">
+              {toastItem.type === "success" ? <CheckCircle2 size={16} aria-hidden /> : toastItem.type === "error" ? <AlertTriangle size={16} aria-hidden /> : <Info size={16} aria-hidden />}
+              <span>{toastItem.message}</span>
+              <button type="button" className="ef-toast-close" aria-label={t("dialogs.dismiss")} onClick={() => setToasts((list) => list.filter((x) => x.id !== toastItem.id))}><X size={14} aria-hidden /></button>
             </div>
           ))}
         </div>
@@ -131,22 +127,22 @@ export function DialogHost(): JSX.Element | null {
 
 function ConfirmModal({ opts, onResolve }: { opts: ConfirmOptions; onResolve: (v: boolean) => void }): JSX.Element {
   useEscapeToClose(() => onResolve(false));
-  const labels = localeLabels();
+  const { t } = useTranslation();
   return (
     <div className="modal-overlay" role="dialog" aria-modal="true" onClick={(e) => { if (e.target === e.currentTarget) onResolve(false); }}>
       <section className="profile-modal ef-dialog" style={{ maxWidth: 440 }}>
         <header>
           <div>
-            <p className="eyebrow">{opts.title ?? "Confirm"}</p>
+            <p className="eyebrow">{opts.title ?? t("dialogs.confirm")}</p>
           </div>
-          <button type="button" className="ghost-action icon-action" aria-label={labels.cancel} onClick={() => onResolve(false)}><X aria-hidden /></button>
+          <Button variant="ghost" type="button" className="icon-action" aria-label={t("dialogs.cancel")} onClick={() => onResolve(false)}><X aria-hidden /></Button>
         </header>
         <div className="ef-dialog-body">
           <p>{opts.message}</p>
         </div>
         <footer className="ef-dialog-footer">
-          <button type="button" className="ghost-action" onClick={() => onResolve(false)}>{opts.cancelLabel ?? labels.cancel}</button>
-          <button type="button" className={opts.danger ? "primary-action ef-danger-action" : "primary-action"} onClick={() => onResolve(true)} autoFocus>{opts.confirmLabel ?? labels.ok}</button>
+          <Button variant="ghost" type="button"  onClick={() => onResolve(false)}>{opts.cancelLabel ?? t("dialogs.cancel")}</Button>
+          <Button variant={opts.danger ? "destructive" : "primary"} type="button" onClick={() => onResolve(true)} autoFocus>{opts.confirmLabel ?? t("dialogs.ok")}</Button>
         </footer>
       </section>
     </div>
@@ -155,15 +151,15 @@ function ConfirmModal({ opts, onResolve }: { opts: ConfirmOptions; onResolve: (v
 
 function PromptModal({ opts, value, onChange, onResolve }: { opts: PromptOptions; value: string; onChange: (v: string) => void; onResolve: (v: string | null) => void }): JSX.Element {
   useEscapeToClose(() => onResolve(null));
-  const labels = localeLabels();
+  const { t } = useTranslation();
   return (
     <div className="modal-overlay" role="dialog" aria-modal="true" onClick={(e) => { if (e.target === e.currentTarget) onResolve(null); }}>
       <section className="profile-modal ef-dialog" style={{ maxWidth: 460 }}>
         <header>
           <div>
-            <p className="eyebrow">{opts.title ?? "Input"}</p>
+            <p className="eyebrow">{opts.title ?? t("dialogs.input")}</p>
           </div>
-          <button type="button" className="ghost-action icon-action" aria-label={labels.cancel} onClick={() => onResolve(null)}><X aria-hidden /></button>
+          <Button variant="ghost" type="button" className="icon-action" aria-label={t("dialogs.cancel")} onClick={() => onResolve(null)}><X aria-hidden /></Button>
         </header>
         <form
           className="ef-dialog-body"
@@ -174,8 +170,8 @@ function PromptModal({ opts, value, onChange, onResolve }: { opts: PromptOptions
             <input autoFocus value={value} placeholder={opts.placeholder} onChange={(e) => onChange(e.target.value)} />
           </label>
           <footer className="ef-dialog-footer">
-            <button type="button" className="ghost-action" onClick={() => onResolve(null)}>{opts.cancelLabel ?? labels.cancel}</button>
-            <button type="submit" className="primary-action">{opts.confirmLabel ?? labels.ok}</button>
+            <Button variant="ghost" type="button"  onClick={() => onResolve(null)}>{opts.cancelLabel ?? t("dialogs.cancel")}</Button>
+            <Button variant="primary" type="submit" >{opts.confirmLabel ?? t("dialogs.ok")}</Button>
           </footer>
         </form>
       </section>

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { FileText, History, Play, Upload, X } from "lucide-react";
 import {
   createPlaybook,
@@ -8,7 +9,6 @@ import {
   fetchPlaybook,
   fetchPlaybooks,
   restorePlaybookVersion,
-  streamTask,
   updatePlaybook,
   type CatalogItem,
   type ConnectionProfile,
@@ -57,6 +57,7 @@ export function PlanRecipesPage({
   onTaskUpdate: (task: ExecutionTask) => void;
   initialOpsTab?: OpsTab | null;
 }) {
+  const { t } = useTranslation();
   const [opsTab, setOpsTab] = useState<OpsTab>(initialOpsTab ?? "plans");
   useEffect(() => {
     if (initialOpsTab) setOpsTab(initialOpsTab);
@@ -76,7 +77,7 @@ export function PlanRecipesPage({
   const [selectedTags, setSelectedTags] = useState<Set<string>>(new Set());
   const [executing, setExecuting] = useState(false);
   const [execError, setExecError] = useState("");
-  const [execResults, setExecResults] = useState<Array<{ connectionId: string; label: string; taskId: string }>>([]);
+  const [execResults, setExecResults] = useState<Array<{ connectionId: string; label: string; planId: string }>>([]);
   const [createMode, setCreateMode] = useState(false);
 
   void activeTask;
@@ -112,7 +113,7 @@ export function PlanRecipesPage({
     try {
       if (createMode) {
         const playbook = await createPlaybook(authToken, {
-          name: editorName || "Untitled Environment Plan",
+          name: editorName || t("planRecipes.drafts.untitled"),
           description: editorDesc,
           yaml: editorYaml,
           sourceKind: "user",
@@ -133,14 +134,14 @@ export function PlanRecipesPage({
         setEditingPlaybook(playbook);
       }
     } catch (err) {
-      setSaveError(err instanceof Error ? err.message : "Save failed");
+      setSaveError(err instanceof Error ? err.message : t("planRecipes.drafts.saveFailed"));
     } finally {
       setSaving(false);
     }
   }
 
   async function handleDelete(id: string) {
-    if (!(await confirmDialog({ message: locale === "zh" ? "确认删除此计划草稿？" : "Delete this plan draft?", danger: true }))) return;
+    if (!(await confirmDialog({ message: t("planRecipes.drafts.deleteConfirm"), danger: true }))) return;
     try {
       await deletePlaybook(authToken, id);
       setPlaybooks((prev) => prev.filter((item) => item.id !== id));
@@ -174,26 +175,20 @@ export function PlanRecipesPage({
       const targetIds = selectedTargets.size > 0
         ? Array.from(selectedTargets)
         : connections.filter((connection) => connection.tags?.some((tag) => selectedTags.has(tag))).map((connection) => connection.id);
-      const launched: Array<{ connectionId: string; label: string; taskId: string }> = [];
+      const launched: Array<{ connectionId: string; label: string; planId: string }> = [];
       for (const connectionId of targetIds) {
         const connection = connections.find((item) => item.id === connectionId);
         const { plan } = await createEnvironmentPlan(authToken, {
           type: "imported-recipe",
           targetConnectionId: connectionId,
-          source: { kind: "recipe", yaml: editorYaml, name: editorName || "Imported Recipe" }
+          source: { kind: "recipe", yaml: editorYaml, name: editorName || t("planRecipes.drafts.importedRecipe") }
         });
-        const reviewedPlan = { ...plan, status: "approved" as const };
-        const result = await applyEnvironmentPlan(authToken, reviewedPlan, dryRun, !dryRun);
-        if (!result.taskId) continue;
-        launched.push({ connectionId, label: connection?.label ?? connectionId, taskId: result.taskId });
-        const unsubscribe = streamTask(result.taskId, (task) => {
-          onTaskUpdate(task);
-          if (task.status === "succeeded" || task.status === "failed" || task.status === "cancelled") unsubscribe();
-        }, authToken);
+        if (dryRun) await applyEnvironmentPlan(authToken, plan.id, true);
+        launched.push({ connectionId, label: connection?.label ?? connectionId, planId: plan.id });
       }
       setExecResults(launched);
     } catch (err) {
-      setExecError(err instanceof Error ? err.message : "Execution failed");
+      setExecError(err instanceof Error ? err.message : t("planRecipes.drafts.executionFailed"));
     } finally {
       setExecuting(false);
     }
@@ -210,14 +205,14 @@ export function PlanRecipesPage({
 
   return (
     <div className="playbook-page-stack">
-      <nav className="settings-tabs plan-ops-tabs" aria-label="Environment Plan Operations Center">
+      <nav className="settings-tabs plan-ops-tabs" aria-label={t("planRecipes.tabs.ariaLabel")}>
         {[
-          ["plans", locale === "zh" ? "计划" : "Plans"],
-          ["runs", locale === "zh" ? "执行记录" : "Runs"],
-          ["schedules", locale === "zh" ? "排程" : "Schedules"],
-          ["drift", locale === "zh" ? "漂移" : "Drift"],
-          ["webhooks", locale === "zh" ? "外发通知" : "Webhooks"],
-          ["reports", locale === "zh" ? "报告" : "Reports"]
+          ["plans", t("planRecipes.tabs.plans")],
+          ["runs", t("planRecipes.tabs.runs")],
+          ["schedules", t("planRecipes.tabs.schedules")],
+          ["drift", t("planRecipes.tabs.drift")],
+          ["webhooks", t("planRecipes.tabs.webhooks")],
+          ["reports", t("planRecipes.tabs.reports")]
         ].map(([id, label]) => (
           <button key={id} className={opsTab === id ? "active" : ""} type="button" onClick={() => setOpsTab(id as typeof opsTab)}>
             {label}
@@ -228,10 +223,10 @@ export function PlanRecipesPage({
       {(opsTab === "schedules" || opsTab === "drift" || opsTab === "webhooks") ? (
         <div className="plan-ops-section-note" style={{ display: "flex", flexDirection: "column", gap: 2, margin: "10px 0 4px" }}>
           <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase", opacity: 0.6 }}>
-            {locale === "zh" ? "自动化设置" : "Automation settings"}
+            {t("planRecipes.automation.eyebrow")}
           </span>
           <strong style={{ fontSize: 14 }}>
-            {locale === "zh" ? "排程 · 漂移检测 · 外发通知（Webhook）" : "Schedules · Drift detection · Webhooks"}
+            {t("planRecipes.automation.title")}
           </strong>
         </div>
       ) : null}
@@ -243,11 +238,11 @@ export function PlanRecipesPage({
         <div className="playbook-sidebar">
         <div className="playbook-sidebar-header">
           <Button variant="primary" style={{ flex: 1, fontSize: 13, minHeight: 34, padding: "0 14px" }} onClick={startCreate}>
-            + {locale === "zh" ? "新建计划草稿" : "New plan draft"}
+            + {t("planRecipes.drafts.newDraft")}
           </Button>
           <label className="conn-btn conn-btn-ghost" style={{ flex: 1, justifyContent: "center", fontSize: 13, minHeight: 34, padding: "0 14px", cursor: "pointer" }}>
             <Upload style={{ width: 14, height: 14 }} />
-            {locale === "zh" ? "导入配方" : "Import recipe"}
+            {t("planRecipes.drafts.importRecipe")}
             <input type="file" accept=".yaml,.yml,.txt" style={{ display: "none" }} onChange={(event) => {
               const file = event.target.files?.[0];
               if (!file) return;
@@ -268,9 +263,9 @@ export function PlanRecipesPage({
         </div>
 
         {loading ? (
-          <p className="empty-hint">{locale === "zh" ? "正在加载..." : "Loading..."}</p>
+          <p className="empty-hint">{t("planRecipes.drafts.loading")}</p>
         ) : playbooks.length === 0 && !createMode ? (
-          <p className="empty-hint">{locale === "zh" ? "暂无计划草稿" : "No plan drafts yet"}</p>
+          <p className="empty-hint">{t("planRecipes.drafts.noDrafts")}</p>
         ) : (
           <div className="playbook-list">
             {playbooks.map((playbook) => (
@@ -292,23 +287,23 @@ export function PlanRecipesPage({
           <>
             <div className="playbook-editor-header">
               <div className="playbook-editor-meta-inputs">
-                <input className="playbook-name-input" placeholder={locale === "zh" ? "计划名称" : "Plan name"} value={editorName} onChange={(event) => setEditorName(event.target.value)} />
-                <input className="playbook-desc-input" placeholder={locale === "zh" ? "说明（可选）" : "Description (optional)"} value={editorDesc} onChange={(event) => setEditorDesc(event.target.value)} />
+                <input className="playbook-name-input" placeholder={t("planRecipes.drafts.planName")} value={editorName} onChange={(event) => setEditorName(event.target.value)} />
+                <input className="playbook-desc-input" placeholder={t("planRecipes.drafts.description")} value={editorDesc} onChange={(event) => setEditorDesc(event.target.value)} />
               </div>
               <div className="playbook-editor-actions">
                 {editingPlaybook ? <Badge tone="neutral">v{editingPlaybook.version}</Badge> : null}
                 <Button variant="ghost" style={{ fontSize: 13, minHeight: 34 }} onClick={() => setShowHistory((value) => !value)} disabled={!editingPlaybook}>
-                  <History style={{ width: 14, height: 14 }} /> {locale === "zh" ? "版本历史" : "History"}
+                  <History style={{ width: 14, height: 14 }} /> {t("planRecipes.drafts.history")}
                 </Button>
                 <Button variant="ghost" style={{ fontSize: 13, minHeight: 34 }} onClick={() => setShowMultiTarget((value) => !value)}>
-                  {locale === "zh" ? "选择目标" : "Targets"}
+                  {t("planRecipes.drafts.targets")}
                 </Button>
                 <Button variant="primary" loading={saving} style={{ fontSize: 13, minHeight: 34 }} disabled={saving || !editorYaml.trim()} onClick={() => void handleSave()}>
-                  {saving ? (locale === "zh" ? "保存中..." : "Saving...") : (locale === "zh" ? "保存计划草稿" : "Save plan draft")}
+                  {saving ? t("planRecipes.drafts.saving") : t("planRecipes.drafts.saveDraft")}
                 </Button>
                 {editingPlaybook ? (
                   <Button variant="ghost" style={{ fontSize: 13, minHeight: 34, color: "var(--ef-danger)" }} onClick={() => void handleDelete(editingPlaybook.id)}>
-                    {locale === "zh" ? "删除" : "Delete"}
+                    {t("planRecipes.drafts.delete")}
                   </Button>
                 ) : null}
               </div>
@@ -319,7 +314,7 @@ export function PlanRecipesPage({
             {showHistory && editingPlaybook?.history ? (
               <div className="playbook-history-panel">
                 <div className="playbook-history-header">
-                  <strong>{locale === "zh" ? "版本历史" : "Version history"}</strong>
+                  <strong>{t("planRecipes.drafts.versionHistory")}</strong>
                   <Button variant="ghost" className="icon-action" onClick={() => setShowHistory(false)}><X style={{ width: 14, height: 14 }} /></Button>
                 </div>
                 <div className="playbook-history-list">
@@ -332,10 +327,10 @@ export function PlanRecipesPage({
                       </div>
                       {historyItem.version !== editingPlaybook.version ? (
                         <Button variant="secondary" style={{ fontSize: 12, minHeight: 28, padding: "0 10px" }} onClick={() => void handleRestoreVersion(historyItem.version)}>
-                          {locale === "zh" ? "恢复" : "Restore"}
+                          {t("planRecipes.drafts.restore")}
                         </Button>
                       ) : (
-                        <span style={{ color: "#0f766e", fontSize: 12, fontWeight: 700 }}>{locale === "zh" ? "当前版本" : "Current"}</span>
+                        <span style={{ color: "#0f766e", fontSize: 12, fontWeight: 700 }}>{t("planRecipes.drafts.currentVersion")}</span>
                       )}
                     </div>
                   ))}
@@ -346,12 +341,12 @@ export function PlanRecipesPage({
             {showMultiTarget ? (
               <div className="multi-target-panel">
                 <div className="multi-target-header">
-                  <strong>{locale === "zh" ? "选择目标虚拟机" : "Select target VMs"}</strong>
+                  <strong>{t("planRecipes.targets.title")}</strong>
                   <Button variant="ghost" className="icon-action" onClick={() => setShowMultiTarget(false)}><X style={{ width: 14, height: 14 }} /></Button>
                 </div>
                 {allTags.length > 0 ? (
                   <div className="multi-target-tags">
-                    <p style={{ color: "var(--ef-muted)", fontSize: 12, fontWeight: 700, margin: "0 0 6px" }}>{locale === "zh" ? "按标签选择" : "Select by tag"}</p>
+                    <p style={{ color: "var(--ef-muted)", fontSize: 12, fontWeight: 700, margin: "0 0 6px" }}>{t("planRecipes.targets.byTag")}</p>
                     <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
                       {allTags.map((tag) => (
                         <Button key={tag} variant={selectedTags.has(tag) ? "selected" : "ghost"} style={{ fontSize: 12, minHeight: 28, padding: "0 10px" }} onClick={() => setSelectedTags((prev) => {
@@ -365,9 +360,9 @@ export function PlanRecipesPage({
                   </div>
                 ) : null}
                 <div className="multi-target-connections">
-                  <p style={{ color: "var(--ef-muted)", fontSize: 12, fontWeight: 700, margin: "8px 0 6px" }}>{locale === "zh" ? "或直接选择目标" : "Or select targets directly"}</p>
+                  <p style={{ color: "var(--ef-muted)", fontSize: 12, fontWeight: 700, margin: "8px 0 6px" }}>{t("planRecipes.targets.direct")}</p>
                   {probedConnections.length === 0 ? (
-                    <p className="empty-hint" style={{ fontSize: 12 }}>{locale === "zh" ? "暂无已采集的目标虚拟机" : "No collected target VMs"}</p>
+                    <p className="empty-hint" style={{ fontSize: 12 }}>{t("planRecipes.targets.noCollected")}</p>
                   ) : (
                     <div style={{ display: "grid", gap: 6 }}>
                       {probedConnections.map((connection) => (
@@ -389,17 +384,17 @@ export function PlanRecipesPage({
                 {execError ? <p className="connection-error" style={{ margin: "8px 0 0" }}>{execError}</p> : null}
                 {execResults.length > 0 ? (
                   <div style={{ marginTop: 10 }}>
-                    <p style={{ color: "var(--ef-success)", fontSize: 12, fontWeight: 700, margin: "0 0 6px" }}>{locale === "zh" ? `已在 ${execResults.length} 台目标上启动` : `Launched on ${execResults.length} target(s)`}</p>
-                    {execResults.map((result) => <div key={result.taskId} style={{ fontSize: 11, color: "var(--ef-muted)" }}>{result.label}: task {result.taskId.slice(0, 12)}</div>)}
+                    <p style={{ color: "var(--ef-success)", fontSize: 12, fontWeight: 700, margin: "0 0 6px" }}>{t("planRecipes.targets.launched", { count: execResults.length })}</p>
+                    {execResults.map((result) => <div key={result.planId} style={{ fontSize: 11, color: "var(--ef-muted)" }}>{result.label}: {t("planRecipes.tabs.plans")} {result.planId.slice(0, 12)}</div>)}
                   </div>
                 ) : null}
                 <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
                   <Button variant="secondary" disabled={!hasTargets || executing} onClick={() => void handleMultiExecute(true)}>
-                    {locale === "zh" ? "预演" : "Dry-run"}
+                    {t("planRecipes.targets.dryRun")}
                   </Button>
                   <Button variant="primary" disabled={!hasTargets || executing} onClick={() => void handleMultiExecute(false)}>
                     <Play style={{ width: 14, height: 14 }} />
-                    {executing ? (locale === "zh" ? "应用中..." : "Applying...") : (locale === "zh" ? "应用已审查计划" : "Apply reviewed plan")}
+                    {executing ? t("planRecipes.targets.applying") : t("planRecipes.targets.applyReviewed")}
                   </Button>
                 </div>
               </div>
@@ -410,13 +405,9 @@ export function PlanRecipesPage({
         ) : (
           <div className="playbook-empty-state">
             <FileText style={{ width: 44, height: 44, marginBottom: 16, color: "var(--ef-muted)" }} />
-            <h3>{locale === "zh" ? "选择或新建环境计划" : "Select or create an Environment Plan"}</h3>
-            <p style={{ color: "var(--ef-muted)", fontSize: 14 }}>
-              {locale === "zh"
-                ? "计划用于审查迁移、重建、配置变更和移除能力。所有目标机器变更都应先进入计划。"
-                : "Plans review migration, rebuild, config change, and remove flows. Target changes should enter a plan first."}
-            </p>
-            <Button variant="primary" onClick={startCreate}>+ {locale === "zh" ? "新建计划草稿" : "New plan draft"}</Button>
+            <h3>{t("planRecipes.empty.title")}</h3>
+            <p style={{ color: "var(--ef-muted)", fontSize: 14 }}>{t("planRecipes.empty.body")}</p>
+            <Button variant="primary" onClick={startCreate}>+ {t("planRecipes.drafts.newDraft")}</Button>
           </div>
         )}
       </div>

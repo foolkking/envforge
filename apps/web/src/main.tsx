@@ -1,3 +1,4 @@
+import { Button } from "./components/ui/Button";
 import React, { useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { useTranslation } from "react-i18next";
@@ -38,8 +39,8 @@ import {
   type SshKeyMeta,
   type UserProfile
 } from "./api";
-import { text, navItems, navItemsForRole, type Locale, type Page } from "./lib/types";
-import { navGroupsForRole } from "./lib/nav";
+import { navItems, navItemsForRole, type Locale, type Page } from "./lib/types";
+import { NAV_PAGE_DESCRIPTION_KEYS, NAV_PAGE_LABEL_KEYS, navGroupsForRole } from "./lib/nav";
 import { useEscapeToClose } from "./lib/useEscapeToClose";
 import { DialogHost, toast } from "./lib/dialogs";
 import { MachinePage } from "./pages/MachinePage";
@@ -131,8 +132,7 @@ function App() {
   const [themeMode, setThemeMode] = useState<"light" | "dark">(() => localStorage.getItem("envforge_theme") === "dark" ? "dark" : "light");
   const [connected, setConnected] = useState(false);
   const [method, setMethod] = useState<ConnectionMethod>("ssh-password");
-  
-  // 闂傚倸鍊搁崐鎼佸磹妞嬪海鐭嗗〒姘ｅ亾妤犵偞鐗犻、鏇㈡晝閳ь剛澹曡ぐ鎺撶厽闁绘梻鍘ф禍浼存煟閺傛寧顥為柟渚垮妼椤啰鎷犻煫顓烆棜闂佽崵濮崇拃锕傚垂閸洖钃熸繛鎴欏灩缁犳盯姊婚崼鐔衡姇闁诲繐绉瑰娲传閸曨剙顎涢梺鍛婃尰瀹€鎼佺嵁閸儱惟闁靛娴烽崰鏍х暦缁嬭鏃堝焵椤掑嫬绠洪柣銏犳啞閳锋垿鏌涘┑鍡楊仾妞ゃ儲绮庣槐鎺旂磼濡搫顫掑┑鐘亾濞达絿纭堕弨浠嬫煟濡鍤嬬€规悶鍎甸弻娑㈡偆娴ｉ晲鍠婂銈冨灪椤ㄥ﹥鎱ㄩ埀顒勬煏閸繃顥滃ù鐘叉惈椤啴濡堕崱娆忣潷濠殿喗菧閸旀垵鐣峰ú顏呮櫜闁搞儻绲芥禍楣冩偡濞嗗繐顏紒鈧崘鈺傚弿婵☆垳顭堟慨鍌涱殽閻愭潙鐏寸€规洜鍠栭、娑樷槈濞嗗繐濮冮梻浣藉吹閸犳劙鎮烽妷褉鍋撳顒€妲绘い顓炴喘婵＄兘鍩￠崒妤佸濠电偠鎻紞鈧い顐㈩樀婵＄敻鎮㈤崗鑲╁幈闂佺粯顭堝▍鏇犵矆閸喓绠鹃柛鈩冨姇閻忊晜銇勯锝囩畼闁圭懓瀚叅妞ゅ繐鎷戠槐顒勬⒒閸屾瑧顦﹂柟璇х磿缂傛捇宕稿Δ鈧壕璺ㄢ偓瑙勬礀濞层倝藟濮樿埖鐓熼柟浼存涧閸橀潧霉濠婂嫮鐭掗柡宀嬬節瀹曟﹢濡搁敂鑺ュ€锋俊鐐€戦崕杈╃矓瑜版帒钃熸繛鎴欏灩缁犲鏌涘Δ鍐ㄤ粶妞ゎ剙顑囩槐鎾存媴娴犲鎽甸柣銏╁灲缁绘繈鎮伴鈧畷鍫曨敆婢跺娅嶉柣鐔哥矊闁帮綁骞冩ィ鍐╁亗閹煎瓨蓱閺傗偓闂備胶绮崝妯间焊濞嗘劖娅犳繛鎴欏灪閻撴洟鏌曟繛鍨姕闁稿鍎查〃銉╂倷閹绘帗娈婚梺绯曟櫔缁绘繂鐣烽妸鈺婃晩闁稿繗鍋愰弶铏圭磽閸屾瑧顦﹀褑濮ら弲璺何旈崨顔芥珨婵?
+
   const [resetToken, setResetToken] = useState<string | null>(null);
   const [newPassword, setNewPassword] = useState("");
   const [authDialog, setAuthDialog] = useState<"login" | "register" | "twofa" | null>(() => {
@@ -245,7 +245,6 @@ function App() {
   const [userProfiles, setUserProfiles] = useState<UserProfile[]>([]);
   const [activeTask, setActiveTask] = useState<ExecutionTask | null>(null);
   const [terminalLogs, setTerminalLogs] = useState<Array<{ time: string; type: "info" | "success" | "error" | "cmd"; text: string }>>([]);
-  const t = text[locale];
 
   function navigatePublic(path = "/") {
     const safePath = normalizePublicPath(path);
@@ -375,9 +374,7 @@ function App() {
     if (fragParams.has("enroll") && oauthToken) {
       localStorage.setItem("envforge_enrollment_token", oauthToken);
       history.replaceState(null, "", url.origin + url.pathname);
-      toast(locale === "zh"
-        ? "管理员账号需先在「设置 › 账户」启用两步验证。"
-        : "Admin accounts must enable 2FA before continuing.", "info");
+      toast(i18n.t("auth.admin2faRequired"), "info");
       setShellMode("app");
       setPage("dashboard");
       history.replaceState(null, "", "/app/dashboard");
@@ -388,9 +385,7 @@ function App() {
     const oauthLinked = url.searchParams.get("oauth") === "linked" || fragParams.get("oauth") === "linked";
     if (oauthLinked) {
       const provider = url.searchParams.get("provider") || fragParams.get("provider") || "OAuth";
-      toast(locale === "zh"
-        ? `${provider} 账号已成功关联。`
-        : `${provider} account linked successfully!`, "success");
+      toast(i18n.t("auth.oauthLinked", { provider }), "success");
       setShellMode("app");
       setPage("dashboard");
       history.replaceState(null, "", "/app/dashboard");
@@ -402,12 +397,8 @@ function App() {
     if (oauthError) {
       const conflictEmail = url.searchParams.get("email") || fragParams.get("email");
       const msg = oauthError === "email_conflict"
-        ? (locale === "zh"
-          ? `邮箱 ${conflictEmail ?? ""} 已被注册。请先用密码登录,再到设置中关联此登录方式。`
-          : `The email ${conflictEmail ?? ""} is already registered. Sign in with your password first, then link the provider from settings.`)
-        : (locale === "zh"
-          ? `登录失败(${oauthError})。`
-          : `Login failed (${oauthError}).`);
+        ? i18n.t("auth.oauthEmailConflict", { email: conflictEmail ?? "" })
+        : i18n.t("auth.oauthLoginFailed", { error: oauthError });
       toast(msg, "error");
       history.replaceState(null, "", url.origin + "/");
       return;
@@ -416,8 +407,8 @@ function App() {
     // 5. Password reset confirm landing
     const urlResetToken = url.searchParams.get("token");
     if (url.pathname.startsWith("/auth/password-reset") && urlResetToken) {
-      setResetToken(urlResetToken); // 婵犵數濮烽弫鍛婃叏閻戣棄鏋侀柛娑橈攻閸欏繘鏌ｉ幋婵愭綗闁逞屽墮閸婂湱绮嬮幒鏂哄亾閿濆簼绨介柨娑欑洴濮婅櫣鎲撮崟顐㈠Б濡炪倖娲﹂崢鍓у垝缂佹ǜ鍋呴柛鎰ㄦ櫇閸樼偓绻濋棃娑樷偓鍛婄珶婵犲洤绾ф繛宸簼閻撴洟鏌曢崼婵囶棤闁瑰啿娲弻锛勪沪鐠囨祴鍋撳┑鍡╁殨闁割偅娲栫粻锝嗐亜閺嶃劏澹樻い顐ゅХ缁?
-      history.replaceState(null, "", url.origin + "/"); // 闂傚倸鍊搁崐鎼佸磹瀹勬噴褰掑炊椤掑﹦绋忔繝銏ｅ煐閸旀洜澹曢崹顔规斀闁稿瞼鍋炴禍銈囩磽瀹ュ棛澧い顓℃硶閹瑰嫰鎮滃Ο缁樺闂備礁鎼Λ娆戝垝閹捐钃?URL 闂傚倸鍊搁崐鎼佸磹妞嬪海鐭嗗〒姘ｅ亾妤犵偛顦甸弫鎾绘偐閸愯弓鐢婚梻渚€娼чˇ顐﹀疾濞戞艾顥氶柛锔诲幗閸犳劙鏌ｅΔ鈧悧鍡欑箔閹烘挻鍙忛悷娆忓閸欌偓闂佸搫鐭夌紞浣割嚕椤掑嫬鍨傛い鏃囨閳ь剦鍨跺娲箮閼恒儲鏆犻梺鍦嚀濞差厼顕ｇ拠娴嬫婵☆垶鏀遍悗濠氭椤愩垺绁紒鏌ョ畺閸┿垽骞樼紒妯锋嫼闂佸憡绋戦敃銉ョ暦瀹€鈧槐鎺楁偐瀹曞洤鈷岄悗娈垮枦椤曆囧煡婢舵劕顫呴柣妯活問閸炵儤绻濆閿嬫緲閳ь剚鎹囬幃鐐烘晝閸屾碍杈堥梺缁橆焽缁垶鍩涢幋锔界厱婵犻潧妫楅顒勬倵濮橆偄宓嗛柡灞诲姂瀵挳濡搁妶澶婁粣闁诲孩顔栭崰娑樼暦閸偆顩烽柨鏂垮⒔妞规娊鎮楅敐搴濈凹闁稿鍨跺缁樻媴閸涘﹤鏆堢紓渚囧枛閻楁捇骞冮悙鐑樻櫆閻犳亽鍔嶅Σ鈧梻鍌氬€峰ù鍥敋瑜忛埀顒佺▓閺呯娀銆佸▎鎾冲唨妞ゆ挾鍋熼悰銉╂⒑閸濆嫯鐧佺€广儱鐗冮崑鎾诲锤濡や讲鎷哄銈嗗坊閸嬫挾绱掓径灞炬毈鐎?
+      setResetToken(urlResetToken);
+      history.replaceState(null, "", url.origin + "/");
       return;
     }
   }
@@ -465,21 +456,19 @@ function App() {
   async function handleScan() {
     if (!authToken || !activeConnectionId) return;
     pushLog("cmd", `ssh reprobe -> ${activeConnectionId}`);
-    pushLog("info", "Re-collecting system info via SSH...");
+    pushLog("info", i18n.t("runtime.recollectingSsh"));
     try {
       const updated = await reprobeConnection(authToken, activeConnectionId);
       setConnections((prev) => prev.map((c) => c.id === updated.id ? updated : c));
       if (updated.probeSnapshot) {
         setProbeResult(updated.probeSnapshot as AgentProbeResult);
         const sw = updated.probeSnapshot.software?.length ?? 0;
-        pushLog("success", locale === "zh"
-          ? `采集完成：${sw} 个包，${new Date(updated.probeSnapshot.collectedAt).toLocaleTimeString()}`
-          : `Collection done: ${sw} packages at ${new Date(updated.probeSnapshot.collectedAt).toLocaleTimeString()}`);
+        pushLog("success", i18n.t("runtime.collectionDone", { count: sw, time: new Date(updated.probeSnapshot.collectedAt).toLocaleTimeString() }));
       } else {
-        pushLog("error", locale === "zh" ? "采集失败：没有返回数据" : "Collection failed: no data returned");
+        pushLog("error", i18n.t("runtime.collectionNoData"));
       }
     } catch (err) {
-      pushLog("error", err instanceof Error ? err.message : (locale === "zh" ? "采集失败" : "Scan failed"));
+      pushLog("error", err instanceof Error ? err.message : i18n.t("runtime.scanFailed"));
     }
   }
 
@@ -487,7 +476,7 @@ function App() {
     setConnectionError("");
     setProbing(true);
     if (!authToken) {
-      setConnectionError(locale === "zh" ? "请先登录，再保存服务器连接。" : "Please login before saving a server connection.");
+      setConnectionError(i18n.t("runtime.loginBeforeSaveConnection"));
       setProbing(false);
       return;
     }
@@ -496,7 +485,7 @@ function App() {
     const port = fields.port || "22";
     const user = fields.username || "root";
     pushLog("cmd", `ssh ${user}@${host}:${port}`);
-    pushLog("info", locale === "zh" ? `正在通过 SSH 连接 ${host}:${port}...` : `Connecting via SSH to ${host}:${port}...`);
+    pushLog("info", i18n.t("runtime.connectingSsh", { host, port }));
 
     try {
       const result = await connectServer({
@@ -512,14 +501,12 @@ function App() {
       if (result.probe) {
         setProbeResult(result.probe as AgentProbeResult);
         const sw = result.probe.software?.length ?? 0;
-        pushLog("success", locale === "zh"
-          ? `SSH 已连接，已采集 ${sw} 个包。`
-          : `SSH connected! Collected ${sw} packages.`);
+        pushLog("success", i18n.t("runtime.sshConnectedCollected", { count: sw }));
         pushLog("info", `hostname: ${result.probe.system.hostname}, OS: ${result.probe.system.platform} ${result.probe.system.arch}`);
       } else if (result.connection.status === "ssh_failed") {
-        pushLog("error", locale === "zh" ? `SSH 失败：${result.connection.sshError ?? "未知错误"}` : `SSH failed: ${result.connection.sshError ?? "unknown error"}`);
+        pushLog("error", i18n.t("runtime.sshFailed", { error: result.connection.sshError ?? i18n.t("runtime.unknownError") }));
       } else {
-        pushLog("info", locale === "zh" ? "连接已保存（未采集数据）" : "Connection saved (no data collected)");
+        pushLog("info", i18n.t("runtime.connectionSavedNoData"));
       }
       const conns = await fetchConnections(authToken).catch(() => connections);
       setConnections(conns);
@@ -538,7 +525,7 @@ function App() {
     const conn = connections.find((c) => c.id === connectionId);
     const host = conn?.fields?.host ?? "unknown";
     pushLog("cmd", `ssh reprobe -> ${host}`);
-    pushLog("info", locale === "zh" ? `正在重新探测 ${host}...` : `Re-probing ${host}...`);
+    pushLog("info", i18n.t("runtime.reprobing", { host }));
     setProbing(true);
     try {
       const updated = await reprobeConnection(authToken, connectionId);
@@ -548,11 +535,9 @@ function App() {
           setProbeResult(updated.probeSnapshot as AgentProbeResult);
         }
         const sw = updated.probeSnapshot.software?.length ?? 0;
-        pushLog("success", locale === "zh"
-          ? `完成：${sw} 个包，${new Date(updated.probeSnapshot.collectedAt).toLocaleTimeString()}`
-          : `Done: ${sw} packages at ${new Date(updated.probeSnapshot.collectedAt).toLocaleTimeString()}`);
+        pushLog("success", i18n.t("runtime.reprobeDone", { count: sw, time: new Date(updated.probeSnapshot.collectedAt).toLocaleTimeString() }));
       } else {
-        pushLog("error", updated.sshError ?? (locale === "zh" ? "探测失败" : "Probe failed"));
+        pushLog("error", updated.sshError ?? i18n.t("runtime.probeFailed"));
       }
     } catch (err) {
       pushLog("error", err instanceof Error ? err.message : "Reprobe failed");
@@ -702,16 +687,16 @@ function App() {
             onChange={setNewPassword}
             onCancel={() => { setResetToken(null); setNewPassword(""); }}
             onConfirm={async () => {
-              if (newPassword.length < 8) { toast(locale === "zh" ? "密码至少需要 8 个字符。" : "Password must be at least 8 characters.", "error"); return; }
+              if (newPassword.length < 8) { toast(i18n.t("auth.passwordTooShort"), "error"); return; }
               try {
                 await confirmPasswordReset({ token: resetToken, newPassword });
-                toast(locale === "zh" ? "密码已重置,请登录。" : "Password reset. Please sign in.", "success");
+                toast(i18n.t("auth.passwordResetDone"), "success");
                 setResetToken(null);
                 setNewPassword("");
                 setAuthDialog("login");
                 window.history.replaceState(null, "", "/login");
               } catch (err) {
-                toast(err instanceof Error ? err.message : "Reset failed", "error");
+                toast(err instanceof Error ? err.message : i18n.t("auth.resetFailed"), "error");
               }
             }}
           />
@@ -728,15 +713,15 @@ function App() {
         <div className="brand">
           <div className="brand-mark">E</div>
           <div>
-            <strong>{t.appName}</strong>
-            <span>{t.subtitle}</span>
+            <strong>{i18n.t("app.name")}</strong>
+            <span>{i18n.t("app.subtitle")}</span>
           </div>
         </div>
 
         <nav className="main-nav">
           {navGroupsForRole(authUser?.role).map((group) => (
             <div className="nav-group" key={group.id}>
-              <span className="nav-group-label">{group.label[locale]}</span>
+              <span className="nav-group-label">{i18n.t(group.labelKey)}</span>
               {group.items.map((item) => {
                 const Icon = item.icon;
                 return (
@@ -744,13 +729,13 @@ function App() {
                     className={page === item.id ? "active" : ""}
                     key={item.id}
                     type="button"
-                    title={item.description[locale]}
+                    title={i18n.t(NAV_PAGE_DESCRIPTION_KEYS[item.id])}
                     onClick={() => navigateApp(item.id)}
                   >
                     <Icon aria-hidden />
                     <span className="nav-item-copy">
-                      <span className="nav-item-label">{t[item.id]}</span>
-                      <span className="nav-item-description">{item.description[locale]}</span>
+                      <span className="nav-item-label">{i18n.t(NAV_PAGE_LABEL_KEYS[item.id])}</span>
+                      <span className="nav-item-description">{i18n.t(NAV_PAGE_DESCRIPTION_KEYS[item.id])}</span>
                     </span>
                   </button>
                 );
@@ -762,27 +747,27 @@ function App() {
 
       <section className="workspace">
         <header className="topbar workbench-topbar">
-          <button type="button" className="nav-toggle" aria-label={locale === "zh" ? "菜单" : "Menu"} onClick={() => setNavOpen(true)}>
+          <button type="button" className="nav-toggle" aria-label={i18n.t("shell.more")} onClick={() => setNavOpen(true)}>
             <Menu aria-hidden />
           </button>
           <div className="topbar-context compact-topbar-context">
-            <h1>{t[page]}</h1>
+            <h1>{i18n.t(NAV_PAGE_LABEL_KEYS[page])}</h1>
           </div>
 
           <div className="topbar-middle-slot">
             {page === "build" ? (
             <label className="search-box topbar-search">
               <Search aria-hidden />
-              <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t.search} />
+              <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={i18n.t("shell.search")} />
             </label>
             ) : null}
           </div>
 
           <div className="top-actions">
-            <button className="primary-action topbar-route-action" type="button" onClick={() => navigatePublic("/")}>
+            <Button variant="primary" className="topbar-route-action" type="button" onClick={() => navigatePublic("/")}>
               <Home aria-hidden />
-              {locale === "zh" ? "返回首页" : "Home"}
-            </button>
+              {i18n.t("shell.home")}
+            </Button>
             <TopbarMoreMenu
               locale={locale}
               authUser={authUser}
@@ -801,21 +786,21 @@ function App() {
         </header>
 
         {inboxOpen ? (
-          <div className="inbox-drawer" role="dialog" aria-label={locale === "zh" ? "站内信" : "Inbox"}>
+          <div className="inbox-drawer" role="dialog" aria-label={i18n.t("shell.inbox")}>
             <div className="inbox-drawer-header">
               <div>
-                <h2>{locale === "zh" ? "站内信" : "Inbox"}</h2>
-                <p>{locale === "zh" ? `${inboxUnreadCount} 条未读消息` : `${inboxUnreadCount} unread messages`}</p>
+                <h2>{i18n.t("shell.inbox")}</h2>
+                <p>{i18n.t("shell.unreadMessages", { count: inboxUnreadCount })}</p>
               </div>
-              <button className="icon-action" type="button" onClick={() => setInboxOpen(false)} aria-label="Close inbox">
+              <button className="icon-action" type="button" onClick={() => setInboxOpen(false)} aria-label={i18n.t("shell.closeInbox")}>
                 <X aria-hidden />
               </button>
             </div>
             {inboxError ? <p className="connection-error">{inboxError}</p> : null}
             {inboxLoading ? (
-              <p className="empty-hint">{locale === "zh" ? "正在加载站内信..." : "Loading inbox..."}</p>
+              <p className="empty-hint">{i18n.t("shell.loadingInbox")}</p>
             ) : inboxMessages.length === 0 ? (
-              <p className="empty-hint">{locale === "zh" ? "暂无站内信。" : "No messages yet."}</p>
+              <p className="empty-hint">{i18n.t("shell.noMessages")}</p>
             ) : (
               <ul className="inbox-list">
                 {inboxMessages.map((message) => (
@@ -827,11 +812,11 @@ function App() {
                     </div>
                     <div className="inbox-item-actions">
                       {!message.isRead ? (
-                        <button className="icon-action" type="button" onClick={() => void handleMarkInboxRead(message.id)} title={locale === "zh" ? "标为已读" : "Mark read"}>
+                        <button className="icon-action" type="button" onClick={() => void handleMarkInboxRead(message.id)} title={i18n.t("shell.markRead")}>
                           <CheckCircle2 aria-hidden />
                         </button>
                       ) : null}
-                      <button className="icon-action danger" type="button" onClick={() => void handleDeleteInboxMessage(message.id)} title={locale === "zh" ? "删除" : "Delete"}>
+                      <button className="icon-action danger" type="button" onClick={() => void handleDeleteInboxMessage(message.id)} title={i18n.t("shell.delete")}>
                         <Trash2 aria-hidden />
                       </button>
                     </div>
@@ -866,27 +851,24 @@ function App() {
             />
           ) : (
             <div className="catalog-user-redirect" style={{ padding: 24, maxWidth: 640 }}>
-              <h1 style={{ marginTop: 0 }}>{locale === "zh" ? "能力规则库（管理员）" : "Capability Rules (admin)"}</h1>
+              <h1 style={{ marginTop: 0 }}>{i18n.t("governance.admin.userRedirectTitle")}</h1>
               <p style={{ color: "#475569" }}>
-                {locale === "zh"
-                  ? "能力管理是管理员规则库。普通用户请使用构建页选择已认证能力生成重建计划。"
-                  : "Catalog is the admin capability rules registry. As a regular user, use Build to select certified capabilities and generate a Rebuild Plan."}
+                {i18n.t("governance.admin.userRedirectBody")}
               </p>
-              <button
+              <Button variant="primary"
                 type="button"
-                className="primary-action"
+
                 onClick={() => navigateApp("build")}
                 style={{ marginTop: 8 }}
               >
-                {locale === "zh" ? "去构建页使用已认证能力" : "Go to Build (certified capabilities)"}
-              </button>
+                {i18n.t("governance.admin.goToBuild")}
+              </Button>
             </div>
           )
         ) : null}
 
         {page === "migrate" ? (
           <MachinePage
-            t={t}
             locale={locale}
             connections={connections}
             activeConnectionId={activeConnectionId}
@@ -925,7 +907,6 @@ function App() {
 
         {page === "build" ? (
           <CapabilityCatalogPage
-            t={t}
             locale={locale}
             items={filteredCatalog}
             selected={selected}
@@ -987,16 +968,16 @@ function App() {
           onChange={setNewPassword}
           onCancel={() => { setResetToken(null); setNewPassword(""); }}
           onConfirm={async () => {
-            if (newPassword.length < 8) { toast(locale === "zh" ? "密码至少需要 8 个字符。" : "Password must be at least 8 characters.", "error"); return; }
+            if (newPassword.length < 8) { toast(i18n.t("auth.passwordTooShort"), "error"); return; }
             try {
               await confirmPasswordReset({ token: resetToken, newPassword });
-              toast(locale === "zh" ? "密码已重置,请登录。" : "Password reset. Please sign in.", "success");
+              toast(i18n.t("auth.passwordResetDone"), "success");
               setResetToken(null);
               setNewPassword("");
               setAuthDialog("login");
               navigatePublic("/login");
             } catch (err) {
-              toast(err instanceof Error ? err.message : "Reset failed", "error");
+              toast(err instanceof Error ? err.message : i18n.t("auth.resetFailed"), "error");
             }
           }}
         />
@@ -1033,29 +1014,29 @@ function TopbarMoreMenu({
   onTheme: () => void;
   onLogout?: () => void;
 }) {
-  const zh = locale === "zh";
+  const { t: tx } = useTranslation();
   const accountInitial = (authUser?.displayName || authUser?.name || "U").slice(0, 1).toUpperCase();
-  const nextLanguage = zh ? "English" : "中文";
-  const nextTheme = themeMode === "dark" ? (zh ? "浅色模式" : "Light mode") : (zh ? "深色模式" : "Dark mode");
+  const nextLanguage = tx("shell.switchLanguage");
+  const nextTheme = themeMode === "dark" ? tx("shell.themeLight") : tx("shell.themeDark");
 
   return (
     <div className="topbar-more-wrap">
-      <button className="ghost-action more-action" type="button" onClick={onToggleOpen} aria-expanded={open} aria-haspopup="menu">
+      <Button variant="ghost" className="more-action" type="button" onClick={onToggleOpen} aria-expanded={open} aria-haspopup="menu">
         {authUser ? <span className="more-avatar">{accountInitial}</span> : <MoreHorizontal aria-hidden />}
-        <span>{zh ? "更多" : "More"}</span>
-      </button>
+        <span>{tx("shell.more")}</span>
+      </Button>
       {open ? (
         <div className="topbar-more-menu" role="menu">
           {authUser && onAccount ? (
             <button type="button" role="menuitem" onClick={onAccount}>
               <UserRound aria-hidden />
-              <span>{zh ? "账号与安全" : "Account & security"}</span>
+              <span>{tx("shell.accountSecurity")}</span>
             </button>
           ) : null}
           {onInbox ? (
             <button type="button" role="menuitem" onClick={onInbox}>
               <Bell aria-hidden />
-              <span>{zh ? "通知" : "Notifications"}</span>
+              <span>{tx("shell.notifications")}</span>
               {inboxUnreadCount ? <b>{inboxUnreadCount > 99 ? "99+" : inboxUnreadCount}</b> : null}
             </button>
           ) : null}
@@ -1071,7 +1052,7 @@ function TopbarMoreMenu({
           {onLogout ? (
             <button type="button" role="menuitem" onClick={onLogout}>
               <LogOut aria-hidden />
-              <span>{zh ? "退出登录" : "Sign out"}</span>
+              <span>{tx("shell.signOut")}</span>
             </button>
           ) : null}
         </div>
@@ -1153,16 +1134,16 @@ function PublicLanding({
           <a href="#matrix">{t("public.nav.matrix")}</a>
           <a href="#security">{t("public.nav.safety")}</a>
           <button className="public-link-button" type="button" onClick={() => onNavigatePublic("/docs")}>{t("public.nav.docs")}</button>
-          <button className="public-link-button" type="button" onClick={() => onNavigatePublic("/demo")}>Demo</button>
+          <button className="public-link-button" type="button" onClick={() => onNavigatePublic("/demo")}>{t("public.nav.demo")}</button>
           <a href="#quickstart">{t("public.nav.quickstart")}</a>
         </nav>
         <div className="public-actions">
           {isAuthenticated ? (
-            <button className="primary-action topbar-route-action" type="button" onClick={onEnterApp}>{t("shell.console")}</button>
+            <Button variant="primary" className="topbar-route-action" type="button" onClick={onEnterApp}>{t("shell.console")}</Button>
           ) : (
             <>
-              <button className="ghost-action" type="button" onClick={onLogin}>{t("shell.signIn")}</button>
-              <button className="primary-action" type="button" onClick={onRegister}>{t("shell.register")}</button>
+              <Button variant="ghost"  type="button" onClick={onLogin}>{t("shell.signIn")}</Button>
+              <Button variant="primary"  type="button" onClick={onRegister}>{t("shell.register")}</Button>
             </>
           )}
           <TopbarMoreMenu
@@ -1191,9 +1172,9 @@ function PublicLanding({
             <li><CheckCircle2 aria-hidden />{t("public.points.governed")}</li>
           </ul>
           <div className="public-hero-actions">
-            <button className="primary-action" type="button" onClick={isAuthenticated ? onEnterApp : onLogin}>
+            <Button variant="primary"  type="button" onClick={isAuthenticated ? onEnterApp : onLogin}>
               {isAuthenticated ? t("public.openConsole") : t("public.getStarted")}
-            </button>
+            </Button>
             <a className="public-doc-link" href="#quickstart">{t("public.viewQuickstart")}</a>
           </div>
         </div>
@@ -1277,9 +1258,9 @@ function PublicLanding({
           <h2>{t("public.quickstartTitle")}</h2>
           <p>{t("public.quickstartBody")}</p>
         </div>
-        <button className="primary-action" type="button" onClick={isAuthenticated ? onEnterApp : onLogin}>
+        <Button variant="primary"  type="button" onClick={isAuthenticated ? onEnterApp : onLogin}>
           {isAuthenticated ? t("public.openConsole") : t("shell.signIn")}
-        </button>
+        </Button>
       </section>
     </main>
   );
@@ -1309,9 +1290,9 @@ function PasswordResetModal({
             <p className="eyebrow">{t("shell.account")}</p>
             <h2>{t("auth.titleLogin")}</h2>
           </div>
-          <button type="button" className="ghost-action icon-action" onClick={onCancel} aria-label={t("shell.close")}>
+          <Button variant="ghost" type="button" className="icon-action" onClick={onCancel} aria-label={t("shell.close")}>
             <X aria-hidden />
-          </button>
+          </Button>
         </header>
         <div className="modal-form">
           <p className="settings-help" style={{ marginTop: 0 }}>{t("auth.passwordTooShort")}</p>
@@ -1320,8 +1301,8 @@ function PasswordResetModal({
             <input type="password" value={value} onChange={(event) => onChange(event.target.value)} autoComplete="new-password" />
           </label>
           <div style={{ display: "flex", gap: "12px", justifyContent: "flex-end" }}>
-            <button type="button" className="ghost-action" onClick={onCancel}>{t("shell.close")}</button>
-            <button type="button" className="primary-action" onClick={onConfirm}>{t("auth.verify")}</button>
+            <Button variant="ghost" type="button"  onClick={onCancel}>{t("shell.close")}</Button>
+            <Button variant="primary" type="button"  onClick={onConfirm}>{t("auth.verify")}</Button>
           </div>
         </div>
       </section>
@@ -1348,9 +1329,9 @@ function AccountSettingsModal({
             <p className="eyebrow">{t("shell.account")}</p>
             <h2>{t("shell.profileSecurity")}</h2>
           </div>
-          <button className="ghost-action icon-action" type="button" onClick={onClose} aria-label={t("shell.close")}>
+          <Button variant="ghost" className="icon-action" type="button" onClick={onClose} aria-label={t("shell.close")}>
             <X aria-hidden />
-          </button>
+          </Button>
         </header>
         <div className="account-modal-body">
           <AccountPanel locale={locale} authToken={authToken} />
@@ -1470,9 +1451,9 @@ function AuthDialog({
             <p className="eyebrow">{t("shell.account")}</p>
             <h2>{title}</h2>
           </div>
-          <button className="ghost-action icon-action" type="button" onClick={onClose} aria-label={t("shell.close")}>
+          <Button variant="ghost" className="icon-action" type="button" onClick={onClose} aria-label={t("shell.close")}>
             <X aria-hidden />
-          </button>
+          </Button>
         </header>
 
         <form className="modal-form" onSubmit={submit}>
@@ -1516,30 +1497,30 @@ function AuthDialog({
 
           <footer>
             {mode === "login" ? (
-              <button className="ghost-action" type="button" onClick={resetPassword} disabled={submitting}>
+              <Button variant="ghost"  type="button" onClick={resetPassword} disabled={submitting}>
                 {t("auth.forgotPassword")}
-              </button>
+              </Button>
             ) : (
-              <button className="ghost-action" type="button" onClick={() => { setPendingId(""); setCode(""); onMode("login"); }}>
+              <Button variant="ghost"  type="button" onClick={() => { setPendingId(""); setCode(""); onMode("login"); }}>
                 {t("auth.haveAccount")}
-              </button>
+              </Button>
             )}
-            <button className="primary-action" type="submit" disabled={submitting}>
+            <Button variant="primary"  type="submit" disabled={submitting}>
               {submitting ? t("auth.working") : mode === "register" && pendingId ? t("auth.verify") : title}
-            </button>
+            </Button>
           </footer>
         </form>
 
         {mode === "login" ? (
           <>
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", padding: "0 20px 16px" }}>
-              {providers.github ? <button className="ghost-action" type="button" onClick={() => { window.location.href = "/api/auth/github"; }}>GitHub</button> : null}
-              {providers.google ? <button className="ghost-action" type="button" onClick={() => { window.location.href = "/api/auth/google"; }}>Google</button> : null}
+              {providers.github ? <Button variant="ghost"  type="button" onClick={() => { window.location.href = "/api/auth/github"; }}>GitHub</Button> : null}
+              {providers.google ? <Button variant="ghost"  type="button" onClick={() => { window.location.href = "/api/auth/google"; }}>Google</Button> : null}
             </div>
             <footer>
-              <button className="ghost-action" type="button" onClick={() => onMode("register")}>
+              <Button variant="ghost"  type="button" onClick={() => onMode("register")}>
                 {t("auth.createAccount")}
-              </button>
+              </Button>
             </footer>
           </>
         ) : null}

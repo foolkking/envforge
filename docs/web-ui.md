@@ -134,21 +134,25 @@ Current shared components:
 - `components/ui/Button.tsx`
 - `components/ui/Badge.tsx` (`tone`, `size`, and `title`)
 - `components/ui/Card.tsx`
+- `components/ui/FilterPill.tsx`
+- `components/ui/MetricPill.tsx`
 - `components/ui/StatusPill.tsx`
+- `components/ui/TabButton.tsx`
 
 Conversion rules:
 
-- Button wrapper maps to existing visual classes. Convert only exact clean
-  variants.
+- Button maps the legacy action and connection-button classes to semantic
+  variants. Static exact matches have been migrated; dynamic state selectors
+  remain explicit where the class itself carries behavior.
 - Badge/StatusPill are semantic and can change appearance; review page by page.
-- Structural cards cannot be replaced blindly because layout classes may carry
-  grid/padding/behavior.
-- `score-pill` and similar ambiguous status elements need explicit mapping first.
+- Card supports `div`, `section`, and `article`; keep the existing structural
+  class while migrating so grid/padding behavior remains intact.
+- Governance tabs, filter pills, and migration score metrics use dedicated
+  primitives instead of overloading Button or Badge semantics.
 
 ## CSS rules
 
-`apps/web/src/styles.css` imports modular CSS files first, then retains the
-legacy monolith while rules are moved gradually:
+`apps/web/src/styles.css` is now an import-only entry. Domain rules live in:
 
 ```text
 styles/tokens.css
@@ -160,16 +164,19 @@ styles/pages-build.css
 styles/pages-migrate.css
 styles/pages-plans-reports.css
 styles/pages-governance.css
+styles/legacy-overrides.css
+styles/overrides.css
 ```
 
-The remaining monolith has two layers:
+The final two files preserve the old cascade contract:
 
-1. legacy layer;
-2. operations-console refresh layer.
+1. late legacy responsive/dark/account overrides;
+2. operations-console refresh overrides, imported last.
 
-The refresh layer wins by cascade, but layers merge by property. Do not delete
-legacy rules until old-only properties have been folded into the new layer.
-Append targeted overrides at the end when needed.
+Page-domain files retain the old-only properties; the refresh layer still wins
+by cascade and merges by property. New rules belong in the smallest matching
+domain file. Cross-page refresh rules belong in `overrides.css` and must remain
+last.
 
 New dark-mode work should prefer `--ef-*` tokens over page-specific patches.
 
@@ -191,9 +198,9 @@ New dark-mode work should prefer `--ef-*` tokens over page-specific patches.
 - Visual screenshots are opt-in with `PW_SNAPSHOT=1`; default smoke avoids
   baseline churn.
 
-## Current known UI backlog
+## Current follow-up candidates
 
-1. Continue migrating deep page i18n into dictionaries.
-2. Move legacy/refresh CSS rules into the modular files by domain.
-3. Design system deepening beyond clean Button/Badge cases.
-4. Expand Playwright assertions as pages stabilize.
+- Add behavioral Playwright coverage for plan apply/verify/rollback flows as
+  stable test fixtures become available.
+- Split the large Web JavaScript chunk with route-level loading once page state
+  boundaries are ready for it.

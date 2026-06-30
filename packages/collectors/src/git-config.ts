@@ -30,6 +30,12 @@ export async function collectGitConfig(): Promise<CollectorOutput<GitConfigData>
     id: "git-config",
     label: "Git config",
     status: version.ok ? "available" : "partial",
+    completeness: Number(([version, config].filter((result) => result.ok).length / 2).toFixed(3)),
+    commands: [
+      { command: "git --version", exitCode: version.exitCode, timedOut: version.timedOut, stderr: version.stderr || undefined },
+      { command: "git config --global --list", exitCode: config.exitCode, timedOut: config.timedOut, stderr: config.stderr || undefined }
+    ],
+    collectedAt: new Date().toISOString(),
     data: {
       version: version.ok ? version.stdout : null,
       globalConfig,

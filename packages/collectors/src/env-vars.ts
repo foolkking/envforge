@@ -22,6 +22,9 @@ export function collectEnvVars(policy: SyncPolicy): CollectorOutput<EnvVarsData>
     id: "env-vars",
     label: "Environment variables",
     status: "available",
+    completeness: 1,
+    commands: [],
+    collectedAt: new Date().toISOString(),
     data: { variables },
     issues: [],
     redactions

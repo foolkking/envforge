@@ -24,6 +24,8 @@ import type { EnvironmentPlan, EnvironmentPlanAction } from "./environment-plan.
 import { restoreConfigFileFromBackup, validateConfigFile } from "./config-files.js";
 import { Ssh2Executor } from "./engine/ssh-executor.js";
 import type { StoredConnection } from "./runtime-store.js";
+import { readRuntimeDatabase } from "./runtime-store.js";
+import { computeEnvironmentPlanHash, verifyEnvironmentPlanHash } from "./plan-hash.js";
 import {
   appendPlanHistory,
   asEnvironmentPlan,
@@ -53,12 +55,14 @@ async function execOnTarget(client: SshClient, command: string, timeoutMs = 20_0
 export async function runPlanVerify(input: {
   client: SshClient;
   plan: EnvironmentPlan;
+  executedActionIds?: ReadonlySet<string>;
 }): Promise<StoredPlanVerifyResult[]> {
   const results: StoredPlanVerifyResult[] = [];
   const now = () => new Date().toISOString();
 
   for (const item of input.plan.items) {
     for (const action of item.actions) {
+      if (input.executedActionIds && !input.executedActionIds.has(action.id)) continue;
       // Collect every verify command for the action: structured verifySpec
       // wins; fall back to the legacy `verify` string and to the action's
       // own command for `validate` kind.
@@ -142,6 +146,7 @@ export async function runPlanRollback(input: {
   client: SshClient;
   plan: EnvironmentPlan;
   connection: StoredConnection;
+  executedActionIds?: ReadonlySet<string>;
 }): Promise<StoredPlanRollbackResult[]> {
   const results: StoredPlanRollbackResult[] = [];
   const now = () => new Date().toISOString();
@@ -149,7 +154,9 @@ export async function runPlanRollback(input: {
   // Walk actions in reverse so we undo in the opposite order they were applied.
   const actions: Array<{ itemName: string; action: EnvironmentPlanAction }> = [];
   for (const item of input.plan.items) {
-    for (const action of item.actions) actions.push({ itemName: item.name, action });
+    for (const action of item.actions) {
+      if (!input.executedActionIds || input.executedActionIds.has(action.id)) actions.push({ itemName: item.name, action });
+    }
   }
 
   for (let i = actions.length - 1; i >= 0; i--) {
@@ -295,10 +302,17 @@ export async function verifyPlanAndPersist(input: {
   const record = await getEnvironmentPlan(input.planId, input.userId);
   if (!record) return undefined;
   const plan = asEnvironmentPlan(record);
+  const currentHash = computeEnvironmentPlanHash(plan);
+  if (!verifyEnvironmentPlanHash(plan) || plan.planHash !== currentHash) throw new Error("Environment Plan integrity check failed before verify.");
+  const database = await readRuntimeDatabase();
+  const executedActionIds = new Set((database.actionRuns ?? [])
+    .filter((run) => run.planId === plan.id && run.planHash === currentHash && !run.dryRun && (run.status === "succeeded" || (run.status === "skipped" && run.applyResult?.ok !== false)))
+    .map((run) => run.actionId));
+  if (executedActionIds.size === 0) throw new Error("Verify requires non-dry-run ActionRunRecord evidence for this planHash.");
   const client = await input.openClient();
   let results: StoredPlanVerifyResult[];
   try {
-    results = await runPlanVerify({ client, plan });
+    results = await runPlanVerify({ client, plan, executedActionIds });
   } finally {
     try { client.end(); } catch { /* swallow */ }
   }
@@ -327,10 +341,17 @@ export async function rollbackPlanAndPersist(input: {
   const record = await getEnvironmentPlan(input.planId, input.userId);
   if (!record) return undefined;
   const plan = asEnvironmentPlan(record);
+  const currentHash = computeEnvironmentPlanHash(plan);
+  if (!verifyEnvironmentPlanHash(plan) || plan.planHash !== currentHash) throw new Error("Environment Plan integrity check failed before rollback.");
+  const database = await readRuntimeDatabase();
+  const executedActionIds = new Set((database.actionRuns ?? [])
+    .filter((run) => run.planId === plan.id && run.planHash === currentHash && !run.dryRun && run.status === "succeeded")
+    .map((run) => run.actionId));
+  if (executedActionIds.size === 0) throw new Error("Rollback requires successful ActionRunRecord evidence for this planHash.");
   const client = await input.openClient();
   let results: StoredPlanRollbackResult[];
   try {
-    results = await runPlanRollback({ client, plan, connection: input.connection });
+    results = await runPlanRollback({ client, plan, connection: input.connection, executedActionIds });
   } finally {
     try { client.end(); } catch { /* swallow */ }
   }

@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { type CapabilityWorkflowUser, type CapabilityWorkflowQueue } from "../../api";
 import type { Locale } from "../../lib/types";
 import { Th, Td } from "./shared";
@@ -16,31 +17,30 @@ export function UsersQueuesTab({
   queues: CapabilityWorkflowQueue[];
   loading: boolean;
 }): JSX.Element {
+  const { t } = useTranslation();
   return (
     <div data-testid="users-queues-tab">
       <p style={{ color: "var(--ef-muted)", margin: "0 0 12px 0", maxWidth: 760 }}>
-        {locale === "zh"
-          ? "这里管理规则维护负责人、认证审核人、建议处理人和队列分派，不是账号中心，也不是主机用户管理。"
-          : "This workspace manages rule maintainers, certification reviewers, suggestion triage, and queue assignment. It is not an account center or a host user manager."}
+        {t("governance.usersQueues.intro")}
       </p>
 
       <section style={{ marginBottom: 16 }}>
-        <h3 style={{ margin: "0 0 8px 0", fontSize: 14 }}>Users / Maintainers</h3>
+        <h3 style={{ margin: "0 0 8px 0", fontSize: 14 }}>{t("governance.usersQueues.usersTitle")}</h3>
         {loading ? (
-          <p style={{ color: "var(--ef-muted)" }}>Loading...</p>
+          <p style={{ color: "var(--ef-muted)" }}>{t("governance.common.loading")}</p>
         ) : users.length === 0 ? (
-          <p style={{ color: "var(--ef-muted)" }}>{locale === "zh" ? "暂无成员" : "No users yet."}</p>
+          <p style={{ color: "var(--ef-muted)" }}>{t("governance.usersQueues.noUsers")}</p>
         ) : (
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
             <thead style={{ background: "var(--ef-surface-soft)" }}>
               <tr>
-                <Th>User</Th>
-                <Th>Role</Th>
-                <Th>Assigned Capabilities</Th>
-                <Th>Open Suggestions</Th>
-                <Th>Open Backlog Items</Th>
-                <Th>Review Load</Th>
-                <Th>Last Active</Th>
+                <Th>{t("governance.usersQueues.user")}</Th>
+                <Th>{t("governance.usersQueues.role")}</Th>
+                <Th>{t("governance.usersQueues.assignedCapabilities")}</Th>
+                <Th>{t("governance.usersQueues.openSuggestions")}</Th>
+                <Th>{t("governance.usersQueues.openBacklogItems")}</Th>
+                <Th>{t("governance.usersQueues.reviewLoad")}</Th>
+                <Th>{t("governance.usersQueues.lastActive")}</Th>
               </tr>
             </thead>
             <tbody>
@@ -61,21 +61,21 @@ export function UsersQueuesTab({
       </section>
 
       <section>
-        <h3 style={{ margin: "0 0 8px 0", fontSize: 14 }}>Queues</h3>
+        <h3 style={{ margin: "0 0 8px 0", fontSize: 14 }}>{t("governance.usersQueues.queuesTitle")}</h3>
         {loading ? (
-          <p style={{ color: "var(--ef-muted)" }}>Loading...</p>
+          <p style={{ color: "var(--ef-muted)" }}>{t("governance.common.loading")}</p>
         ) : queues.length === 0 ? (
-          <p style={{ color: "var(--ef-muted)" }}>{locale === "zh" ? "暂无队列" : "No queues yet."}</p>
+          <p style={{ color: "var(--ef-muted)" }}>{t("governance.usersQueues.noQueues")}</p>
         ) : (
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
             <thead style={{ background: "var(--ef-surface-soft)" }}>
               <tr>
-                <Th>Queue</Th>
-                <Th>Type</Th>
-                <Th>Open Items</Th>
-                <Th>Priority</Th>
-                <Th>Owner Group</Th>
-                <Th>Next Action</Th>
+                <Th>{t("governance.usersQueues.queue")}</Th>
+                <Th>{t("governance.common.type")}</Th>
+                <Th>{t("governance.usersQueues.openItems")}</Th>
+                <Th>{t("governance.usersQueues.priority")}</Th>
+                <Th>{t("governance.usersQueues.ownerGroup")}</Th>
+                <Th>{t("governance.usersQueues.nextAction")}</Th>
               </tr>
             </thead>
             <tbody>

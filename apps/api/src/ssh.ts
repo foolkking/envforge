@@ -193,10 +193,12 @@ export async function testSshConnectionWithContent(
 /**
  * 将 FullSystemSnapshot 转换为 StoredProbeSnapshot（兼容现有存储格式）
  */
-function fullSnapshotToStored(full: FullSystemSnapshot): StoredProbeSnapshot {
+export function fullSnapshotToStored(full: FullSystemSnapshot): StoredProbeSnapshot {
   return {
     agentId: full.agentId,
     collectedAt: full.collectedAt,
+    collection: full.collection,
+    collectors: full.collectors,
     system: full.system,
     software: full.software.map((s) => ({
       name: s.name,

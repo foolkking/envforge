@@ -121,6 +121,33 @@ test("known user package-manager items without catalog rules are reviewable medi
   assert.equal(pwgen?.band, "medium");
 });
 
+test("migration classifier consumes scoped Decision Engine preferences as advisory policy", () => {
+  const report = buildMigrationCandidateReport(snapshot([
+    { name: "eslint", version: "9", source: "npm", status: "installed", trust: "user" }
+  ]), {
+    decisionPolicy: {
+      userId: "classifier-user",
+      connectionId: "source-1",
+      preferences: [{
+        id: "pref-eslint",
+        userId: "classifier-user",
+        scope: "connection",
+        scopeId: "source-1",
+        pattern: "eslint",
+        preferredOutcome: "required-decision",
+        confidence: 0.93,
+        observations: 3,
+        createdAt: "2026-01-01T00:00:00.000Z",
+        updatedAt: "2026-01-02T00:00:00.000Z"
+      }]
+    }
+  });
+  const eslint = report.candidates.find((candidate) => candidate.name === "eslint");
+  assert.equal(eslint?.userPreferenceConfidence, 0.93);
+  assert.equal(eslint?.decisionOutcome, "required-decision");
+  assert.ok(eslint?.reviewReasons?.some((reason) => reason.includes("pref-eslint")));
+});
+
 test("decision model separates intent, readiness, risk, support, and default decision", () => {
   const report = buildMigrationCandidateReport(snapshot([
     { name: "custom-app", version: "directory", source: "opt", status: "installed", trust: "user" },

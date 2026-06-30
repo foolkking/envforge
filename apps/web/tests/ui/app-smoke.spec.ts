@@ -2,6 +2,7 @@ import { expect, test, type APIRequestContext, type Page } from "@playwright/tes
 
 const API_BASE = "http://127.0.0.1:5174";
 const PASSWORD = "SmokePass123!";
+const SMOKE_RUN_ID = process.env.ENVFORGE_SMOKE_RUN_ID ?? "local";
 
 function projectLocale(name: string): "zh" | "en" {
   return name.includes("-en-") ? "en" : "zh";
@@ -100,7 +101,7 @@ test.describe("EnvForge web smoke", () => {
     const locale = projectLocale(testInfo.project.name);
     const theme = projectTheme(testInfo.project.name);
     await applyClientPrefs(page, locale, theme);
-    const email = `codex-ui-admin-${testInfo.project.name}@example.test`;
+    const email = `codex-ui-admin-${SMOKE_RUN_ID}-${testInfo.project.name}@example.test`;
     const token = await createUser(request, email, "Codex UI Admin");
 
     await page.goto(`/#token=${encodeURIComponent(token)}`);
@@ -108,5 +109,15 @@ test.describe("EnvForge web smoke", () => {
     await page.goto("/app/admin");
     await assertHealthyPage(page);
     await expect(page.getByTestId("capability-admin-workbench")).toBeVisible();
+
+    const standardsTab = page.getByTestId("tab-standards");
+    await expect(standardsTab).toHaveAttribute("role", "tab");
+    await standardsTab.click();
+    await expect(standardsTab).toHaveAttribute("aria-selected", "true");
+    await expect(page.getByTestId("standards-tab")).toBeVisible();
+    await expect(page.getByRole("heading", {
+      name: locale === "zh" ? "版本化标准层" : "Versioned standards layer"
+    })).toBeVisible();
+    await assertHealthyPage(page);
   });
 });

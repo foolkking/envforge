@@ -1,4 +1,7 @@
+import { Button } from "./ui/Button";
+import { FilterPill } from "./ui/FilterPill";
 import React, { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import type { ExecutionTask } from "../api";
 import type { Locale } from "../lib/types";
 import type { LucideIcon } from "lucide-react";
@@ -74,6 +77,7 @@ export function EnvironmentInventoryPanel({
   onTaskUpdate?: (task: ExecutionTask) => void;
   pushLog?: (type: "info" | "success" | "error" | "cmd", text: string) => void;
 }) {
+  const { t } = useTranslation();
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [activeFilter, setActiveFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
@@ -134,37 +138,34 @@ export function EnvironmentInventoryPanel({
       {panelKind === "software" && rows.length > 10 ? (
         <div className="inventory-filters">
           <div className="filter-pills">
-            <button type="button" className={`filter-pill ${activeFilter === "all" ? "active" : ""}`} onClick={() => setActiveFilter("all")}>
-              {locale === "zh" ? "全部" : "All"} ({totalCount})
-            </button>
+            <FilterPill active={activeFilter === "all"} onClick={() => setActiveFilter("all")}>
+              {t("environmentInventory.all")} ({totalCount})
+            </FilterPill>
             {sourceFilters.slice(0, 12).map(([key, count]) => (
-              <button
+              <FilterPill
                 key={key}
-                type="button"
-                className={`filter-pill ${activeFilter === key ? "active" : ""}`}
+                active={activeFilter === key}
                 onClick={() => setActiveFilter(activeFilter === key ? "all" : key)}
               >
                 <span className="filter-pill-dot" style={{ background: getSourceStyle(filterKeyToSource[key] ?? key).fg }} />
                 {key} ({count})
-              </button>
+              </FilterPill>
             ))}
           </div>
           <input
             className="inventory-search"
             type="text"
-            placeholder={locale === "zh" ? "搜索环境证据" : "Search environment evidence"}
+            placeholder={t("environmentInventory.searchPlaceholder")}
             value={searchQuery}
             onChange={(event) => setSearchQuery(event.target.value)}
           />
           {hiddenByTrust > 0 ? (
             <label
               className="inventory-toggle"
-              title={locale === "zh"
-                ? "默认只显示更可能代表用户意图的能力证据。开启后会显示所有采集到的包和依赖证据。"
-                : "By default EnvForge shows evidence that is more likely to represent user intent. Toggle on to inspect all package and dependency evidence."}
+              title={t("environmentInventory.showAllTitle")}
             >
               <input type="checkbox" checked={showAll} onChange={(event) => setShowAll(event.target.checked)} />
-              <span>{locale === "zh" ? `显示全部证据（另有 ${hiddenByTrust} 项）` : `Show all evidence (${hiddenByTrust} hidden)`}</span>
+              <span>{t("environmentInventory.showAll", { count: hiddenByTrust })}</span>
             </label>
           ) : null}
         </div>
@@ -172,21 +173,15 @@ export function EnvironmentInventoryPanel({
 
       {panelKind === "software" ? (
         <div className="filter-status" style={{ marginBottom: 12, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-          <span>
-            {locale === "zh"
-              ? "这里是环境证据清单。移除软件能力必须进入能力移除计划，而不是直接卸载任意系统包。"
-              : "This is environment evidence. Removal must be handled through a reviewed Remove Capability Plan, not direct package uninstall."}
-          </span>
+          <span>{t("environmentInventory.removalNotice")}</span>
           {selected.size > 0 && authToken && connectionId ? (
-            <button
+            <Button variant="connection"
               type="button"
-              className="conn-btn"
+
               onClick={() => setShowRemovePanel((value) => !value)}
             >
-              {locale === "zh"
-                ? `创建移除计划（${selected.size}）`
-                : `Create Remove Plan (${selected.size})`}
-            </button>
+              {t("environmentInventory.createRemovePlan", { count: selected.size })}
+            </Button>
           ) : null}
         </div>
       ) : null}
@@ -216,9 +211,9 @@ export function EnvironmentInventoryPanel({
 
       {(activeFilter !== "all" || searchQuery) ? (
         <div className="filter-status">
-          {locale === "zh" ? `显示 ${filteredRows.length} / ${totalCount} 项` : `Showing ${filteredRows.length} / ${totalCount} items`}
+          {t("environmentInventory.showing", { shown: filteredRows.length, total: totalCount })}
           <button type="button" className="filter-clear" onClick={() => { setActiveFilter("all"); setSearchQuery(""); }}>
-            x {locale === "zh" ? "清除筛选" : "Clear filter"}
+            x {t("environmentInventory.clearFilter")}
           </button>
         </div>
       ) : null}
@@ -247,7 +242,7 @@ export function EnvironmentInventoryPanel({
                     className="inv-action-btn"
                     type="button"
                     onClick={() => setExpandedId(isExpanded ? null : row.id)}
-                    title={locale === "zh" ? "详情" : "Details"}
+                    title={t("environmentInventory.details")}
                   >
                     {isExpanded ? "^" : "v"}
                   </button>
@@ -256,9 +251,9 @@ export function EnvironmentInventoryPanel({
               {isExpanded ? (
                 <div className="inventory-detail">
                   <div className="inv-detail-grid">
-                    <div className="inv-detail-row"><span>{locale === "zh" ? "名称" : "Name"}</span><strong>{row.name}</strong></div>
-                    <div className="inv-detail-row"><span>{locale === "zh" ? "值" : "Value"}</span><span>{row.value}</span></div>
-                    <div className="inv-detail-row"><span>{locale === "zh" ? "来源" : "Source"}</span><span style={{ background: srcStyle.bg, color: srcStyle.fg, borderRadius: 4, padding: "1px 6px", fontSize: 12, fontWeight: 600 }}>{row.source}</span></div>
+                    <div className="inv-detail-row"><span>{t("environmentInventory.name")}</span><strong>{row.name}</strong></div>
+                    <div className="inv-detail-row"><span>{t("environmentInventory.value")}</span><span>{row.value}</span></div>
+                    <div className="inv-detail-row"><span>{t("environmentInventory.source")}</span><span style={{ background: srcStyle.bg, color: srcStyle.fg, borderRadius: 4, padding: "1px 6px", fontSize: 12, fontWeight: 600 }}>{row.source}</span></div>
                     {row.command ? <div className="inv-detail-row"><span>{commandLabel}</span><code>{row.command}</code></div> : null}
                   </div>
                 </div>
@@ -268,7 +263,7 @@ export function EnvironmentInventoryPanel({
         })}
         {hasMore ? (
           <div className="inventory-more-hint">
-            {locale === "zh" ? `还有 ${filteredRows.length - MAX_DISPLAY} 项未显示，请使用搜索或筛选缩小范围` : `${filteredRows.length - MAX_DISPLAY} more items not shown.`}
+            {t("environmentInventory.moreNotShown", { count: filteredRows.length - MAX_DISPLAY })}
           </div>
         ) : null}
       </div>

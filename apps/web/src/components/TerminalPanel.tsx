@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { ChevronDown, ChevronUp, Terminal, X } from "lucide-react";
 import type { ConnectionProfile, ExecutionTask } from "../api";
 import type { Locale } from "../lib/types";
@@ -30,7 +31,6 @@ const statusColor: Record<string, string> = {
 };
 
 export function TerminalPanel({
-  locale,
   activeTask,
   activeConnection,
   terminalLogs,
@@ -42,6 +42,7 @@ export function TerminalPanel({
   terminalLogs: TerminalLogEntry[];
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
   const [expanded, setExpanded] = useState(false);
   const [height, setHeight] = useState(300);
   const [width, setWidth] = useState(244);
@@ -55,7 +56,18 @@ export function TerminalPanel({
     if (bodyRef.current && expanded) bodyRef.current.scrollTop = bodyRef.current.scrollHeight;
   }, [terminalLogs.length, activeTask?.steps?.length, expanded]);
 
-  const headerText = getHeaderText(locale, activeTask, activeConnection);
+  let headerText: string = t("terminal.title");
+  if (activeTask?.status === "queued") {
+    headerText = t("terminal.queued", { count: activeTask.queuePosition ?? 0 });
+  } else if (activeTask?.kind === "batch-install" && activeTask.items) {
+    const done = activeTask.items.filter((item) => ["succeeded", "failed", "skipped"].includes(item.status)).length;
+    headerText = t("terminal.planProgress", { done, total: activeTask.items.length });
+  } else if (activeTask) {
+    const done = activeTask.steps.filter((step) => step.status === "succeeded").length;
+    headerText = t("terminal.taskProgress", { done, total: activeTask.steps.length });
+  } else if (activeConnection) {
+    headerText = `${activeConnection.fields.username ?? "user"}@${activeConnection.fields.host ?? "host"}:${activeConnection.fields.port ?? "22"}`;
+  }
   const logCount = terminalLogs.length + (activeTask?.steps?.length ?? 0);
 
   function handleResizeStart(e: React.MouseEvent) {
@@ -103,7 +115,7 @@ export function TerminalPanel({
         {logCount > 0 ? <span className="terminal-log-count">{logCount}</span> : null}
         <span className="terminal-toggle">{expanded ? <ChevronDown aria-hidden /> : <ChevronUp aria-hidden />}</span>
         {expanded && activeTask ? (
-          <span className="terminal-close" onClick={(e) => { e.stopPropagation(); onClose(); }} role="button" aria-label="Clear task">
+          <span className="terminal-close" onClick={(e) => { e.stopPropagation(); onClose(); }} role="button" aria-label={t("terminal.clearTask")}>
             <X aria-hidden />
           </span>
         ) : null}
@@ -127,7 +139,7 @@ export function TerminalPanel({
             <div className="terminal-log terminal-task-log">
               <div className="terminal-line terminal-info">
                 <span className="terminal-prefix">TASK</span>
-                <span>{activeTask.kind === "batch-install" ? (locale === "zh" ? "环境计划应用任务" : "Environment plan apply task") : (locale === "zh" ? "执行任务" : "Execution task")}</span>
+                <span>{activeTask.kind === "batch-install" ? t("terminal.planApplyTask") : t("terminal.executionTask")}</span>
               </div>
               {activeTask.kind === "batch-install" ? renderBatchTask(activeTask) : renderSingleTask(activeTask)}
             </div>
@@ -136,31 +148,13 @@ export function TerminalPanel({
           {terminalLogs.length === 0 && !activeTask ? (
             <div className="terminal-empty">
               <Terminal aria-hidden />
-              <p>{locale === "zh" ? "连接、采集、计划应用、验证和回滚日志会显示在这里。" : "Connection, scan, plan apply, verify, and rollback logs appear here."}</p>
+              <p>{t("terminal.empty")}</p>
             </div>
           ) : null}
         </div>
       ) : null}
     </div>
   );
-}
-
-function getHeaderText(locale: Locale, activeTask: ExecutionTask | null, activeConnection: ConnectionProfile | null) {
-  if (activeTask) {
-    if (activeTask.status === "queued") {
-      return locale === "zh" ? `任务排队中，前方 ${activeTask.queuePosition ?? 0} 个` : `Task queued, ${activeTask.queuePosition ?? 0} ahead`;
-    }
-    if (activeTask.kind === "batch-install" && activeTask.items) {
-      const done = activeTask.items.filter((item) => ["succeeded", "failed", "skipped"].includes(item.status)).length;
-      return `${locale === "zh" ? "计划应用" : "Plan apply"} · ${done}/${activeTask.items.length}`;
-    }
-    const done = activeTask.steps.filter((step) => step.status === "succeeded").length;
-    return `${locale === "zh" ? "任务" : "Task"} · ${done}/${activeTask.steps.length}`;
-  }
-  if (activeConnection) {
-    return `${activeConnection.fields.username ?? "user"}@${activeConnection.fields.host ?? "host"}:${activeConnection.fields.port ?? "22"}`;
-  }
-  return locale === "zh" ? "终端日志" : "Terminal log";
 }
 
 function renderBatchTask(task: ExecutionTask) {

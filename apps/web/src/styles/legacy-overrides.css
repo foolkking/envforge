@@ -1,0 +1,289 @@
+/* Late legacy responsive, dark-mode, and account overrides.
+ * Extracted from the legacy monolith without changing selector contents. */
+
+/* ── 暗色模式 ─────────────────────────────────────────────── */
+
+
+
+/* ── 响应式移动端适配增强 ─────────────────────────────────── */
+
+@media (max-width: 768px) {
+  .app-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar {
+    border-right: 0;
+    border-bottom: 1px solid var(--ef-border);
+    padding: 16px;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+
+  .brand { margin-bottom: 12px; }
+  .brand strong { font-size: 18px; }
+
+  .main-nav {
+    display: flex;
+    gap: 4px;
+    overflow-x: auto;
+  }
+
+  .main-nav button {
+    font-size: 13px;
+    min-height: 40px;
+    padding: 0 14px;
+    white-space: nowrap;
+  }
+
+  .workspace {
+    padding: 16px;
+  }
+
+  .topbar {
+    margin-bottom: 20px;
+  }
+
+  .topbar h1 {
+    font-size: 28px;
+  }
+
+  .two-panel-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .config-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .config-file-list {
+    max-height: 180px;
+  }
+
+  .toolbar-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .toolbar-row button {
+    width: 100%;
+  }
+
+  .connection-stage {
+    grid-template-columns: 1fr;
+  }
+
+  .connection-fields {
+    grid-template-columns: 1fr;
+  }
+
+  .machine-hw-inline {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .terminal-panel {
+    width: 100%;
+  }
+
+  .playbook-page {
+    grid-template-columns: 1fr;
+    height: auto;
+  }
+
+  .playbook-sidebar {
+    border-right: 0;
+    border-bottom: 1px solid var(--ef-border);
+    max-height: 180px;
+  }
+
+  .catalog-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .market-header-actions {
+    flex-wrap: wrap;
+  }
+}
+
+
+
+/* ── Account panel (auth-and-ecosystem spec P1.13) ─────────────────────── */
+
+.account-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.account-panel .settings-section {
+  background: var(--ef-surface);
+  border: 1px solid var(--ef-border);
+  border-radius: 10px;
+  padding: 20px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.account-panel .settings-section h3 {
+  font-size: 18px;
+  margin: 0 0 8px 0;
+  color: #111827;
+  border-bottom: 1px solid #f3f4f6;
+  padding-bottom: 8px;
+}
+
+.account-panel .settings-section h4 {
+  font-size: 14px;
+  margin: 0;
+  color: #374151;
+  font-weight: 600;
+}
+
+.account-panel .form-grid label {
+  display: grid;
+  gap: 4px;
+  font-size: 14px;
+  color: #374151;
+}
+
+.account-panel .form-grid label span {
+  font-weight: 500;
+}
+
+.account-panel .form-grid textarea {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid var(--ef-border-strong);
+  border-radius: 8px;
+  font-family: inherit;
+  resize: vertical;
+}
+
+.account-panel .form-grid select {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid var(--ef-border-strong);
+  border-radius: 8px;
+  background: var(--ef-surface);
+}
+
+.identity-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.identity-row {
+  display: grid;
+  grid-template-columns: 1fr 2fr auto;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  background: #f9fafb;
+  border-radius: 8px;
+}
+
+.identity-provider {
+  font-weight: 600;
+  text-transform: capitalize;
+  color: #111827;
+}
+
+.identity-email {
+  color: #6b7280;
+  font-size: 14px;
+}
+
+.notification-prefs {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.notification-prefs label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.activity-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+  margin: 0;
+}
+
+.activity-grid > div {
+  background: #f9fafb;
+  border-radius: 8px;
+  padding: 12px 16px;
+}
+
+.activity-grid dt {
+  font-size: 12px;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.activity-grid dd {
+  font-size: 24px;
+  font-weight: 700;
+  color: #111827;
+  margin: 4px 0 0 0;
+}
+
+.settings-danger {
+  border: 2px solid #fecaca !important;
+  background: #fef2f2 !important;
+}
+
+.settings-danger h3 {
+  color: #b91c1c;
+}
+
+
+
+.inbox-badge { position: absolute; top: -4px; right: -4px; background: #ef4444; color: white; font-size: 10px; font-weight: 800; border-radius: 999px; padding: 2px 6px; border: 2px solid #ffffff; }
+
+
+.config-error-banner {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+  margin: 12px 0;
+}
+
+.config-empty {
+  align-items: center;
+  color: var(--ef-muted);
+  display: grid;
+  gap: 8px;
+  justify-items: center;
+  padding: 28px 18px;
+  text-align: center;
+}
+
+.config-empty strong {
+  color: var(--ef-text);
+  font-size: 14px;
+}
+
+.config-empty span {
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.config-cat-system { background: #fee2e2; color: #991b1b; }
+.config-cat-user { background: #dbeafe; color: #1e40af; }
+.config-cat-app { background: #dcfce7; color: #166534; }

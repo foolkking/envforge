@@ -28,8 +28,18 @@ export interface CollectorOutput {
   id: string;
   label: string;
   status: "available" | "partial" | "unavailable";
+  completeness: number;
+  commands: CollectorCommandEvidence[];
+  collectedAt: string;
   data: unknown;
   issues: Array<{ code: string; message: string; needsPrivilege?: boolean }>;
+}
+
+export interface CollectorCommandEvidence {
+  command: string;
+  exitCode?: number;
+  timedOut?: boolean;
+  stderr?: string;
 }
 
 export interface SnapshotSummary {
@@ -275,6 +285,25 @@ export interface AgentProbeResult {
   reachable: true;
   agentId: string;
   collectedAt: string;
+  collection?: {
+    status: "ok" | "partial" | "failed";
+    completeness: number;
+    commands: CollectorCommandEvidence[];
+    stderr?: string;
+    errors: string[];
+    timedOut: boolean;
+  };
+  collectors?: Record<string, {
+    id: string;
+    status: "ok" | "partial" | "failed";
+    completeness: number;
+    commands: CollectorCommandEvidence[];
+    stdout?: string;
+    stderr?: string;
+    errors: string[];
+    collectedAt: string;
+    data: string[];
+  }>;
   system: AgentSystemInfo;
   software: TargetSoftware[];
   configChecklist: SystemConfigItem[];
@@ -1434,21 +1463,6 @@ export async function executeProfile(
   void dryRun;
   void vars;
   throw new Error("Legacy direct execute is disabled. Create an Environment Plan and apply it after review.");
-  /*
-  const response = await fetch("/api/legacy-disabled/execute", {
-    method: "POST",
-    headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ connectionId, profileId, dryRun, vars })
-  });
-  // 400 with fieldErrors means the form failed validation — surface that to the caller
-  if (response.status === 400) {
-    const data = await response.json().catch(() => ({}));
-    if (data && typeof data === "object" && "fieldErrors" in data) {
-      return { taskId: "", steps: [], fieldErrors: data.fieldErrors as Record<string, string> };
-    }
-  }
-  return readJsonOrThrow<{ taskId: string; steps: TaskStep[] }>(response, "Execute failed");
-  */
 }
 
 // ─── Vars schema (configurable Playbooks) ────────────────────────────────
@@ -1549,14 +1563,6 @@ export async function batchExecute(
   void catalogIds;
   void dryRun;
   throw new Error("Legacy batch execute is disabled. Generate a Rebuild Plan from selected capabilities.");
-  /*
-  const response = await fetch("/api/legacy-disabled/batch-execute", {
-    method: "POST",
-    headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ connectionId, catalogIds, dryRun })
-  });
-  return readJsonOrThrow<{ taskId: string; totalItems: number; items: BatchItem[]; plan?: EnvironmentPlan; planType?: "rebuild" }>(response, "Batch execute failed");
-  */
 }
 
 export type EnvironmentPlanType = "migration" | "rebuild" | "change" | "remove" | "repair" | "imported-recipe";
@@ -1582,7 +1588,8 @@ export interface EnvironmentPlanAction {
   requiresSudo: boolean;
   changesTarget: boolean;
   canRollback: boolean;
-  risk: "low" | "medium" | "high";
+  risk: "safe" | "review" | "privileged" | "dangerous" | "low" | "medium" | "high";
+  applySpec?: { command?: string; path?: string; requiresSudo?: boolean; retries?: number; artifactId?: string };
   verify?: string;
   rollback?: string;
   notes?: string[];
@@ -1618,7 +1625,10 @@ export type PlanApprovalKind =
   | "firewall-lockout-confirm"
   | "identity-provider-confirm"
   | "backup-restore-confirm"
-  | "manual-dns-confirm";
+  | "manual-dns-confirm"
+  | "target-conflict-confirm"
+  | "partial-snapshot-confirm"
+  | "high-risk-command-confirm";
 
 export interface PlanRequiredApproval {
   id: string;
@@ -1649,6 +1659,25 @@ export interface PlanApprovalState {
   approvals?: Array<{ itemId: string; gateId: string; ackedAt: string }>;
 }
 
+export interface EnvironmentPlanArtifact {
+  id: string;
+  kind: "config" | "recipe" | "data-manifest" | "script" | "report";
+  contentSha256: string;
+  canonicalJsonSha256?: string;
+  storageRef: string;
+  createdAt: string;
+  redactedPreview?: string;
+}
+
+export interface PlanApprovalRecord {
+  planHash: string;
+  approvedBy: string;
+  approvedAt: string;
+  acceptedRisks: string[];
+  acceptedConflicts: string[];
+  confirmedGates: string[];
+}
+
 export interface EnvironmentPlan {
   id: string;
   type: EnvironmentPlanType;
@@ -1657,6 +1686,13 @@ export interface EnvironmentPlan {
   sourceHost?: string;
   targetConnectionId?: string;
   generatedAt: string;
+  immutable?: true;
+  planHash?: string;
+  artifacts?: EnvironmentPlanArtifact[];
+  approvedPlanHash?: string;
+  approvedAt?: string;
+  approvedBy?: string;
+  approvalRecord?: PlanApprovalRecord;
   summary: {
     totalItems: number;
     totalActions: number;
@@ -1670,6 +1706,8 @@ export interface EnvironmentPlan {
     reasons: string[];
     conflicts?: PlanReviewConflict[];
     approvalsRequired?: PlanRequiredApproval[];
+    snapshotCompleteness?: number;
+    partialSnapshot?: boolean;
   };
   approvals?: PlanApprovalState;
   items: EnvironmentPlanItem[];
@@ -1683,8 +1721,7 @@ export interface CreateEnvironmentPlanInput {
     | { kind: "recipe"; yaml: string; name?: string }
     | { kind: "remove-request"; packages: string[]; source?: string; managedByEnvForge?: boolean; preserveData?: boolean }
     | { kind: "config-change"; path: string; content: string }
-    | { kind: "repair-failures"; failures: RepairFailureInput[]; name?: string; sourcePlanId?: string }
-    | { kind: "existing-plan"; plan: EnvironmentPlan };
+    | { kind: "repair-failures"; failures: RepairFailureInput[]; name?: string; sourcePlanId?: string };
   targetConnectionId?: string;
   sourceConnectionId?: string;
 }
@@ -1733,7 +1770,7 @@ export async function createPlanFromMigrationSession(
 
 export async function reviewEnvironmentPlan(
   token: string,
-  plan: EnvironmentPlan,
+  planId: string,
   options: {
     decision?: "approved" | "rejected";
     note?: string;
@@ -1742,10 +1779,10 @@ export async function reviewEnvironmentPlan(
     acknowledgedApprovals?: Array<{ itemId: string; gateId: string }>;
   } = {}
 ): Promise<{ plan: EnvironmentPlan }> {
-  const response = await fetch(`/api/plans/${encodeURIComponent(plan.id)}/review`, {
+  const response = await fetch(`/api/plans/${encodeURIComponent(planId)}/review`, {
     method: "POST",
     headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ decision: options.decision ?? "approved", note: options.note, plan, ...options })
+    body: JSON.stringify({ decision: options.decision ?? "approved", note: options.note, ...options })
   });
   return readJsonOrThrow(response, "Review Environment Plan failed");
 }
@@ -1760,19 +1797,21 @@ export interface ApplyGateRefusal {
 
 export async function applyEnvironmentPlan(
   token: string,
-  plan: EnvironmentPlan,
-  dryRun: boolean,
-  acknowledged = false,
-  acks: {
-    acknowledgedRisks?: Array<{ itemId: string; risks: string[] }>;
-    acknowledgedConflicts?: Array<{ conflictId: string; resolutionId?: string }>;
-    acknowledgedApprovals?: Array<{ itemId: string; gateId: string }>;
-  } = {}
-): Promise<{ taskId?: string; dryRun: boolean; plan: EnvironmentPlan; targets?: Array<{ connectionId: string; label: string; taskId: string }>; gate?: ApplyGateRefusal }> {
-  const response = await fetch(`/api/plans/${encodeURIComponent(plan.id)}/apply`, {
+  planId: string,
+  dryRunOrOptions: boolean | { dryRun?: boolean; targetConnectionId?: string; idempotencyKey?: string }
+): Promise<{ dryRun: boolean; plan: EnvironmentPlan; execution: { ok: boolean; planId: string; planHash: string; actionRuns: Array<{ id: string; planId: string; planHash: string; actionId: string; status: string; dryRun: boolean }> } }> {
+  const options = typeof dryRunOrOptions === "boolean" ? { dryRun: dryRunOrOptions } : dryRunOrOptions;
+  const payload = Object.fromEntries(
+    Object.entries({
+      dryRun: options.dryRun,
+      targetConnectionId: options.targetConnectionId,
+      idempotencyKey: options.idempotencyKey
+    }).filter(([, value]) => value !== undefined)
+  );
+  const response = await fetch(`/api/plans/${encodeURIComponent(planId)}/apply`, {
     method: "POST",
     headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ plan, dryRun, acknowledged, ...acks })
+    body: JSON.stringify(payload)
   });
   return readJsonOrThrow(response, "Apply Environment Plan failed");
 }
@@ -1812,10 +1851,38 @@ export interface PlanListEntry {
   name: string;
   sourceHost?: string;
   targetConnectionId?: string;
+  planHash?: string;
+  approvedPlanHash?: string;
+  artifactCount: number;
+  lastDryRunAt?: string;
+  lastDryRunResult?: PlanDryRunResult;
   createdAt: string;
   updatedAt: string;
   verifyResults: PlanVerifyResult[];
   rollbackResults: PlanRollbackResult[];
+}
+
+export interface PlanDryRunResult {
+  ok: boolean;
+  planHash: string;
+  actionRunIds: string[];
+  completedAt: string;
+}
+
+export interface PlanActionRunRecord {
+  id: string;
+  planId: string;
+  planHash: string;
+  itemId: string;
+  actionId: string;
+  targetConnectionId: string;
+  dryRun: boolean;
+  status: string;
+  startedAt: string;
+  endedAt?: string;
+  exitCode?: number;
+  commandSummaries: Array<{ phase: "snapshot" | "apply" | "verify" | "rollback"; command: string }>;
+  error?: string;
 }
 
 export async function listEnvironmentPlans(
@@ -1832,7 +1899,15 @@ export async function listEnvironmentPlans(
   return body.plans;
 }
 
-export async function fetchEnvironmentPlan(token: string, id: string): Promise<{ plan: EnvironmentPlan; verifyResults: PlanVerifyResult[]; rollbackResults: PlanRollbackResult[]; history: PlanHistoryEvent[] }> {
+export async function fetchEnvironmentPlan(token: string, id: string): Promise<{
+  plan: EnvironmentPlan;
+  lastDryRunAt?: string;
+  lastDryRunResult?: PlanDryRunResult;
+  actionRuns: PlanActionRunRecord[];
+  verifyResults: PlanVerifyResult[];
+  rollbackResults: PlanRollbackResult[];
+  history: PlanHistoryEvent[];
+}> {
   const response = await fetch(`/api/plans/${encodeURIComponent(id)}`, {
     headers: { "Authorization": `Bearer ${token}` }
   });
@@ -1870,7 +1945,7 @@ export async function repairFromVerify(token: string, planId: string): Promise<{
 }
 
 export async function fetchEnvironmentPlanReport(token: string, id: string): Promise<string> {
-  const response = await fetch(`/api/plans/${encodeURIComponent(id)}/report`, {
+  const response = await fetch(`/api/plans/${encodeURIComponent(id)}/report?format=markdown`, {
     headers: { "Authorization": `Bearer ${token}` }
   });
   const body = await readJsonOrThrow<{ report: string }>(response, "Fetch Environment Plan report failed");
@@ -1883,24 +1958,6 @@ export async function createRebuildPlan(token: string, connectionId: string, cat
     targetConnectionId: connectionId,
     source: { kind: "capability-selection", capabilityIds: catalogIds }
   });
-}
-
-export async function applyRebuildPlan(
-  token: string,
-  connectionId: string,
-  plan: EnvironmentPlan,
-  options: { dryRun?: boolean; acknowledged?: boolean } = {}
-): Promise<{ taskId: string; dryRun: boolean; planType: "rebuild"; plan: EnvironmentPlan; totalItems: number; items: BatchItem[] }> {
-  void connectionId;
-  const result = await applyEnvironmentPlan(token, plan, options.dryRun ?? true, options.acknowledged === true);
-  return {
-    taskId: result.taskId ?? "",
-    dryRun: result.dryRun,
-    planType: "rebuild",
-    plan: result.plan,
-    totalItems: result.plan.summary.totalItems,
-    items: []
-  };
 }
 
 export async function cancelTaskRequest(token: string, taskId: string): Promise<void> {
@@ -2167,14 +2224,6 @@ export async function multiExecute(token: string, input: {
   void token;
   void input;
   throw new Error("Legacy direct YAML execution is disabled. Import the recipe as an Environment Plan.");
-  /*
-  const response = await fetch("/api/legacy-disabled/multi-execute", {
-    method: "POST",
-    headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
-    body: JSON.stringify(input)
-  });
-  return readJsonOrThrow<MultiExecuteResult>(response, "Multi-execute failed");
-  */
 }
 
 export async function fetchTask(token: string, taskId: string): Promise<ExecutionTask> {
@@ -2317,30 +2366,6 @@ export async function createConfigMigrationPlan(
   return readJsonOrThrow<{ plan: EnvironmentPlan }>(response, "Create config migration plan failed");
 }
 
-export async function applyConfigChangePlan(
-  token: string,
-  connectionId: string,
-  plan: EnvironmentPlan,
-  path: string,
-  content: string,
-  acknowledged = true
-): Promise<{ success: boolean; message: string; plan: EnvironmentPlan; validation: ConfigValidationResult; rollback?: { success: boolean; message: string; validation?: ConfigValidationResult } }> {
-  const reviewedPlan = { ...plan, status: "approved" as const };
-  const response = await fetch(`/api/plans/${encodeURIComponent(plan.id)}/apply`, {
-    method: "POST",
-    headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ plan: reviewedPlan, path, content, acknowledged, dryRun: false })
-  });
-  const result = await readJsonOrThrow<{ plan: EnvironmentPlan; validation: ConfigValidationResult; write?: { message?: string }; rollback?: { success: boolean; message: string; validation?: ConfigValidationResult } }>(response, "Apply config change plan failed");
-  return {
-    success: result.validation.status !== "failed",
-    message: result.write?.message ?? (result.validation.status === "failed" ? "Config Change Plan failed validation." : "Config Change Plan applied and validated."),
-    plan: result.plan,
-    validation: result.validation,
-    rollback: result.rollback
-  };
-}
-
 export async function validateRemoteConfigFile(token: string, connectionId: string, path: string): Promise<ConfigValidationResult> {
   const response = await fetch(`/api/connections/${encodeURIComponent(connectionId)}/configs/validate`, {
     method: "POST",
@@ -2348,19 +2373,6 @@ export async function validateRemoteConfigFile(token: string, connectionId: stri
     body: JSON.stringify({ path })
   });
   return readJsonOrThrow<ConfigValidationResult>(response, "Validate config file failed");
-}
-
-export async function rollbackRemoteConfigFile(
-  token: string,
-  connectionId: string,
-  path: string
-): Promise<{ success: boolean; message: string; validation?: ConfigValidationResult }> {
-  const response = await fetch(`/api/connections/${encodeURIComponent(connectionId)}/configs/rollback`, {
-    method: "POST",
-    headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ path })
-  });
-  return readJsonOrThrow<{ success: boolean; message: string; validation?: ConfigValidationResult }>(response, "Rollback config file failed");
 }
 
 export async function fetchConfigFileDiff(
@@ -2914,21 +2926,6 @@ export async function fetchMigrationApplyReadiness(token: string, connectionId: 
   return body.readiness;
 }
 
-export async function runMigrationApply(
-  token: string,
-  connectionId: string,
-  options: { restartServices?: boolean; rollbackOnFailure?: boolean; requireAllActions?: boolean } = {}
-): Promise<MigrationApplyResult> {
-  const response = await fetch(`/api/connections/${encodeURIComponent(connectionId)}/migration-plan/apply`, {
-    method: "POST",
-    headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
-    body: JSON.stringify(options)
-  });
-  const body = await readJsonOrThrow<{ result: MigrationApplyResult }>(response, "Run migration apply failed");
-  return body.result;
-}
-
-
 // ── 软件卸载 ──────────────────────────────────────────────
 
 export async function createMigrationSession(
@@ -3061,19 +3058,6 @@ export async function fetchMigrationSessionApplyReadiness(
   return readJsonOrThrow<{ session: MigrationSessionView; readiness: MigrationSessionApplyReadiness }>(response, "Fetch migration apply readiness failed");
 }
 
-export async function applyMigrationSession(
-  token: string,
-  sessionId: string,
-  input: { restartServices?: boolean; rollbackOnFailure?: boolean; requireAllActions?: boolean } = {}
-): Promise<{ session: MigrationSessionView; result: MigrationApplyResult }> {
-  const response = await fetch(`/api/migration/sessions/${encodeURIComponent(sessionId)}/apply`, {
-    method: "POST",
-    headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
-    body: JSON.stringify(input)
-  });
-  return readJsonOrThrow<{ session: MigrationSessionView; result: MigrationApplyResult }>(response, "Apply migration session failed");
-}
-
 export async function verifyMigrationSession(
   token: string,
   sessionId: string
@@ -3125,7 +3109,7 @@ export async function createRemoveCapabilityPlan(
   packages: string[],
   source: string,
   options: { managedByEnvForge?: boolean; preserveData?: boolean } = {}
-): Promise<{ plan: RemoveCapabilityPlan }> {
+): Promise<{ plan: EnvironmentPlan }> {
   const response = await fetch(`/api/connections/${encodeURIComponent(connectionId)}/remove-capability-plan`, {
     method: "POST",
     headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
@@ -3136,26 +3120,7 @@ export async function createRemoveCapabilityPlan(
       preserveData: options.preserveData
     })
   });
-  return readJsonOrThrow<{ plan: RemoveCapabilityPlan }>(response, "Create remove plan failed");
-}
-
-export async function applyRemoveCapabilityPlan(
-  token: string,
-  connectionId: string,
-  plan: RemoveCapabilityPlan,
-  options: { dryRun?: boolean; acknowledged?: boolean; unmanagedRiskAcknowledged?: boolean } = {}
-): Promise<{ taskId: string; dryRun: boolean; planType: "remove"; packages: string[] }> {
-  const response = await fetch(`/api/connections/${encodeURIComponent(connectionId)}/apply-remove-plan`, {
-    method: "POST",
-    headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      plan,
-      dryRun: options.dryRun,
-      acknowledged: options.acknowledged,
-      unmanagedRiskAcknowledged: options.unmanagedRiskAcknowledged
-    })
-  });
-  return readJsonOrThrow<{ taskId: string; dryRun: boolean; planType: "remove"; packages: string[] }>(response, "Apply remove plan failed");
+  return readJsonOrThrow<{ plan: EnvironmentPlan }>(response, "Create remove plan failed");
 }
 
 /** @deprecated Direct package uninstall is no longer part of the product flow. */
@@ -3263,8 +3228,8 @@ export interface Schedule {
   id: string;
   userId: string;
   name: string;
-  playbookId?: string;
-  catalogId?: string;
+  planId?: string;
+  approvedPlanHash?: string;
   connectionIds: string[];
   tags: string[];
   cron: string;
@@ -3280,24 +3245,6 @@ export interface Schedule {
 export async function fetchSchedules(token: string): Promise<Schedule[]> {
   const r = await fetch("/api/schedules", { headers: { "Authorization": `Bearer ${token}` } });
   return (await readJsonOrThrow<{ schedules: Schedule[] }>(r, "Fetch schedules failed")).schedules;
-}
-
-export async function createSchedule(token: string, input: Partial<Schedule>): Promise<Schedule> {
-  const r = await fetch("/api/schedules", {
-    method: "POST",
-    headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
-    body: JSON.stringify(input)
-  });
-  return (await readJsonOrThrow<{ schedule: Schedule }>(r, "Create schedule failed")).schedule;
-}
-
-export async function updateSchedule(token: string, id: string, input: Partial<Schedule>): Promise<Schedule> {
-  const r = await fetch(`/api/schedules/${encodeURIComponent(id)}`, {
-    method: "PATCH",
-    headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
-    body: JSON.stringify(input)
-  });
-  return (await readJsonOrThrow<{ schedule: Schedule }>(r, "Update schedule failed")).schedule;
 }
 
 export async function deleteSchedule(token: string, id: string): Promise<void> {

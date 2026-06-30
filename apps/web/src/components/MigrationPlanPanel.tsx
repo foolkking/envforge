@@ -1,4 +1,6 @@
+import { Button } from "./ui/Button";
 import React, { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { AlertTriangle, CheckCircle2, Download, FileCode2, ListChecks, Play, RefreshCw, ShieldAlert, ShieldCheck } from "lucide-react";
 import {
   dryRunMigrationPlan,
@@ -8,13 +10,11 @@ import {
   fetchMigrationPlan,
   fetchMigrationReviewQueue,
   fetchMigrationVerifyPreview,
-  runMigrationApply,
   runMigrationVerify,
   saveMigrationDecision,
   saveMigrationDecisionsBulk,
   type ConfidenceBand,
   type MigrationApplyReadiness,
-  type MigrationApplyResult,
   type MigrationCandidate,
   type MigrationCandidateReport,
   type MigrationDryRunResult,
@@ -28,8 +28,26 @@ import type { Locale } from "../lib/types";
 
 const PAGE_SIZE = 30;
 
+const BAND_LABEL_KEYS = {
+  high: "migrationPlan.bands.high",
+  medium: "migrationPlan.bands.medium",
+  low: "migrationPlan.bands.low",
+  ignore: "migrationPlan.bands.ignore"
+} as const satisfies Record<ConfidenceBand, string>;
+
+const CLASS_LABEL_KEYS = {
+  "managed-software": "migrationPlan.classes.managedSoftware",
+  "system-baseline": "migrationPlan.classes.systemBaseline",
+  "user-dotfile": "migrationPlan.classes.userDotfile",
+  "service-config": "migrationPlan.classes.serviceConfig",
+  "language-global-package": "migrationPlan.classes.languageGlobalPackage",
+  "container-workload": "migrationPlan.classes.containerWorkload",
+  "manual-install": "migrationPlan.classes.manualInstall",
+  "unknown-review": "migrationPlan.classes.unknownReview",
+  "do-not-migrate": "migrationPlan.classes.doNotMigrate"
+} as const satisfies Record<MigrationCandidate["migrationClass"], string>;
+
 export function MigrationPlanPanel({
-  locale,
   authToken,
   connectionId,
   pushLog
@@ -39,6 +57,7 @@ export function MigrationPlanPanel({
   connectionId: string;
   pushLog?: (type: "info" | "success" | "error" | "cmd", text: string) => void;
 }) {
+  const { t } = useTranslation();
   const [report, setReport] = useState<MigrationCandidateReport | null>(null);
   const [plan, setPlan] = useState<MigrationPlan | null>(null);
   const [reviewQueue, setReviewQueue] = useState<MigrationReviewQueueItem[]>([]);
@@ -51,12 +70,9 @@ export function MigrationPlanPanel({
   const [verifyPreview, setVerifyPreview] = useState<MigrationVerificationPreview | null>(null);
   const [verifyRun, setVerifyRun] = useState<MigrationVerificationRunResult | null>(null);
   const [readiness, setReadiness] = useState<MigrationApplyReadiness | null>(null);
-  const [applyResult, setApplyResult] = useState<MigrationApplyResult | null>(null);
-  const [allowServiceRestart, setAllowServiceRestart] = useState(false);
   const [loading, setLoading] = useState(false);
   const [dryRunning, setDryRunning] = useState(false);
   const [verifyLoading, setVerifyLoading] = useState(false);
-  const [applyRunning, setApplyRunning] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -76,9 +92,9 @@ export function MigrationPlanPanel({
       setPlan(nextPlan);
       setReviewQueue(queue);
       setSelectedCandidateIds((prev) => new Set([...prev].filter((id) => nextReport.candidates.some((candidate) => candidate.id === id))));
-      pushLog?.("success", locale === "zh" ? "迁移候选与计划已生成" : "Migration candidates and plan generated");
+      pushLog?.("success", t("migrationPlan.logs.loaded"));
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Failed to load migration plan";
+      const msg = err instanceof Error ? err.message : t("migrationPlan.errors.load");
       setError(msg);
       pushLog?.("error", msg);
     } finally {
@@ -92,7 +108,7 @@ export function MigrationPlanPanel({
       await saveMigrationDecision(authToken, connectionId, candidateId, decision);
       await load();
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Save decision failed";
+      const msg = err instanceof Error ? err.message : t("migrationPlan.errors.save");
       setError(msg);
       pushLog?.("error", msg);
     }
@@ -106,9 +122,9 @@ export function MigrationPlanPanel({
       await saveMigrationDecisionsBulk(authToken, connectionId, ids, decision);
       setSelectedCandidateIds(new Set());
       await load();
-      pushLog?.("success", locale === "zh" ? `已批量更新 ${ids.length} 个候选项` : `Updated ${ids.length} candidates`);
+      pushLog?.("success", t("migrationPlan.logs.bulkUpdated", { count: ids.length }));
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Bulk decision failed";
+      const msg = err instanceof Error ? err.message : t("migrationPlan.errors.bulk");
       setError(msg);
       pushLog?.("error", msg);
     }
@@ -120,9 +136,9 @@ export function MigrationPlanPanel({
       pushLog?.("cmd", `envforge export migration-plan --format ${format}`);
       const text = await exportMigrationPlan(authToken, connectionId, format);
       setExportText(text);
-      pushLog?.("success", locale === "zh" ? `${format} 导出已生成` : `${format} export generated`);
+      pushLog?.("success", t("migrationPlan.logs.exportGenerated", { format }));
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Export failed";
+      const msg = err instanceof Error ? err.message : t("migrationPlan.errors.export");
       setError(msg);
       pushLog?.("error", msg);
     }
@@ -135,9 +151,9 @@ export function MigrationPlanPanel({
       pushLog?.("cmd", "envforge migration dry-run");
       const result = await dryRunMigrationPlan(authToken, connectionId);
       setDryRun(result);
-      pushLog?.("success", locale === "zh" ? "预演已完成，未修改远程机器" : "Dry-run completed; remote host was not modified");
+      pushLog?.("success", t("migrationPlan.logs.dryRunDone"));
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Dry-run failed";
+      const msg = err instanceof Error ? err.message : t("migrationPlan.errors.dryRun");
       setError(msg);
       pushLog?.("error", msg);
     } finally {
@@ -152,9 +168,9 @@ export function MigrationPlanPanel({
       pushLog?.("cmd", "envforge migration verify --preview");
       const preview = await fetchMigrationVerifyPreview(authToken, connectionId);
       setVerifyPreview(preview);
-      pushLog?.("success", locale === "zh" ? "验证预览已生成" : "Verify preview generated");
+      pushLog?.("success", t("migrationPlan.logs.verifyPreviewDone"));
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Verify preview failed";
+      const msg = err instanceof Error ? err.message : t("migrationPlan.errors.verifyPreview");
       setError(msg);
       pushLog?.("error", msg);
     } finally {
@@ -169,9 +185,9 @@ export function MigrationPlanPanel({
       pushLog?.("cmd", "envforge migration verify --run");
       const result = await runMigrationVerify(authToken, connectionId);
       setVerifyRun(result);
-      pushLog?.(result.ok ? "success" : "error", result.ok ? "Verification passed" : "Verification has failures");
+      pushLog?.(result.ok ? "success" : "error", result.ok ? t("migrationPlan.logs.verificationPassed") : t("migrationPlan.logs.verificationFailed"));
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Verify run failed";
+      const msg = err instanceof Error ? err.message : t("migrationPlan.errors.verifyRun");
       setError(msg);
       pushLog?.("error", msg);
     } finally {
@@ -184,33 +200,11 @@ export function MigrationPlanPanel({
     try {
       const result = await fetchMigrationApplyReadiness(authToken, connectionId);
       setReadiness(result);
-      pushLog?.(result.ready ? "success" : "info", result.ready ? "Apply readiness passed" : "Apply readiness has blockers");
+      pushLog?.(result.ready ? "success" : "info", result.ready ? t("migrationPlan.logs.readinessPassed") : t("migrationPlan.logs.readinessBlocked"));
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Apply readiness failed";
+      const msg = err instanceof Error ? err.message : t("migrationPlan.errors.readiness");
       setError(msg);
       pushLog?.("error", msg);
-    }
-  }
-
-  async function handleApply() {
-    setError("");
-    setApplyRunning(true);
-    try {
-      pushLog?.("cmd", `envforge migration apply${allowServiceRestart ? " --allow-service-restart" : ""}`);
-      const result = await runMigrationApply(authToken, connectionId, {
-        restartServices: allowServiceRestart,
-        rollbackOnFailure: true,
-        requireAllActions: false
-      });
-      setApplyResult(result);
-      pushLog?.(result.ok ? "success" : "error", result.ok ? "Safe apply completed" : result.rolledBack ? "Safe apply failed and rollback ran" : "Safe apply failed");
-      await load();
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : "Apply failed";
-      setError(msg);
-      pushLog?.("error", msg);
-    } finally {
-      setApplyRunning(false);
     }
   }
 
@@ -251,7 +245,7 @@ export function MigrationPlanPanel({
       <div className="panel-heading">
         <h2>
           <ListChecks style={{ width: 20, height: 20 }} />
-          {locale === "zh" ? "迁移候选与环境计划" : "Migration Candidates & Environment Plan"}
+          {t("migrationPlan.title")}
         </h2>
         <span className="panel-count">{report?.summary.total ?? 0}</span>
       </div>
@@ -264,14 +258,14 @@ export function MigrationPlanPanel({
             className={`migration-band-card band-${band} ${activeBand === band ? "active" : ""}`}
             onClick={() => { setActiveBand(band); setPageIndex(0); }}
           >
-            <span>{bandLabel(band, locale)}</span>
+            <span>{t(BAND_LABEL_KEYS[band])}</span>
             <strong>{report?.summary[band] ?? 0}</strong>
           </button>
         ))}
-        <button type="button" className="conn-btn conn-btn-ghost migration-refresh" onClick={() => void load()} disabled={loading}>
+        <Button variant="connectionGhost" type="button" className="migration-refresh" onClick={() => void load()} disabled={loading}>
           <RefreshCw style={{ width: 14, height: 14 }} />
-          {loading ? "..." : locale === "zh" ? "刷新分析" : "Refresh"}
-        </button>
+          {loading ? "..." : t("migrationPlan.refresh")}
+        </Button>
       </div>
 
       <div className="migration-bulk-toolbar">
@@ -283,21 +277,19 @@ export function MigrationPlanPanel({
             onChange={(event) => setVisibleSelection(event.currentTarget.checked)}
           />
           <span>
-            {locale === "zh"
-              ? `选择当前分组 ${selectedVisibleCount}/${visible.length}`
-              : `Select current group ${selectedVisibleCount}/${visible.length}`}
+            {t("migrationPlan.selectGroup", { selected: selectedVisibleCount, total: visible.length })}
           </span>
         </label>
         <div className="migration-bulk-actions">
-          <button type="button" className="conn-btn conn-btn-primary" onClick={() => void handleBulkDecision("approved")} disabled={selectedCandidateIds.size === 0}>
-            {locale === "zh" ? `批准已选 (${selectedCandidateIds.size})` : `Approve selected (${selectedCandidateIds.size})`}
-          </button>
-          <button type="button" className="conn-btn conn-btn-ghost" onClick={() => void handleBulkDecision("skipped")} disabled={selectedCandidateIds.size === 0}>
-            {locale === "zh" ? "跳过已选" : "Skip selected"}
-          </button>
-          <button type="button" className="conn-btn conn-btn-ghost" onClick={() => void handleBulkDecision("pending")} disabled={selectedCandidateIds.size === 0}>
-            {locale === "zh" ? "设为待定" : "Set pending"}
-          </button>
+          <Button variant="connectionPrimary" type="button"  onClick={() => void handleBulkDecision("approved")} disabled={selectedCandidateIds.size === 0}>
+            {t("migrationPlan.approveSelected", { count: selectedCandidateIds.size })}
+          </Button>
+          <Button variant="connectionGhost" type="button"  onClick={() => void handleBulkDecision("skipped")} disabled={selectedCandidateIds.size === 0}>
+            {t("migrationPlan.skipSelected")}
+          </Button>
+          <Button variant="connectionGhost" type="button"  onClick={() => void handleBulkDecision("pending")} disabled={selectedCandidateIds.size === 0}>
+            {t("migrationPlan.setPending")}
+          </Button>
         </div>
       </div>
 
@@ -327,49 +319,49 @@ export function MigrationPlanPanel({
                     event.stopPropagation();
                     toggleCandidateSelection(candidate.id);
                   }}
-                  aria-label={locale === "zh" ? `选择 ${candidate.name}` : `Select ${candidate.name}`}
+                  aria-label={t("migrationPlan.selectCandidate", { name: candidate.name })}
                 />
                 <span className={`migration-dot band-${candidate.band}`} />
                 <div>
                   <strong>{candidate.catalogRuleName ?? candidate.name}</strong>
-                  <span>{candidate.name} · {candidate.source} · {classLabel(candidate.migrationClass, locale)}</span>
+                  <span>{candidate.name} · {candidate.source} · {t(CLASS_LABEL_KEYS[candidate.migrationClass])}</span>
                 </div>
               </div>
               <span className="migration-score">{Math.round(candidate.confidence * 100)}%</span>
               {expanded === candidate.id ? (
                 <div className="migration-detail">
-                  <p>{locale === "zh" ? "判断证据" : "Evidence"}</p>
+                  <p>{t("migrationPlan.evidence")}</p>
                   <ul>{candidate.reasons.map((reason) => <li key={reason}>{reason}</li>)}</ul>
                   {candidate.risks.length ? (
                     <>
-                      <p>{locale === "zh" ? "风险" : "Risks"}</p>
+                      <p>{t("migrationPlan.risks")}</p>
                       <ul>{candidate.risks.map((risk) => <li key={risk}>{risk}</li>)}</ul>
                     </>
                   ) : null}
-                  <p>{locale === "zh" ? "建议动作" : "Recommended actions"}</p>
+                  <p>{t("migrationPlan.recommendedActions")}</p>
                   <ul>{candidate.recommendedActions.map((action) => <li key={action}>{action}</li>)}</ul>
                   <div className="migration-decision-actions">
-                    <button type="button" className="conn-btn conn-btn-primary" onClick={(event) => { event.stopPropagation(); void handleDecision(candidate.id, "approved"); }}>
-                      {locale === "zh" ? "批准" : "Approve"}
-                    </button>
-                    <button type="button" className="conn-btn conn-btn-primary" onClick={(event) => { event.stopPropagation(); void handleDecision(candidate.id, "add-to-plan"); }}>
-                      {locale === "zh" ? "加入计划" : "Add to plan"}
-                    </button>
-                    <button type="button" className="conn-btn conn-btn-ghost" onClick={(event) => { event.stopPropagation(); void handleDecision(candidate.id, "record-only"); }}>
-                      {locale === "zh" ? "仅记录" : "Record only"}
-                    </button>
-                    <button type="button" className="conn-btn conn-btn-ghost" onClick={(event) => { event.stopPropagation(); void handleDecision(candidate.id, "migrate-artifact"); }}>
-                      {locale === "zh" ? "迁移为产物" : "Migrate artifact"}
-                    </button>
-                    <button type="button" className="conn-btn conn-btn-ghost" onClick={(event) => { event.stopPropagation(); void handleDecision(candidate.id, "create-catalog-draft"); }}>
-                      {locale === "zh" ? "生成规则草稿" : "Create rule draft"}
-                    </button>
-                    <button type="button" className="conn-btn conn-btn-ghost" onClick={(event) => { event.stopPropagation(); void handleDecision(candidate.id, "skipped"); }}>
-                      {locale === "zh" ? "跳过" : "Skip"}
-                    </button>
-                    <button type="button" className="conn-btn conn-btn-ghost" onClick={(event) => { event.stopPropagation(); void handleDecision(candidate.id, "pending"); }}>
-                      {locale === "zh" ? "待定" : "Pending"}
-                    </button>
+                    <Button variant="connectionPrimary" type="button"  onClick={(event) => { event.stopPropagation(); void handleDecision(candidate.id, "approved"); }}>
+                      {t("migrationPlan.approve")}
+                    </Button>
+                    <Button variant="connectionPrimary" type="button"  onClick={(event) => { event.stopPropagation(); void handleDecision(candidate.id, "add-to-plan"); }}>
+                      {t("migrationPlan.addToPlan")}
+                    </Button>
+                    <Button variant="connectionGhost" type="button"  onClick={(event) => { event.stopPropagation(); void handleDecision(candidate.id, "record-only"); }}>
+                      {t("migrationPlan.recordOnly")}
+                    </Button>
+                    <Button variant="connectionGhost" type="button"  onClick={(event) => { event.stopPropagation(); void handleDecision(candidate.id, "migrate-artifact"); }}>
+                      {t("migrationPlan.migrateArtifact")}
+                    </Button>
+                    <Button variant="connectionGhost" type="button"  onClick={(event) => { event.stopPropagation(); void handleDecision(candidate.id, "create-catalog-draft"); }}>
+                      {t("migrationPlan.createRuleDraft")}
+                    </Button>
+                    <Button variant="connectionGhost" type="button"  onClick={(event) => { event.stopPropagation(); void handleDecision(candidate.id, "skipped"); }}>
+                      {t("migrationPlan.skip")}
+                    </Button>
+                    <Button variant="connectionGhost" type="button"  onClick={(event) => { event.stopPropagation(); void handleDecision(candidate.id, "pending"); }}>
+                      {t("migrationPlan.pending")}
+                    </Button>
                   </div>
                 </div>
               ) : null}
@@ -378,18 +370,18 @@ export function MigrationPlanPanel({
           {!loading && visible.length === 0 ? (
             <div className="migration-empty">
               <ShieldAlert style={{ width: 26, height: 26 }} />
-              <span>{locale === "zh" ? "当前分组没有候选项" : "No candidates in this group"}</span>
+              <span>{t("migrationPlan.empty")}</span>
             </div>
           ) : null}
           {visible.length > PAGE_SIZE ? (
             <div className="migration-pagination">
-              <button type="button" className="conn-btn conn-btn-ghost" onClick={() => setPageIndex((value) => Math.max(0, value - 1))} disabled={pageIndex === 0}>
-                {locale === "zh" ? "上一页" : "Previous"}
-              </button>
-              <span>{locale === "zh" ? `第 ${pageIndex + 1} / ${pageCount} 页` : `Page ${pageIndex + 1} / ${pageCount}`}</span>
-              <button type="button" className="conn-btn conn-btn-ghost" onClick={() => setPageIndex((value) => Math.min(pageCount - 1, value + 1))} disabled={pageIndex >= pageCount - 1}>
-                {locale === "zh" ? "下一页" : "Next"}
-              </button>
+              <Button variant="connectionGhost" type="button"  onClick={() => setPageIndex((value) => Math.max(0, value - 1))} disabled={pageIndex === 0}>
+                {t("migrationPlan.previous")}
+              </Button>
+              <span>{t("migrationPlan.page", { current: pageIndex + 1, total: pageCount })}</span>
+              <Button variant="connectionGhost" type="button"  onClick={() => setPageIndex((value) => Math.min(pageCount - 1, value + 1))} disabled={pageIndex >= pageCount - 1}>
+                {t("migrationPlan.next")}
+              </Button>
             </div>
           ) : null}
         </div>
@@ -397,8 +389,8 @@ export function MigrationPlanPanel({
         <aside className="migration-plan-card">
           <div className="migration-plan-head">
             <div>
-              <span>{locale === "zh" ? "可审查计划" : "Reviewable plan"}</span>
-              <strong>{plan?.items.length ?? 0} {locale === "zh" ? "项" : "items"}</strong>
+              <span>{t("migrationPlan.reviewablePlan")}</span>
+              <strong>{t("migrationPlan.itemCount", { count: plan?.items.length ?? 0 })}</strong>
             </div>
             <CheckCircle2 style={{ width: 20, height: 20 }} />
           </div>
@@ -406,42 +398,35 @@ export function MigrationPlanPanel({
             {(plan?.items ?? []).slice(0, 6).map((item) => (
               <li key={item.id}>
                 <strong>{item.name}</strong>
-                <span>{item.actions[0]?.label ?? (locale === "zh" ? "等待审查" : "Pending review")}</span>
+                <span>{item.actions[0]?.label ?? t("migrationPlan.pendingReview")}</span>
               </li>
             ))}
           </ol>
           <div className="migration-export-actions">
-            <button type="button" className="conn-btn conn-btn-primary" onClick={() => void handleDryRun()} disabled={dryRunning}>
-              <Play style={{ width: 14, height: 14 }} /> {dryRunning ? "..." : (locale === "zh" ? "预演" : "Dry run")}
-            </button>
-            <button type="button" className="conn-btn conn-btn-ghost" onClick={() => void handleVerifyPreview()} disabled={verifyLoading}>
-              <ShieldCheck style={{ width: 14, height: 14 }} /> {verifyLoading ? "..." : (locale === "zh" ? "验证预览" : "Verify")}
-            </button>
-            <button type="button" className="conn-btn conn-btn-ghost" onClick={() => void handleVerifyRun()} disabled={verifyLoading}>
-              {locale === "zh" ? "运行验证" : "Run verify"}
-            </button>
-            <button type="button" className="conn-btn conn-btn-ghost" onClick={() => void handleReadiness()}>
-              {locale === "zh" ? "就绪检查" : "Readiness"}
-            </button>
-            <label className="migration-apply-toggle">
-              <input type="checkbox" checked={allowServiceRestart} onChange={(event) => setAllowServiceRestart(event.currentTarget.checked)} />
-              <span>{locale === "zh" ? "允许重启服务" : "Allow restart"}</span>
-            </label>
-            <button type="button" className="conn-btn conn-btn-primary" onClick={() => void handleApply()} disabled={applyRunning}>
-              <Play style={{ width: 14, height: 14 }} /> {applyRunning ? (locale === "zh" ? "执行中..." : "Applying...") : (locale === "zh" ? "安全执行" : "Apply safe")}
-            </button>
-            <button type="button" className="conn-btn conn-btn-primary" onClick={() => void handleExport("markdown")}>
+            <Button variant="connectionPrimary" type="button"  onClick={() => void handleDryRun()} disabled={dryRunning}>
+              <Play style={{ width: 14, height: 14 }} /> {dryRunning ? "..." : t("migrationPlan.dryRun")}
+            </Button>
+            <Button variant="connectionGhost" type="button"  onClick={() => void handleVerifyPreview()} disabled={verifyLoading}>
+              <ShieldCheck style={{ width: 14, height: 14 }} /> {verifyLoading ? "..." : t("migrationPlan.verifyPreview")}
+            </Button>
+            <Button variant="connectionGhost" type="button"  onClick={() => void handleVerifyRun()} disabled={verifyLoading}>
+              {t("migrationPlan.runVerify")}
+            </Button>
+            <Button variant="connectionGhost" type="button"  onClick={() => void handleReadiness()}>
+              {t("migrationPlan.readiness")}
+            </Button>
+            <Button variant="connectionPrimary" type="button"  onClick={() => void handleExport("markdown")}>
               <Download style={{ width: 14, height: 14 }} /> Markdown
-            </button>
-            <button type="button" className="conn-btn conn-btn-ghost" onClick={() => void handleExport("bash")}>
+            </Button>
+            <Button variant="connectionGhost" type="button"  onClick={() => void handleExport("bash")}>
               <FileCode2 style={{ width: 14, height: 14 }} /> Bash
-            </button>
-            <button type="button" className="conn-btn conn-btn-ghost" onClick={() => void handleExport("json")}>JSON</button>
-            <button type="button" className="conn-btn conn-btn-ghost" onClick={() => void handleExport("ansible")}>Ansible</button>
+            </Button>
+            <Button variant="connectionGhost" type="button"  onClick={() => void handleExport("json")}>JSON</Button>
+            <Button variant="connectionGhost" type="button"  onClick={() => void handleExport("ansible")}>Ansible</Button>
           </div>
           {reviewQueue.length ? (
             <div className="migration-review-queue">
-              <strong>{locale === "zh" ? "未知项审查队列" : "Unknown Review Queue"}</strong>
+              <strong>{t("migrationPlan.unknownQueue")}</strong>
               {reviewQueue.slice(0, 5).map((item) => (
                 <div key={item.candidate.id}>
                   <span>{item.candidate.name}</span>
@@ -450,32 +435,15 @@ export function MigrationPlanPanel({
               ))}
             </div>
           ) : null}
-          {exportText ? <textarea className="migration-export-preview" value={exportText} readOnly aria-label={locale === "zh" ? "迁移计划导出预览" : "Migration plan export preview"} /> : null}
-          {dryRun ? <RunSummary title={locale === "zh" ? "预演结果" : "Dry-run result"} text={locale === "zh" ? `${dryRun.summary["would-run"]} 个将执行 · ${dryRun.summary["needs-review"]} 个需审查 · ${dryRun.summary.blocked} 个被阻止` : `${dryRun.summary["would-run"]} run · ${dryRun.summary["needs-review"]} review · ${dryRun.summary.blocked} blocked`} /> : null}
-          {verifyPreview ? <RunSummary title={locale === "zh" ? "验证预览" : "Verify preview"} text={locale === "zh" ? `${verifyPreview.summary.required} 个必需 · ${verifyPreview.summary.recommended} 个建议 · ${verifyPreview.summary.manual} 个手动` : `${verifyPreview.summary.required} required · ${verifyPreview.summary.recommended} recommended · ${verifyPreview.summary.manual} manual`} /> : null}
-          {verifyRun ? <RunSummary title={locale === "zh" ? "验证运行" : "Verify Run"} text={locale === "zh" ? `${verifyRun.summary.passed} 个通过 · ${verifyRun.summary.failed} 个失败 · ${verifyRun.summary.skipped} 个跳过` : `${verifyRun.summary.passed} passed · ${verifyRun.summary.failed} failed · ${verifyRun.summary.skipped} skipped`} /> : null}
+          {exportText ? <textarea className="migration-export-preview" value={exportText} readOnly aria-label={t("migrationPlan.exportPreviewAria")} /> : null}
+          {dryRun ? <RunSummary title={t("migrationPlan.dryRunResult")} text={t("migrationPlan.dryRunSummary", { run: dryRun.summary["would-run"], review: dryRun.summary["needs-review"], blocked: dryRun.summary.blocked })} /> : null}
+          {verifyPreview ? <RunSummary title={t("migrationPlan.verifyPreview")} text={t("migrationPlan.verifyPreviewSummary", { required: verifyPreview.summary.required, recommended: verifyPreview.summary.recommended, manual: verifyPreview.summary.manual })} /> : null}
+          {verifyRun ? <RunSummary title={t("migrationPlan.verifyRun")} text={t("migrationPlan.verifyRunSummary", { passed: verifyRun.summary.passed, failed: verifyRun.summary.failed, skipped: verifyRun.summary.skipped })} /> : null}
           {readiness ? (
             <div className={`migration-readiness ${readiness.ready ? "ready" : "blocked"}`}>
-              <strong>{readiness.ready ? (locale === "zh" ? "可安全执行" : "Apply ready") : (locale === "zh" ? "执行被阻止" : "Apply blocked")}</strong>
-              <span>{locale === "zh" ? `${readiness.blockers.length} 个阻断项 · ${readiness.warnings.length} 个警告` : `${readiness.blockers.length} blockers · ${readiness.warnings.length} warnings`}</span>
+              <strong>{readiness.ready ? t("migrationPlan.applyReady") : t("migrationPlan.applyBlocked")}</strong>
+              <span>{t("migrationPlan.readinessSummary", { blockers: readiness.blockers.length, warnings: readiness.warnings.length })}</span>
               {readiness.blockers.slice(0, 4).map((blocker) => <p key={blocker}>{blocker}</p>)}
-            </div>
-          ) : null}
-          {applyResult ? (
-            <div className={`migration-apply-result ${applyResult.ok ? "ok" : "failed"}`}>
-              <div className="migration-dry-run-head">
-                <strong>{applyResult.ok ? (locale === "zh" ? "执行完成" : "Apply completed") : applyResult.rolledBack ? (locale === "zh" ? "执行失败并已回滚" : "Apply rolled back") : (locale === "zh" ? "执行失败" : "Apply failed")}</strong>
-                <span>{locale === "zh" ? `${applyResult.summary.passed} 个通过 · ${applyResult.summary.failed} 个失败 · ${applyResult.summary.skipped} 个跳过 · ${applyResult.summary.rolledBack} 个已回滚` : `${applyResult.summary.passed} passed · ${applyResult.summary.failed} failed · ${applyResult.summary.skipped} skipped · ${applyResult.summary.rolledBack} rollback`}</span>
-              </div>
-              <div className="migration-dry-run-list">
-                {applyResult.steps.slice(0, 14).map((step, index) => (
-                  <div key={`${step.itemId}-${step.action}-${index}`} className={`migration-apply-step apply-${step.status}`}>
-                    <span>{step.status}</span>
-                    <strong>{step.itemName}</strong>
-                    <p>{step.message}</p>
-                  </div>
-                ))}
-              </div>
             </div>
           ) : null}
         </aside>
@@ -493,25 +461,4 @@ function RunSummary({ title, text }: { title: string; text: string }) {
       </div>
     </div>
   );
-}
-
-function bandLabel(band: ConfidenceBand, locale: Locale): string {
-  const zh: Record<ConfidenceBand, string> = { high: "高置信度", medium: "中置信度", low: "低置信度", ignore: "不建议" };
-  const en: Record<ConfidenceBand, string> = { high: "High", medium: "Medium", low: "Low", ignore: "Ignore" };
-  return locale === "zh" ? zh[band] : en[band];
-}
-
-function classLabel(value: MigrationCandidate["migrationClass"], locale: Locale): string {
-  const zh: Record<MigrationCandidate["migrationClass"], string> = {
-    "managed-software": "已管理能力",
-    "system-baseline": "系统基线",
-    "user-dotfile": "用户配置",
-    "service-config": "服务配置",
-    "language-global-package": "语言全局包",
-    "container-workload": "容器负载",
-    "manual-install": "手工安装",
-    "unknown-review": "待确认",
-    "do-not-migrate": "不迁移"
-  };
-  return locale === "zh" ? zh[value] : value.replace(/-/g, " ");
 }

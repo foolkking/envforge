@@ -1,3 +1,4 @@
+import { Button } from "./ui/Button";
 /**
  * SchemaEditor — admin 用的 vars.schema.json 表单可视化编辑器。
  *
@@ -10,6 +11,7 @@
  * password 自动生成长度）。
  */
 import React, { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Plus, Trash2, ChevronUp, ChevronDown, Eye, EyeOff } from "lucide-react";
 import type { VarsSchema, VarsSchemaField } from "../api";
 import type { Locale } from "../lib/types";
@@ -17,20 +19,19 @@ import { confirmDialog } from "../lib/dialogs";
 
 type FieldType = VarsSchemaField["type"];
 
-const TYPE_LABEL: Record<FieldType, { zh: string; en: string }> = {
-  string: { zh: "字符串", en: "String" },
-  number: { zh: "数字", en: "Number" },
-  boolean: { zh: "布尔（开关）", en: "Boolean" },
-  choice: { zh: "下拉选项", en: "Choice" },
-  password: { zh: "密码（自动生成）", en: "Password" },
-  port: { zh: "端口（1-65535）", en: "Port" }
-};
+const TYPE_LABEL_KEYS = {
+  string: "schemaEditor.types.string",
+  number: "schemaEditor.types.number",
+  boolean: "schemaEditor.types.boolean",
+  choice: "schemaEditor.types.choice",
+  password: "schemaEditor.types.password",
+  port: "schemaEditor.types.port"
+} as const satisfies Record<FieldType, string>;
 
 const VAR_NAME_REGEX = /^[a-zA-Z_][a-zA-Z0-9_]{0,49}$/;
 
 export function SchemaEditor({
   schema,
-  locale,
   onChange,
   onClear
 }: {
@@ -43,25 +44,7 @@ export function SchemaEditor({
   onClear: () => void;
 }) {
   const [adding, setAdding] = useState(false);
-  const t = locale === "zh"
-    ? {
-        title: "可配置参数 (vars.schema.json)",
-        emptyTitle: "此 Playbook 还没有配置参数",
-        emptyDesc: "添加字段后，用户在能力规则卡片上会看到一个参数按钮，点开后可填写生成 Environment Plan 所需的变量。",
-        addField: "+ 添加字段",
-        clearSchema: "🗑 删除整个 schema",
-        clearConfirm: "确定删除整个 schema 吗？此 Playbook 将不再有可配置参数（恢复到基线行为）。",
-        moveUp: "上移", moveDown: "下移", deleteField: "删除此字段"
-      }
-    : {
-        title: "Configurable parameters (vars.schema.json)",
-        emptyTitle: "No vars schema yet",
-        emptyDesc: "After you add fields, the capability card shows a parameter button. Form values feed the generated Environment Plan.",
-        addField: "+ Add field",
-        clearSchema: "🗑 Delete entire schema",
-        clearConfirm: "Delete the entire schema? This Playbook will no longer have configurable parameters.",
-        moveUp: "Move up", moveDown: "Move down", deleteField: "Delete field"
-      };
+  const { t } = useTranslation();
 
   const fields: Array<[string, VarsSchemaField]> = schema ? Object.entries(schema) : [];
 
@@ -115,29 +98,29 @@ export function SchemaEditor({
     <div className="schema-editor">
       <div className="schema-editor-header">
         <div>
-          <h4 style={{ margin: 0 }}>{t.title}</h4>
-          {fields.length > 0 && <p className="muted" style={{ margin: "4px 0 0", fontSize: 12 }}>{fields.length} {locale === "zh" ? "个字段" : "fields"}</p>}
+          <h4 style={{ margin: 0 }}>{t("schemaEditor.title")}</h4>
+          {fields.length > 0 && <p className="muted" style={{ margin: "4px 0 0", fontSize: 12 }}>{t("schemaEditor.fields", { count: fields.length })}</p>}
         </div>
         {fields.length > 0 && (
-          <button
+          <Button variant="ghost"
             type="button"
-            className="ghost-action"
-            onClick={async () => { if (await confirmDialog({ message: t.clearConfirm, danger: true })) onClear(); }}
+
+            onClick={async () => { if (await confirmDialog({ message: t("schemaEditor.clearConfirm"), danger: true })) onClear(); }}
             style={{ color: "var(--ef-danger)", borderColor: "var(--ef-danger)", fontSize: 12 }}
           >
-            {t.clearSchema}
-          </button>
+            {t("schemaEditor.clearSchema")}
+          </Button>
         )}
       </div>
 
       {fields.length === 0 ? (
         <div className="schema-editor-empty">
-          <p><strong>{t.emptyTitle}</strong></p>
-          <p style={{ fontSize: 13, color: "var(--ef-muted)" }}>{t.emptyDesc}</p>
+          <p><strong>{t("schemaEditor.emptyTitle")}</strong></p>
+          <p style={{ fontSize: 13, color: "var(--ef-muted)" }}>{t("schemaEditor.emptyDesc")}</p>
           {!adding && (
-            <button type="button" className="primary-action" onClick={() => setAdding(true)}>
-              {t.addField}
-            </button>
+            <Button variant="primary" type="button"  onClick={() => setAdding(true)}>
+              {t("schemaEditor.addField")}
+            </Button>
           )}
         </div>
       ) : (
@@ -167,32 +150,31 @@ export function SchemaEditor({
                   }}
                   className="schema-field-type-select"
                 >
-                  {(Object.keys(TYPE_LABEL) as FieldType[]).map((tp) => (
-                    <option key={tp} value={tp}>{TYPE_LABEL[tp][locale]}</option>
+                  {(Object.keys(TYPE_LABEL_KEYS) as FieldType[]).map((tp) => (
+                    <option key={tp} value={tp}>{t(TYPE_LABEL_KEYS[tp])}</option>
                   ))}
                 </select>
                 <div style={{ display: "flex", gap: 4 }}>
-                  <button type="button" className="schema-icon-btn" onClick={() => move(name, -1)} title={t.moveUp} disabled={i === 0}><ChevronUp size={14} /></button>
-                  <button type="button" className="schema-icon-btn" onClick={() => move(name, 1)} title={t.moveDown} disabled={i === fields.length - 1}><ChevronDown size={14} /></button>
-                  <button type="button" className="schema-icon-btn schema-icon-danger" onClick={() => remove(name)} title={t.deleteField}><Trash2 size={14} /></button>
+                  <button type="button" className="schema-icon-btn" onClick={() => move(name, -1)} title={t("schemaEditor.moveUp")} disabled={i === 0}><ChevronUp size={14} /></button>
+                  <button type="button" className="schema-icon-btn" onClick={() => move(name, 1)} title={t("schemaEditor.moveDown")} disabled={i === fields.length - 1}><ChevronDown size={14} /></button>
+                  <button type="button" className="schema-icon-btn schema-icon-danger" onClick={() => remove(name)} title={t("schemaEditor.deleteField")}><Trash2 size={14} /></button>
                 </div>
               </div>
-              <FieldDetailEditor field={field} onChange={(f) => update(name, f)} locale={locale} />
+              <FieldDetailEditor field={field} onChange={(f) => update(name, f)} />
             </li>
           ))}
         </ol>
       )}
 
       {fields.length > 0 && !adding && (
-        <button type="button" className="ghost-action" onClick={() => setAdding(true)} style={{ marginTop: 12 }}>
-          <Plus size={14} /> {t.addField}
-        </button>
+        <Button variant="ghost" type="button"  onClick={() => setAdding(true)} style={{ marginTop: 12 }}>
+          <Plus size={14} /> {t("schemaEditor.addField")}
+        </Button>
       )}
 
       {adding && (
         <AddFieldForm
           existing={new Set(fields.map(([k]) => k))}
-          locale={locale}
           onAdd={addField}
           onCancel={() => setAdding(false)}
         />
@@ -204,46 +186,42 @@ export function SchemaEditor({
 // ─── Subviews ──────────────────────────────────────────────────────────────
 
 function AddFieldForm({
-  existing, locale, onAdd, onCancel
+  existing, onAdd, onCancel
 }: {
   existing: Set<string>;
-  locale: Locale;
   onAdd: (name: string, type: FieldType) => void;
   onCancel: () => void;
 }) {
+  const { t } = useTranslation();
   const [name, setName] = useState("");
   const [type, setType] = useState<FieldType>("string");
   const valid = VAR_NAME_REGEX.test(name) && !existing.has(name);
   return (
     <div className="schema-add-form">
-      <h5 style={{ margin: "0 0 8px" }}>{locale === "zh" ? "添加字段" : "Add field"}</h5>
+      <h5 style={{ margin: "0 0 8px" }}>{t("schemaEditor.add.title")}</h5>
       <div className="schema-add-row">
         <input
-          placeholder={locale === "zh" ? "字段名（如 listen_port）" : "Field name (e.g. listen_port)"}
+          placeholder={t("schemaEditor.add.namePlaceholder")}
           value={name}
           onChange={(e) => setName(e.target.value)}
           spellCheck={false}
           autoFocus
         />
         <select value={type} onChange={(e) => setType(e.target.value as FieldType)}>
-          {(Object.keys(TYPE_LABEL) as FieldType[]).map((tp) => (
-            <option key={tp} value={tp}>{TYPE_LABEL[tp][locale]}</option>
+          {(Object.keys(TYPE_LABEL_KEYS) as FieldType[]).map((tp) => (
+            <option key={tp} value={tp}>{t(TYPE_LABEL_KEYS[tp])}</option>
           ))}
         </select>
-        <button type="button" className="primary-action" onClick={() => onAdd(name, type)} disabled={!valid}>
-          {locale === "zh" ? "添加" : "Add"}
-        </button>
-        <button type="button" className="ghost-action" onClick={onCancel}>
-          {locale === "zh" ? "取消" : "Cancel"}
-        </button>
+        <Button variant="primary" type="button"  onClick={() => onAdd(name, type)} disabled={!valid}>
+          {t("schemaEditor.add.submit")}
+        </Button>
+        <Button variant="ghost" type="button"  onClick={onCancel}>
+          {t("schemaEditor.add.cancel")}
+        </Button>
       </div>
       {name && !valid && (
         <p className="schema-hint-error">
-          {existing.has(name)
-            ? (locale === "zh" ? "字段名已存在" : "Field name already exists")
-            : (locale === "zh"
-                ? "字段名只能含字母数字下划线，且以字母或下划线开头"
-                : "Must start with a letter/underscore, only [A-Za-z0-9_]")}
+          {existing.has(name) ? t("schemaEditor.add.duplicate") : t("schemaEditor.add.invalid")}
         </p>
       )}
     </div>
@@ -251,55 +229,33 @@ function AddFieldForm({
 }
 
 function FieldDetailEditor({
-  field, onChange, locale
+  field, onChange
 }: {
   field: VarsSchemaField;
   onChange: (f: VarsSchemaField) => void;
-  locale: Locale;
 }) {
-  const t = locale === "zh"
-    ? {
-        label: "中文标签 (label)",
-        labelEn: "英文标签 (labelEn, 可选)",
-        help: "中文帮助文本 (help)",
-        helpEn: "英文帮助 (helpEn, 可选)",
-        required: "必填",
-        defaultStr: "默认值",
-        defaultBool: "默认值",
-        defaultNum: "默认数字",
-        validate: "validate (JS 正则字符串)",
-        placeholder: "占位文本 (placeholder)",
-        showWhen: "show_when 条件 (如 use_proxy == true)",
-        min: "最小值",
-        max: "最大值",
-        step: "步长",
-        generateLength: "自动生成长度（用户留空时）",
-        revealAfterRun: "运行结束后明文显示一次",
-        choiceOptions: "选项",
-        addOption: "+ 添加选项",
-        removeOption: "删除选项"
-      }
-    : {
-        label: "Label (zh)",
-        labelEn: "Label (en, optional)",
-        help: "Help text (zh)",
-        helpEn: "Help (en, optional)",
-        required: "Required",
-        defaultStr: "Default",
-        defaultBool: "Default",
-        defaultNum: "Default number",
-        validate: "validate (JS regex)",
-        placeholder: "placeholder",
-        showWhen: "show_when (e.g. use_proxy == true)",
-        min: "min",
-        max: "max",
-        step: "step",
-        generateLength: "Auto-generate length (when blank)",
-        revealAfterRun: "Reveal after run",
-        choiceOptions: "Options",
-        addOption: "+ Add option",
-        removeOption: "Remove"
-      };
+  const { t: translate } = useTranslation();
+  const t = {
+    label: translate("schemaEditor.detail.label"),
+    labelEn: translate("schemaEditor.detail.labelEn"),
+    help: translate("schemaEditor.detail.help"),
+    helpEn: translate("schemaEditor.detail.helpEn"),
+    required: translate("schemaEditor.detail.required"),
+    defaultStr: translate("schemaEditor.detail.default"),
+    defaultBool: translate("schemaEditor.detail.default"),
+    defaultNum: translate("schemaEditor.detail.defaultNumber"),
+    validate: translate("schemaEditor.detail.validate"),
+    placeholder: translate("schemaEditor.detail.placeholder"),
+    showWhen: translate("schemaEditor.detail.showWhen"),
+    min: translate("schemaEditor.detail.min"),
+    max: translate("schemaEditor.detail.max"),
+    step: translate("schemaEditor.detail.step"),
+    generateLength: translate("schemaEditor.detail.generateLength"),
+    revealAfterRun: translate("schemaEditor.detail.revealAfterRun"),
+    choiceOptions: translate("schemaEditor.detail.options"),
+    addOption: translate("schemaEditor.detail.addOption"),
+    removeOption: translate("schemaEditor.detail.removeOption")
+  };
 
   // Common rows for all types
   const commonRows = (
@@ -435,20 +391,20 @@ function FieldDetailEditor({
         </Row>
       )}
       {field.type === "choice" && (
-        <ChoiceOptionsEditor field={field} onChange={onChange} locale={locale} t={t} />
+        <ChoiceOptionsEditor field={field} onChange={onChange} t={t} />
       )}
     </div>
   );
 }
 
 function ChoiceOptionsEditor({
-  field, onChange, locale, t
+  field, onChange, t
 }: {
   field: Extract<VarsSchemaField, { type: "choice" }>;
   onChange: (f: VarsSchemaField) => void;
-  locale: Locale;
   t: { defaultStr: string; choiceOptions: string; addOption: string; removeOption: string };
 }) {
+  const { t: translate } = useTranslation();
   function updateOpt(idx: number, opt: { value: string; label: string; labelEn?: string }) {
     const next = [...field.options];
     next[idx] = opt;
@@ -465,7 +421,7 @@ function ChoiceOptionsEditor({
       <Row>
         <Col label={t.defaultStr}>
           <select value={field.default ?? ""} onChange={(e) => onChange({ ...field, default: e.target.value || undefined })}>
-            <option value="">{locale === "zh" ? "（无默认）" : "(none)"}</option>
+            <option value="">{translate("schemaEditor.detail.noDefault")}</option>
             {field.options.map((o) => <option key={o.value} value={o.value}>{o.label || o.value}</option>)}
           </select>
         </Col>
@@ -483,12 +439,12 @@ function ChoiceOptionsEditor({
                   spellCheck={false}
                 />
                 <input
-                  placeholder={locale === "zh" ? "中文标签" : "label"}
+                  placeholder={translate("schemaEditor.detail.optionLabel")}
                   value={opt.label}
                   onChange={(e) => updateOpt(idx, { ...opt, label: e.target.value })}
                 />
                 <input
-                  placeholder={locale === "zh" ? "英文标签（可选）" : "labelEn (optional)"}
+                  placeholder={translate("schemaEditor.detail.optionLabelEn")}
                   value={opt.labelEn ?? ""}
                   onChange={(e) => updateOpt(idx, { ...opt, labelEn: e.target.value || undefined })}
                 />
@@ -498,9 +454,9 @@ function ChoiceOptionsEditor({
               </div>
             ))}
           </div>
-          <button type="button" className="ghost-action small" onClick={addOpt} style={{ marginTop: 6 }}>
+          <Button variant="ghost" type="button" className="small" onClick={addOpt} style={{ marginTop: 6 }}>
             {t.addOption}
-          </button>
+          </Button>
         </Col>
       </Row>
     </>

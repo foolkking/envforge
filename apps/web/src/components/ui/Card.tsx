@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { HTMLAttributes, ReactNode } from "react";
 
 /**
  * Card — neutral surface container built on the existing --ef-* tokens,
@@ -9,13 +9,16 @@ import type { ReactNode } from "react";
 type Tone = "default" | "ok" | "warn" | "danger";
 
 export function Card({
+  as: Component = "div",
   tone = "default",
   className = "",
-  children
+  children,
+  ...rest
 }: {
+  as?: "div" | "section" | "article";
   tone?: Tone;
   className?: string;
   children: ReactNode;
-}) {
-  return <div className={`ui-card ui-card-${tone} ${className}`.trim()}>{children}</div>;
+} & HTMLAttributes<HTMLElement>) {
+  return <Component className={`ui-card ui-card-${tone} ${className}`.trim()} {...rest}>{children}</Component>;
 }

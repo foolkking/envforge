@@ -13,6 +13,20 @@ but the mutation path does not.
 
 Environment Plan is the only product-level write path.
 
+P0 Security Kernel: Complete. The trusted execution kernel is:
+
+```text
+Immutable Environment Plan
++ canonical planHash
++ hash-bound approval
++ artifact-bound apply
++ atomic apply claim
++ idempotency-bound apply run
++ managed execution
++ ActionRunRecord evidence
++ legacy direct mutation disabled
+```
+
 | Endpoint | Purpose |
 |---|---|
 | `POST /api/plans` | Create Migration/Rebuild/Change/Remove/Repair/Imported Recipe plan |
@@ -23,8 +37,35 @@ Environment Plan is the only product-level write path.
 | `POST /api/plans/:id/rollback` | Roll back supported changes |
 | `GET /api/plans/:id/report` | Export report |
 
-Legacy direct execution routes may exist for compatibility, but the main UI must
-not use them.
+Legacy target-mutation routes return `410 Gone`. Compatibility flags do not
+re-enable them. Schedules may reference only an approved immutable Plan id/hash.
+
+The approval/execution identity is:
+
+```text
+server-created immutable spec + content-addressed artifacts
+-> canonical SHA-256 planHash
+-> approvalRecord(planHash, actor, risks/conflicts/gates, time)
+-> Apply reloads URL plan id and recomputes planHash
+-> managed action execution + ActionRunRecord(planId, planHash, actionId)
+```
+
+Apply accepts only runtime controls such as `dryRun` and an idempotency key. It
+never accepts a Plan, YAML, actions, export, config path/content, or temporary
+acknowledgements. A successful dry-run records evidence but never grants
+approval.
+
+Non-dry-run Apply first atomically claims the approved Plan for execution.
+Repeated requests with the same idempotency key return the same apply run/result;
+different concurrent requests cannot both enter managed execution for the same
+approved Plan. Scheduled non-dry-run Plan execution uses the same claim and
+finalize path; legacy playbook/catalog schedules never execute.
+
+Current atomic apply claim is guaranteed within a single API process runtime
+store. The runtime-store update path is serialized by an in-process Mutex.
+Multi-process or multi-replica deployments must replace this with a durable
+transactional claim mechanism such as database compare-and-set, row-level
+locking, or unique apply-run constraints. This is not a distributed lock.
 
 ## Core modules
 
@@ -61,6 +102,12 @@ Collectors gather:
 Discover must not modify the source, read blocked secrets, read large data by
 default, copy database directories, or treat Docker images as a plan.
 
+Every collected section carries an evidence envelope: `status`,
+`completeness`, command/exit/timeout evidence, stdout/stderr, errors, and
+`collectedAt`. The overall snapshot retains the same quality summary when it is
+persisted. Partial or failed collection is evidence, not an empty-success
+result, and low completeness can require the `partial-snapshot-confirm` gate.
+
 ## Classify
 
 Classify converts raw evidence into migration candidates.
@@ -92,6 +139,24 @@ custom config, data directory, and references from systemd/cron/compose/config.
 Medium signals include manual install markers, binaries, PATH/alias/history, and
 language global packages. Kernel, library, firmware, base image, essential, and
 auto dependency packages are downranked.
+
+### Decision Engine
+
+Decision scoring is an advisory layer over classification. It records intent,
+evidence strength, migration readiness, risk, automation confidence, business
+criticality, review cost, user-preference confidence, and collector
+completeness, then returns one of:
+
+```text
+auto-staged | required-decision | suggested-decision
+record-only | hidden-noise | blocker
+```
+
+Scoped preference memory and risk profiles may tune ordinary recommendations,
+but never bypass database/secret decisions or blockers. Migration-session
+analysis idempotently materializes Review Inbox, history, and audit records;
+operator decisions resolve the corresponding Inbox item. This subsystem cannot
+approve or execute an Environment Plan.
 
 ## Config and data governance
 
@@ -134,6 +199,12 @@ An Environment Plan includes:
 - rollback plan;
 - report/export artifacts.
 
+The immutable hash covers Plan identity, target, action/items, risks,
+conflicts, required gates, export content, and artifact ids/content hashes.
+Approval/status/dry-run/verify/report/run fields are runtime state and do not
+change the approved object. Config and recipe content is loaded only from the
+artifact store and re-hashed before execution.
+
 Action kinds include install package, copy/edit file, create directory, enable
 or restart service, transfer data, validate, snapshot, run command, and rollback.
 High-risk actions must define dry-run, apply, verify, and rollback behavior.
@@ -148,6 +219,9 @@ failed -> rolling-back -> rolled-back | rollback-failed
 ```
 
 Non-mutating or manual-only actions may end as `skipped` or `manual-required`.
+If an earlier action fails, later frozen actions still receive explicit
+`skipped` records; the evidence stream therefore accounts for every action in
+the approved Plan.
 
 Secret redaction is mandatory for stdout, stderr, errors, verification output,
 rollback output, and report markdown. Redaction covers private keys, GitHub and
@@ -173,6 +247,13 @@ Verify runs catalog-defined checks such as `nginx -t`, `sshd -t`,
 Rollback restores file backups, package state for packages installed by the
 current plan, service enabled/running state, and supported config snapshots. It
 does not delete existing target data by default.
+
+Plan reports are derived from the immutable Plan plus stored apply/action
+evidence. Structured and Markdown forms include Plan/approval hashes, target,
+latest apply run and idempotency identity, frozen artifact hashes,
+`ActionRunRecord` status/exit/commands, verification outcomes, rollback
+availability, and unresolved manual steps. Command/output evidence is redacted
+before export.
 
 ## Storage and scaling
 

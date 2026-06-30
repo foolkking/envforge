@@ -10,6 +10,7 @@
  * changes — every action maps to an existing admin endpoint.
  */
 import React, { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { X, Save, Trash2, RotateCcw, Eye, ShieldCheck, AlertTriangle } from "lucide-react";
 import {
   fetchAdminCatalogItem,
@@ -67,7 +68,7 @@ export function CapabilityEditorDrawer({
   onGotoStandards?: (id: string) => void;
   onClose: () => void;
 }): JSX.Element {
-  const zh = locale === "zh";
+  const { t } = useTranslation();
   const [loading, setLoading] = useState(mode === "edit");
   const [saving, setSaving] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -152,12 +153,12 @@ export function CapabilityEditorDrawer({
   }
 
   async function handleSave() {
-    if (!name.trim()) { setError(zh ? "请填写能力名称" : "Name is required"); return; }
+    if (!name.trim()) { setError(t("capabilityEditor.errors.nameRequired")); return; }
     if (mode === "create" && !ID_RE.test(id.trim())) {
-      setError(zh ? "ID 必填,且只能含小写字母、数字、连字符(1-60 位)" : "ID is required and must match [a-z0-9-]{1,60}");
+      setError(t("capabilityEditor.errors.idInvalid"));
       return;
     }
-    if (!yaml.trim()) { setError(zh ? "安装剧本 (YAML) 不能为空" : "Install playbook YAML is required"); return; }
+    if (!yaml.trim()) { setError(t("capabilityEditor.errors.yamlRequired")); return; }
     setSaving(true);
     setError("");
     try {
@@ -173,7 +174,7 @@ export function CapabilityEditorDrawer({
       }
       onSaved(savedId);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Save failed");
+      setError(err instanceof Error ? err.message : t("capabilityEditor.errors.saveFailed"));
     } finally {
       setSaving(false);
     }
@@ -181,14 +182,14 @@ export function CapabilityEditorDrawer({
 
   async function handleDelete() {
     if (!catalogId) return;
-    if (!(await confirmDialog({ message: zh ? "确认删除该能力?此操作不可撤销。" : "Delete this capability? This cannot be undone.", danger: true, confirmLabel: zh ? "删除" : "Delete", cancelLabel: zh ? "取消" : "Cancel" }))) return;
+    if (!(await confirmDialog({ message: t("capabilityEditor.deleteConfirm"), danger: true, confirmLabel: t("capabilityEditor.delete"), cancelLabel: t("capabilityEditor.cancel") }))) return;
     setBusy(true);
     setError("");
     try {
       await deleteAdminCatalog(authToken, catalogId);
       onSaved(catalogId);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Delete failed");
+      setError(err instanceof Error ? err.message : t("capabilityEditor.errors.deleteFailed"));
     } finally {
       setBusy(false);
     }
@@ -196,14 +197,14 @@ export function CapabilityEditorDrawer({
 
   async function handleReset() {
     if (!catalogId) return;
-    if (!(await confirmDialog({ message: zh ? "重置为基线?将丢弃自定义覆盖。" : "Reset to baseline? Custom overrides will be discarded.", danger: true, confirmLabel: zh ? "重置" : "Reset", cancelLabel: zh ? "取消" : "Cancel" }))) return;
+    if (!(await confirmDialog({ message: t("capabilityEditor.resetConfirm"), danger: true, confirmLabel: t("capabilityEditor.reset"), cancelLabel: t("capabilityEditor.cancel") }))) return;
     setBusy(true);
     setError("");
     try {
       await resetAdminCatalog(authToken, catalogId);
       onSaved(catalogId);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Reset failed");
+      setError(err instanceof Error ? err.message : t("capabilityEditor.errors.resetFailed"));
     } finally {
       setBusy(false);
     }
@@ -219,7 +220,7 @@ export function CapabilityEditorDrawer({
       if ("preview" in res) setPreview(res.preview.renderedYaml);
       else setError(res.error);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Preview failed");
+      setError(err instanceof Error ? err.message : t("capabilityEditor.errors.previewFailed"));
     } finally {
       setPreviewing(false);
     }
@@ -229,113 +230,111 @@ export function CapabilityEditorDrawer({
   const canReset = mode === "edit" && meta && (meta.hasYamlOverride || meta.hasMarkdownOverride || meta.hasSchemaOverride);
 
   return (
-    <div className="cap-editor-overlay" role="dialog" aria-modal="true" aria-label={zh ? "能力编辑器" : "Capability editor"}>
+    <div className="cap-editor-overlay" role="dialog" aria-modal="true" aria-label={t("capabilityEditor.title")}>
       <div className="cap-editor-drawer">
         <header className="cap-editor-header">
           <div>
-            <p className="eyebrow">{zh ? "能力编辑器" : "Capability editor"}</p>
-            <h2>{mode === "create" ? (zh ? "新建能力" : "New capability") : (name || (zh ? "编辑能力" : "Edit capability"))}</h2>
+            <p className="eyebrow">{t("capabilityEditor.title")}</p>
+            <h2>{mode === "create" ? t("capabilityEditor.newCapability") : (name || t("capabilityEditor.editCapability"))}</h2>
           </div>
-          <button type="button" className="icon-action ghost-action" onClick={onClose} aria-label={zh ? "关闭" : "Close"}>
+          <Button variant="ghost" type="button" className="icon-action" onClick={onClose} aria-label={t("capabilityEditor.close")}>
             <X aria-hidden />
-          </button>
+          </Button>
         </header>
 
         {loading ? (
-          <div className="cap-editor-body"><p className="empty-hint">{zh ? "加载中..." : "Loading..."}</p></div>
+          <div className="cap-editor-body"><p className="empty-hint">{t("capabilityEditor.loading")}</p></div>
         ) : (
           <div className="cap-editor-body">
             {error ? <div className="conn-feedback conn-feedback-error"><AlertTriangle aria-hidden />{error}</div> : null}
 
             {mode === "create" ? (
               <p className="cap-editor-note">
-                {zh
-                  ? "新建能力默认未认证,不会立即出现在普通用户的构建页;完善内容后到「标准」推进认证。"
-                  : "New capabilities start uncertified and won't appear in the user Build page until certified via Standards."}
+                {t("capabilityEditor.uncertifiedNote")}
               </p>
             ) : null}
 
             {/* ① 基本信息 */}
             <section className="cap-editor-section">
-              <h3>{zh ? "基本信息" : "Basics"}</h3>
+              <h3>{t("capabilityEditor.basics")}</h3>
               <div className="cap-editor-grid">
-                <label><span>{zh ? "名称(中)" : "Name (zh)"}</span><input value={name} onChange={(e) => { setName(e.target.value); if (mode === "create" && !idTouched) setId(slugify(e.target.value)); }} /></label>
-                <label><span>{zh ? "名称(英)" : "Name (en)"}</span><input value={nameEn} onChange={(e) => setNameEn(e.target.value)} /></label>
-                <label><span>{zh ? "类目" : "Category"}</span>
+                <label><span>{t("capabilityEditor.nameZh")}</span><input value={name} onChange={(e) => { setName(e.target.value); if (mode === "create" && !idTouched) setId(slugify(e.target.value)); }} /></label>
+                <label><span>{t("capabilityEditor.nameEn")}</span><input value={nameEn} onChange={(e) => setNameEn(e.target.value)} /></label>
+                <label><span>{t("capabilityEditor.category")}</span>
                   <select value={category} onChange={(e) => setCategory(e.target.value as CategoryValue)}>
                     {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
                   </select>
                 </label>
-                <label><span>{zh ? "类型" : "Kind"}</span>
+                <label><span>{t("capabilityEditor.kind")}</span>
                   <select value={kind} onChange={(e) => setKind(e.target.value as AdminCatalogInput["kind"] as "software" | "combo")}>
                     <option value="software">software</option>
                     <option value="combo">combo</option>
                   </select>
                 </label>
-                <label><span>{zh ? "敏感度" : "Sensitivity"}</span>
+                <label><span>{t("capabilityEditor.sensitivity")}</span>
                   <select value={sensitivity} onChange={(e) => setSensitivity(e.target.value as AdminCatalogInput["sensitivity"] as "safe" | "review" | "privileged")}>
                     {SENSITIVITIES.map((s) => <option key={s} value={s}>{s}</option>)}
                   </select>
                 </label>
-                <label><span>{zh ? "色调" : "Image tone"}</span><input value={imageTone} onChange={(e) => setImageTone(e.target.value)} placeholder="teal / blue / slate ..." /></label>
+                <label><span>{t("capabilityEditor.imageTone")}</span><input value={imageTone} onChange={(e) => setImageTone(e.target.value)} placeholder="teal / blue / slate ..." /></label>
                 {mode === "create" ? (
-                  <label><span>{zh ? "ID(必填,小写字母/数字/连字符)" : "ID (required, [a-z0-9-])"}</span>
+                  <label><span>{t("capabilityEditor.idLabel")}</span>
                     <input value={id} onChange={(e) => { setId(e.target.value); setIdTouched(true); }} placeholder="e.g. my-capability" />
                   </label>
                 ) : null}
               </div>
-              <label className="cap-editor-full"><span>{zh ? "简介(中)" : "Summary (zh)"}</span><input value={summary} onChange={(e) => setSummary(e.target.value)} /></label>
-              <label className="cap-editor-full"><span>{zh ? "简介(英)" : "Summary (en)"}</span><input value={summaryEn} onChange={(e) => setSummaryEn(e.target.value)} /></label>
+              <label className="cap-editor-full"><span>{t("capabilityEditor.summaryZh")}</span><input value={summary} onChange={(e) => setSummary(e.target.value)} /></label>
+              <label className="cap-editor-full"><span>{t("capabilityEditor.summaryEn")}</span><input value={summaryEn} onChange={(e) => setSummaryEn(e.target.value)} /></label>
               <div className="cap-editor-inline">
                 <label className="cap-editor-check"><input type="checkbox" checked={deployModes.includes("system")} onChange={(e) => setDeployModes((m) => e.target.checked ? Array.from(new Set([...m, "system"])) : m.filter((x) => x !== "system"))} /> system</label>
                 <label className="cap-editor-check"><input type="checkbox" checked={deployModes.includes("docker")} onChange={(e) => setDeployModes((m) => e.target.checked ? Array.from(new Set([...m, "docker"])) : m.filter((x) => x !== "docker"))} /> docker</label>
-                <label className="cap-editor-check"><input type="checkbox" checked={hidden} onChange={(e) => setHidden(e.target.checked)} /> {zh ? "隐藏" : "Hidden"}</label>
+                <label className="cap-editor-check"><input type="checkbox" checked={hidden} onChange={(e) => setHidden(e.target.checked)} /> {t("capabilityEditor.hidden")}</label>
               </div>
             </section>
 
             {/* ② 组件 */}
             <section className="cap-editor-section">
-              <h3>{zh ? "组件" : "Components"}</h3>
+              <h3>{t("capabilityEditor.components")}</h3>
               <div className="cap-editor-components">
                 {components.map((c, i) => (
                   <div className="cap-component-row" key={i}>
                     <select value={c.type} onChange={(e) => setComponents((list) => list.map((x, j) => j === i ? { ...x, type: e.target.value as CatalogComponent["type"] } : x))}>
                       {COMPONENT_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
                     </select>
-                    <input value={c.label} placeholder={zh ? "标签(中)" : "label (zh)"} onChange={(e) => setComponents((list) => list.map((x, j) => j === i ? { ...x, label: e.target.value } : x))} />
+                    <input value={c.label} placeholder={t("capabilityEditor.componentLabelZh")} onChange={(e) => setComponents((list) => list.map((x, j) => j === i ? { ...x, label: e.target.value } : x))} />
                     <input value={c.labelEn} placeholder="label (en)" onChange={(e) => setComponents((list) => list.map((x, j) => j === i ? { ...x, labelEn: e.target.value } : x))} />
-                    <input value={c.detail} placeholder={zh ? "详情" : "detail"} onChange={(e) => setComponents((list) => list.map((x, j) => j === i ? { ...x, detail: e.target.value } : x))} />
-                    <button type="button" className="icon-action ghost-action" onClick={() => setComponents((list) => list.filter((_, j) => j !== i))} aria-label={zh ? "删除" : "Remove"}><Trash2 aria-hidden /></button>
+                    <input value={c.detail} placeholder={t("capabilityEditor.componentDetail")} onChange={(e) => setComponents((list) => list.map((x, j) => j === i ? { ...x, detail: e.target.value } : x))} />
+                    <Button variant="ghost" type="button" className="icon-action" onClick={() => setComponents((list) => list.filter((_, j) => j !== i))} aria-label={t("capabilityEditor.remove")}><Trash2 aria-hidden /></Button>
                   </div>
                 ))}
                 <Button variant="ghost" onClick={() => setComponents((list) => [...list, { type: "software", label: "", labelEn: "", detail: "" }])}>
-                  {zh ? "+ 添加组件" : "+ Add component"}
+                  {t("capabilityEditor.addComponent")}
                 </Button>
               </div>
             </section>
 
             {/* ③ 安装剧本 */}
             <section className="cap-editor-section">
-              <h3>{zh ? "安装剧本 (YAML)" : "Install playbook (YAML)"}</h3>
+              <h3>{t("capabilityEditor.installPlaybook")}</h3>
               <PlaybookEditor yaml={yaml} onChange={setYaml} locale={locale} />
             </section>
 
             {/* ④ 参数表单 */}
             <section className="cap-editor-section">
-              <h3>{zh ? "参数表单 (Vars Schema)" : "Vars schema"}</h3>
+              <h3>{t("capabilityEditor.varsSchema")}</h3>
               <SchemaEditor schema={varsSchema} locale={locale} onChange={setVarsSchema} onClear={() => setVarsSchema(null)} />
             </section>
 
             {/* ⑤ 指南 */}
             <section className="cap-editor-section">
-              <h3>{zh ? "指南 (Markdown)" : "Guide (Markdown)"}</h3>
-              <textarea className="cap-editor-markdown" value={markdown} onChange={(e) => setMarkdown(e.target.value)} placeholder={zh ? "# 使用指南..." : "# Usage guide..."} />
+              <h3>{t("capabilityEditor.guide")}</h3>
+              <textarea className="cap-editor-markdown" value={markdown} onChange={(e) => setMarkdown(e.target.value)} placeholder={t("capabilityEditor.guidePlaceholder")} />
             </section>
 
             {/* 预览结果 */}
             {preview != null ? (
               <section className="cap-editor-section">
-                <h3>{zh ? "渲染预览" : "Rendered preview"}</h3>
+                <h3>{t("capabilityEditor.renderedPreview")}</h3>
                 <pre className="cap-editor-preview">{preview}</pre>
               </section>
             ) : null}
@@ -344,18 +343,18 @@ export function CapabilityEditorDrawer({
 
         <footer className="cap-editor-footer">
           <div className="cap-editor-footer-left">
-            {canDelete ? <Button variant="ghost" onClick={() => void handleDelete()} disabled={busy}><Trash2 aria-hidden />{zh ? "删除" : "Delete"}</Button> : null}
-            {canReset ? <Button variant="ghost" onClick={() => void handleReset()} disabled={busy}><RotateCcw aria-hidden />{zh ? "重置基线" : "Reset"}</Button> : null}
+            {canDelete ? <Button variant="ghost" onClick={() => void handleDelete()} disabled={busy}><Trash2 aria-hidden />{t("capabilityEditor.delete")}</Button> : null}
+            {canReset ? <Button variant="ghost" onClick={() => void handleReset()} disabled={busy}><RotateCcw aria-hidden />{t("capabilityEditor.resetBaseline")}</Button> : null}
             {mode === "edit" && catalogId ? (
-              <Button variant="ghost" onClick={() => void handlePreview()} loading={previewing}><Eye aria-hidden />{zh ? "预览" : "Preview"}</Button>
+              <Button variant="ghost" onClick={() => void handlePreview()} loading={previewing}><Eye aria-hidden />{t("capabilityEditor.preview")}</Button>
             ) : null}
             {mode === "edit" && catalogId && onGotoStandards ? (
-              <Button variant="ghost" onClick={() => onGotoStandards(catalogId)}><ShieldCheck aria-hidden />{zh ? "去认证标准" : "Standards"}</Button>
+              <Button variant="ghost" onClick={() => onGotoStandards(catalogId)}><ShieldCheck aria-hidden />{t("capabilityEditor.standards")}</Button>
             ) : null}
           </div>
           <div className="cap-editor-footer-right">
-            <Button variant="secondary" onClick={onClose} disabled={saving}>{zh ? "取消" : "Cancel"}</Button>
-            <Button variant="primary" onClick={() => void handleSave()} loading={saving}><Save aria-hidden />{zh ? "保存" : "Save"}</Button>
+            <Button variant="secondary" onClick={onClose} disabled={saving}>{t("capabilityEditor.cancel")}</Button>
+            <Button variant="primary" onClick={() => void handleSave()} loading={saving}><Save aria-hidden />{t("capabilityEditor.save")}</Button>
           </div>
         </footer>
       </div>

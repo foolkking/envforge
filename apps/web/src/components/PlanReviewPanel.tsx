@@ -1,4 +1,6 @@
+import { Button } from "./ui/Button";
 import React, { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   applyEnvironmentPlan,
   reviewEnvironmentPlan,
@@ -27,14 +29,12 @@ import type { Locale } from "../lib/types";
  *      a long-form prompt the operator must read before ticking.
  *
  * The panel calls `/api/plans/:id/review` to persist acknowledgements
- * and request approval, and `/api/plans/:id/apply` (dryRun=false) to run
- * the plan. Both calls forward the gathered acknowledgements so the
- * server-side gate (`evaluateApplyGate`) can confirm them.
+ * and request hash-bound approval. Apply sends only `{ dryRun }`; the
+ * server reconstructs every gate acknowledgement from the stored approval.
  */
 export function PlanReviewPanel({
   authToken,
   plan,
-  locale,
   onChanged
 }: {
   authToken: string;
@@ -42,12 +42,14 @@ export function PlanReviewPanel({
   locale: Locale;
   onChanged?: (plan: EnvironmentPlan) => void;
 }) {
+  const { t } = useTranslation();
   const [riskAcks, setRiskAcks] = useState<Record<string, Set<string>>>(() => seedRiskAcks(plan));
   const [conflictAcks, setConflictAcks] = useState<Record<string, string | true>>(() => seedConflictAcks(plan));
   const [approvalAcks, setApprovalAcks] = useState<Set<string>>(() => seedApprovalAcks(plan));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [gateRefusal, setGateRefusal] = useState<ApplyGateRefusal | null>(null);
+  const [latestExecution, setLatestExecution] = useState<Awaited<ReturnType<typeof applyEnvironmentPlan>>["execution"] | null>(null);
 
   const conflicts = plan.review.conflicts ?? [];
   const blockingConflicts = useMemo(() => conflicts.filter((c) => c.severity === "block"), [conflicts]);
@@ -116,7 +118,7 @@ export function PlanReviewPanel({
     setError("");
     setGateRefusal(null);
     try {
-      const result = await reviewEnvironmentPlan(authToken, plan, {
+      const result = await reviewEnvironmentPlan(authToken, plan.id, {
         decision: "approved",
         acknowledgedRisks: Object.entries(riskAcks).map(([itemId, set]) => ({ itemId, risks: [...set] })),
         acknowledgedConflicts: Object.entries(conflictAcks).map(([conflictId, value]) => ({
@@ -130,7 +132,7 @@ export function PlanReviewPanel({
       });
       onChanged?.(result.plan);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Approve failed.");
+      setError(err instanceof Error ? err.message : t("planReview.errors.approve"));
     } finally {
       setBusy(false);
     }
@@ -141,24 +143,26 @@ export function PlanReviewPanel({
     setError("");
     setGateRefusal(null);
     try {
-      const result = await applyEnvironmentPlan(authToken, plan, false, plan.status !== "approved", {
-        acknowledgedRisks: Object.entries(riskAcks).map(([itemId, set]) => ({ itemId, risks: [...set] })),
-        acknowledgedConflicts: Object.entries(conflictAcks).map(([conflictId, value]) => ({
-          conflictId,
-          resolutionId: typeof value === "string" ? value : undefined
-        })),
-        acknowledgedApprovals: [...approvalAcks].map((key) => {
-          const [itemId, gateId] = splitApprovalKey(key);
-          return { itemId, gateId };
-        })
-      });
-      if (result.gate) {
-        setGateRefusal(result.gate);
-      } else {
-        onChanged?.(result.plan);
-      }
+      const result = await applyEnvironmentPlan(authToken, plan.id, false);
+      setLatestExecution(result.execution);
+      onChanged?.(result.plan);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Apply failed.");
+      setError(err instanceof Error ? err.message : t("planReview.errors.apply"));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleDryRun() {
+    setBusy(true);
+    setError("");
+    setGateRefusal(null);
+    try {
+      const result = await applyEnvironmentPlan(authToken, plan.id, true);
+      setLatestExecution(result.execution);
+      onChanged?.(result.plan);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t("planReview.errors.apply"));
     } finally {
       setBusy(false);
     }
@@ -177,23 +181,34 @@ export function PlanReviewPanel({
       }}
     >
       <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <h2 style={{ margin: 0 }}>{locale === "zh" ? "计划审查" : "Plan Review"}</h2>
+        <h2 style={{ margin: 0 }}>{t("planReview.title")}</h2>
         <span style={{ fontSize: 12, color: "var(--ef-muted)" }}>
-          {plan.type} · {plan.status} · {plan.summary.totalActions} actions · {plan.summary.highRisk} high risk
+          {t("planReview.summary", { type: plan.type, status: plan.status ?? "draft", actions: plan.summary.totalActions, highRisk: plan.summary.highRisk })}
         </span>
       </header>
+
+      <div className="config-governance-note">
+        <div>
+          <strong>{t("planReview.planHash")}</strong>
+          <code>{plan.planHash ?? "legacy-unbound"}</code>
+          <small>{t("planReview.artifactCount", { count: plan.artifacts?.length ?? 0 })}</small>
+        </div>
+        <div>
+          <strong>{t("planReview.approvedPlanHash")}</strong>
+          <code>{plan.approvedPlanHash ?? t("planReview.notApproved")}</code>
+        </div>
+      </div>
 
       {/* Conflicts section */}
       {conflicts.length > 0 ? (
         <div>
           <h3 style={{ margin: "0 0 8px 0", fontSize: 14 }}>
-            {locale === "zh" ? "冲突" : "Conflicts"}
+            {t("planReview.conflicts")}
           </h3>
           {blockingConflicts.map((conflict) => (
             <ConflictCard
               key={conflict.id}
               conflict={conflict}
-              locale={locale}
               acked={conflictAcks[conflict.id]}
               onPickResolution={undefined /* block-severity has no ack */}
             />
@@ -202,7 +217,6 @@ export function PlanReviewPanel({
             <ConflictCard
               key={conflict.id}
               conflict={conflict}
-              locale={locale}
               acked={conflictAcks[conflict.id]}
               onPickResolution={(resolutionId) => toggleConflict(conflict.id, resolutionId)}
             />
@@ -214,7 +228,7 @@ export function PlanReviewPanel({
       {plan.items.some((item) => (item.audit?.remainingRisks ?? []).length > 0) ? (
         <div>
           <h3 style={{ margin: "0 0 8px 0", fontSize: 14 }}>
-            {locale === "zh" ? "审计剩余风险" : "Audit Remaining Risks"}
+            {t("planReview.remainingRisks")}
           </h3>
           {plan.items
             .filter((item) => (item.audit?.remainingRisks ?? []).length > 0)
@@ -226,7 +240,6 @@ export function PlanReviewPanel({
                 risks={item.audit?.remainingRisks ?? []}
                 acked={riskAcks[item.id] ?? new Set()}
                 onToggle={(risk) => toggleRisk(item.id, risk)}
-                locale={locale}
               />
             ))}
         </div>
@@ -236,7 +249,7 @@ export function PlanReviewPanel({
       {approvalsRequired.length > 0 ? (
         <div>
           <h3 style={{ margin: "0 0 8px 0", fontSize: 14 }}>
-            {locale === "zh" ? "必需审批" : "Required Approvals"}
+            {t("planReview.requiredApprovals")}
           </h3>
           {approvalsRequired.map((gate) => (
             <ApprovalGate
@@ -244,37 +257,53 @@ export function PlanReviewPanel({
               gate={gate}
               acked={approvalAcks.has(approvalKey(gate.itemId, gate.id))}
               onToggle={() => toggleApproval(gate.itemId, gate.id)}
-              locale={locale}
             />
           ))}
         </div>
       ) : null}
 
       <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-        <button
+        <Button variant="connectionGhost" type="button" onClick={() => void handleDryRun()} disabled={busy || !plan.planHash}>
+          {t("planReview.dryRun")}
+        </Button>
+        <Button variant="connectionGhost"
           type="button"
-          className="conn-btn conn-btn-ghost"
+
           onClick={() => void handleApprove()}
           disabled={busy || !canApprove}
-          title={!canApprove ? (locale === "zh" ? "请先确认所有风险/冲突/审批门" : "Acknowledge all risks/conflicts/approval gates first") : undefined}
+          title={!canApprove ? t("planReview.acknowledgeFirst") : undefined}
         >
-          {busy ? (locale === "zh" ? "处理中..." : "Working…") : (locale === "zh" ? "标记为已批准" : "Mark Approved")}
-        </button>
-        <button
+          {busy ? t("planReview.working") : t("planReview.markApproved")}
+        </Button>
+        <Button variant="connection"
           type="button"
-          className="conn-btn"
+
           onClick={() => void handleApply()}
-          disabled={busy || !canApprove}
+          disabled={busy || plan.status !== "approved" || !plan.planHash || plan.approvedPlanHash !== plan.planHash}
         >
-          {locale === "zh" ? "执行计划" : "Apply Plan"}
-        </button>
+          {t("planReview.applyPlan")}
+        </Button>
       </div>
+
+      {latestExecution ? (
+        <div className="config-governance-note">
+          <div>
+            <strong>{t("planReview.actionRuns")}</strong>
+            <small>{t("planReview.executionSummary", { total: latestExecution.actionRuns.length, hash: latestExecution.planHash })}</small>
+          </div>
+          <ul style={{ margin: 0, paddingLeft: 18, fontSize: 12 }}>
+            {latestExecution.actionRuns.map((run) => (
+              <li key={run.id}>[{run.status}] {run.actionId}{run.dryRun ? ` · ${t("planReview.dryRun")}` : ""}</li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
 
       {error ? <div style={{ color: "var(--ef-danger)", fontSize: 13 }}>{error}</div> : null}
 
       {gateRefusal ? (
         <div style={{ background: "var(--ef-danger-soft)", color: "var(--ef-danger)", padding: 12, borderRadius: 6, fontSize: 13 }}>
-          <strong>{locale === "zh" ? "执行门禁拒绝：" : "Apply gate refused:"}</strong>
+          <strong>{t("planReview.gateRefused")}</strong>
           <ul style={{ margin: "6px 0 0 18px" }}>
             {gateRefusal.reasons.map((reason, idx) => (
               <li key={idx}>{reason}</li>
@@ -288,15 +317,14 @@ export function PlanReviewPanel({
 
 function ConflictCard({
   conflict,
-  locale,
   acked,
   onPickResolution
 }: {
   conflict: PlanReviewConflict;
-  locale: Locale;
   acked: string | true | undefined;
   onPickResolution?: (resolutionId?: string) => void;
 }) {
+  const { t } = useTranslation();
   const isBlock = conflict.severity === "block";
   return (
     <div
@@ -326,14 +354,12 @@ function ConflictCard({
       </div>
       <p style={{ margin: "6px 0 8px 0", fontSize: 13 }}>{conflict.reason}</p>
       <div style={{ fontSize: 12, color: "var(--ef-muted)", marginBottom: 8 }}>
-        {locale === "zh" ? "涉及能力：" : "Capabilities involved: "}
+        {t("planReview.capabilitiesInvolved")}
         <code>{conflict.capabilityKeys.join(" / ")}</code>
       </div>
       {isBlock ? (
         <div style={{ fontSize: 12, color: "var(--ef-danger)" }}>
-          {locale === "zh"
-            ? "这是阻塞冲突。请编辑 Plan 移除其中一个能力，然后重新审阅。"
-            : "This is a blocking conflict. Edit the plan to drop one capability before review."}
+          {t("planReview.blockingConflict")}
         </div>
       ) : (
         <div style={{ display: "grid", gap: 4 }}>
@@ -359,16 +385,15 @@ function RiskCallout({
   itemName,
   risks,
   acked,
-  onToggle,
-  locale
+  onToggle
 }: {
   itemId: string;
   itemName: string;
   risks: string[];
   acked: Set<string>;
   onToggle: (risk: string) => void;
-  locale: Locale;
 }) {
+  const { t } = useTranslation();
   return (
     <div
       style={{
@@ -397,9 +422,7 @@ function RiskCallout({
         ))}
       </ul>
       <div style={{ marginTop: 6, fontSize: 11, color: "var(--ef-warning)" }}>
-        {locale === "zh"
-          ? `${acked.size}/${risks.length} 风险已确认`
-          : `${acked.size}/${risks.length} risks acknowledged`}
+        {t("planReview.risksAcknowledged", { acked: acked.size, total: risks.length })}
       </div>
     </div>
   );
@@ -420,14 +443,13 @@ const DANGEROUS_APPROVAL_KINDS = new Set<PlanRequiredApproval["kind"]>([
 function ApprovalGate({
   gate,
   acked,
-  onToggle,
-  locale
+  onToggle
 }: {
   gate: PlanRequiredApproval;
   acked: boolean;
   onToggle: () => void;
-  locale: Locale;
 }) {
+  const { t } = useTranslation();
   const dangerous = DANGEROUS_APPROVAL_KINDS.has(gate.kind);
   const expectedPhrase = dangerous ? `CONFIRM ${gate.kind.toUpperCase()}` : "";
   const [phrase, setPhrase] = React.useState("");
@@ -461,20 +483,18 @@ function ApprovalGate({
           <div style={{ fontSize: 13 }}>
             <strong>{gate.label}</strong>{" "}
             <span style={{ background: dangerous ? "var(--ef-danger)" : "var(--ef-muted)", color: "var(--ef-surface)", padding: "1px 6px", borderRadius: 4, fontSize: 10, marginLeft: 4 }}>
-              {dangerous ? "DANGEROUS · " : ""}{gate.kind}
+              {dangerous ? `${t("planReview.dangerous")} · ` : ""}{gate.kind}
             </span>
           </div>
           <p style={{ margin: "4px 0 0 0", fontSize: 12, color: "var(--ef-muted)" }}>{gate.prompt}</p>
           <div style={{ fontSize: 11, color: "var(--ef-muted)", marginTop: 2 }}>
-            {locale === "zh" ? "归属项目: " : "Item: "}
+            {t("planReview.item")}
             <code>{gate.itemId}</code>
           </div>
           {dangerous && !acked ? (
             <div style={{ marginTop: 6, display: "grid", gap: 4 }}>
               <span style={{ fontSize: 11, color: "var(--ef-danger)" }}>
-                {locale === "zh"
-                  ? `输入 "${expectedPhrase}" 二次确认（高风险门）`
-                  : `Type "${expectedPhrase}" to second-confirm (dangerous gate).`}
+                {t("planReview.secondConfirm", { phrase: expectedPhrase })}
               </span>
               <input
                 type="text"
@@ -503,24 +523,25 @@ function splitApprovalKey(key: string): [string, string] {
 
 function seedRiskAcks(plan: EnvironmentPlan): Record<string, Set<string>> {
   const out: Record<string, Set<string>> = {};
-  for (const [itemId, risks] of Object.entries(plan.approvals?.risks ?? {})) {
-    out[itemId] = new Set(risks);
+  for (const value of plan.approvalRecord?.acceptedRisks ?? []) {
+    const [itemId, risk] = splitApprovalKey(value);
+    if (!out[itemId]) out[itemId] = new Set();
+    out[itemId].add(risk);
   }
   return out;
 }
 
 function seedConflictAcks(plan: EnvironmentPlan): Record<string, string | true> {
   const out: Record<string, string | true> = {};
-  for (const entry of plan.approvals?.conflicts ?? []) {
-    out[entry.conflictId] = entry.resolutionId ?? true;
+  for (const value of plan.approvalRecord?.acceptedConflicts ?? []) {
+    const [conflictId, resolutionId] = splitApprovalKey(value);
+    out[conflictId] = resolutionId || true;
   }
   return out;
 }
 
 function seedApprovalAcks(plan: EnvironmentPlan): Set<string> {
   const out = new Set<string>();
-  for (const entry of plan.approvals?.approvals ?? []) {
-    out.add(approvalKey(entry.itemId, entry.gateId));
-  }
+  for (const value of plan.approvalRecord?.confirmedGates ?? []) out.add(value);
   return out;
 }

@@ -1,4 +1,7 @@
+import { Button } from "./ui/Button";
+import { FilterPill } from "./ui/FilterPill";
 import React, { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   fetchEnvironmentPlan,
   fetchEnvironmentPlanReport,
@@ -8,6 +11,8 @@ import {
   verifyEnvironmentPlan,
   type EnvironmentPlan,
   type EnvironmentPlanType,
+  type PlanActionRunRecord,
+  type PlanDryRunResult,
   type PlanHistoryEvent,
   type PlanListEntry,
   type PlanRollbackResult,
@@ -16,30 +21,47 @@ import {
 import type { Locale } from "../lib/types";
 import { PlanReviewPanel } from "./PlanReviewPanel";
 
+const PLAN_FILTERS = ["all", "migration", "rebuild", "change", "remove", "repair", "imported-recipe"] as const;
+type PlanFilter = (typeof PLAN_FILTERS)[number];
+
+const FILTER_LABEL_KEYS = {
+  all: "plansCenter.filters.all",
+  migration: "plansCenter.filters.migration",
+  rebuild: "plansCenter.filters.rebuild",
+  change: "plansCenter.filters.change",
+  remove: "plansCenter.filters.remove",
+  repair: "plansCenter.filters.repair",
+  "imported-recipe": "plansCenter.filters.importedRecipe"
+} as const satisfies Record<PlanFilter, string>;
+
+const STATUS_LABEL_KEYS = {
+  draft: "plansCenter.statuses.draft",
+  "needs-review": "plansCenter.statuses.needsReview",
+  approved: "plansCenter.statuses.approved",
+  applying: "plansCenter.statuses.applying",
+  verifying: "plansCenter.statuses.verifying",
+  succeeded: "plansCenter.statuses.succeeded",
+  "partially-succeeded": "plansCenter.statuses.partiallySucceeded",
+  failed: "plansCenter.statuses.failed",
+  "rolled-back": "plansCenter.statuses.rolledBack",
+  committed: "plansCenter.statuses.committed"
+} as const satisfies Record<NonNullable<EnvironmentPlan["status"]>, string>;
+
 /**
- * PlansCenterPanel — list + drill into persisted Environment Plans.
- *
- * EnvForge persists every plan it creates so the operator can resume a
- * review → apply → verify → rollback cycle across sessions. This panel:
- *
- *  - lists plans newest-first with type / status / verify / rollback chips;
- *  - filters by plan type and status;
- *  - drills into a plan to show its actions, verify results, rollback
- *    results, and history;
- *  - lets the operator re-run verify, run rollback, and download the
- *    Markdown report.
- *
- * The component is intentionally read-only for the *creation* of plans —
- * those happen through Migrate / Build / Maintain mode entry points. Here
- * we focus on inspection and lifecycle operations.
+ * Lists persisted Environment Plans and lets operators continue the
+ * review -> apply -> verify -> rollback lifecycle across sessions.
  */
 export function PlansCenterPanel({ authToken, locale }: { authToken: string; locale: Locale }) {
+  const { t } = useTranslation();
   const [plans, setPlans] = useState<PlanListEntry[]>([]);
   const [loading, setLoading] = useState(false);
-  const [filter, setFilter] = useState<"all" | EnvironmentPlanType>("all");
+  const [filter, setFilter] = useState<PlanFilter>("all");
   const [activeId, setActiveId] = useState<string | null>(null);
   const [active, setActive] = useState<{
     plan: EnvironmentPlan;
+    lastDryRunAt?: string;
+    lastDryRunResult?: PlanDryRunResult;
+    actionRuns: PlanActionRunRecord[];
     verifyResults: PlanVerifyResult[];
     rollbackResults: PlanRollbackResult[];
     history: PlanHistoryEvent[];
@@ -57,7 +79,7 @@ export function PlansCenterPanel({ authToken, locale }: { authToken: string; loc
       const list = await listEnvironmentPlans(authToken);
       setPlans(list);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to list plans.");
+      setError(err instanceof Error ? err.message : t("plansCenter.errors.list"));
     } finally {
       setLoading(false);
     }
@@ -71,7 +93,7 @@ export function PlansCenterPanel({ authToken, locale }: { authToken: string; loc
       const detail = await fetchEnvironmentPlan(authToken, id);
       setActive(detail);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load plan.");
+      setError(err instanceof Error ? err.message : t("plansCenter.errors.load"));
     }
   }
 
@@ -84,7 +106,7 @@ export function PlansCenterPanel({ authToken, locale }: { authToken: string; loc
       setActive((current) => (current ? { ...current, plan: result.plan, verifyResults: result.results } : current));
       await load();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Verify failed.");
+      setError(err instanceof Error ? err.message : t("plansCenter.errors.verify"));
     } finally {
       setBusy(false);
     }
@@ -99,7 +121,7 @@ export function PlansCenterPanel({ authToken, locale }: { authToken: string; loc
       setActive((current) => (current ? { ...current, plan: result.plan, rollbackResults: result.results } : current));
       await load();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Rollback failed.");
+      setError(err instanceof Error ? err.message : t("plansCenter.errors.rollback"));
     } finally {
       setBusy(false);
     }
@@ -113,7 +135,7 @@ export function PlansCenterPanel({ authToken, locale }: { authToken: string; loc
       const text = await fetchEnvironmentPlanReport(authToken, activeId);
       setReport(text);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Report failed.");
+      setError(err instanceof Error ? err.message : t("plansCenter.errors.report"));
     } finally {
       setBusy(false);
     }
@@ -125,12 +147,10 @@ export function PlansCenterPanel({ authToken, locale }: { authToken: string; loc
     setError("");
     try {
       const result = await repairFromVerify(authToken, activeId);
-      // After generating the repair plan we refresh the list and switch
-      // focus to the new plan so the operator can review and apply it.
       await load();
       await loadActive(result.plan.id);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Repair generation failed.");
+      setError(err instanceof Error ? err.message : t("plansCenter.errors.repair"));
     } finally {
       setBusy(false);
     }
@@ -138,41 +158,36 @@ export function PlansCenterPanel({ authToken, locale }: { authToken: string; loc
 
   const filtered = useMemo(() => {
     if (filter === "all") return plans;
-    return plans.filter((p) => p.type === filter);
+    return plans.filter((plan) => plan.type === filter);
   }, [plans, filter]);
 
   return (
     <section className="plans-center" style={{ padding: 16, background: "var(--ef-surface)", borderRadius: 8, border: "1px solid var(--ef-border)" }}>
       <header style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-        <h2 style={{ margin: 0 }}>{locale === "zh" ? "环境计划" : "Environment Plans"}</h2>
-        <button type="button" className="conn-btn conn-btn-ghost" onClick={() => void load()} disabled={loading}>
-          {loading ? (locale === "zh" ? "刷新中..." : "Refreshing…") : (locale === "zh" ? "刷新" : "Refresh")}
-        </button>
+        <h2 style={{ margin: 0 }}>{t("plansCenter.title")}</h2>
+        <Button variant="connectionGhost" type="button"  onClick={() => void load()} disabled={loading}>
+          {loading ? t("plansCenter.refreshing") : t("plansCenter.refresh")}
+        </Button>
       </header>
 
       <div className="plans-toolbar" style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 12 }}>
-        {(["all", "migration", "rebuild", "change", "remove", "repair", "imported-recipe"] as const).map((value) => (
-          <button
+        {PLAN_FILTERS.map((value) => (
+          <FilterPill
             key={value}
-            type="button"
-            className={`filter-pill ${filter === value ? "active" : ""}`}
+            active={filter === value}
             onClick={() => setFilter(value)}
           >
-            {filterLabel(value, locale)}
+            {t(FILTER_LABEL_KEYS[value])}
             <span style={{ marginLeft: 6, opacity: 0.7 }}>
-              ({value === "all" ? plans.length : plans.filter((p) => p.type === value).length})
+              ({value === "all" ? plans.length : plans.filter((plan) => plan.type === value).length})
             </span>
-          </button>
+          </FilterPill>
         ))}
       </div>
 
       <div className="plans-grid" style={{ display: "grid", gridTemplateColumns: "minmax(0, 1.2fr) minmax(0, 1.8fr)", gap: 12 }}>
         <div style={{ display: "grid", gap: 8, maxHeight: 540, overflow: "auto" }}>
-          {filtered.length === 0 ? (
-            <div className="filter-status">
-              {locale === "zh" ? "尚未创建环境计划。先在迁移或构建模式生成计划。" : "No Environment Plans yet. Create one through Migrate / Build / Maintain mode."}
-            </div>
-          ) : null}
+          {filtered.length === 0 ? <div className="filter-status">{t("plansCenter.empty")}</div> : null}
           {filtered.map((plan) => (
             <button
               key={plan.id}
@@ -190,7 +205,7 @@ export function PlansCenterPanel({ authToken, locale }: { authToken: string; loc
             >
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6 }}>
                 <strong style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{plan.name}</strong>
-                <StatusChip status={plan.status} />
+                <StatusChip status={plan.status} label={t(STATUS_LABEL_KEYS[plan.status ?? "draft"])} />
               </div>
               <div style={{ fontSize: 11, color: "var(--ef-muted)", marginTop: 4, display: "flex", gap: 8 }}>
                 <span>{plan.type}</span>
@@ -198,8 +213,12 @@ export function PlansCenterPanel({ authToken, locale }: { authToken: string; loc
                 <span>{new Date(plan.updatedAt).toLocaleString()}</span>
               </div>
               <div style={{ fontSize: 11, color: "var(--ef-muted)", marginTop: 2, display: "flex", gap: 6 }}>
-                {plan.verifyResults.length ? <span>verify: {plan.verifyResults.filter((r) => r.status === "passed").length}/{plan.verifyResults.length}</span> : null}
-                {plan.rollbackResults.length ? <span>rollback: {plan.rollbackResults.filter((r) => r.status === "passed").length}/{plan.rollbackResults.length}</span> : null}
+                {plan.verifyResults.length ? (
+                  <span>{t("plansCenter.verifyCount", { passed: plan.verifyResults.filter((row) => row.status === "passed").length, total: plan.verifyResults.length })}</span>
+                ) : null}
+                {plan.rollbackResults.length ? (
+                  <span>{t("plansCenter.rollbackCount", { passed: plan.rollbackResults.filter((row) => row.status === "passed").length, total: plan.rollbackResults.length })}</span>
+                ) : null}
               </div>
             </button>
           ))}
@@ -207,38 +226,42 @@ export function PlansCenterPanel({ authToken, locale }: { authToken: string; loc
 
         <aside style={{ padding: 12, border: "1px solid var(--ef-border)", borderRadius: 6, background: "#fafafa", maxHeight: 540, overflow: "auto" }}>
           {!active ? (
-            <p style={{ color: "var(--ef-muted)", fontSize: 13 }}>
-              {locale === "zh" ? "选择左侧计划查看详情、动作、验证结果与回滚结果。" : "Pick a plan on the left to inspect actions, verify results, and rollback results."}
-            </p>
+            <p style={{ color: "var(--ef-muted)", fontSize: 13 }}>{t("plansCenter.selectPrompt")}</p>
           ) : (
             <div style={{ display: "grid", gap: 10 }}>
               <header>
                 <strong style={{ fontSize: 16 }}>{active.plan.name}</strong>
                 <div style={{ color: "var(--ef-muted)", fontSize: 12 }}>
-                  {active.plan.type} · {active.plan.status} · {active.plan.summary.totalActions} actions · {active.plan.summary.highRisk} high risk · {active.plan.summary.requiresSudo} sudo
+                  {t("plansCenter.summary", {
+                    type: active.plan.type,
+                    status: t(STATUS_LABEL_KEYS[active.plan.status ?? "draft"]),
+                    actions: active.plan.summary.totalActions,
+                    highRisk: active.plan.summary.highRisk,
+                    sudo: active.plan.summary.requiresSudo
+                  })}
                 </div>
               </header>
 
               <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                <button type="button" className="conn-btn conn-btn-ghost" disabled={busy} onClick={() => void handleVerify()}>
-                  {locale === "zh" ? "重新验证" : "Re-verify"}
-                </button>
-                <button type="button" className="conn-btn conn-btn-ghost" disabled={busy} onClick={() => void handleRollback()}>
-                  {locale === "zh" ? "回滚" : "Rollback"}
-                </button>
-                <button type="button" className="conn-btn conn-btn-ghost" disabled={busy} onClick={() => void handleReport()}>
-                  {locale === "zh" ? "查看报告" : "View report"}
-                </button>
+                <Button variant="connectionGhost" type="button"  disabled={busy} onClick={() => void handleVerify()}>
+                  {t("plansCenter.actions.reverify")}
+                </Button>
+                <Button variant="connectionGhost" type="button"  disabled={busy} onClick={() => void handleRollback()}>
+                  {t("plansCenter.actions.rollback")}
+                </Button>
+                <Button variant="connectionGhost" type="button"  disabled={busy} onClick={() => void handleReport()}>
+                  {t("plansCenter.actions.viewReport")}
+                </Button>
                 {active.verifyResults.some((row) => row.status === "failed" || row.status === "warning") ? (
-                  <button
+                  <Button variant="connection"
                     type="button"
-                    className="conn-btn"
+
                     disabled={busy}
                     onClick={() => void handleRepairFromVerify()}
-                    title={locale === "zh" ? "根据验证失败结果生成修复计划" : "Generate a Repair Plan from failed verify results"}
+                    title={t("plansCenter.actions.repairTitle")}
                   >
-                    {locale === "zh" ? "从失败项生成修复计划" : "Repair from verify"}
-                  </button>
+                    {t("plansCenter.actions.repairFromVerify")}
+                  </Button>
                 ) : null}
               </div>
 
@@ -254,7 +277,7 @@ export function PlansCenterPanel({ authToken, locale }: { authToken: string; loc
                 />
               ) : null}
 
-              <Section title={locale === "zh" ? "动作" : "Actions"}>
+              <Section title={t("plansCenter.sections.actions")}>
                 <ul style={{ margin: 0, paddingLeft: 18, fontSize: 12 }}>
                   {active.plan.items.flatMap((item) =>
                     item.actions.map((action) => (
@@ -267,8 +290,33 @@ export function PlansCenterPanel({ authToken, locale }: { authToken: string; loc
                 </ul>
               </Section>
 
+              {active.lastDryRunResult ? (
+                <Section title={t("plansCenter.sections.dryRun") }>
+                  <div style={{ fontSize: 12, color: active.lastDryRunResult.ok ? "var(--ef-success)" : "var(--ef-danger)" }}>
+                    [{active.lastDryRunResult.ok ? t("plansCenter.runPassed") : t("plansCenter.runFailed")}]
+                    {" "}{active.lastDryRunAt ? new Date(active.lastDryRunAt).toLocaleString() : active.lastDryRunResult.completedAt}
+                    {" · "}<code>{active.lastDryRunResult.planHash}</code>
+                  </div>
+                </Section>
+              ) : null}
+
+              {active.actionRuns.length ? (
+                <Section title={t("plansCenter.sections.actionRuns")}>
+                  <ul style={{ margin: 0, paddingLeft: 18, fontSize: 12 }}>
+                    {active.actionRuns.map((run) => (
+                      <li key={run.id}>
+                        <span style={{ color: tone(run.status) }}>[{run.status}]</span>{" "}
+                        <strong>{run.actionId}</strong>{run.dryRun ? ` · ${t("plansCenter.dryRunBadge")}` : ""}
+                        {run.exitCode !== undefined ? ` · exit ${run.exitCode}` : ""}
+                        {run.error ? <span style={{ color: "var(--ef-danger)" }}> · {run.error}</span> : null}
+                      </li>
+                    ))}
+                  </ul>
+                </Section>
+              ) : null}
+
               {active.verifyResults.length ? (
-                <Section title={locale === "zh" ? "验证结果" : "Verify results"}>
+                <Section title={t("plansCenter.sections.verifyResults")}>
                   <ul style={{ margin: 0, paddingLeft: 18, fontSize: 12 }}>
                     {active.verifyResults.map((row) => (
                       <li key={row.actionId}>
@@ -281,7 +329,7 @@ export function PlansCenterPanel({ authToken, locale }: { authToken: string; loc
               ) : null}
 
               {active.rollbackResults.length ? (
-                <Section title={locale === "zh" ? "回滚结果" : "Rollback results"}>
+                <Section title={t("plansCenter.sections.rollbackResults")}>
                   <ul style={{ margin: 0, paddingLeft: 18, fontSize: 12 }}>
                     {active.rollbackResults.map((row) => (
                       <li key={row.actionId}>
@@ -294,10 +342,10 @@ export function PlansCenterPanel({ authToken, locale }: { authToken: string; loc
               ) : null}
 
               {active.history.length ? (
-                <Section title={locale === "zh" ? "历史" : "History"}>
+                <Section title={t("plansCenter.sections.history")}>
                   <ul style={{ margin: 0, paddingLeft: 18, fontSize: 12, color: "var(--ef-muted)" }}>
-                    {active.history.map((event, idx) => (
-                      <li key={`${event.at}-${idx}`}>
+                    {active.history.map((event, index) => (
+                      <li key={`${event.at}-${index}`}>
                         {event.at} · {event.event}
                         {event.note ? ` — ${event.note}` : ""}
                       </li>
@@ -307,7 +355,7 @@ export function PlansCenterPanel({ authToken, locale }: { authToken: string; loc
               ) : null}
 
               {report ? (
-                <Section title={locale === "zh" ? "Markdown 报告" : "Markdown report"}>
+                <Section title={t("plansCenter.sections.markdownReport")}>
                   <textarea readOnly value={report} style={{ width: "100%", minHeight: 200, fontFamily: "monospace", fontSize: 12 }} />
                 </Section>
               ) : null}
@@ -330,7 +378,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
-function StatusChip({ status }: { status: EnvironmentPlan["status"] }) {
+function StatusChip({ status, label }: { status: EnvironmentPlan["status"]; label: string }) {
   const safeStatus: NonNullable<EnvironmentPlan["status"]> = status ?? "draft";
   const colorMap: Record<NonNullable<EnvironmentPlan["status"]>, string> = {
     draft: "var(--ef-muted-2)",
@@ -355,26 +403,18 @@ function StatusChip({ status }: { status: EnvironmentPlan["status"] }) {
         flexShrink: 0
       }}
     >
-      {safeStatus}
+      {label}
     </span>
   );
 }
 
-function tone(status: PlanVerifyResult["status"] | PlanRollbackResult["status"]): string {
+function tone(status: string): string {
   if (status === "passed") return "var(--ef-success)";
   if (status === "warning") return "#ca8a04";
   if (status === "failed") return "var(--ef-danger)";
   return "var(--ef-muted)";
 }
 
-/**
- * Whether the plan currently needs the operator to interact with the
- * Plan Review gate. Surface the panel when:
- *  - status is `needs-review`; OR
- *  - the plan carries any conflicts; OR
- *  - any plan item has unacknowledged remainingRisks; OR
- *  - any plan item has approval gates that aren't fully acknowledged.
- */
 function planNeedsReview(plan: EnvironmentPlan): boolean {
   if (plan.status === "needs-review") return true;
   if ((plan.review.conflicts ?? []).length > 0) return true;
@@ -392,26 +432,4 @@ function planNeedsReview(plan: EnvironmentPlan): boolean {
     if (!ackedApprovals.has(`${gate.itemId}::${gate.id}`)) return true;
   }
   return false;
-}
-
-function filterLabel(value: "all" | EnvironmentPlanType, locale: Locale): string {
-  const zh: Record<string, string> = {
-    all: "全部",
-    migration: "迁移",
-    rebuild: "重建",
-    change: "变更",
-    remove: "移除",
-    repair: "修复",
-    "imported-recipe": "导入配方"
-  };
-  const en: Record<string, string> = {
-    all: "All",
-    migration: "Migration",
-    rebuild: "Rebuild",
-    change: "Change",
-    remove: "Remove",
-    repair: "Repair",
-    "imported-recipe": "Imported Recipe"
-  };
-  return locale === "zh" ? zh[value] ?? value : en[value] ?? value;
 }

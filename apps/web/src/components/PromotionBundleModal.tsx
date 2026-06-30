@@ -7,6 +7,7 @@
  * repo by the API — the developer applies these, runs the gate, and opens a PR.
  */
 import React, { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { X, Copy, Download, Check } from "lucide-react";
 import type { Locale } from "../lib/types";
 import type { PromotionBundle, PromotionBundleFile } from "../api";
@@ -23,7 +24,7 @@ export function PromotionBundleModal({
   locale: Locale;
   onClose: () => void;
 }): JSX.Element {
-  const zh = locale === "zh";
+  const { t } = useTranslation();
   const [copied, setCopied] = useState<string | null>(null);
   useEscapeToClose(onClose);
 
@@ -47,21 +48,19 @@ export function PromotionBundleModal({
   }
 
   return (
-    <div className="cap-editor-overlay" role="dialog" aria-modal="true" aria-label={zh ? "晋升包" : "Promotion bundle"} data-testid="promotion-bundle-modal" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+    <div className="cap-editor-overlay" role="dialog" aria-modal="true" aria-label={t("promotionBundle.title")} data-testid="promotion-bundle-modal" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="cap-editor-drawer">
         <header className="cap-editor-header">
           <div>
-            <p className="eyebrow">{zh ? "晋升包 · 复制 / 下载后由开发者应用" : "Promotion bundle · copy / download, then apply in code"}</p>
+            <p className="eyebrow">{t("promotionBundle.eyebrow")}</p>
             <h2>{bundle.id}</h2>
           </div>
-          <button type="button" className="icon-action ghost-action" onClick={onClose} aria-label={zh ? "关闭" : "Close"}><X aria-hidden /></button>
+          <Button variant="ghost" type="button" className="icon-action" onClick={onClose} aria-label={t("promotionBundle.close")}><X aria-hidden /></Button>
         </header>
 
         <div className="cap-editor-body">
           <p className="cap-editor-note">
-            {zh
-              ? "这些产物不会写入仓库。认证闸门不变:产物落代码 + harness 场景 + 白名单,合并后由 certification:check 认证;运行时永不自动认证。"
-              : "These artifacts are not written to the repo. The gate is unchanged — land them in code + a harness scenario + opt-in; certification happens on merge via certification:check. Runtime never auto-certifies."}
+            {t("promotionBundle.notice")}
           </p>
 
           <section className="cap-editor-section">
@@ -69,7 +68,7 @@ export function PromotionBundleModal({
           </section>
 
           <section className="cap-editor-section">
-            <h3>{zh ? "步骤" : "Steps"}</h3>
+            <h3>{t("promotionBundle.steps")}</h3>
             <ol style={{ margin: 0, paddingLeft: 18, display: "grid", gap: 4, fontSize: 13 }}>
               {bundle.instructions.map((step, i) => <li key={i}>{step}</li>)}
             </ol>
@@ -84,14 +83,14 @@ export function PromotionBundleModal({
                   color: file.action === "create" ? "var(--ef-success)" : "var(--ef-info)",
                   borderRadius: 999, padding: "1px 8px", fontSize: 11
                 }}>
-                  {file.action === "create" ? (zh ? "新建" : "create") : (zh ? "编辑" : "edit")}
+                  {file.action === "create" ? t("promotionBundle.create") : t("promotionBundle.edit")}
                 </span>
                 <code style={{ fontSize: 11, color: "var(--ef-muted)" }}>{file.path}</code>
                 <span style={{ marginLeft: "auto", display: "flex", gap: 6 }}>
                   <Button variant="ghost" onClick={() => copy(file)}>
-                    {copied === file.path ? <Check aria-hidden /> : <Copy aria-hidden />}{zh ? "复制" : "Copy"}
+                    {copied === file.path ? <Check aria-hidden /> : <Copy aria-hidden />}{t("promotionBundle.copy")}
                   </Button>
-                  <Button variant="ghost" onClick={() => download(file)}><Download aria-hidden />{zh ? "下载" : "Download"}</Button>
+                  <Button variant="ghost" onClick={() => download(file)}><Download aria-hidden />{t("promotionBundle.download")}</Button>
                 </span>
               </h3>
               <pre className="cap-editor-preview">{file.contents}</pre>
@@ -101,7 +100,7 @@ export function PromotionBundleModal({
 
         <footer className="cap-editor-footer">
           <div className="cap-editor-footer-right">
-            <Button variant="secondary" onClick={onClose}>{zh ? "关闭" : "Close"}</Button>
+            <Button variant="secondary" onClick={onClose}>{t("promotionBundle.close")}</Button>
           </div>
         </footer>
       </div>

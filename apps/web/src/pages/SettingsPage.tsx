@@ -1,3 +1,4 @@
+import { Button } from "../components/ui/Button";
 /**
  * SettingsPage — DEPRECATED page shell.
  *
@@ -17,13 +18,12 @@
  * them anymore.
  */
 import React, { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
-  fetchSchedules, createSchedule, updateSchedule, deleteSchedule,
+  fetchSchedules, deleteSchedule,
   fetchWebhooks, createWebhook, deleteWebhook, testWebhook,
-  fetchApiTokens, createApiToken, deleteApiToken,
-  fetchModuleDocs,
   setDriftBaseline, runDriftCheck,
-  type Schedule, type Webhook, type ApiTokenInfo, type ModuleDoc, type DriftReport,
+  type Schedule, type Webhook, type DriftReport,
   type ConnectionProfile, type StoredPlaybook, type CatalogItem
 } from "../api";
 import type { Locale } from "../lib/types";
@@ -32,20 +32,20 @@ import { toast } from "../lib/dialogs";
 import { confirmDialog } from "../lib/dialogs";
 
 export function SchedulesPanel({
-  locale, authToken, connections, playbooks, catalog
+  authToken, connections, playbooks, catalog
 }: {
   locale: Locale; authToken: string;
   connections: ConnectionProfile[]; playbooks: StoredPlaybook[]; catalog: CatalogItem[];
 }) {
+  const { t } = useTranslation();
   const [list, setList] = useState<Schedule[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [showForm, setShowForm] = useState(false);
 
   async function reload() {
     setLoading(true); setError("");
     try { setList(await fetchSchedules(authToken)); }
-    catch (e) { setError(e instanceof Error ? e.message : "Failed"); }
+    catch (e) { setError(e instanceof Error ? e.message : t("automationPanels.common.failed")); }
     finally { setLoading(false); }
   }
 
@@ -54,18 +54,11 @@ export function SchedulesPanel({
   return (
     <section className="settings-section">
       <div className="settings-section-header">
-        <h3>{locale === "zh" ? "定时任务" : "Scheduled Playbooks"}</h3>
-        <button className="primary-action" type="button" onClick={() => setShowForm(true)} style={{ fontSize: 13 }}>
-          + {locale === "zh" ? "新建" : "New"}
-        </button>
+        <h3>{t("automationPanels.schedules.title")}</h3>
       </div>
       {error && <p className="settings-error">{error}</p>}
       {loading ? <p className="empty-hint"><span className="spinning">↻</span></p> : list.length === 0 ? (
-        <p className="empty-hint">
-          {locale === "zh"
-            ? "还没有定时任务。点「新建」创建一个，例如每天凌晨 3 点跑安全审计 Playbook。"
-            : "No schedules yet. Create one - e.g. run a security audit Playbook every day at 03:00 UTC."}
-        </p>
+        <p className="empty-hint">{t("automationPanels.schedules.empty")}</p>
       ) : (
         <ul className="settings-list">
           {list.map((s) => (
@@ -74,61 +67,36 @@ export function SchedulesPanel({
                 <strong>{s.name}</strong>
                 <span className="settings-row-meta">
                   <code>{s.cron}</code>
-                  {" · "}{s.connectionIds.length > 0 ? `${s.connectionIds.length} ${locale === "zh" ? "目标" : "targets"}` : `tags: ${s.tags.join(",") || "all"}`}
-                  {" · "}{s.dryRun ? "dry-run" : "apply"}
-                  {s.nextRunAt ? ` · next: ${new Date(s.nextRunAt).toLocaleString()}` : ""}
+                  {" · "}{s.connectionIds.length > 0 ? t("automationPanels.schedules.targetCount", { count: s.connectionIds.length }) : t("automationPanels.schedules.tags", { tags: s.tags.join(",") || t("automationPanels.common.all") })}
+                  {" · "}{s.dryRun ? t("automationPanels.schedules.dryRun") : t("automationPanels.schedules.apply")}
+                  {s.nextRunAt ? ` · ${t("automationPanels.schedules.next", { time: new Date(s.nextRunAt).toLocaleString() })}` : ""}
                 </span>
               </div>
               <div className="settings-row-actions">
-                <label className="toggle-label">
-                  <input
-                    type="checkbox"
-                    checked={s.enabled}
-                    onChange={async () => {
-                      await updateSchedule(authToken, s.id, { enabled: !s.enabled });
-                      void reload();
-                    }}
-                  />
-                  {locale === "zh" ? "启用" : "Enabled"}
-                </label>
-                <button type="button" className="conn-btn conn-btn-danger" onClick={async () => {
-                  if (!(await confirmDialog({ message: locale === "zh" ? "删除该定时任务？" : "Delete this schedule?", danger: true }))) return;
+                <Button variant="danger" type="button"  onClick={async () => {
+                  if (!(await confirmDialog({ message: t("automationPanels.schedules.deleteConfirm"), danger: true }))) return;
                   await deleteSchedule(authToken, s.id);
                   void reload();
-                }}>{locale === "zh" ? "删除" : "Delete"}</button>
+                }}>{t("automationPanels.common.delete")}</Button>
               </div>
             </li>
           ))}
         </ul>
-      )}
-      {showForm && (
-        <ScheduleForm
-          locale={locale}
-          connections={connections}
-          playbooks={playbooks}
-          catalog={catalog}
-          onCancel={() => setShowForm(false)}
-          onSubmit={async (input) => {
-            await createSchedule(authToken, input);
-            setShowForm(false);
-            void reload();
-          }}
-        />
       )}
     </section>
   );
 }
 
 function ScheduleForm({
-  locale, connections, playbooks, catalog, onCancel, onSubmit
+  connections, playbooks, catalog, onCancel, onSubmit
 }: {
-  locale: Locale;
   connections: ConnectionProfile[];
   playbooks: StoredPlaybook[];
   catalog: CatalogItem[];
   onCancel: () => void;
-  onSubmit: (input: Partial<Schedule>) => Promise<void>;
+  onSubmit: (input: Record<string, unknown>) => Promise<void>;
 }) {
+  const { t } = useTranslation();
   const [name, setName] = useState("");
   const [cron, setCron] = useState("0 3 * * *");
   const [source, setSource] = useState<"playbook" | "catalog">("playbook");
@@ -145,71 +113,69 @@ function ScheduleForm({
       <section className="profile-modal" style={{ maxWidth: 580 }}>
         <header>
           <div>
-            <p className="eyebrow">{locale === "zh" ? "定时任务" : "Schedule"}</p>
-            <h2>{locale === "zh" ? "新建定时任务" : "New schedule"}</h2>
+            <p className="eyebrow">{t("automationPanels.schedules.form.eyebrow")}</p>
+            <h2>{t("automationPanels.schedules.form.title")}</h2>
           </div>
-          <button type="button" className="ghost-action icon-action" onClick={onCancel} aria-label={locale === "zh" ? "关闭" : "Close"}>×</button>
+          <Button variant="ghost" type="button" className="icon-action" onClick={onCancel} aria-label={t("automationPanels.common.close")}>×</Button>
         </header>
         <div className="upload-form">
           <label>
-            <span>{locale === "zh" ? "名称" : "Name"}</span>
-            <input value={name} onChange={(e) => setName(e.target.value)} placeholder={locale === "zh" ? "例如：每晚备份" : "e.g. nightly backup"} />
+            <span>{t("automationPanels.schedules.form.name")}</span>
+            <input value={name} onChange={(e) => setName(e.target.value)} placeholder={t("automationPanels.schedules.form.namePlaceholder")} />
           </label>
           <label>
-            <span>{locale === "zh" ? "Cron 表达式（UTC）" : "Cron (UTC)"}</span>
+            <span>{t("automationPanels.schedules.form.cron")}</span>
             <input value={cron} onChange={(e) => setCron(e.target.value)} placeholder="0 3 * * *" />
             <small style={{ color: "var(--ef-muted)", fontSize: 11 }}>
-              {locale === "zh"
-                ? "5 字段：分 时 日 月 周。例：0 3 * * * 每天 UTC 03:00；*/15 * * * * 每 15 分钟"
-                : "5 fields: m h dom mon dow. e.g. 0 3 * * * = daily 03:00 UTC; */15 * * * * = every 15 min"}
+              {t("automationPanels.schedules.form.cronHelp")}
             </small>
           </label>
           <label>
-            <span>{locale === "zh" ? "执行源" : "Source"}</span>
+            <span>{t("automationPanels.schedules.form.source")}</span>
             <select value={source} onChange={(e) => setSource(e.target.value as "playbook" | "catalog")}>
-              <option value="playbook">{locale === "zh" ? "我的编排" : "My Playbook"}</option>
-              <option value="catalog">{locale === "zh" ? "能力规则库" : "Capability Catalog item"}</option>
+              <option value="playbook">{t("automationPanels.schedules.form.playbookSource")}</option>
+              <option value="catalog">{t("automationPanels.schedules.form.catalogSource")}</option>
             </select>
           </label>
           {source === "playbook" ? (
             <label>
-              <span>Playbook</span>
+              <span>{t("automationPanels.schedules.playbook")}</span>
               <select value={playbookId} onChange={(e) => setPlaybookId(e.target.value)}>
-                <option value="">— {locale === "zh" ? "请选择" : "select"} —</option>
+                <option value="">— {t("automationPanels.common.select")} —</option>
                 {playbooks.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
               </select>
             </label>
           ) : (
             <label>
-              <span>{locale === "zh" ? "能力规则" : "Capability rule"}</span>
+              <span>{t("automationPanels.schedules.form.capabilityRule")}</span>
               <select value={catalogId} onChange={(e) => setCatalogId(e.target.value)}>
-                <option value="">— {locale === "zh" ? "请选择" : "select"} —</option>
+                <option value="">— {t("automationPanels.common.select")} —</option>
                 {catalog.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
             </label>
           )}
           <label>
-            <span>{locale === "zh" ? "目标虚拟机（多选）" : "Target VMs (multi-select)"}</span>
+            <span>{t("automationPanels.schedules.form.targetVms")}</span>
             <select multiple value={connectionIds} onChange={(e) => setConnectionIds(Array.from(e.target.selectedOptions).map((o) => o.value))} style={{ height: 120 }}>
               {connections.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
             </select>
           </label>
           <label className="toggle-label">
             <input type="checkbox" checked={dryRun} onChange={(e) => setDryRun(e.target.checked)} />
-            {locale === "zh" ? "预演（不实际修改）" : "Dry-run (no real changes)"}
+            {t("automationPanels.schedules.form.dryRun")}
           </label>
           {err && <p className="settings-error">{err}</p>}
           <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-            <button type="button" className="ghost-action" onClick={onCancel}>{locale === "zh" ? "取消" : "Cancel"}</button>
-            <button
+            <Button variant="ghost" type="button"  onClick={onCancel}>{t("automationPanels.common.cancel")}</Button>
+            <Button variant="primary"
               type="button"
-              className="primary-action"
+
               disabled={submitting}
               onClick={async () => {
                 setErr("");
-                if (!name.trim()) { setErr(locale === "zh" ? "请填写名称" : "Name required"); return; }
-                if (source === "playbook" && !playbookId) { setErr(locale === "zh" ? "请选择编排" : "Pick a playbook"); return; }
-                if (source === "catalog" && !catalogId) { setErr(locale === "zh" ? "请选择能力规则" : "Pick a capability rule"); return; }
+                if (!name.trim()) { setErr(t("automationPanels.schedules.form.nameRequired")); return; }
+                if (source === "playbook" && !playbookId) { setErr(t("automationPanels.schedules.form.playbookRequired")); return; }
+                if (source === "catalog" && !catalogId) { setErr(t("automationPanels.schedules.form.catalogRequired")); return; }
                 setSubmitting(true);
                 try {
                   await onSubmit({
@@ -223,12 +189,12 @@ function ScheduleForm({
                     enabled: true
                   });
                 } catch (e) {
-                  setErr(e instanceof Error ? e.message : "Failed");
+                  setErr(e instanceof Error ? e.message : t("automationPanels.common.failed"));
                 } finally {
                   setSubmitting(false);
                 }
               }}
-            >{locale === "zh" ? "创建" : "Create"}</button>
+            >{t("automationPanels.common.create")}</Button>
           </div>
         </div>
       </section>
@@ -236,7 +202,8 @@ function ScheduleForm({
   );
 }
 
-export function DriftPanel({ locale, authToken, connections }: { locale: Locale; authToken: string; connections: ConnectionProfile[] }) {
+export function DriftPanel({ authToken, connections }: { locale: Locale; authToken: string; connections: ConnectionProfile[] }) {
+  const { t } = useTranslation();
   const [activeId, setActiveId] = useState<string>("");
   const [busy, setBusy] = useState(false);
   const [report, setReport] = useState<DriftReport | null>(null);
@@ -259,31 +226,31 @@ export function DriftPanel({ locale, authToken, connections }: { locale: Locale;
       const { createEnvironmentPlan } = await import("../api");
       const failures = [
         ...report.removedSoftware.map((s) => ({
-          label: locale === "zh" ? `恢复缺失的包: ${s.name}` : `Restore missing package: ${s.name}`,
+          label: t("automationPanels.drift.restoreMissing", { name: s.name }),
           kind: "package-missing" as const,
           packageNames: [s.name],
           severity: "high" as const,
           evidence: [`Drift baseline saw ${s.name} via ${s.source}; current snapshot does not.`]
         })),
         ...report.addedSoftware.map((s) => ({
-          label: locale === "zh" ? `审查未授权变更: ${s.name}` : `Review unauthorised change: ${s.name}`,
+          label: t("automationPanels.drift.reviewUnauthorised", { name: s.name }),
           kind: "verify-failed" as const,
           severity: "medium" as const,
           evidence: [`Snapshot now contains ${s.name} (${s.source}); baseline did not. Decide whether to remove or accept.`]
         }))
       ];
       if (failures.length === 0) {
-        setError(locale === "zh" ? "无漂移项可用于生成修复计划。" : "No drift items to repair.");
+        setError(t("automationPanels.drift.noRepairItems"));
         return;
       }
       const { plan } = await createEnvironmentPlan(authToken, {
         type: "repair",
         targetConnectionId: activeId,
-        source: { kind: "repair-failures", failures, name: locale === "zh" ? "漂移修复计划" : "Drift Repair Plan" }
+        source: { kind: "repair-failures", failures, name: t("automationPanels.drift.repairPlanName") }
       });
       setGeneratedPlanId(plan.id);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed");
+      setError(e instanceof Error ? e.message : t("automationPanels.common.failed"));
     } finally {
       setBusy(false);
     }
@@ -291,54 +258,48 @@ export function DriftPanel({ locale, authToken, connections }: { locale: Locale;
 
   return (
     <section className="settings-section">
-      <h3>{locale === "zh" ? "漂移检测" : "Drift detection"}</h3>
-      <p className="settings-help">
-        {locale === "zh"
-          ? "在一台 VM 上设置基线后，可以随时（或通过定时任务）对比当前状态，发现意外安装/卸载的软件包。检测到漂移可一键生成 Repair Plan。"
-          : "Set a baseline once, then compare current state to detect unmanaged capabilities or package changes. Detected drift can be turned into a Repair Plan in one click."}
-      </p>
+      <h3>{t("automationPanels.drift.title")}</h3>
+      <p className="settings-help">{t("automationPanels.drift.intro")}</p>
       <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 12 }}>
         <select value={activeId} onChange={(e) => { setActiveId(e.target.value); setReport(null); setError(""); setGeneratedPlanId(null); }} style={{ flex: 1 }}>
-          <option value="">— {locale === "zh" ? "选择虚拟机" : "select VM"} —</option>
+          <option value="">— {t("automationPanels.drift.selectVm")} —</option>
           {connections.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
         </select>
-        <button
+        <Button variant="ghost"
           type="button"
-          className="ghost-action"
+
           disabled={!activeId || busy}
           onClick={async () => {
             setBusy(true); setError(""); setReport(null); setGeneratedPlanId(null);
             try {
               await setDriftBaseline(authToken, activeId);
-              setError(locale === "zh" ? "✓ 基线已保存" : "✓ Baseline saved");
-            } catch (e) { setError(e instanceof Error ? e.message : "Failed"); }
+              setError(t("automationPanels.drift.baselineSaved"));
+            } catch (e) { setError(e instanceof Error ? e.message : t("automationPanels.common.failed")); }
             finally { setBusy(false); }
           }}
         >
-          {locale === "zh" ? "设置基线" : "Set baseline"}
-        </button>
-        <button
+          {t("automationPanels.drift.setBaseline")}
+        </Button>
+        <Button variant="primary"
           type="button"
-          className="primary-action"
+
           disabled={!activeId || busy}
           onClick={async () => {
             setBusy(true); setError(""); setReport(null); setGeneratedPlanId(null);
             try {
               setReport(await runDriftCheck(authToken, activeId));
-            } catch (e) { setError(e instanceof Error ? e.message : "Failed"); }
+            } catch (e) { setError(e instanceof Error ? e.message : t("automationPanels.common.failed")); }
             finally { setBusy(false); }
           }}
         >
-          {locale === "zh" ? "立即检查" : "Check drift"}
-        </button>
+          {t("automationPanels.drift.check")}
+        </Button>
       </div>
       {error && <p className="settings-error">{error}</p>}
       {report && (
         <div className="drift-report">
           <p>
-            <strong>{report.hasDrift
-              ? (locale === "zh" ? "⚠️ 检测到漂移" : "⚠️ Drift detected")
-              : (locale === "zh" ? "✓ 无漂移" : "✓ No drift")}</strong>
+            <strong>{report.hasDrift ? t("automationPanels.drift.detected") : t("automationPanels.drift.none")}</strong>
             <span className="settings-row-meta">
               {" · "}baseline: {new Date(report.baselineCapturedAt).toLocaleString()}
               {" · "}checked: {new Date(report.checkedAt).toLocaleString()}
@@ -346,7 +307,7 @@ export function DriftPanel({ locale, authToken, connections }: { locale: Locale;
           </p>
           {report.addedSoftware.length > 0 && (
             <div className="drift-section">
-              <h4>+ {locale === "zh" ? `新增 ${report.addedSoftware.length} 项` : `Added ${report.addedSoftware.length}`}</h4>
+              <h4>+ {t("automationPanels.drift.added", { count: report.addedSoftware.length })}</h4>
               <ul>
                 {report.addedSoftware.map((s) => (
                   <li key={`${s.source}-${s.name}`}><code>{s.name}</code> <span className="settings-row-meta">[{s.source}]</span></li>
@@ -356,7 +317,7 @@ export function DriftPanel({ locale, authToken, connections }: { locale: Locale;
           )}
           {report.removedSoftware.length > 0 && (
             <div className="drift-section">
-              <h4>- {locale === "zh" ? `移除 ${report.removedSoftware.length} 项` : `Removed ${report.removedSoftware.length}`}</h4>
+              <h4>- {t("automationPanels.drift.removed", { count: report.removedSoftware.length })}</h4>
               <ul>
                 {report.removedSoftware.map((s) => (
                   <li key={`${s.source}-${s.name}`}><code>{s.name}</code> <span className="settings-row-meta">[{s.source}]</span></li>
@@ -366,12 +327,12 @@ export function DriftPanel({ locale, authToken, connections }: { locale: Locale;
           )}
           {report.hasDrift ? (
             <div style={{ marginTop: 12, display: "flex", gap: 8, alignItems: "center" }}>
-              <button type="button" className="primary-action" disabled={busy} onClick={() => void handleGenerateRepairPlan()}>
-                {locale === "zh" ? "生成修复计划" : "Generate Repair Plan"}
-              </button>
+              <Button variant="primary" type="button"  disabled={busy} onClick={() => void handleGenerateRepairPlan()}>
+                {t("automationPanels.drift.generateRepair")}
+              </Button>
               {generatedPlanId ? (
                 <span className="settings-row-meta" style={{ color: "var(--ef-success)" }}>
-                  {locale === "zh" ? "已生成计划：" : "Plan created: "}
+                  {t("automationPanels.drift.planCreated")}
                   <code>{generatedPlanId}</code>
                 </span>
               ) : null}
@@ -383,7 +344,8 @@ export function DriftPanel({ locale, authToken, connections }: { locale: Locale;
   );
 }
 
-export function WebhooksPanel({ locale, authToken }: { locale: Locale; authToken: string }) {
+export function WebhooksPanel({ authToken }: { locale: Locale; authToken: string }) {
+  const { t } = useTranslation();
   const [list, setList] = useState<Webhook[]>([]);
   const [loading, setLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
@@ -393,7 +355,7 @@ export function WebhooksPanel({ locale, authToken }: { locale: Locale; authToken
   async function reload() {
     setLoading(true); setErr("");
     try { setList(await fetchWebhooks(authToken)); }
-    catch (e) { setErr(e instanceof Error ? e.message : "Failed"); }
+    catch (e) { setErr(e instanceof Error ? e.message : t("automationPanels.common.failed")); }
     finally { setLoading(false); }
   }
   useEffect(() => { void reload(); }, [authToken]);
@@ -401,37 +363,33 @@ export function WebhooksPanel({ locale, authToken }: { locale: Locale; authToken
   return (
     <section className="settings-section">
       <div className="settings-section-header">
-        <h3>{locale === "zh" ? "外发通知" : "Webhooks"}</h3>
-        <button type="button" className="primary-action" style={{ fontSize: 13 }} onClick={() => setShowForm((v) => !v)}>
-          {showForm ? (locale === "zh" ? "收起" : "Collapse") : `+ ${locale === "zh" ? "新建" : "New"}`}
-        </button>
+        <h3>{t("automationPanels.webhooks.title")}</h3>
+        <Button variant="primary" type="button"  style={{ fontSize: 13 }} onClick={() => setShowForm((v) => !v)}>
+          {showForm ? t("automationPanels.webhooks.collapse") : `+ ${t("automationPanels.webhooks.new")}`}
+        </Button>
       </div>
-      <p className="settings-help">
-        {locale === "zh"
-          ? "任务完成 / 失败 / 漂移检测 / 定时任务触发时，POST JSON 到指定 URL。"
-          : "POST JSON on task.completed / task.failed / drift.detected / schedule.fired."}
-      </p>
+      <p className="settings-help">{t("automationPanels.webhooks.intro")}</p>
       {showForm && (
         <div className="upload-form">
-          <input placeholder={locale === "zh" ? "标签" : "Label"} value={form.label} onChange={(e) => setForm({ ...form, label: e.target.value })} />
+          <input placeholder={t("automationPanels.webhooks.label")} value={form.label} onChange={(e) => setForm({ ...form, label: e.target.value })} />
           <input placeholder="https://hooks.slack.com/services/..." value={form.url} onChange={(e) => setForm({ ...form, url: e.target.value })} />
-          <input placeholder={locale === "zh" ? "可选 HMAC 密钥" : "Optional HMAC secret"} value={form.secret} onChange={(e) => setForm({ ...form, secret: e.target.value })} />
+          <input placeholder={t("automationPanels.webhooks.secret")} value={form.secret} onChange={(e) => setForm({ ...form, secret: e.target.value })} />
           {err && <p className="settings-error">{err}</p>}
           <div style={{ display: "flex", gap: 8 }}>
-            <button type="button" className="primary-action" onClick={async () => {
+            <Button variant="primary" type="button"  onClick={async () => {
               setErr("");
               try {
                 await createWebhook(authToken, { ...form, events: ["task.completed", "task.failed", "drift.detected", "schedule.fired"], enabled: true });
                 setForm({ label: "", url: "", secret: "" });
                 setShowForm(false);
                 void reload();
-              } catch (e) { setErr(e instanceof Error ? e.message : "Failed"); }
-            }}>{locale === "zh" ? "创建" : "Create"}</button>
+              } catch (e) { setErr(e instanceof Error ? e.message : t("automationPanels.common.failed")); }
+            }}>{t("automationPanels.common.create")}</Button>
           </div>
         </div>
       )}
       {loading ? <p className="empty-hint"><span className="spinning">↻</span></p> : list.length === 0 ? (
-        <p className="empty-hint">{locale === "zh" ? "还没有外发通知。" : "No webhooks yet."}</p>
+        <p className="empty-hint">{t("automationPanels.webhooks.empty")}</p>
       ) : (
         <ul className="settings-list">
           {list.map((w) => (
@@ -440,167 +398,25 @@ export function WebhooksPanel({ locale, authToken }: { locale: Locale; authToken
                 <strong>{w.label}</strong>
                 <span className="settings-row-meta">
                   <code>{w.url}</code> {" · "}{w.events.join(", ")}
-                  {w.lastDeliveryStatus ? ` · last: ${w.lastDeliveryStatus}` : ""}
+                  {w.lastDeliveryStatus ? ` · ${t("automationPanels.webhooks.last", { status: w.lastDeliveryStatus })}` : ""}
                 </span>
               </div>
               <div className="settings-row-actions">
-                <button type="button" className="ghost-action" onClick={async () => {
+                <Button variant="ghost" type="button"  onClick={async () => {
                   const r = await testWebhook(authToken, w.id);
-                  toast(`${locale === "zh" ? "测试结果" : "Test result"}: ${r.delivered}${r.error ? ` · ${r.error}` : ""}`, r.error ? "error" : "success");
+                  toast(`${t("automationPanels.webhooks.testResult")}: ${r.delivered}${r.error ? ` · ${r.error}` : ""}`, r.error ? "error" : "success");
                   void reload();
-                }}>{locale === "zh" ? "测试" : "Test"}</button>
-                <button type="button" className="conn-btn conn-btn-danger" onClick={async () => {
-                  if (!(await confirmDialog({ message: locale === "zh" ? "删除该外发通知？" : "Delete?", danger: true }))) return;
+                }}>{t("automationPanels.webhooks.test")}</Button>
+                <Button variant="danger" type="button"  onClick={async () => {
+                  if (!(await confirmDialog({ message: t("automationPanels.webhooks.deleteConfirm"), danger: true }))) return;
                   await deleteWebhook(authToken, w.id);
                   void reload();
-                }}>{locale === "zh" ? "删除" : "Delete"}</button>
+                }}>{t("automationPanels.common.delete")}</Button>
               </div>
             </li>
           ))}
         </ul>
       )}
-    </section>
-  );
-}
-
-function TokensPanel({ locale, authToken }: { locale: Locale; authToken: string }) {
-  const [list, setList] = useState<ApiTokenInfo[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [label, setLabel] = useState("");
-  const [days, setDays] = useState("");
-  const [created, setCreated] = useState<{ token: string; label: string } | null>(null);
-  const [err, setErr] = useState("");
-
-  async function reload() {
-    setLoading(true); setErr("");
-    try { setList(await fetchApiTokens(authToken)); }
-    catch (e) { setErr(e instanceof Error ? e.message : "Failed"); }
-    finally { setLoading(false); }
-  }
-  useEffect(() => { void reload(); }, [authToken]);
-
-  return (
-    <section className="settings-section">
-      <h3>{locale === "zh" ? "API 令牌（CI/CD 集成）" : "API tokens (CI/CD)"}</h3>
-      <p className="settings-help">
-        {locale === "zh"
-          ? "创建 API token 后，外部系统（GitHub Actions / Jenkins）可用 Authorization: Bearer <token> 调用 EnvForge API。"
-          : "Use these in CI: Authorization: Bearer <token> calls every EnvForge endpoint as you."}
-      </p>
-      <div className="upload-form">
-        <input placeholder={locale === "zh" ? "标签（如 GitHub Actions prod）" : "Label (e.g. GitHub Actions prod)"} value={label} onChange={(e) => setLabel(e.target.value)} />
-        <input placeholder={locale === "zh" ? "有效天数（留空=永不过期）" : "Expires in days (empty = never)"} value={days} onChange={(e) => setDays(e.target.value)} />
-        {err && <p className="settings-error">{err}</p>}
-        <button type="button" className="primary-action" disabled={!label.trim()} onClick={async () => {
-          setErr("");
-          try {
-            const result = await createApiToken(authToken, label.trim(), days ? parseInt(days, 10) : undefined);
-            setCreated({ token: result.token, label: result.label });
-            setLabel(""); setDays("");
-            void reload();
-          } catch (e) { setErr(e instanceof Error ? e.message : "Failed"); }
-        }}>{locale === "zh" ? "生成" : "Generate"}</button>
-      </div>
-      {created && (
-        <div className="token-created-banner">
-          <p><strong>⚠ {locale === "zh" ? "请立即复制保存。关闭后将不再显示。" : "Copy now. This token will not be shown again."}</strong></p>
-          <code className="token-display">{created.token}</code>
-          <button type="button" className="ghost-action" onClick={() => navigator.clipboard.writeText(created.token)}>
-            {locale === "zh" ? "复制" : "Copy"}
-          </button>
-          <button type="button" className="ghost-action" onClick={() => setCreated(null)}>{locale === "zh" ? "我已保存" : "I saved it"}</button>
-        </div>
-      )}
-      {loading ? <p className="empty-hint"><span className="spinning">↻</span></p> : list.length === 0 ? (
-        <p className="empty-hint">{locale === "zh" ? "还没有 API 令牌。" : "No tokens yet."}</p>
-      ) : (
-        <ul className="settings-list">
-          {list.map((t) => (
-            <li key={t.id} className="settings-row">
-              <div className="settings-row-main">
-                <strong>{t.label}</strong>
-                <span className="settings-row-meta">
-                  <code>{t.tokenPrefix}…</code> {" · "}created {new Date(t.createdAt).toLocaleDateString()}
-                  {t.lastUsedAt ? (locale === "zh" ? ` · 上次使用 ${new Date(t.lastUsedAt).toLocaleDateString()}` : ` · last used ${new Date(t.lastUsedAt).toLocaleDateString()}`) : ` · ${locale === "zh" ? "未使用" : "unused"}`}
-                  {t.expiresAt ? ` · expires ${new Date(t.expiresAt).toLocaleDateString()}` : ""}
-                </span>
-              </div>
-              <button type="button" className="conn-btn conn-btn-danger" onClick={async () => {
-                if (!(await confirmDialog({ message: locale === "zh" ? "撤销该令牌？" : "Revoke?", danger: true }))) return;
-                await deleteApiToken(authToken, t.id);
-                void reload();
-              }}>{locale === "zh" ? "撤销" : "Revoke"}</button>
-            </li>
-          ))}
-        </ul>
-      )}
-    </section>
-  );
-}
-
-function ModuleDocsPanel({ locale }: { locale: Locale }) {
-  const [docs, setDocs] = useState<ModuleDoc[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [active, setActive] = useState<string>("");
-
-  useEffect(() => {
-    void fetchModuleDocs().then((d) => { setDocs(d); setLoading(false); if (d[0]) setActive(d[0].name); });
-  }, []);
-
-  if (loading) return <p className="empty-hint"><span className="spinning">↻</span></p>;
-  const current = docs.find((d) => d.name === active);
-
-  return (
-    <section className="settings-section module-docs-panel">
-      <p className="settings-help">
-        {locale === "zh"
-          ? "EnvForge 引擎内置的所有模块。点击左侧查看参数和示例。"
-          : "All built-in engine modules. Click on the left to see parameters and examples."}
-      </p>
-      <div className="module-docs-layout">
-        <ul className="module-docs-nav">
-          {docs.map((d) => (
-            <li key={d.name}>
-              <button type="button" className={d.name === active ? "active" : ""} onClick={() => setActive(d.name)}>
-                <span className="module-docs-name">{d.name}</span>
-                <span className="module-docs-cat">{d.category}</span>
-              </button>
-            </li>
-          ))}
-        </ul>
-        {current && (
-          <div className="module-docs-detail">
-            <h3>{current.name}</h3>
-            <p>{current.summary}</p>
-            <h4>{locale === "zh" ? "参数" : "Args"}</h4>
-            <table className="module-docs-args">
-              <thead>
-                <tr>
-                  <th>{locale === "zh" ? "名称" : "Name"}</th>
-                  <th>{locale === "zh" ? "类型" : "Type"}</th>
-                  <th>{locale === "zh" ? "必填" : "Required"}</th>
-                  <th>{locale === "zh" ? "默认" : "Default"}</th>
-                  <th>{locale === "zh" ? "说明" : "Description"}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {current.args.map((a) => (
-                  <tr key={a.name}>
-                    <td><code>{a.name}</code></td>
-                    <td>{a.type}</td>
-                    <td>{a.required ? "✓" : ""}</td>
-                    <td>{a.default ?? ""}</td>
-                    <td>{a.description ?? ""}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            <h4>{locale === "zh" ? "示例" : "Example"}</h4>
-            <pre className="module-docs-example">{current.example}</pre>
-            {current.notes && <p className="module-docs-notes">⚠ {current.notes}</p>}
-          </div>
-        )}
-      </div>
     </section>
   );
 }

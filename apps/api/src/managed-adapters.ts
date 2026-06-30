@@ -119,7 +119,7 @@ export function createPackageAdapter(ctx: AdapterContext): ManagedExecutionAdapt
       try {
         const command = applyCommandFor(action);
         if (!command) {
-          return { ok: true, message: `No-op for action kind ${action.kind}.`, steps: [] };
+          return { ok: false, message: `No managed command or artifact adapter exists for action kind ${action.kind}.`, steps: [] };
         }
         const { exitCode, stdout, stderr } = await execOnClient(client, command, capture);
         const ok = exitCode === 0;

@@ -20,6 +20,7 @@
  * This page is NEVER rendered for end users — Build is their entrypoint.
  */
 import React, { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   AlertTriangle,
   BookOpen,
@@ -52,7 +53,6 @@ import {
 import type { Locale } from "../lib/types";
 import {
   CATEGORY_ICONS,
-  REQUIREMENT_LABELS,
   type AdminCatalogRow,
   type CapabilityRequirementsDetail,
   type StandardProfileEditorState,
@@ -67,6 +67,7 @@ import { UsersQueuesTab } from "./governance/UsersQueuesTab";
 import { CapabilityEditorDrawer } from "../components/CapabilityEditorDrawer";
 import { ArchetypeRuleDrawer } from "../components/ArchetypeRuleDrawer";
 import { PromotionBundleModal } from "../components/PromotionBundleModal";
+import { TabButton } from "../components/ui/TabButton";
 
 const CATALOG_CATEGORIES = new Set(["runtime", "developer", "database", "container", "security", "network", "service"]);
 
@@ -77,6 +78,7 @@ interface Props {
 }
 
 export function CapabilityRulesAdminPage({ authToken, isAdmin, locale }: Props): JSX.Element {
+  const { t } = useTranslation();
   const [tab, setTab] = useState<WorkbenchTab>("overview");
   const [rows, setRows] = useState<AdminCatalogRow[]>([]);
   const [meta, setMeta] = useState<{ total: number; certified: number; notReady: number } | null>(null);
@@ -182,11 +184,9 @@ export function CapabilityRulesAdminPage({ authToken, isAdmin, locale }: Props):
   if (!isAdmin) {
     return (
       <div className="capability-rules-admin" style={{ padding: 24 }}>
-        <h1 style={{ marginTop: 0 }}>{locale === "zh" ? "管理员视图" : "Admin view"}</h1>
+        <h1 style={{ marginTop: 0 }}>{t("governance.admin.deniedTitle")}</h1>
         <p style={{ color: "var(--ef-danger)" }}>
-          {locale === "zh"
-            ? "能力管理仅对管理员开放。普通用户请使用构建页面。"
-            : "Capability Admin is admin-only. End users should use the Build page."}
+          {t("governance.admin.deniedMessage")}
         </p>
       </div>
     );
@@ -199,12 +199,10 @@ export function CapabilityRulesAdminPage({ authToken, isAdmin, locale }: Props):
     <div className="capability-rules-admin" style={{ padding: 24 }} data-testid="capability-admin-workbench">
       <header style={{ marginBottom: 16 }}>
         <h1 style={{ margin: 0, display: "flex", alignItems: "center", gap: 8 }}>
-          <BookOpen aria-hidden /> {locale === "zh" ? "能力管理" : "Capability Admin"}
+          <BookOpen aria-hidden /> {t("governance.admin.title")}
         </h1>
         <p style={{ color: "var(--ef-muted)", margin: "4px 0 0 0", maxWidth: 760 }}>
-          {locale === "zh"
-            ? "管理员能力规则工作台：用于治理软件 / 组合规则、处理用户建议、推进认证升级与软件包支持映射。"
-            : "Admin capability rules workbench: govern software / combo rules, process user suggestions, drive certification upgrades, maintain package integrations, and assign queues."}
+          {t("governance.admin.intro")}
         </p>
       </header>
 
@@ -212,23 +210,23 @@ export function CapabilityRulesAdminPage({ authToken, isAdmin, locale }: Props):
         style={{ display: "flex", gap: 4, borderBottom: "1px solid var(--ef-border)", marginBottom: 16 }}>
         <TabButton active={tab === "overview"} onClick={() => setTab("overview")}
           icon={<LayoutDashboard size={14} aria-hidden />} testId="tab-overview"
-          label={locale === "zh" ? "概览" : "Overview"} />
+          label={t("governance.admin.tabs.overview")} />
         <TabButton active={tab === "registry"} onClick={() => setTab("registry")}
           icon={<TableIcon size={14} aria-hidden />} testId="tab-registry"
-          label={locale === "zh" ? "规则库" : "Rule Registry"} />
+          label={t("governance.admin.tabs.registry")} />
         <TabButton active={tab === "standards"} onClick={() => setTab("standards")}
           icon={<Shield size={14} aria-hidden />} testId="tab-standards"
-          label={locale === "zh" ? "标准" : "Standards"} />
+          label={t("governance.admin.tabs.standards")} />
         <TabButton active={tab === "suggestions"} onClick={() => setTab("suggestions")}
           icon={<Inbox size={14} aria-hidden />} testId="tab-suggestions"
-          label={locale === "zh" ? "建议收件箱" : "Suggestion Inbox"}
+          label={t("governance.admin.tabs.suggestions")}
           badge={pendingCount > 0 ? pendingCount : undefined} />
         <TabButton active={tab === "integrations"} onClick={() => setTab("integrations")}
           icon={<PackageIcon size={14} aria-hidden />} testId="tab-integrations"
-          label={locale === "zh" ? "软件包映射" : "Package Integrations"} />
+          label={t("governance.admin.tabs.integrations")} />
         <TabButton active={tab === "users-queues"} onClick={() => setTab("users-queues")}
           icon={<UsersRound size={14} aria-hidden />} testId="tab-users-queues"
-          label={locale === "zh" ? "用户与队列" : "Users & Queues"}
+          label={t("governance.admin.tabs.usersQueues")}
           badge={workflowQueues.reduce((sum, queue) => sum + queue.openItems, 0) || undefined} />
       </nav>
 
@@ -385,38 +383,5 @@ export function CapabilityRulesAdminPage({ authToken, isAdmin, locale }: Props):
         />
       ) : null}
     </div>
-  );
-}
-
-function TabButton({ active, onClick, icon, label, testId, badge }: {
-  active: boolean;
-  onClick: () => void;
-  icon: React.ReactNode;
-  label: string;
-  testId: string;
-  badge?: number;
-}): JSX.Element {
-  return (
-    <button type="button" onClick={onClick} data-testid={testId} role="tab" aria-selected={active}
-      style={{
-        display: "flex", alignItems: "center", gap: 6,
-        padding: "8px 12px",
-        border: "none",
-        borderBottom: active ? "2px solid var(--ef-text)" : "2px solid transparent",
-        background: "transparent",
-        color: active ? "var(--ef-text)" : "var(--ef-muted)",
-        fontWeight: active ? 600 : 500,
-        fontSize: 13,
-        cursor: "pointer"
-      }}>
-      {icon}
-      <span>{label}</span>
-      {badge ? (
-        <span style={{
-          background: "var(--ef-warning-soft)", color: "var(--ef-warning)",
-          padding: "1px 6px", borderRadius: 999, fontSize: 11
-        }}>{badge}</span>
-      ) : null}
-    </button>
   );
 }

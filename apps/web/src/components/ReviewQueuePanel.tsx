@@ -1,4 +1,7 @@
+import { Button } from "./ui/Button";
+import { FilterPill } from "./ui/FilterPill";
 import React, { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   fetchMigrationCandidates,
   fetchMigrationReviewQueue,
@@ -11,6 +14,19 @@ import {
   type ReviewDecision
 } from "../api";
 import type { Locale } from "../lib/types";
+
+const REVIEW_LABEL_KEYS = {
+  all: "reviewQueue.decisions.all",
+  pending: "reviewQueue.decisions.pending",
+  approved: "reviewQueue.decisions.approved",
+  skipped: "reviewQueue.decisions.skipped",
+  ignore: "reviewQueue.decisions.ignore",
+  "record-only": "reviewQueue.decisions.recordOnly",
+  "migrate-artifact": "reviewQueue.decisions.migrateArtifact",
+  "create-catalog-draft": "reviewQueue.decisions.createCatalogDraft",
+  "add-to-plan": "reviewQueue.decisions.addToPlan",
+  "needs-manual-instruction": "reviewQueue.decisions.needsManualInstruction"
+} as const satisfies Record<ReviewDecision | "all", string>;
 
 /**
  * ReviewQueuePanel — independent Unknown Review Queue workbench.
@@ -35,7 +51,6 @@ import type { Locale } from "../lib/types";
 export function ReviewQueuePanel({
   authToken,
   connectionId,
-  locale,
   pushLog,
   onRefreshPlan,
   onCatalogDraft,
@@ -53,6 +68,8 @@ export function ReviewQueuePanel({
    *  workflow steppers can light up the right state. */
   onPendingCountChange?: (count: number) => void;
 }) {
+  const { t } = useTranslation();
+  const labelFor = (value: ReviewDecision | "all") => t(REVIEW_LABEL_KEYS[value]);
   const [report, setReport] = useState<MigrationCandidateReport | null>(null);
   const [queue, setQueue] = useState<MigrationReviewQueueItem[]>([]);
   const [loading, setLoading] = useState(false);
@@ -78,7 +95,7 @@ export function ReviewQueuePanel({
       setReport(r);
       setQueue(q);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load review queue.");
+      setError(err instanceof Error ? err.message : t("reviewQueue.errors.load"));
     } finally {
       setLoading(false);
     }
@@ -150,7 +167,7 @@ export function ReviewQueuePanel({
       await loadAll();
       onRefreshPlan?.();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Save decision failed.");
+      setError(err instanceof Error ? err.message : t("reviewQueue.errors.save"));
     } finally {
       setSavingId(null);
     }
@@ -167,7 +184,7 @@ export function ReviewQueuePanel({
       await loadAll();
       onRefreshPlan?.();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Bulk save failed.");
+      setError(err instanceof Error ? err.message : t("reviewQueue.errors.bulk"));
     } finally {
       setBulkSaving(false);
     }
@@ -176,45 +193,40 @@ export function ReviewQueuePanel({
   return (
     <section className="panel-large review-queue-panel" style={{ padding: 16 }}>
       <div className="panel-heading" style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <h2 style={{ margin: 0 }}>{locale === "zh" ? "审查队列工作台" : "Review Queue Workbench"}</h2>
+        <h2 style={{ margin: 0 }}>{t("reviewQueue.title")}</h2>
         <span className="panel-count">{filteredCandidates.length} / {candidates.length}</span>
       </div>
-      <p style={{ margin: "8px 0", color: "var(--ef-muted)", fontSize: 13 }}>
-        {locale === "zh"
-          ? "未知或低置信度的迁移候选不会被自动忽略，也不会自动迁移。请审查证据，选择决策，必要时生成 catalog 草稿。"
-          : "Unknown or low-confidence candidates are neither silently ignored nor silently migrated. Inspect evidence, pick a decision, and generate a catalog draft when needed."}
-      </p>
+      <p style={{ margin: "8px 0", color: "var(--ef-muted)", fontSize: 13 }}>{t("reviewQueue.intro")}</p>
 
       <div className="review-queue-toolbar" style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center", marginBottom: 12 }}>
         {(["all", "pending", "approved", "ignore", "record-only", "migrate-artifact", "add-to-plan", "create-catalog-draft", "needs-manual-instruction", "skipped"] as const).map((value) => (
-          <button
+          <FilterPill
             key={value}
-            type="button"
-            className={`filter-pill ${filter === value ? "active" : ""}`}
+            active={filter === value}
             onClick={() => setFilter(value)}
           >
-            {labelFor(value, locale)}
-          </button>
+            {labelFor(value)}
+          </FilterPill>
         ))}
         <span style={{ flex: 1 }} />
-        <button type="button" className="conn-btn conn-btn-ghost" onClick={() => void loadAll()} disabled={loading}>
-          {loading ? (locale === "zh" ? "刷新中..." : "Refreshing…") : (locale === "zh" ? "刷新" : "Refresh")}
-        </button>
+        <Button variant="connectionGhost" type="button"  onClick={() => void loadAll()} disabled={loading}>
+          {loading ? t("reviewQueue.refreshing") : t("reviewQueue.refresh")}
+        </Button>
       </div>
 
       {selected.size > 0 ? (
         <div className="review-queue-bulk" style={{ display: "flex", flexWrap: "wrap", gap: 6, padding: 10, background: "var(--ef-surface-soft)", borderRadius: 6, marginBottom: 12 }}>
           <strong style={{ marginRight: 8, fontSize: 13 }}>
-            {locale === "zh" ? `已选 ${selected.size} 项` : `${selected.size} selected`}
+            {t("reviewQueue.selected", { count: selected.size })}
           </strong>
           {(["add-to-plan", "ignore", "record-only", "migrate-artifact", "needs-manual-instruction", "skipped"] as ReviewDecision[]).map((decision) => (
-            <button key={decision} type="button" className="conn-btn conn-btn-ghost" onClick={() => void applyBulk(decision)} disabled={bulkSaving}>
-              {labelFor(decision, locale)}
-            </button>
+            <Button variant="connectionGhost" key={decision} type="button"  onClick={() => void applyBulk(decision)} disabled={bulkSaving}>
+              {labelFor(decision)}
+            </Button>
           ))}
-          <button type="button" className="conn-btn conn-btn-ghost" onClick={() => setSelected(new Set())}>
-            {locale === "zh" ? "取消选择" : "Clear selection"}
-          </button>
+          <Button variant="connectionGhost" type="button"  onClick={() => setSelected(new Set())}>
+            {t("reviewQueue.clearSelection")}
+          </Button>
         </div>
       ) : null}
 
@@ -222,7 +234,7 @@ export function ReviewQueuePanel({
         <div className="review-queue-list" style={{ display: "grid", gap: 8, maxHeight: 540, overflow: "auto" }}>
           {filteredCandidates.length === 0 ? (
             <div className="filter-status">
-              {locale === "zh" ? "当前筛选下没有候选项。" : "No candidates match the current filter."}
+              {t("reviewQueue.empty")}
             </div>
           ) : null}
           {filteredCandidates.map((candidate) => {
@@ -253,11 +265,11 @@ export function ReviewQueuePanel({
                     <small style={{ color: "var(--ef-muted)" }}>{candidate.source} · {candidate.version || "-"} · {candidate.migrationClass}</small>
                   </div>
                   <span className="review-queue-decision-tag" style={{ background: decisionTone(decision), color: "var(--ef-surface)", fontSize: 11, padding: "2px 8px", borderRadius: 999 }}>
-                    {labelFor(decision, locale)}
+                    {labelFor(decision)}
                   </span>
                 </div>
                 <div style={{ marginTop: 6, fontSize: 12, color: "var(--ef-muted)" }}>
-                  {locale === "zh" ? "置信度" : "Confidence"}: {Math.round(candidate.confidence * 100)}% · band {candidate.band}
+                  {t("reviewQueue.confidence")}: {Math.round(candidate.confidence * 100)}% · band {candidate.band}
                 </div>
               </div>
             );
@@ -267,7 +279,7 @@ export function ReviewQueuePanel({
         <aside className="review-queue-detail" style={{ padding: 12, border: "1px solid var(--ef-border)", borderRadius: 6, background: "#fafafa", maxHeight: 540, overflow: "auto" }}>
           {!active ? (
             <p style={{ color: "var(--ef-muted)", fontSize: 13 }}>
-              {locale === "zh" ? "选择左侧候选项以查看证据和决策选项。" : "Pick a candidate on the left to inspect evidence and decisions."}
+              {t("reviewQueue.selectPrompt")}
             </p>
           ) : (
             <div style={{ display: "grid", gap: 10 }}>
@@ -275,64 +287,64 @@ export function ReviewQueuePanel({
                 <strong style={{ fontSize: 16 }}>{active.name}</strong>
                 <div style={{ color: "var(--ef-muted)", fontSize: 12 }}>{active.source} · {active.version || "-"}</div>
               </header>
-              <Section title={locale === "zh" ? "迁移分类" : "Migration class"}>
+              <Section title={t("reviewQueue.migrationClass")}>
                 <code>{active.migrationClass}</code>
               </Section>
               {active.catalogRuleId ? (
-                <Section title={locale === "zh" ? "规则库规则" : "Catalog rule"}>
+                <Section title={t("reviewQueue.catalogRule")}>
                   <code>{active.catalogRuleId}</code> {active.catalogRuleName ? `(${active.catalogRuleName})` : ""}
                 </Section>
               ) : null}
-              <Section title={locale === "zh" ? "证据" : "Evidence"}>
+              <Section title={t("reviewQueue.evidence")}>
                 <ul style={{ margin: 0, paddingLeft: 18, fontSize: 12, color: "var(--ef-text)" }}>
                   {active.reasons.map((reason, idx) => <li key={`reason-${idx}`}>{reason}</li>)}
                 </ul>
               </Section>
               {active.risks.length ? (
-                <Section title={locale === "zh" ? "风险" : "Risks"}>
+                <Section title={t("reviewQueue.risks")}>
                   <ul style={{ margin: 0, paddingLeft: 18, fontSize: 12, color: "#7c2d12" }}>
                     {active.risks.map((risk, idx) => <li key={`risk-${idx}`}>{risk}</li>)}
                   </ul>
                 </Section>
               ) : null}
               {active.recommendedActions.length ? (
-                <Section title={locale === "zh" ? "建议操作" : "Recommended actions"}>
+                <Section title={t("reviewQueue.recommendedActions")}>
                   <ul style={{ margin: 0, paddingLeft: 18, fontSize: 12, color: "var(--ef-text)" }}>
                     {active.recommendedActions.map((action, idx) => <li key={`act-${idx}`}>{action}</li>)}
                   </ul>
                 </Section>
               ) : null}
 
-              <Section title={locale === "zh" ? "应用决策" : "Apply decision"}>
+              <Section title={t("reviewQueue.applyDecision")}>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
                   {(["approved", "add-to-plan", "migrate-artifact", "ignore", "record-only", "create-catalog-draft", "needs-manual-instruction", "skipped"] as ReviewDecision[]).map((decision) => (
-                    <button
+                    <Button variant="connectionGhost"
                       key={decision}
                       type="button"
-                      className="conn-btn conn-btn-ghost"
+
                       onClick={() => void applyDecision(active.id, decision)}
                       disabled={savingId === active.id}
                     >
-                      {labelFor(decision, locale)}
-                    </button>
+                      {labelFor(decision)}
+                    </Button>
                   ))}
                 </div>
               </Section>
 
               {draftFor?.id === active.id && draftYaml ? (
-                <Section title={locale === "zh" ? "规则库草稿（能力规则 v2）" : "Catalog draft (capability rule v2)"}>
+                <Section title={t("reviewQueue.catalogDraft")}>
                   <textarea
                     readOnly
                     value={draftYaml}
                     style={{ width: "100%", minHeight: 220, fontFamily: "monospace", fontSize: 12 }}
                   />
                   <div style={{ marginTop: 6, display: "flex", gap: 6 }}>
-                    <button type="button" className="conn-btn conn-btn-ghost" onClick={() => void navigator.clipboard.writeText(draftYaml)}>
-                      {locale === "zh" ? "复制 YAML" : "Copy YAML"}
-                    </button>
-                    <button type="button" className="conn-btn conn-btn-ghost" onClick={() => downloadAsFile(`${active.id}.catalog-draft.yaml`, draftYaml)}>
-                      {locale === "zh" ? "下载" : "Download"}
-                    </button>
+                    <Button variant="connectionGhost" type="button"  onClick={() => void navigator.clipboard.writeText(draftYaml)}>
+                      {t("reviewQueue.copyYaml")}
+                    </Button>
+                    <Button variant="connectionGhost" type="button"  onClick={() => downloadAsFile(`${active.id}.catalog-draft.yaml`, draftYaml)}>
+                      {t("reviewQueue.download")}
+                    </Button>
                   </div>
                 </Section>
               ) : null}
@@ -353,34 +365,6 @@ function Section({ title, children }: { title: string; children: React.ReactNode
       <div>{children}</div>
     </div>
   );
-}
-
-function labelFor(value: ReviewDecision | "all" | "pending", locale: Locale): string {
-  const zh: Record<string, string> = {
-    all: "全部",
-    pending: "待定",
-    approved: "批准",
-    skipped: "跳过",
-    ignore: "忽略",
-    "record-only": "仅记录",
-    "migrate-artifact": "迁移为 artifact",
-    "create-catalog-draft": "生成 catalog 草稿",
-    "add-to-plan": "加入计划",
-    "needs-manual-instruction": "需手动指引"
-  };
-  const en: Record<string, string> = {
-    all: "All",
-    pending: "Pending",
-    approved: "Approved",
-    skipped: "Skipped",
-    ignore: "Ignore",
-    "record-only": "Record only",
-    "migrate-artifact": "Migrate as artifact",
-    "create-catalog-draft": "Create catalog draft",
-    "add-to-plan": "Add to plan",
-    "needs-manual-instruction": "Needs manual instruction"
-  };
-  return locale === "zh" ? zh[value] ?? value : en[value] ?? value;
 }
 
 function decisionTone(decision: ReviewDecision): string {

@@ -28,29 +28,43 @@ run_limited() {
   fi
 }
 
+emit_status() {
+  echo "===STATUS:$1:$2==="
+}
+
+COLLECT_ERR=$(mktemp 2>/dev/null || echo /tmp/envforge-collector-stderr.$$)
+: > "$COLLECT_ERR"
+
 echo "===SECTION:hostname==="
-hostname 2>/dev/null
+hostname 2>>"$COLLECT_ERR"
+emit_status hostname $?
 
 echo "===SECTION:uname==="
-uname -s 2>/dev/null
-uname -m 2>/dev/null
-uname -r 2>/dev/null
+uname -s 2>>"$COLLECT_ERR"
+uname -m 2>>"$COLLECT_ERR"
+uname -r 2>>"$COLLECT_ERR"
+emit_status uname $?
 
 echo "===SECTION:cpu==="
-nproc 2>/dev/null
-cat /proc/cpuinfo 2>/dev/null | grep -m1 'model name' | cut -d: -f2 | xargs
+nproc 2>>"$COLLECT_ERR"
+cat /proc/cpuinfo 2>>"$COLLECT_ERR" | grep -m1 'model name' | cut -d: -f2 | xargs
+emit_status cpu $?
 
 echo "===SECTION:memory==="
-free -b 2>/dev/null | awk '/^Mem:/{print $2, $4}'
+free -b 2>>"$COLLECT_ERR" | awk '/^Mem:/{print $2, $4}'
+emit_status memory $?
 
 echo "===SECTION:disk==="
-df -h / 2>/dev/null | tail -1 | awk '{print $2"|"$3"|"$4"|"$5}'
+df -h / 2>>"$COLLECT_ERR" | tail -1 | awk '{print $2"|"$3"|"$4"|"$5}'
+emit_status disk $?
 
 echo "===SECTION:uptime==="
-uptime -p 2>/dev/null
+uptime -p 2>>"$COLLECT_ERR"
+emit_status uptime $?
 
 echo "===SECTION:os-release==="
-cat /etc/os-release 2>/dev/null | grep -E '^(PRETTY_NAME|ID|VERSION_ID)=' | head -3
+cat /etc/os-release 2>>"$COLLECT_ERR" | grep -E '^(PRETTY_NAME|ID|VERSION_ID)=' | head -3
+emit_status os-release $?
 
 echo "===SECTION:apt==="
 # Collect ALL manually-marked apt packages. The TS-side trust filter will classify each
@@ -58,146 +72,185 @@ echo "===SECTION:apt==="
 # Cross-cloud baseline detection is unreliable (no /var/log/installer/initial-status.gz on
 # most cloud images, dpkg.log timestamps get reset by cloud-init upgrades), so we don't
 # try to be clever in shell — we just pass the full list to the TS layer.
-APT_TMP=$(mktemp -d 2>/dev/null || mktemp -d -t envforge.XXXXXX 2>/dev/null || echo /tmp/envforge.$$)
-mkdir -p "$APT_TMP" 2>/dev/null
-apt-mark showmanual 2>/dev/null | sort -u > "$APT_TMP/manual.txt"
+APT_TMP=$(mktemp -d 2>>"$COLLECT_ERR" || mktemp -d -t envforge.XXXXXX 2>>"$COLLECT_ERR" || echo /tmp/envforge.$$)
+mkdir -p "$APT_TMP" 2>>"$COLLECT_ERR"
+apt-mark showmanual 2>>"$COLLECT_ERR" | sort -u > "$APT_TMP/manual.txt"
 
 # If we DO have the official Ubuntu installer baseline, use it as a free pre-filter
 if [ -f /var/log/installer/initial-status.gz ]; then
-  gzip -dc /var/log/installer/initial-status.gz 2>/dev/null | sed -n 's/^Package: //p' | sort -u > "$APT_TMP/base.txt"
+  gzip -dc /var/log/installer/initial-status.gz 2>>"$COLLECT_ERR" | sed -n 's/^Package: //p' | sort -u > "$APT_TMP/base.txt"
   comm -23 "$APT_TMP/manual.txt" "$APT_TMP/base.txt" > "$APT_TMP/user.txt"
 else
   cp "$APT_TMP/manual.txt" "$APT_TMP/user.txt"
 fi
 
-dpkg-query -W -f='\${Package}|\${Version}\n' 2>/dev/null | sort -u > "$APT_TMP/dpkg.txt"
+dpkg-query -W -f='\${Package}|\${Version}\n' 2>>"$COLLECT_ERR" | sort -u > "$APT_TMP/dpkg.txt"
 awk -F'|' 'NR==FNR { manual[$1]=1; next } manual[$1] { print }' "$APT_TMP/user.txt" "$APT_TMP/dpkg.txt"
-rm -rf "$APT_TMP" 2>/dev/null
+apt_status=$?
+rm -rf "$APT_TMP" 2>>"$COLLECT_ERR"
+emit_status apt $apt_status
 
 echo "===SECTION:apt-manual==="
-apt-mark showmanual 2>/dev/null | sort -u
+apt-mark showmanual 2>>"$COLLECT_ERR" | sort -u
+emit_status apt-manual $?
 
 echo "===SECTION:rpm==="
-run_limited 8s rpm -qa --queryformat '%{NAME}|%{VERSION}\n' 2>/dev/null
+run_limited 8s rpm -qa --queryformat '%{NAME}|%{VERSION}\n' 2>>"$COLLECT_ERR"
+emit_status rpm $?
 
 echo "===SECTION:snap==="
-snap list 2>/dev/null | tail -n +2 | awk '{print $1"|"$2}'
+snap list 2>>"$COLLECT_ERR" | tail -n +2 | awk '{print $1"|"$2}'
+emit_status snap $?
 
 echo "===SECTION:flatpak==="
-flatpak list --columns=application,version 2>/dev/null
+flatpak list --columns=application,version 2>>"$COLLECT_ERR"
+emit_status flatpak $?
 
 echo "===SECTION:npm==="
-run_limited 8s npm list -g --depth=0 --parseable 2>/dev/null | tail -n +2 | awk -F'/' '{print $NF}'
+run_limited 8s npm list -g --depth=0 --parseable 2>>"$COLLECT_ERR" | tail -n +2 | awk -F'/' '{print $NF}'
+emit_status npm $?
 
 echo "===SECTION:pip==="
-run_limited 8s pip3 list --format=freeze 2>/dev/null
-run_limited 8s pip list --format=freeze 2>/dev/null
+run_limited 8s pip3 list --format=freeze 2>>"$COLLECT_ERR"
+run_limited 8s pip list --format=freeze 2>>"$COLLECT_ERR"
+emit_status pip $?
 
 echo "===SECTION:gem==="
-run_limited 8s gem list --local 2>/dev/null
+run_limited 8s gem list --local 2>>"$COLLECT_ERR"
+emit_status gem $?
 
 echo "===SECTION:cargo==="
-ls -1 ~/.cargo/bin 2>/dev/null
-ls -1 /root/.cargo/bin 2>/dev/null
+ls -1 ~/.cargo/bin 2>>"$COLLECT_ERR"
+ls -1 /root/.cargo/bin 2>>"$COLLECT_ERR"
+emit_status cargo $?
 
 echo "===SECTION:local-bin==="
-ls -1 /usr/local/bin 2>/dev/null
+ls -1 /usr/local/bin 2>>"$COLLECT_ERR"
+emit_status local-bin $?
 
 echo "===SECTION:local-sbin==="
-ls -1 /usr/local/sbin 2>/dev/null
+ls -1 /usr/local/sbin 2>>"$COLLECT_ERR"
+emit_status local-sbin $?
 
 echo "===SECTION:local-apps==="
-ls -1d /usr/local/*/ 2>/dev/null | xargs -n1 basename 2>/dev/null | grep -vE '^(bin|lib|lib64|share|include|etc|man|src|sbin|games|libexec)$'
+ls -1d /usr/local/*/ 2>>"$COLLECT_ERR" | xargs -n1 basename 2>>"$COLLECT_ERR" | grep -vE '^(bin|lib|lib64|share|include|etc|man|src|sbin|games|libexec)$'
+emit_status local-apps $?
 
 echo "===SECTION:opt==="
-ls -1 /opt 2>/dev/null
+ls -1 /opt 2>>"$COLLECT_ERR"
+emit_status opt $?
 
 echo "===SECTION:srv==="
-ls -1 /srv 2>/dev/null | head -20
+ls -1 /srv 2>>"$COLLECT_ERR" | head -20
+emit_status srv $?
 
 echo "===SECTION:user-bin==="
-ls -1 ~/.local/bin 2>/dev/null
+ls -1 ~/.local/bin 2>>"$COLLECT_ERR"
+emit_status user-bin $?
 
 echo "===SECTION:go-bin==="
-ls -1 ~/go/bin 2>/dev/null
-ls -1 /root/go/bin 2>/dev/null
+ls -1 ~/go/bin 2>>"$COLLECT_ERR"
+ls -1 /root/go/bin 2>>"$COLLECT_ERR"
+emit_status go-bin $?
 
 echo "===SECTION:nvm==="
-ls -1 ~/.nvm/versions/node 2>/dev/null
+ls -1 ~/.nvm/versions/node 2>>"$COLLECT_ERR"
+emit_status nvm $?
 
 echo "===SECTION:pyenv==="
-ls -1 ~/.pyenv/versions 2>/dev/null
+ls -1 ~/.pyenv/versions 2>>"$COLLECT_ERR"
+emit_status pyenv $?
 
 echo "===SECTION:rbenv==="
-ls -1 ~/.rbenv/versions 2>/dev/null
+ls -1 ~/.rbenv/versions 2>>"$COLLECT_ERR"
+emit_status rbenv $?
 
 echo "===SECTION:asdf==="
-ls -1 ~/.asdf/installs 2>/dev/null | head -20
+ls -1 ~/.asdf/installs 2>>"$COLLECT_ERR" | head -20
+emit_status asdf $?
 
 echo "===SECTION:sdkman==="
-ls -1 ~/.sdkman/candidates 2>/dev/null
+ls -1 ~/.sdkman/candidates 2>>"$COLLECT_ERR"
+emit_status sdkman $?
 
 echo "===SECTION:docker-images==="
-run_limited 8s docker images --format '{{.Repository}}:{{.Tag}}' 2>/dev/null
+if command -v docker >/dev/null 2>&1; then
+  run_limited 8s docker images --format '{{.Repository}}:{{.Tag}}'
+  emit_status docker-images $?
+else
+  emit_status docker-images 127
+fi
 
 echo "===SECTION:cron-jobs==="
-ls -1 /etc/cron.d 2>/dev/null | grep -vE '^(\.placeholder|e2scrub)$'
-crontab -l 2>/dev/null | grep -vE '^(#|$|SHELL|PATH|MAILTO)'
+ls -1 /etc/cron.d 2>>"$COLLECT_ERR" | grep -vE '^(\.placeholder|e2scrub)$'
+crontab -l 2>>"$COLLECT_ERR" | grep -vE '^(#|$|SHELL|PATH|MAILTO)'
+emit_status cron-jobs $?
 
 echo "===SECTION:systemd-timers==="
-run_limited 8s systemctl list-unit-files --state=enabled --type=timer --no-legend 2>/dev/null | awk '{print $1}' | grep -vE '^(apt-|systemd-|fstrim|logrotate|man-db|motd-news|e2scrub)'
+run_limited 8s systemctl list-unit-files --state=enabled --type=timer --no-legend 2>>"$COLLECT_ERR" | awk '{print $1}' | grep -vE '^(apt-|systemd-|fstrim|logrotate|man-db|motd-news|e2scrub)'
+emit_status systemd-timers $?
 
 echo "===SECTION:services-enabled==="
-run_limited 8s systemctl list-unit-files --state=enabled --type=service --no-legend 2>/dev/null | awk '{print $1}'
+run_limited 8s systemctl list-unit-files --state=enabled --type=service --no-legend 2>>"$COLLECT_ERR" | awk '{print $1}'
+emit_status services-enabled $?
 
 echo "===SECTION:services-running==="
-run_limited 8s systemctl list-units --state=running --type=service --no-legend 2>/dev/null | awk '{print $1}'
+run_limited 8s systemctl list-units --state=running --type=service --no-legend 2>>"$COLLECT_ERR" | awk '{print $1}'
+emit_status services-running $?
 
 echo "===SECTION:custom-services==="
-ls -1 /etc/systemd/system/*.service 2>/dev/null | xargs -n1 basename 2>/dev/null
+ls -1 /etc/systemd/system/*.service 2>>"$COLLECT_ERR" | xargs -n1 basename 2>>"$COLLECT_ERR"
+emit_status custom-services $?
 
 echo "===SECTION:env-count==="
-env 2>/dev/null | wc -l
+env 2>>"$COLLECT_ERR" | wc -l
+emit_status env-count $?
 
 echo "===SECTION:ssh-status==="
-systemctl is-active sshd 2>/dev/null
+systemctl is-active sshd 2>>"$COLLECT_ERR"
+emit_status ssh-status $?
 
 echo "===SECTION:security-audit==="
 # SSH hardening checks
-grep -i "^PermitRootLogin" /etc/ssh/sshd_config 2>/dev/null | head -1 || echo "PermitRootLogin not-set"
-grep -i "^PasswordAuthentication" /etc/ssh/sshd_config 2>/dev/null | head -1 || echo "PasswordAuthentication not-set"
-grep -i "^MaxAuthTries" /etc/ssh/sshd_config 2>/dev/null | head -1 || echo "MaxAuthTries not-set"
+grep -i "^PermitRootLogin" /etc/ssh/sshd_config 2>>"$COLLECT_ERR" | head -1 || echo "PermitRootLogin not-set"
+grep -i "^PasswordAuthentication" /etc/ssh/sshd_config 2>>"$COLLECT_ERR" | head -1 || echo "PasswordAuthentication not-set"
+grep -i "^MaxAuthTries" /etc/ssh/sshd_config 2>>"$COLLECT_ERR" | head -1 || echo "MaxAuthTries not-set"
 # Firewall status
-ufw_line=$(run_limited 5s sudo -n ufw status 2>/dev/null | head -1)
-[ -n "$ufw_line" ] || ufw_line=$(run_limited 5s ufw status 2>/dev/null | head -1)
+ufw_line=$(run_limited 5s sudo -n ufw status 2>>"$COLLECT_ERR" | head -1)
+[ -n "$ufw_line" ] || ufw_line=$(run_limited 5s ufw status 2>>"$COLLECT_ERR" | head -1)
 [ -n "$ufw_line" ] && echo "$ufw_line" || echo "UFW not-installed"
 # Fail2ban status
-systemctl is-active fail2ban 2>/dev/null || echo "fail2ban-inactive"
+systemctl is-active fail2ban 2>>"$COLLECT_ERR" || echo "fail2ban-inactive"
 # Unattended upgrades
-dpkg -l unattended-upgrades 2>/dev/null | grep -q "^ii" && echo "auto-updates-enabled" || echo "auto-updates-disabled"
+dpkg -l unattended-upgrades 2>>"$COLLECT_ERR" | grep -q "^ii" && echo "auto-updates-enabled" || echo "auto-updates-disabled"
 # Open ports (listening)
-ss -tlnp 2>/dev/null | grep LISTEN | awk '{print $4}' | sed 's/.*://' | sort -un | tr '\n' ',' || echo "none"
+ss -tlnp 2>>"$COLLECT_ERR" | grep LISTEN | awk '{print $4}' | sed 's/.*://' | sort -un | tr '\n' ',' || echo "none"
+emit_status security-audit $?
 
 echo "===SECTION:user-prefs==="
 # Shell aliases (top 5)
-grep -E '^alias ' ~/.bashrc ~/.zshrc 2>/dev/null | head -5
+grep -E '^alias ' ~/.bashrc ~/.zshrc 2>>"$COLLECT_ERR" | head -5
 echo "---"
 # PATH additions (lines that touch PATH)
-grep -E '^(export PATH|PATH=)' ~/.bashrc ~/.zshrc ~/.profile 2>/dev/null | head -3
+grep -E '^(export PATH|PATH=)' ~/.bashrc ~/.zshrc ~/.profile 2>>"$COLLECT_ERR" | head -3
 echo "---"
 # Git global config (non-secret keys only)
-git config --global --list 2>/dev/null | grep -vE '(token|password|credential)' | head -10
+git config --global --list 2>>"$COLLECT_ERR" | grep -vE '(token|password|credential)' | head -10
 echo "---"
 # npm registry
-npm config get registry 2>/dev/null
+npm config get registry 2>>"$COLLECT_ERR"
 echo "---"
 # pip mirror (just the index-url line, no creds)
-grep -E '^index-url' ~/.config/pip/pip.conf /etc/pip.conf 2>/dev/null | head -1
+grep -E '^index-url' ~/.config/pip/pip.conf /etc/pip.conf 2>>"$COLLECT_ERR" | head -1
 echo "---"
 # /etc/hosts non-default entries
-grep -vE '^(127\.|::1|#|$)' /etc/hosts 2>/dev/null | head -5
+grep -vE '^(127\.|::1|#|$)' /etc/hosts 2>>"$COLLECT_ERR" | head -5
+emit_status user-prefs $?
 
 echo "===SECTION:end==="
+emit_status end 0
+cat "$COLLECT_ERR" >&2
+rm -f "$COLLECT_ERR"
 `;
 
 const COLLECT_TIMEOUT_MS = 60_000; // Full inventory can be slow on package-heavy hosts.
@@ -225,9 +278,36 @@ export interface ConfigItem {
   lastChanged: string;
 }
 
+export interface CollectorCommandEvidence {
+  command: string;
+  exitCode?: number;
+  timedOut?: boolean;
+}
+
+export interface CollectorResult<T> {
+  id: string;
+  status: "ok" | "partial" | "failed";
+  completeness: number;
+  commands: CollectorCommandEvidence[];
+  stdout?: string;
+  stderr?: string;
+  errors: string[];
+  collectedAt: string;
+  data: T;
+}
+
 export interface FullSystemSnapshot {
   agentId: string;
   collectedAt: string;
+  collection?: {
+    status: "ok" | "partial" | "failed";
+    completeness: number;
+    commands: CollectorCommandEvidence[];
+    stderr?: string;
+    errors: string[];
+    timedOut: boolean;
+  };
+  collectors?: Record<string, CollectorResult<string[]>>;
   system: {
     hostname: string;
     platform: string;
@@ -267,27 +347,63 @@ export interface FullSystemSnapshot {
 /** Collect a comprehensive snapshot via a single SSH exec */
 export async function collectRemoteSnapshot(client: Client, host: string): Promise<FullSystemSnapshot> {
   const start = Date.now();
-  const stdout = await new Promise<string>((resolve, reject) => {
+  const output = await new Promise<{ stdout: string; stderr: string; timedOut: boolean; exitCode?: number }>((resolve, reject) => {
     client.exec(COLLECT_SCRIPT, (err, stream) => {
       if (err) { reject(err); return; }
       let buf = "";
+      let stderr = "";
+      let settled = false;
+      const finish = (value: { stdout: string; stderr: string; timedOut: boolean; exitCode?: number }) => {
+        if (settled) return;
+        settled = true;
+        resolve(value);
+      };
       const timer = setTimeout(() => {
         stream.destroy();
         // Don't reject — return what we have
-        resolve(buf);
+        finish({ stdout: buf, stderr, timedOut: true });
       }, COLLECT_TIMEOUT_MS);
       stream.on("data", (chunk: Buffer) => { buf += chunk.toString(); });
-      stream.stderr.on("data", () => { /* ignore stderr */ });
-      stream.on("close", () => { clearTimeout(timer); resolve(buf); });
+      stream.stderr.on("data", (chunk: Buffer) => { stderr += chunk.toString(); });
+      stream.on("close", (code: number) => { clearTimeout(timer); finish({ stdout: buf, stderr, timedOut: false, exitCode: code ?? 0 }); });
       stream.on("error", (e: Error) => { clearTimeout(timer); reject(e); });
     });
   });
 
-  return parseFullOutput(stdout, host, Date.now() - start);
+  return parseFullOutput(output.stdout, host, Date.now() - start, output);
 }
 
-function parseFullOutput(raw: string, host: string, _latencyMs: number): FullSystemSnapshot {
+export function parseRemoteCollectorOutput(
+  raw: string,
+  host: string,
+  meta: { stderr?: string; timedOut?: boolean; exitCode?: number } = {}
+): FullSystemSnapshot {
+  return parseFullOutput(raw, host, 0, {
+    stdout: raw,
+    stderr: meta.stderr ?? "",
+    timedOut: meta.timedOut === true,
+    exitCode: meta.exitCode
+  });
+}
+
+function parseFullOutput(
+  raw: string,
+  host: string,
+  _latencyMs: number,
+  command: { stdout: string; stderr: string; timedOut: boolean; exitCode?: number }
+): FullSystemSnapshot {
   const sections = parseSections(raw);
+  const sectionStatuses = parseSectionStatuses(raw);
+  const collectedAt = new Date().toISOString();
+  const collectors = buildCollectorResults(sections, sectionStatuses, command, collectedAt);
+  const completeness = Object.values(collectors).reduce((sum, result) => sum + result.completeness, 0)
+    / Math.max(1, Object.keys(collectors).length);
+  const collectionErrors = Object.values(collectors).flatMap((result) => result.errors);
+  const collectionStatus: "ok" | "partial" | "failed" = completeness === 0
+    ? "failed"
+    : completeness < 1 || command.timedOut || (command.exitCode !== undefined && command.exitCode !== 0)
+      ? "partial"
+      : "ok";
 
   // ── System info ──
   const hostname = (sections.hostname ?? "").split("\n")[0].trim() || host;
@@ -692,7 +808,16 @@ function parseFullOutput(raw: string, host: string, _latencyMs: number): FullSys
 
   return {
     agentId: `ssh:${host}`,
-    collectedAt: new Date().toISOString(),
+    collectedAt,
+    collection: {
+      status: collectionStatus,
+      completeness: Number(completeness.toFixed(3)),
+      commands: [{ command: "envforge-remote-collector", exitCode: command.exitCode, timedOut: command.timedOut }],
+      stderr: command.stderr || undefined,
+      errors: collectionErrors,
+      timedOut: command.timedOut
+    },
+    collectors,
     system: {
       hostname,
       platform,
@@ -1006,6 +1131,8 @@ function parseSections(raw: string): Record<string, string> {
       if (currentSection) sections[currentSection] = buffer.join("\n");
       currentSection = m[1];
       buffer = [];
+    } else if (/^===STATUS:[a-z-]+:\d+===$/.test(line)) {
+      // Parsed separately as command evidence.
     } else if (currentSection) {
       buffer.push(line);
     }
@@ -1013,6 +1140,98 @@ function parseSections(raw: string): Record<string, string> {
   if (currentSection) sections[currentSection] = buffer.join("\n");
 
   return sections;
+}
+
+const EXPECTED_SECTION_IDS = [...COLLECT_SCRIPT.matchAll(/===SECTION:([a-z-]+)===/g)].map((match) => match[1]);
+const SECTION_COMMANDS: Record<string, string> = {
+  hostname: "hostname",
+  uname: "uname -s; uname -m; uname -r",
+  cpu: "nproc; read /proc/cpuinfo model name",
+  memory: "free -b",
+  disk: "df -h /",
+  uptime: "uptime -p",
+  "os-release": "read /etc/os-release",
+  apt: "apt-mark showmanual + dpkg-query -W",
+  "apt-manual": "apt-mark showmanual",
+  rpm: "rpm -qa --queryformat",
+  snap: "snap list",
+  flatpak: "flatpak list --columns=application,version",
+  npm: "npm list -g --depth=0 --parseable",
+  pip: "pip3 list --format=freeze; pip list --format=freeze",
+  gem: "gem list --local",
+  cargo: "list user cargo bin directories",
+  "local-bin": "list /usr/local/bin",
+  "local-sbin": "list /usr/local/sbin",
+  "local-apps": "list /usr/local application directories",
+  opt: "list /opt",
+  srv: "list /srv",
+  "user-bin": "list ~/.local/bin",
+  "go-bin": "list Go bin directories",
+  nvm: "list ~/.nvm/versions/node",
+  pyenv: "list ~/.pyenv/versions",
+  rbenv: "list ~/.rbenv/versions",
+  asdf: "list ~/.asdf/installs",
+  sdkman: "list ~/.sdkman/candidates",
+  "docker-images": "docker images --format repository:tag",
+  "cron-jobs": "list /etc/cron.d and user crontab",
+  "systemd-timers": "systemctl list-unit-files --state=enabled --type=timer",
+  "services-enabled": "systemctl list-unit-files --state=enabled --type=service",
+  "services-running": "systemctl list-units --state=running --type=service",
+  "custom-services": "list /etc/systemd/system/*.service",
+  "env-count": "env | wc -l",
+  "ssh-status": "systemctl is-active sshd",
+  "security-audit": "read sshd policy; inspect firewall, fail2ban, updates, and listening ports",
+  "user-prefs": "read shell aliases, PATH, git config, registries, and hosts entries",
+  end: "collector completion marker"
+};
+
+function parseSectionStatuses(raw: string): Record<string, number> {
+  const statuses: Record<string, number> = {};
+  for (const match of raw.matchAll(/^===STATUS:([a-z-]+):(\d+)===$/gm)) statuses[match[1]] = Number(match[2]);
+  return statuses;
+}
+
+function buildCollectorResults(
+  sections: Record<string, string>,
+  statuses: Record<string, number>,
+  command: { stderr: string; timedOut: boolean; exitCode?: number },
+  collectedAt: string
+): Record<string, CollectorResult<string[]>> {
+  return Object.fromEntries(EXPECTED_SECTION_IDS.map((id) => {
+    const present = Object.prototype.hasOwnProperty.call(sections, id);
+    const explicitExit = statuses[id];
+    const sectionTimedOut = command.timedOut || explicitExit === 124 || explicitExit === 137;
+    const errors: string[] = [];
+    let status: CollectorResult<string[]>["status"] = "ok";
+    let completeness = 1;
+    if (!present) {
+      status = command.timedOut ? "partial" : "failed";
+      completeness = 0;
+      errors.push(command.timedOut ? `Collection timed out before section ${id}.` : `Collector section ${id} is missing.`);
+    } else if (explicitExit !== undefined && explicitExit !== 0) {
+      status = sections[id]?.trim() ? "partial" : "failed";
+      completeness = status === "partial" ? 0.5 : 0;
+      errors.push(sectionTimedOut
+        ? `Collector section ${id} timed out (exit ${explicitExit}).`
+        : `Collector section ${id} exited with code ${explicitExit}.`);
+    } else if (command.timedOut) {
+      status = "partial";
+      completeness = 0.5;
+      errors.push("The overall collector timed out; this section may be truncated.");
+    }
+    const result: CollectorResult<string[]> = {
+      id,
+      status,
+      completeness,
+      commands: [{ command: SECTION_COMMANDS[id] ?? `collector section ${id}`, exitCode: explicitExit, timedOut: sectionTimedOut }],
+      stdout: sections[id]?.trim() || undefined,
+      stderr: errors.length && command.stderr ? command.stderr : undefined,
+      errors,
+      collectedAt,
+      data: parseLines(sections[id])
+    };
+    return [id, result];
+  }));
 }
 
 function parseLines(input: string | undefined): string[] {
