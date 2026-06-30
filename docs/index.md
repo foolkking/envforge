@@ -19,6 +19,8 @@ This is the durable documentation map for EnvForge. Human entry point:
 
 ## Product Design
 
+Product design entry path: `docs/product/README.md`.
+
 - [Product Design Overview](./product/README.md)
 - [Product Strategy](./product/product-strategy.md)
 - [First-run Experience](./product/first-run-experience.md)

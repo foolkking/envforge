@@ -16,8 +16,7 @@ Ansible replacement
 Terraform replacement
 ~~~
 
-EnvForge turns unknown Linux servers into reviewed, reproducible, verifiable
-migration plans.
+EnvForge turns unknown Linux servers into reviewed, reproducible, verifiable migration plans.
 
 EnvForge 把不可控的旧 Linux 服务器，转化为可审查、可重建、可验证、可审计的环境计划。
 

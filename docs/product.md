@@ -1,5 +1,7 @@
 # Product
 
+Productization design roadmap: [docs/product/README.md](./product/README.md).
+
 EnvForge turns an existing Linux host into a safe, explainable, rebuildable
 Environment Plan. It discovers broadly, migrates cautiously, and asks for human
 review when confidence, secrets, data, or cross-distro behavior are uncertain.
