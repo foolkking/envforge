@@ -2,7 +2,7 @@
 
 AI-readable current-state snapshot. Read this before changing the repo, then read
 `AGENTS.md` for working rules. Human entry point: `README.md`. Last updated:
-2026-06-30.
+2026-07-01.
 
 ## Product snapshot
 
@@ -210,6 +210,29 @@ Apply kernel:
 
 The API and migration integration are complete for this batch. A dedicated Web
 Review Inbox and preference-management surface remains a later product task.
+
+## Read-only Assessment backend baseline
+
+Prompt2A is implemented as a pure, additive projection over existing migration
+sessions, source snapshots, collector envelopes, and migration candidate
+reports:
+
+- `GET /api/migration/sessions/:sessionId/assessment` returns source and
+  snapshot context, service stacks, risk summary, migration readiness, required
+  decisions, and collector evidence quality.
+- `GET /api/migration/sessions/:sessionId/assessment/report?format=json` and
+  `format=markdown` export a default-redacted Assessment Report suitable for
+  tickets and internal review.
+- Missing sessions and snapshots return explicit unavailable states instead of
+  empty successful assessments. Partial or failed collectors remain visible;
+  successful empty evidence is distinguishable from unavailable evidence.
+- Assessment routes are read-only. They do not materialize Decision Engine
+  records, create an Environment Plan or Approval, create Apply/Action/session
+  runs, or mutate a source or target host.
+
+This is the backend Prompt2A baseline only. Web First-run Assessment UI remains
+future Prompt2B work, and Review Inbox productization remains future Prompt2C
+work. Do not describe the complete First-run Assessment baseline as finished.
 
 ## Verification report evidence
 

@@ -83,6 +83,7 @@ import { buildUnknownReviewQueue, decisionMap } from "./migration-review.js";
 import { runMigrationVerificationPreview } from "./migration-verify-runner.js";
 import { assessMigrationApplyReadiness } from "./migration-apply-readiness.js";
 import { buildMigrationSessionArtifacts, initialMigrationSessionState, isMigrationSessionStatus, isMigrationSessionStep } from "./migration-session.js";
+import { assessmentReportToMarkdown, buildAssessmentSummary } from "./migration-assessment.js";
 import { buildConfigChangePlan, buildConfigMigrationPlan, buildImportedRecipePlan, buildPlanReport, buildRebuildPlan, buildRemovePlan, buildRepairPlan, evaluateApplyGate, migrationPlanToEnvironmentPlan, planReportToMarkdown, type EnvironmentPlan, type EnvironmentPlanStatus, type PlanApprovalRecord, type PlanApprovalState, type RepairFailure } from "./environment-plan.js";
 import {
   appendPlanHistory,
@@ -4447,6 +4448,67 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
     const artifacts = buildSessionArtifacts(context);
     await materializeMigrationDecisionProducts(context, artifacts);
     return { session: artifacts.view, report: artifacts.report, reviewQueue: artifacts.reviewQueue, decisions: context.decisions };
+  });
+
+  app.get("/api/migration/sessions/:sessionId/assessment", async (request, reply) => {
+    const user = await getUserByToken(readBearerToken(request.headers.authorization));
+    if (!user) { reply.code(401); return { error: "Login required." }; }
+    const { sessionId } = request.params as { sessionId: string };
+    const context = await loadMigrationSessionContext(user.id, sessionId);
+    if (!context) { reply.code(404); return { error: "Migration session not found.", status: "assessment-unavailable" }; }
+    if (!context.conn.probeSnapshot) {
+      reply.code(409);
+      return { error: "A source snapshot is required before assessment.", status: "snapshot-missing" };
+    }
+    const artifacts = buildSessionArtifacts(context);
+    if (!artifacts.report) {
+      reply.code(409);
+      return { error: "Migration analysis is not available for this snapshot.", status: "analysis-missing" };
+    }
+    return {
+      assessment: buildAssessmentSummary({
+        session: context.session,
+        snapshot: context.conn.probeSnapshot,
+        report: artifacts.report,
+        host: context.conn.fields.host ?? context.conn.label,
+        decisions: context.decisions,
+        dataDecisions: context.dataDecisions
+      })
+    };
+  });
+
+  app.get("/api/migration/sessions/:sessionId/assessment/report", async (request, reply) => {
+    const user = await getUserByToken(readBearerToken(request.headers.authorization));
+    if (!user) { reply.code(401); return { error: "Login required." }; }
+    const { sessionId } = request.params as { sessionId: string };
+    const { format = "json" } = request.query as { format?: string };
+    if (format !== "json" && format !== "markdown") {
+      reply.code(400);
+      return { error: "Assessment report format must be json or markdown." };
+    }
+    const context = await loadMigrationSessionContext(user.id, sessionId);
+    if (!context) { reply.code(404); return { error: "Migration session not found.", status: "assessment-unavailable" }; }
+    if (!context.conn.probeSnapshot) {
+      reply.code(409);
+      return { error: "A source snapshot is required before assessment.", status: "snapshot-missing" };
+    }
+    const artifacts = buildSessionArtifacts(context);
+    if (!artifacts.report) {
+      reply.code(409);
+      return { error: "Migration analysis is not available for this snapshot.", status: "analysis-missing" };
+    }
+    const assessment = buildAssessmentSummary({
+      session: context.session,
+      snapshot: context.conn.probeSnapshot,
+      report: artifacts.report,
+      host: context.conn.fields.host ?? context.conn.label,
+      decisions: context.decisions,
+      dataDecisions: context.dataDecisions
+    });
+    if (format === "markdown") {
+      return reply.type("text/markdown; charset=utf-8").send(assessmentReportToMarkdown(assessment));
+    }
+    return { format: "json", report: assessment };
   });
 
   app.post("/api/migration/sessions/:sessionId/decisions", async (request, reply) => {

@@ -63,3 +63,21 @@ Certbot → provides certs for → Nginx
 UFW → exposes → 80/443/22
 Cron → triggers → backup script
 ~~~
+
+## Assessment API baseline
+
+Prompt2A adds a service-stack view model as an additive projection over the
+existing migration candidate report. It does not replace `MigrationCandidate`,
+`NormalizedArtifact`, `ConfigBundle`, or `Environment Plan`.
+
+The projection currently groups common web entry, application runtime,
+database, cache, queue, storage, security, network, scheduled-job, and unknown
+signals. It preserves evidence references, confidence reasons, statefulness,
+risk reasons, required decisions, recommended strategy, capability references,
+and inferred relationships. Unknown or unsupported components remain explicit
+manual items instead of being forced into a supported category.
+
+Collector envelopes remain authoritative: a successful empty Docker collector
+means no Docker workload was found, while a failed Docker collector means the
+Docker evidence is unavailable. The Web service-stack presentation remains
+future Prompt2B work.

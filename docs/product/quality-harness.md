@@ -48,3 +48,20 @@ redaction check
 - 不会破坏 rollback boundary
 
 Every official capability should have fixture and harness proof.
+
+## Read-only Assessment regression baseline
+
+Prompt2A adds backend regression coverage for:
+
+- service-stack projection from migration candidates;
+- PostgreSQL statefulness, high risk, evidence explanation, and required data
+  migration strategy;
+- collector partial/failed/timeout/stderr evidence and the distinction between
+  an absent component and unavailable collector evidence;
+- readiness blockers caused by insufficient evidence;
+- JSON and Markdown report redaction;
+- the invariant that Assessment reads create no approved Plan, Approval, Apply
+  Run, ActionRunRecord, migration session run, or target mutation.
+
+The full first-run browser workflow and golden-scenario lab fixtures remain
+future Prompt2B and later-phase work.

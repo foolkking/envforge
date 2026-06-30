@@ -59,3 +59,16 @@ Even without migration execution, the user should think:
 - Apply an approved plan
 
 The default entry is Read-only Assessment, not Apply.
+
+## Implementation status
+
+Prompt2A establishes the backend baseline for this experience:
+
+- a read-only Assessment view derived from an existing migration session and source snapshot;
+- service-stack, evidence-quality, risk, readiness, and required-decision projections;
+- JSON and Markdown Assessment Report export with default secret redaction;
+- explicit unavailable states when the session or source snapshot is missing.
+
+Assessment reads do not create an Environment Plan, Approval, Apply Run, or
+target mutation. The Web first-run Assessment experience remains future Prompt2B
+work. Review Inbox productization remains future Prompt2C work.
