@@ -9,7 +9,7 @@
     "dev": "npm run build && node --watch dist/server.js",
     "start": "node dist/server.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "npm run clean && npm run build && node --test dist/engine/tests"
+    "test": "npm run clean && npm run build && node --test --test-concurrency=1 dist/engine/tests"
   },
   "dependencies": {
     "@fool/collectors": "0.1.0",
