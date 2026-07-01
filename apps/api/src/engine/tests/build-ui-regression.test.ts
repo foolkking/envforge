@@ -37,11 +37,13 @@ const dashboardPagePath = path.resolve(repoRoot, "apps/web/src/pages/DashboardPa
 const plansPagePath = path.resolve(repoRoot, "apps/web/src/pages/PlanRecipesPage.tsx");
 const machinePagePath = path.resolve(repoRoot, "apps/web/src/pages/MachinePage.tsx");
 const migratePipelinePath = path.resolve(repoRoot, "apps/web/src/pages/MigratePipelinePage.tsx");
+const assessmentExperiencePath = path.resolve(repoRoot, "apps/web/src/components/AssessmentExperience.tsx");
 const webApiPath = path.resolve(repoRoot, "apps/web/src/api.ts");
 const stepperPath = path.resolve(repoRoot, "apps/web/src/components/WorkflowStepper.tsx");
 const settingsPath = path.resolve(repoRoot, "apps/web/src/pages/SettingsPage.tsx");
 const apiRoutesPath = path.resolve(repoRoot, "apps/api/src/routes.ts");
 const enLocalePath = path.resolve(repoRoot, "apps/web/src/i18n/locales/en.ts");
+const zhLocalePath = path.resolve(repoRoot, "apps/web/src/i18n/locales/zh.ts");
 
 function fileURLToPathSafe(url: string): string {
   // Local helper to avoid importing node:url at top-level twice.
@@ -142,6 +144,73 @@ test("Migrate source snapshot exposes collector quality and partial evidence gat
   assert.match(src, /partial-snapshot-confirm/, "Incomplete source evidence must show its required approval gate");
   assert.match(src, /section\.commands/, "Failed and timed-out collector commands must remain inspectable");
   assert.match(src, /section\.stderr/, "Collector stderr summary must remain inspectable");
+});
+
+test("Migrate first-run Assessment is primary and consumes the backend view model", async () => {
+  const page = await fs.readFile(migratePipelinePath, "utf8");
+  const component = await fs.readFile(assessmentExperiencePath, "utf8");
+  const api = await fs.readFile(webApiPath, "utf8");
+  assert.match(page, /AssessmentLandingPanel/, "Migrate must expose the read-only first-run landing");
+  assert.match(page, /AssessmentExperience/, "Analysis must render the Assessment product view");
+  assert.match(component, /variant="primary"[\s\S]*migratePipeline\.assessment\.assessServer/, "Assess a server must be the primary CTA");
+  assert.match(component, /disabled[\s\S]*applyApprovedPlan/, "Apply must not be an active first-run CTA");
+  assert.match(component, /whatReads/);
+  assert.match(component, /whatDoesNotRead/);
+  assert.match(api, /getMigrationSessionAssessment/);
+  assert.match(api, /\/assessment\/report\?format=/, "Report export must call the backend report route");
+  assert.doesNotMatch(component, /buildMigrationCandidateReport|riskScoreForLevel|classifyDecision/, "Web must not recompute Assessment decisions");
+});
+
+test("Assessment service stacks and collector states remain explainable", async () => {
+  const component = await fs.readFile(assessmentExperiencePath, "utf8");
+  for (const field of ["confidenceReason", "riskReasons", "evidenceCount", "statefulness", "migrationReadiness", "requiredDecisions", "recommendedStrategy", "relationships", "capabilityRefs"]) {
+    assert.match(component, new RegExp(`stack\\.${field}`), `Service Stack cards must display ${field}`);
+  }
+  assert.match(component, /dockerCollector\.status === "ok" && !dockerStackFound/, "Docker absence requires a successful collector and no Docker stack");
+  assert.match(component, /dockerCollector\.status === "failed"/, "Docker collector failure must stay distinct from absence");
+  for (const field of ["failedCommands", "timedOutCommands", "stderrSummary", "errors"]) {
+    assert.match(component, new RegExp(`collector\\.${field}`), `Collector UI must expose ${field}`);
+  }
+});
+
+test("Review Inbox actions affect session decisions without approving or applying a Plan", async () => {
+  const page = await fs.readFile(migratePipelinePath, "utf8");
+  const component = await fs.readFile(assessmentExperiencePath, "utf8");
+  const api = await fs.readFile(webApiPath, "utf8");
+  assert.match(page, /saveMigrationSessionDataDecision/, "Database recommendations must persist a session data strategy");
+  assert.match(page, /decision:\s*"record-only"/, "Record-only action must persist its real migration decision");
+  assert.match(page, /decision:\s*"needs-manual-instruction"/, "Mark manual must persist its real migration decision");
+  assert.match(page, /input\.action === "defer"[\s\S]*status:\s*"deferred"/, "Defer must keep an explicit non-final Inbox state");
+  assert.match(page, /resolveReviewInboxItem/, "Review status must use the Decision Engine API");
+  assert.match(page, /item\.snapshotId === snapshotId/, "Review items must be bound to the exact Assessment snapshot");
+  assert.doesNotMatch(page, /!item\.snapshotId/, "Review items without snapshot identity must fail closed");
+  assert.match(page, /allowedOptions\.has\(selectedOption\)/, "Unknown decision options must fail closed");
+  assert.match(page, /getDecisionHistory[\s\S]*?\.catch\(\(\) => \[\]\)/, "Unavailable history must not hide the Review Inbox");
+  assert.match(component, /Review completion does not approve|securityBoundary/, "Review UI must state its safety boundary");
+  assert.match(component, /defaultSafeChoice/);
+  assert.match(component, /impactUnresolved/);
+  assert.match(component, /rememberBoundary/);
+  assert.match(api, /\/api\/decision-engine\/review-inbox/);
+  assert.match(api, /\/api\/decision-engine\/history/);
+  const handler = page.match(/async function handleReviewDecision[\s\S]*?\n  }\n\n  async function exportAssessmentReport/);
+  assert.ok(handler, "Review action handler must remain explicit and inspectable");
+  assert.doesNotMatch(handler[0], /approveEnvironmentPlan|applyEnvironmentPlan|\/apply/, "Review actions must never approve or apply a Plan");
+  assert.match(page, /actionErrorItemId=\{reviewActionErrorItemId\}/, "Decision action failure must remain bound to the failed Inbox item");
+  assert.match(component, /actionErrorItemId === item\.id \? actionError/, "Failed action text must remain visible after the busy state clears");
+  assert.match(component, /assessmentError \|\| !assessment/, "Assessment unavailable state must not render a false success");
+  assert.match(component, /!items\.length[\s\S]*emptyTitle/, "Review Inbox must render an explicit empty state");
+  assert.match(component, /item\.status === "open" \|\| item\.status === "deferred"/, "Deferred decisions must remain counted as unresolved");
+});
+
+test("Assessment and Review Inbox copy is localized in English and Chinese", async () => {
+  const [en, zh] = await Promise.all([fs.readFile(enLocalePath, "utf8"), fs.readFile(zhLocalePath, "utf8")]);
+  for (const source of [en, zh]) {
+    assert.match(source, /assessment:\s*\{/);
+    assert.match(source, /reviewInbox:\s*\{/);
+    for (const key of ["readOnlyBadge", "whatReads", "whatDoesNotRead", "serviceStacks", "evidenceQuality", "readinessTitle", "downloadMarkdown", "defaultSafeChoice", "impactUnresolved", "rememberBoundary"]) {
+      assert.match(source, new RegExp(`\\b${key}:`), `locale must define ${key}`);
+    }
+  }
 });
 
 test("Migrate pipeline source implements config/data review decisions", async () => {

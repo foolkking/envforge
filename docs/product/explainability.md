@@ -78,3 +78,12 @@ Alternatives:
 2. physical base backup
 3. record-only
 4. manual follow-up
+
+## Web explanation baseline
+
+Prompt2B+C implements Decision Explanation cards in the Migrate Assessment.
+They combine the persisted Review Inbox item with its backend Assessment Service
+Stack to show Decision, Evidence, Confidence, Risk, Reason, alternatives,
+required input, default safe choice, impact if unresolved, impact on a future
+Plan draft, and available history. The Web only joins and presents these backend
+objects; it does not recalculate classification, risk, or readiness.

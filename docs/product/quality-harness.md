@@ -63,5 +63,14 @@ Prompt2A adds backend regression coverage for:
 - the invariant that Assessment reads create no approved Plan, Approval, Apply
   Run, ActionRunRecord, migration session run, or target mutation.
 
-The full first-run browser workflow and golden-scenario lab fixtures remain
-future Prompt2B and later-phase work.
+At the Prompt2A checkpoint, the browser workflow and golden-scenario lab
+fixtures remained future work.
+
+Prompt2B+C adds Web behavior coverage for the read-only first-run CTA and
+disclosure, PostgreSQL Service Stack explanation, Docker absent-versus-failed
+collector semantics, migration readiness, backend report export, Review Inbox
+joining, decision history, and advisory decision actions. Tests assert that
+accepting or remembering a Review decision does not call Plan approval or Apply.
+
+Golden-scenario lab fixtures, Failure / Repair UX, Capability SDK, and
+Production Team Adoption remain later work.

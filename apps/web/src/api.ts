@@ -2793,6 +2793,155 @@ export interface MigrationSessionReport {
   rollback?: { available: boolean; rolledBack: boolean; steps: Array<{ label?: string; message?: string; status?: string }> };
 }
 
+export type AssessmentServiceCategory =
+  | "web-entry" | "app-runtime" | "database" | "cache" | "queue" | "storage"
+  | "security" | "network" | "scheduled-job" | "unknown";
+
+export interface AssessmentEvidenceRef {
+  id: string;
+  kind: string;
+  source: string;
+  label: string;
+  value?: string;
+  status?: string;
+}
+
+export interface AssessmentRequiredDecision {
+  id: string;
+  title: string;
+  reason: string;
+  relatedServiceStackIds: string[];
+  defaultSafeChoice: string;
+  options: Array<{ id: string; label: string; risk?: string }>;
+}
+
+export interface AssessmentServiceStack {
+  id: string;
+  name: string;
+  category: AssessmentServiceCategory;
+  summary: string;
+  evidence: AssessmentEvidenceRef[];
+  evidenceCount: number;
+  confidence: "high" | "medium" | "low" | "unknown";
+  confidenceReason: string;
+  risk: "low" | "medium" | "high" | "unknown";
+  riskReasons: string[];
+  statefulness: "stateless" | "stateful" | "mixed" | "unknown";
+  migrationReadiness: "assessment-complete" | "plan-possible" | "requires-decision" | "blocked-by-missing-evidence" | "record-only-recommended" | "manual";
+  requiredDecisions: AssessmentRequiredDecision[];
+  recommendedStrategy?: string;
+  relationships: Array<{ type: string; targetServiceStackId: string; summary: string }>;
+  capabilityRefs: string[];
+}
+
+export interface AssessmentEvidenceQuality {
+  overallStatus: "ok" | "partial" | "failed" | "unknown";
+  completeness: number;
+  collectors: Array<{
+    name: string;
+    status: "ok" | "partial" | "failed" | "skipped" | "unknown";
+    completeness?: number;
+    failedCommands?: string[];
+    timedOutCommands?: string[];
+    stderrSummary?: string;
+    errors?: string[];
+  }>;
+  notes: string[];
+}
+
+export interface AssessmentSummary {
+  id: string;
+  sessionId: string;
+  availability: "ready" | "collector-incomplete";
+  generatedAt: string;
+  source?: { host?: string; os?: string; architecture?: string };
+  snapshot?: {
+    capturedAt?: string;
+    completeness: {
+      status: AssessmentEvidenceQuality["overallStatus"];
+      score: number;
+      failedCollectorCount: number;
+      partialCollectorCount: number;
+      timedOut: boolean;
+    };
+  };
+  serviceStacks: AssessmentServiceStack[];
+  riskSummary: { overall: "low" | "medium" | "high" | "unknown"; low: number; medium: number; high: number; unknown: number; reasons: string[] };
+  readiness: {
+    status: "assessment-complete" | "plan-possible" | "apply-requires-decisions" | "blocked-by-missing-evidence" | "record-only-recommended";
+    summary: string;
+    blockers: string[];
+    warnings: string[];
+    nextActions: string[];
+  };
+  requiredDecisions: AssessmentRequiredDecision[];
+  evidenceQuality: AssessmentEvidenceQuality;
+  unsupportedOrManualItems: string[];
+  report: { jsonAvailable: boolean; markdownAvailable: boolean };
+  metadata: { envForgeVersion?: string; catalogVersion?: string };
+  redactionNote: string;
+}
+
+export type DecisionOutcome = "auto-staged" | "required-decision" | "suggested-decision" | "record-only" | "hidden-noise" | "blocker";
+export type ReviewInboxStatus = "open" | "accepted" | "rejected" | "deferred" | "resolved";
+export type DecisionPreferenceScope = "global" | "connection" | "project" | "service" | "capability";
+
+export interface DecisionScores {
+  intentConfidence: number;
+  evidenceStrength: number;
+  migrationReadiness: number;
+  riskScore: number;
+  automationConfidence: number;
+  businessCriticality: number;
+  reviewCost: number;
+  userPreferenceConfidence: number;
+  collectorCompleteness: number;
+}
+
+export interface ReviewInboxItem {
+  id: string;
+  candidateId?: string;
+  planId?: string;
+  snapshotId?: string;
+  targetId?: string;
+  title: string;
+  reason: string;
+  outcome: DecisionOutcome;
+  scores: DecisionScores;
+  requiredGates: string[];
+  status: ReviewInboxStatus;
+  resolutionNote?: string;
+  resolvedBy?: string;
+  resolvedAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface DecisionHistoryRecord {
+  id: string;
+  subjectId: string;
+  subjectType: "migration-candidate" | "environment-plan" | "capability" | "evidence";
+  outcome: DecisionOutcome;
+  scores: DecisionScores;
+  reasons: string[];
+  requiredGates: string[];
+  preferenceId?: string;
+  profileId: string;
+  createdAt: string;
+}
+
+export interface UserDecisionPreference {
+  id: string;
+  scope: DecisionPreferenceScope;
+  scopeId?: string;
+  pattern: string;
+  preferredOutcome: DecisionOutcome;
+  confidence: number;
+  observations: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export async function fetchMigrationCandidates(token: string, connectionId: string): Promise<MigrationCandidateReport> {
   const response = await fetch(`/api/connections/${encodeURIComponent(connectionId)}/migration-candidates`, {
     headers: { "Authorization": `Bearer ${token}` }
@@ -2979,6 +3128,90 @@ export async function fetchMigrationSessionAnalysis(token: string, sessionId: st
     headers: { "Authorization": `Bearer ${token}` }
   });
   return readJsonOrThrow<MigrationSessionAnalysis>(response, "Fetch migration session analysis failed");
+}
+
+export async function getMigrationSessionAssessment(token: string, sessionId: string): Promise<AssessmentSummary> {
+  const response = await fetch(`/api/migration/sessions/${encodeURIComponent(sessionId)}/assessment`, {
+    headers: { "Authorization": `Bearer ${token}` }
+  });
+  const body = await readJsonOrThrow<{ assessment: AssessmentSummary }>(response, "Fetch migration assessment failed");
+  return body.assessment;
+}
+
+export async function getMigrationSessionAssessmentReport(
+  token: string,
+  sessionId: string,
+  format: "json"
+): Promise<AssessmentSummary>;
+export async function getMigrationSessionAssessmentReport(
+  token: string,
+  sessionId: string,
+  format: "markdown"
+): Promise<string>;
+export async function getMigrationSessionAssessmentReport(
+  token: string,
+  sessionId: string,
+  format: "json" | "markdown"
+): Promise<AssessmentSummary | string> {
+  const response = await fetch(`/api/migration/sessions/${encodeURIComponent(sessionId)}/assessment/report?format=${encodeURIComponent(format)}`, {
+    headers: { "Authorization": `Bearer ${token}` }
+  });
+  if (format === "markdown") {
+    if (!response.ok) {
+      const body = await response.json().catch(() => ({})) as { error?: string };
+      throw new Error(body.error ?? "Export Assessment Report failed");
+    }
+    return response.text();
+  }
+  const body = await readJsonOrThrow<{ format: "json"; report: AssessmentSummary }>(response, "Export Assessment Report failed");
+  return body.report;
+}
+
+export async function getReviewInbox(
+  token: string,
+  input: { status?: ReviewInboxStatus | "all"; limit?: number } = {}
+): Promise<ReviewInboxItem[]> {
+  const query = new URLSearchParams();
+  if (input.status) query.set("status", input.status);
+  if (input.limit !== undefined) query.set("limit", String(input.limit));
+  const suffix = query.size ? `?${query.toString()}` : "";
+  const response = await fetch(`/api/decision-engine/review-inbox${suffix}`, {
+    headers: { "Authorization": `Bearer ${token}` }
+  });
+  const body = await readJsonOrThrow<{ items: ReviewInboxItem[] }>(response, "Fetch Review Inbox failed");
+  return body.items;
+}
+
+export async function resolveReviewInboxItem(
+  token: string,
+  itemId: string,
+  input: {
+    status: Exclude<ReviewInboxStatus, "open">;
+    note?: string;
+    remember?: {
+      scope: DecisionPreferenceScope;
+      scopeId?: string;
+      pattern: string;
+      preferredOutcome: DecisionOutcome;
+      confidence?: number;
+    };
+  }
+): Promise<{ item: ReviewInboxItem; preference?: UserDecisionPreference }> {
+  const response = await fetch(`/api/decision-engine/review-inbox/${encodeURIComponent(itemId)}`, {
+    method: "PATCH",
+    headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify(input)
+  });
+  return readJsonOrThrow<{ item: ReviewInboxItem; preference?: UserDecisionPreference }>(response, "Update Review Inbox item failed");
+}
+
+export async function getDecisionHistory(token: string, subjectId: string, limit = 20): Promise<DecisionHistoryRecord[]> {
+  const query = new URLSearchParams({ subjectId, limit: String(limit) });
+  const response = await fetch(`/api/decision-engine/history?${query.toString()}`, {
+    headers: { "Authorization": `Bearer ${token}` }
+  });
+  const body = await readJsonOrThrow<{ history: DecisionHistoryRecord[] }>(response, "Fetch decision history failed");
+  return body.history;
 }
 
 export async function saveMigrationSessionDecisions(

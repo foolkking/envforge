@@ -655,7 +655,7 @@ export const zh = {
       sourceVmHint: "通过 SSH 连接旧机器",
       snapshot: "主机快照",
       snapshotHint: "只读采集操作系统、软件包、服务和配置",
-      analysis: "环境分析",
+      analysis: "环境评估",
       analysisHint: "软件包意图评分与候选分类",
       reviewQueue: "审查队列",
       reviewPending: "还有 {{count}} 项待决策",
@@ -976,6 +976,100 @@ export const zh = {
       commandEvidence: "命令证据（{{count}} 个分区）",
       commandTimedOut: "已超时",
       noCommandFailures: "没有失败或超时的采集命令。"
+    },
+    assessment: {
+      firstRunEyebrow: "首次使用价值", firstRunTitle: "只读环境评估",
+      firstRunBody: "先看清这台 Linux 服务器在运行什么，再决定是否迁移任何内容。",
+      readOnlyBadge: "只读模式", noModifyPromise: "此模式不会修改你的服务器。",
+      assessServer: "评估服务器", generatePlan: "生成迁移计划", applyApprovedPlan: "应用已批准计划",
+      applyCtaHint: "只有不可变计划完成审批后，才能在计划中心受控应用。",
+      whatReads: "EnvForge 会读取", whatDoesNotRead: "EnvForge 默认不会读取",
+      reads: {
+        os: "操作系统元数据", services: "运行中的服务", ports: "开放端口", packages: "软件包列表", docker: "Docker 元数据",
+        configs: "选定的配置路径", certificates: "证书元数据", database: "数据库存在性信号", security: "安全基线提示"
+      },
+      doesNotRead: {
+        privateKeys: "私钥", databaseContents: "数据库表内容", secretValues: "完整密钥值",
+        applicationData: "应用用户数据", homeDirectories: "任意用户主目录内容"
+      },
+      loadingTitle: "正在生成只读评估", loadingBody: "EnvForge 正在把采集证据整理为服务栈、风险和关键决策。",
+      unavailableTitle: "评估尚不可用", unavailableBody: "请先运行只读扫描；快照或分析证据可能仍然缺失。", retry: "重试评估",
+      eyebrow: "评估摘要", title: "这台服务器真正运行着什么", valueStatement: "即使不执行迁移，也应该能在这里看懂旧服务器。",
+      refresh: "刷新评估", unknownHost: "未知源主机",
+      metrics: { stacks: "服务栈", highRisk: "高风险", decisions: "关键决策", completeness: "证据完整度", readiness: "迁移就绪状态" },
+      readinessTitle: "迁移就绪状态",
+      readiness: {
+        "assessment-complete": "评估完成", "plan-possible": "可以生成计划", "apply-requires-decisions": "应用前需要决策",
+        "blocked-by-missing-evidence": "被缺失证据阻断", "record-only-recommended": "建议仅记录"
+      },
+      readinessMeaning: {
+        "assessment-complete": "评估完成不等于可以直接应用。",
+        "plan-possible": "可以生成计划不等于计划已经存在或获得批准。",
+        "apply-requires-decisions": "准备可信计划草稿前，必须先处理 Review Inbox。",
+        "blocked-by-missing-evidence": "规划前应重新采集，或人工确认缺失证据。",
+        "record-only-recommended": "当前不建议自动迁移；应保留证据并分配人工跟进。"
+      },
+      blockers: "阻断项", warnings: "警告", nextActions: "下一步", noBlockers: "没有评估阻断项。", noWarnings: "没有评估警告。", noNextActions: "当前没有建议动作。",
+      reviewDecisions: "审查关键决策", continueToSelection: "继续选择迁移项",
+      serviceStacksEyebrow: "产品视图", serviceStacks: "服务栈", emptyStacksTitle: "未识别到服务栈",
+      emptyStacksBody: "现有证据中没有识别到面向用户的服务栈；在认为组件不存在前，请先检查采集质量。",
+      categories: {
+        "web-entry": "Web 入口", "app-runtime": "应用运行时", database: "数据库", cache: "缓存", queue: "队列", storage: "存储",
+        security: "安全", network: "网络", "scheduled-job": "定时任务", unknown: "未知"
+      },
+      confidence: "置信度", confidenceValues: { high: "高", medium: "中", low: "低", unknown: "未知" },
+      risk: { high: "高", medium: "中", low: "低", unknown: "未知" },
+      statefulness: "状态性", statefulnessValues: { stateful: "有状态", stateless: "无状态", mixed: "混合", unknown: "未知" },
+      stackReadiness: "就绪状态",
+      stackReadinessValues: {
+        "assessment-complete": "评估完成", "plan-possible": "可以生成计划", "requires-decision": "需要决策",
+        "blocked-by-missing-evidence": "缺失证据", "record-only-recommended": "仅记录", manual: "人工处理"
+      },
+      evidenceCount: "证据", whyDetected: "为什么识别出它", recommendedStrategy: "推荐策略",
+      strategyUnavailable: "暂时没有可支持的策略。", requiredDecisions: "需要处理的决策",
+      evidenceDetails: "证据（{{count}}）", riskReasons: "风险原因（{{count}}）", noRiskReasons: "没有记录风险原因。",
+      relationships: "服务关系", relatedStackMissing: "关联服务栈不可用", capabilityRefs: "能力引用",
+      evidenceEyebrow: "采集证据包", evidenceQuality: "证据质量",
+      collectorStatus: { ok: "正常", partial: "部分完成", failed: "失败", skipped: "已跳过", unknown: "未知" },
+      dockerNotDetected: "Docker 采集已成功完成，且未识别到 Docker 服务栈。",
+      dockerFailed: "Docker 采集失败；空结果不能解释为服务器没有 Docker。",
+      dockerPartial: "Docker 采集只返回部分证据，当前无法确认 Docker 是否存在。", dockerDetected: "Docker 证据已参与服务栈识别。",
+      dockerUnknown: "没有 Docker collector 证据，当前无法判断 Docker 是否存在。",
+      partialEvidenceWarning: "部分 collector 返回了不完整证据；没有发现不等于不存在。",
+      failedCommand: "失败命令", timedOutCommand: "超时命令", noCollectorErrors: "没有记录命令失败、超时、stderr 或 collector 错误。", notes: "证据说明",
+      reportEyebrow: "可移交证据", reportTitle: "环境评估报告", reportIntro: "导出由后端生成并默认脱敏的评估，用于工单或内部评审。",
+      reportReadOnly: "此评估在只读模式下生成。", reportNoApply: "没有创建 Apply Run。", reportNoMutation: "没有修改目标机器。",
+      reportRedacted: "敏感值默认脱敏。", downloadJson: "下载 JSON", downloadMarkdown: "下载 Markdown", exporting: "正在导出…",
+      reportError: "报告导出失败，请重试或检查会话日志。"
+    },
+    reviewInbox: {
+      eyebrow: "决策层", title: "Review Inbox", intro: "把采集证据压缩成少量关键决策，而不是展示原始扫描结果洪流。",
+      openItems: "待处理决策", securityBoundary: "Review 决策只影响后续计划生成；完成 Review 不会批准 Plan，也不会执行 Apply。",
+      loadingTitle: "正在加载 Review Inbox", loadingBody: "EnvForge 正在加载关键决策与审计历史。",
+      unavailableTitle: "Review Inbox 不可用", unavailableBody: "此评估暂时没有可用的 Review Inbox。",
+      emptyTitle: "当前无需处理关键决策", emptyBody: "此评估目前没有待处理的关键决策。",
+      types: { "required-decision": "必要决策", "suggested-decision": "建议决策", blocker: "阻断项", "manual-confirmation": "人工确认", "policy-violation": "策略违规", "record-only": "仅记录" },
+      status: { open: "待处理", accepted: "已接受", rejected: "已拒绝", deferred: "已推迟", resolved: "已解决" },
+      relatedStack: "关联服务栈", relatedStackMissing: "关联服务栈不可用。",
+      decision: "决策", evidence: "证据（{{count}}）", confidence: "置信度", risk: "风险", reason: "为什么需要审查",
+      recommended: "推荐选项", defaultSafeChoice: "默认安全选择", requiredInput: "需要用户输入",
+      impactUnresolved: "不处理的影响", impactPlan: "对计划的影响", alternatives: "可选方案",
+      unresolvedImpact: "决策完成前，计划应把此组件保持为仅记录或阻断状态。",
+      planImpact: "选择只会用于用户显式生成的计划草稿；计划审批仍是独立步骤。",
+      recommendationUnavailable: "暂时没有可支持的推荐。", defaultSafeFallback: "证据充分前，建议推迟或仅记录。", chooseOutcome: "请选择处理结果，或暂时推迟。",
+      evidenceMissing: "此决策没有关联证据。", riskReasons: "风险原因（{{count}}）", noRiskReasons: "没有关联风险原因。",
+      history: "决策历史（{{count}}）", historyUnavailable: "此决策暂无可用历史。",
+      rememberPreference: "记住此建议偏好", rememberBoundary: "偏好只会调整未来建议，不会批准 Plan 或授权 Apply。",
+      accept: "接受推荐", chooseAlternative: "选择其他方案", recordOnly: "仅记录", markManual: "标记人工处理", defer: "推迟",
+      actionSaved: "Review 决策已保存；没有批准 Plan，也没有创建 Apply Run。", actionFailed: "操作失败；没有批准 Plan，也没有创建 Apply Run。",
+      partialActionFailure: "Session 决策已保存，但 Inbox 状态更新失败。Assessment 已刷新；没有批准 Plan，也没有创建 Apply Run。",
+      unsupportedAction: "此决策选项尚不支持，未保存任何决策。",
+      notes: {
+        accepted: "决策已记录，供下次显式生成 Plan-only 草稿使用；Plan 审批仍是独立步骤。", deferred: "用户已推迟；没有创建 Plan 或 Apply 授权。",
+        logical: "已在 Review Inbox 选择逻辑导出/导入策略。", physical: "已在 Review Inbox 选择物理备份或受支持的备份/恢复策略。",
+        recordOnly: "保留此组件的评估和报告证据，但不生成自动迁移动作。", manual: "将此组件分配为人工跟进。",
+        recommendation: "已接受推荐建议，供下次显式生成 Plan-only 草稿使用。"
+      }
     },
     analysis: {
       eyebrow: "分析摘要",

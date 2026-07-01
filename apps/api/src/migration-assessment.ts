@@ -310,23 +310,26 @@ function stackForCandidate(
   const category = categoryForCandidate(candidate);
   const evidence = evidenceForCandidate(candidate);
   const statefulness = statefulnessForCandidate(candidate, category);
-  const requiredDecisions = requiredDecisionsForCandidate(candidate, category, statefulness, dataStrategyConfirmed);
+  const requiredDecisions = requiredDecisionsForCandidate(candidate, category, statefulness, dataStrategyConfirmed, savedDecision);
   const risk = riskForLevel(candidate.riskLevel);
   const blockedByEvidence = evidenceQuality.overallStatus === "failed" || evidenceQuality.completeness < 0.7;
   const explicitlyRecordOnly = savedDecision === "record-only" || candidate.decisionOutcome === "record-only";
+  const explicitlyManual = savedDecision === "needs-manual-instruction";
   const migrationReadiness: AssessmentServiceStack["migrationReadiness"] = blockedByEvidence
     ? "blocked-by-missing-evidence"
     : explicitlyRecordOnly
       ? "record-only-recommended"
-      : requiredDecisions.length > 0
-        ? "requires-decision"
-        : candidate.decisionOutcome === "blocker" || (candidate.blockers?.length ?? 0) > 0
-          ? "manual"
-          : category === "unknown" || candidate.supportLevel === "detect-only"
+      : explicitlyManual
+        ? "manual"
+        : requiredDecisions.length > 0
+          ? "requires-decision"
+          : candidate.decisionOutcome === "blocker" || (candidate.blockers?.length ?? 0) > 0
             ? "manual"
-            : candidate.migrationReadiness >= 0.65
-              ? "plan-possible"
-              : "assessment-complete";
+            : category === "unknown" || candidate.supportLevel === "detect-only"
+              ? "manual"
+              : candidate.migrationReadiness >= 0.65
+                ? "plan-possible"
+                : "assessment-complete";
   const riskReasons = riskReasonsForCandidate(candidate, category, statefulness);
   return {
     id: `stack:${candidate.id}`,
@@ -408,11 +411,13 @@ function requiredDecisionsForCandidate(
   candidate: MigrationCandidate,
   category: AssessmentServiceCategory,
   statefulness: AssessmentServiceStack["statefulness"],
-  dataStrategyConfirmed: boolean
+  dataStrategyConfirmed: boolean,
+  savedDecision?: StoredMigrationDecision["decision"]
 ): AssessmentRequiredDecision[] {
   const stackId = `stack:${candidate.id}`;
   const decisions: AssessmentRequiredDecision[] = [];
-  if (category === "database" && statefulness !== "stateless" && !dataStrategyConfirmed) {
+  const explicitlyHandled = savedDecision === "record-only" || savedDecision === "needs-manual-instruction";
+  if (category === "database" && statefulness !== "stateless" && !dataStrategyConfirmed && !explicitlyHandled) {
     const postgres = /postgres/i.test(`${candidate.name} ${candidate.catalogRuleName ?? ""}`);
     decisions.push({
       id: `decision:${candidate.id}:data-strategy`,

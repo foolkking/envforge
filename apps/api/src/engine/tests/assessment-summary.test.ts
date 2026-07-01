@@ -6,7 +6,7 @@ import {
   buildAssessmentSummary
 } from "../../migration-assessment.js";
 import type { FullSystemSnapshot } from "../../collectors/remote-collector.js";
-import type { StoredMigrationSession } from "../../runtime-store.js";
+import type { StoredMigrationDecision, StoredMigrationSession } from "../../runtime-store.js";
 
 function session(): StoredMigrationSession {
   return {
@@ -89,17 +89,40 @@ function snapshot(overrides: Partial<FullSystemSnapshot> = {}): FullSystemSnapsh
   };
 }
 
-function assessment(source: FullSystemSnapshot) {
+function assessment(source: FullSystemSnapshot, decisions: StoredMigrationDecision[] = []) {
   return buildAssessmentSummary({
     session: session(),
     snapshot: source,
     report: buildMigrationCandidateReport(source, { host: "legacy-db.example" }),
+    decisions,
     host: "legacy-db.example",
     generatedAt: "2026-07-01T00:02:00.000Z",
     envForgeVersion: "0.1.0",
     catalogVersion: "fixture-v1"
   });
 }
+
+test("Assessment closes the database strategy prompt after an explicit record-only or manual decision", () => {
+  const source = snapshot();
+  const candidateId = buildMigrationCandidateReport(source, { host: "legacy-db.example" }).candidates.find((candidate) => /postgres/i.test(candidate.name))?.id;
+  assert.ok(candidateId);
+  const stored = (decision: StoredMigrationDecision["decision"]): StoredMigrationDecision => ({
+    id: `decision-${decision}`,
+    userId: "assessment-user",
+    connectionId: "source-connection",
+    candidateId,
+    decision,
+    updatedAt: "2026-07-01T00:03:00.000Z"
+  });
+
+  const recordOnly = assessment(source, [stored("record-only")]);
+  assert.equal(recordOnly.requiredDecisions.length, 0);
+  assert.equal(recordOnly.serviceStacks.find((stack) => stack.category === "database")?.migrationReadiness, "record-only-recommended");
+
+  const manual = assessment(source, [stored("needs-manual-instruction")]);
+  assert.equal(manual.requiredDecisions.length, 0);
+  assert.equal(manual.serviceStacks.find((stack) => stack.category === "database")?.migrationReadiness, "manual");
+});
 
 test("Assessment summarizes PostgreSQL as a high-risk stateful database with a required data decision", () => {
   const result = assessment(snapshot());

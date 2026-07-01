@@ -3398,3 +3398,416 @@
   cursor: pointer;
   margin: 0;
 }
+
+/* ── Read-only Assessment + Review Inbox ─────────────────── */
+.assessment-experience {
+  display: grid;
+  gap: 18px;
+}
+
+.assessment-landing {
+  display: grid;
+  gap: 16px;
+}
+
+.assessment-landing-hero {
+  background: linear-gradient(145deg, color-mix(in srgb, var(--ef-primary) 10%, var(--ef-surface)), var(--ef-surface));
+  border: 1px solid color-mix(in srgb, var(--ef-primary) 25%, var(--ef-border));
+  border-radius: 14px;
+  padding: 20px;
+}
+
+.assessment-landing-hero h3,
+.assessment-overview h3,
+.assessment-card-heading h3,
+.decision-card-heading h4,
+.service-stack-heading h4 {
+  margin: 4px 0 8px;
+}
+
+.read-only-promise,
+.assessment-boundary-note,
+.review-security-boundary {
+  align-items: center;
+  background: color-mix(in srgb, #16a34a 10%, var(--ef-surface));
+  border: 1px solid color-mix(in srgb, #16a34a 28%, var(--ef-border));
+  border-radius: 9px;
+  color: var(--ef-text);
+  display: flex;
+  gap: 8px;
+  padding: 10px 12px;
+}
+
+.read-only-promise svg,
+.assessment-boundary-note svg,
+.review-security-boundary svg {
+  color: #16a34a;
+  flex: 0 0 auto;
+  height: 18px;
+  width: 18px;
+}
+
+.first-run-cta-row,
+.assessment-panel-actions,
+.decision-action-row,
+.assessment-heading-actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.assessment-disclosure-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.assessment-disclosure-grid > div {
+  background: var(--ef-surface);
+  border: 1px solid var(--ef-border);
+  border-radius: 12px;
+  padding: 14px;
+}
+
+.assessment-disclosure-grid ul,
+.assessment-list ul,
+.service-stack-card ul,
+.decision-explanation-card ul,
+.assessment-evidence-notes ul,
+.assessment-report-boundary {
+  margin: 8px 0 0;
+  padding-left: 20px;
+}
+
+.assessment-overview {
+  background: var(--ef-surface);
+  border: 1px solid var(--ef-border);
+  border-radius: 14px;
+  padding: 18px;
+}
+
+.assessment-source-line {
+  align-items: center;
+  border-bottom: 1px solid var(--ef-border);
+  border-top: 1px solid var(--ef-border);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  margin: 14px 0;
+  padding: 10px 0;
+}
+
+.assessment-source-line span {
+  color: var(--ef-muted);
+  font-size: 12px;
+}
+
+.assessment-metric-grid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.assessment-readiness,
+.assessment-evidence-quality,
+.assessment-report-panel {
+  padding: 18px;
+}
+
+.assessment-card-heading,
+.decision-card-heading,
+.service-stack-heading {
+  align-items: flex-start;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.assessment-list-grid,
+.decision-explanation-grid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin: 14px 0;
+}
+
+.assessment-list,
+.decision-explanation-grid > div {
+  background: color-mix(in srgb, var(--ef-surface-raised) 75%, transparent);
+  border: 1px solid var(--ef-border);
+  border-radius: 10px;
+  padding: 12px;
+}
+
+.assessment-list p,
+.assessment-list li,
+.decision-explanation-grid dd {
+  color: var(--ef-muted);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.decision-explanation-grid dt {
+  color: var(--ef-muted-2);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+.decision-explanation-grid dd {
+  margin: 5px 0 0;
+}
+
+.service-stack-grid,
+.review-inbox-list {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.service-stack-card,
+.decision-explanation-card {
+  scroll-margin-top: 24px;
+}
+
+.service-stack-category,
+.review-type {
+  color: var(--ef-primary);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+.service-stack-facts {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin: 12px 0;
+}
+
+.service-stack-facts div {
+  background: var(--ef-surface-raised);
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+
+.service-stack-facts dt {
+  color: var(--ef-muted-2);
+  font-size: 10px;
+  text-transform: uppercase;
+}
+
+.service-stack-facts dd {
+  font-size: 12px;
+  font-weight: 700;
+  margin: 3px 0 0;
+}
+
+.service-stack-explanation strong,
+.service-stack-decisions strong,
+.stack-relationships strong {
+  display: block;
+  font-size: 12px;
+  margin-top: 10px;
+}
+
+.service-stack-explanation p,
+.service-stack-decisions span,
+.stack-relationships span {
+  color: var(--ef-muted);
+  display: block;
+  font-size: 12px;
+  margin: 4px 0;
+}
+
+.service-stack-card details,
+.decision-explanation-card details,
+.assessment-collector-row {
+  border-top: 1px solid var(--ef-border);
+  margin-top: 10px;
+  padding-top: 10px;
+}
+
+.service-stack-card summary,
+.decision-explanation-card summary,
+.assessment-collector-row summary {
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.service-stack-card li,
+.decision-explanation-card li {
+  color: var(--ef-muted);
+  font-size: 12px;
+  margin: 5px 0;
+}
+
+.service-stack-card li small,
+.decision-explanation-card li small {
+  display: block;
+}
+
+.capability-refs {
+  color: var(--ef-muted-2);
+  display: block;
+  margin-top: 10px;
+  overflow-wrap: anywhere;
+}
+
+.docker-evidence-callout {
+  background: var(--ef-surface-raised);
+  border-left: 3px solid var(--ef-muted-2);
+  border-radius: 7px;
+  padding: 10px 12px;
+}
+
+.docker-evidence-callout.ok { border-color: #16a34a; }
+.docker-evidence-callout.partial { border-color: #d97706; }
+.docker-evidence-callout.failed { border-color: #dc2626; }
+
+.assessment-collector-list {
+  display: grid;
+  gap: 4px;
+  margin-top: 12px;
+}
+
+.assessment-collector-row summary {
+  align-items: center;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+}
+
+.assessment-collector-row code,
+.assessment-collector-row pre {
+  background: #0f172a;
+  border-radius: 6px;
+  color: #e2e8f0;
+  display: block;
+  font-size: 11px;
+  margin: 7px 0;
+  overflow: auto;
+  padding: 8px;
+  white-space: pre-wrap;
+}
+
+.review-inbox-panel {
+  background: color-mix(in srgb, var(--ef-primary) 5%, var(--ef-surface));
+  border: 1px solid color-mix(in srgb, var(--ef-primary) 22%, var(--ef-border));
+  border-radius: 14px;
+  padding: 18px;
+}
+
+.decision-card-heading > div:last-child {
+  display: flex;
+  gap: 6px;
+}
+
+.related-stack-link {
+  align-items: center;
+  color: var(--ef-primary);
+  display: inline-flex;
+  font-size: 12px;
+  gap: 6px;
+  margin: 4px 0 10px;
+}
+
+.related-stack-link svg {
+  height: 15px;
+  width: 15px;
+}
+
+.decision-options-panel label,
+.remember-decision {
+  display: grid;
+  font-size: 12px;
+  font-weight: 700;
+  gap: 6px;
+  margin: 12px 0;
+}
+
+.decision-options-panel select {
+  background: var(--ef-surface);
+  border: 1px solid var(--ef-border-strong);
+  border-radius: 8px;
+  color: var(--ef-text);
+  min-height: 38px;
+  padding: 0 10px;
+}
+
+.remember-decision {
+  align-items: center;
+  display: flex;
+  font-weight: 600;
+}
+
+.remember-decision-note {
+  color: var(--ef-muted);
+  display: block;
+  margin: -6px 0 10px;
+}
+
+.decision-history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-top: 8px;
+}
+
+.decision-history-list span,
+.decision-resolution-note {
+  color: var(--ef-muted);
+  font-size: 12px;
+}
+
+.assessment-report-boundary {
+  color: var(--ef-muted);
+  font-size: 12px;
+  line-height: 1.65;
+}
+
+.assessment-state {
+  align-items: center;
+  background: var(--ef-surface);
+  border: 1px dashed var(--ef-border-strong);
+  border-radius: 12px;
+  display: flex;
+  gap: 12px;
+  padding: 18px;
+}
+
+.assessment-state > svg {
+  color: var(--ef-primary);
+  height: 24px;
+  width: 24px;
+}
+
+.assessment-state p {
+  color: var(--ef-muted);
+  margin: 4px 0 0;
+}
+
+@media (max-width: 1100px) {
+  .assessment-metric-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .assessment-list-grid,
+  .decision-explanation-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 760px) {
+  .assessment-experience { padding-bottom: 96px; }
+  .assessment-disclosure-grid,
+  .service-stack-grid,
+  .review-inbox-list,
+  .assessment-list-grid,
+  .decision-explanation-grid { grid-template-columns: 1fr; }
+  .assessment-metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .assessment-card-heading,
+  .decision-card-heading,
+  .service-stack-heading { align-items: stretch; flex-direction: column; }
+  .first-run-cta-row button,
+  .decision-action-row button { width: 100%; }
+}

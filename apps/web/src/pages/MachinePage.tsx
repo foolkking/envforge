@@ -326,7 +326,7 @@ export function MachinePage({
         connected={connected}
         connections={connections}
         onCollectSnapshot={collectHostSnapshot}
-        onOpenHostDetails={() => setHostDetailsOpen(true)}
+        onOpenHostDetails={() => activeConn ? setHostDetailsOpen(true) : setConnectionManagerOpen(true)}
         pushLog={pushLog}
         onPlanCreated={() => onNavigateToPlans?.()}
       />

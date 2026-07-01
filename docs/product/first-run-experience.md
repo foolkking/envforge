@@ -70,5 +70,11 @@ Prompt2A establishes the backend baseline for this experience:
 - explicit unavailable states when the session or source snapshot is missing.
 
 Assessment reads do not create an Environment Plan, Approval, Apply Run, or
-target mutation. The Web first-run Assessment experience remains future Prompt2B
-work. Review Inbox productization remains future Prompt2C work.
+target mutation.
+
+Prompt2B+C now surfaces this backend baseline in the Migrate Web flow. The
+first-run primary action is Read-only Assessment, with explicit read / do-not-read
+disclosures. The resulting view is organized around service stacks, evidence
+quality, migration readiness, required decisions, and backend-generated JSON or
+Markdown reports. Generate Plan remains a separate, explicit follow-up; Apply is
+not a first-run action.

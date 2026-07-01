@@ -4,11 +4,8 @@ import {
   AlertTriangle,
   ArrowRight,
   CheckCircle2,
-  Database,
   Eye,
   FileText,
-  MonitorCog,
-  PackagePlus,
   Play,
   RefreshCw,
   Server,
@@ -25,12 +22,18 @@ import {
   fetchMigrationSessionConfigBundles,
   fetchMigrationSessionPlan,
   fetchMigrationSessionReport,
+  getDecisionHistory,
+  getMigrationSessionAssessment,
+  getMigrationSessionAssessmentReport,
+  getReviewInbox,
+  resolveReviewInboxItem,
   saveMigrationSessionDecisions,
   saveMigrationSessionConfigDecision,
   saveMigrationSessionDataDecision,
   updateMigrationSession,
   verifyMigrationSession,
   type AgentProbeResult,
+  type AssessmentSummary,
   type ConfigBundle,
   type ConnectionProfile,
   type MigrationApplyResult,
@@ -47,6 +50,8 @@ import {
   type MigrationSessionStep,
   type MigrationSessionView,
   type MigrationVerificationRunResult,
+  type DecisionHistoryRecord,
+  type ReviewInboxItem,
   type ReviewDecision
 } from "../api";
 import type { Locale } from "../lib/types";
@@ -55,6 +60,7 @@ import { MetricPill } from "../components/ui/MetricPill";
 import { Card } from "../components/ui/Card";
 import { FilterPill } from "../components/ui/FilterPill";
 import { useEscapeToClose } from "../lib/useEscapeToClose";
+import { AssessmentExperience, AssessmentLandingPanel, type ReviewDecisionAction } from "../components/AssessmentExperience";
 
 const selectedDecisions = new Set<ReviewDecision>(["approved", "add-to-plan", "migrate-artifact"]);
 const stepOrder: MigrationSessionStep[] = ["source", "analysis", "select", "unknown", "config-data", "plan", "target", "apply", "report"];
@@ -143,6 +149,18 @@ export function MigratePipelinePage({
   const { t } = useTranslation();
   const [session, setSession] = useState<MigrationSessionView | null>(null);
   const [analysis, setAnalysis] = useState<MigrationSessionAnalysis | null>(null);
+  const [assessment, setAssessment] = useState<AssessmentSummary | null>(null);
+  const [assessmentLoading, setAssessmentLoading] = useState(false);
+  const [assessmentError, setAssessmentError] = useState("");
+  const [reviewItems, setReviewItems] = useState<ReviewInboxItem[]>([]);
+  const [reviewLoading, setReviewLoading] = useState(false);
+  const [reviewError, setReviewError] = useState("");
+  const [reviewHistory, setReviewHistory] = useState<Record<string, DecisionHistoryRecord[]>>({});
+  const [reviewActionItemId, setReviewActionItemId] = useState<string | null>(null);
+  const [reviewActionError, setReviewActionError] = useState("");
+  const [reviewActionErrorItemId, setReviewActionErrorItemId] = useState<string | null>(null);
+  const [reportExporting, setReportExporting] = useState<"json" | "markdown" | null>(null);
+  const [assessmentReportError, setAssessmentReportError] = useState("");
   const [configBundles, setConfigBundles] = useState<ConfigBundle[]>([]);
   const [configDecisions, setConfigDecisions] = useState<MigrationConfigDecision[]>([]);
   const [dataDecisions, setDataDecisions] = useState<MigrationDataDecision[]>([]);
@@ -160,6 +178,11 @@ export function MigratePipelinePage({
 
   useEffect(() => {
     setAnalysis(null);
+    setAssessment(null);
+    setAssessmentError("");
+    setReviewItems([]);
+    setReviewHistory({});
+    setReviewError("");
     setConfigBundles([]);
     setConfigDecisions([]);
     setDataDecisions([]);
@@ -212,8 +235,57 @@ export function MigratePipelinePage({
       if (cancelled) return;
       setAnalysis(next);
       setSession(next.session);
+      await loadAssessmentExperience(sessionId, cancelled);
     } catch {
       if (!cancelled) setAnalysis(null);
+    }
+  }
+
+  async function loadAssessmentExperience(sessionId: string, cancelled = false) {
+    setAssessmentLoading(true);
+    setAssessmentError("");
+    try {
+      const next = await getMigrationSessionAssessment(authToken, sessionId);
+      if (cancelled) return;
+      setAssessment(next);
+      await loadReviewInboxForAssessment(next, cancelled);
+    } catch (err) {
+      if (!cancelled) {
+        setAssessment(null);
+        setAssessmentError(err instanceof Error ? err.message : t("migratePipeline.assessment.unavailableBody"));
+      }
+    } finally {
+      if (!cancelled) setAssessmentLoading(false);
+    }
+  }
+
+  async function loadReviewInboxForAssessment(currentAssessment: AssessmentSummary, cancelled = false) {
+    setReviewLoading(true);
+    setReviewError("");
+    try {
+      const allItems = await getReviewInbox(authToken, { status: "all", limit: 200 });
+      if (cancelled) return;
+      const candidateIds = new Set(currentAssessment.serviceStacks.map((stack) => stack.id.replace(/^stack:/, "")));
+      const snapshotId = currentAssessment.snapshot?.capturedAt && connectionId
+        ? `${connectionId}:${currentAssessment.snapshot.capturedAt}`
+        : undefined;
+      const relevant = snapshotId
+        ? allItems.filter((item) => Boolean(item.candidateId && candidateIds.has(item.candidateId)) && item.snapshotId === snapshotId)
+        : [];
+      setReviewItems(relevant);
+      const historyEntries = await Promise.all(relevant.map(async (item) => [
+        item.id,
+        item.candidateId ? await getDecisionHistory(authToken, item.candidateId, 10).catch(() => []) : []
+      ] as const));
+      if (!cancelled) setReviewHistory(Object.fromEntries(historyEntries));
+    } catch (err) {
+      if (!cancelled) {
+        setReviewItems([]);
+        setReviewHistory({});
+        setReviewError(err instanceof Error ? err.message : t("migratePipeline.reviewInbox.unavailableBody"));
+      }
+    } finally {
+      if (!cancelled) setReviewLoading(false);
     }
   }
 
@@ -346,6 +418,122 @@ export function MigratePipelinePage({
     }
   }
 
+  async function handleReviewDecision(input: ReviewDecisionAction) {
+    if (!session || !input.item.candidateId) return;
+    setReviewActionItemId(input.item.id);
+    setReviewActionError("");
+    setReviewActionErrorItemId(null);
+    let sessionDecisionPersisted = false;
+    try {
+      if (input.action === "defer") {
+        await resolveReviewInboxItem(authToken, input.item.id, {
+          status: "deferred",
+          note: t("migratePipeline.reviewInbox.notes.deferred")
+        });
+      } else {
+        const stack = assessment?.serviceStacks.find((candidate) => candidate.id === `stack:${input.item.candidateId}`);
+        const linkedDecision = assessment?.requiredDecisions.find((decision) => decision.relatedServiceStackIds.includes(stack?.id ?? ""));
+        const selectedOption = input.action === "accept-recommended"
+          ? linkedDecision?.options[0]?.id
+          : input.action === "choose-option"
+            ? input.optionId
+            : input.action === "record-only"
+              ? "record-only"
+              : input.action === "manual"
+                ? "manual"
+                : undefined;
+
+        const allowedOptions = new Set(linkedDecision?.options.map((option) => option.id) ?? []);
+        if (input.action === "choose-option" && (!selectedOption || !allowedOptions.has(selectedOption))) {
+          throw new Error(t("migratePipeline.reviewInbox.unsupportedAction"));
+        }
+        if (input.action === "accept-recommended" && selectedOption && !allowedOptions.has(selectedOption)) {
+          throw new Error(t("migratePipeline.reviewInbox.unsupportedAction"));
+        }
+
+        if (selectedOption === "logical" || selectedOption === "physical" || selectedOption === "backup-restore") {
+          await saveMigrationSessionDataDecision(authToken, session.id, {
+            candidateId: input.item.candidateId,
+            strategy: selectedOption === "logical" ? "export-import" : "backup-restore",
+            status: "confirmed",
+            note: selectedOption === "logical"
+              ? t("migratePipeline.reviewInbox.notes.logical")
+              : t("migratePipeline.reviewInbox.notes.physical")
+          });
+          sessionDecisionPersisted = true;
+        } else if (selectedOption === "record-only") {
+          await saveMigrationSessionDecisions(authToken, session.id, {
+            candidateId: input.item.candidateId,
+            decision: "record-only",
+            note: t("migratePipeline.reviewInbox.notes.recordOnly")
+          });
+          sessionDecisionPersisted = true;
+        } else if (selectedOption === "manual") {
+          await saveMigrationSessionDecisions(authToken, session.id, {
+            candidateId: input.item.candidateId,
+            decision: "needs-manual-instruction",
+            note: t("migratePipeline.reviewInbox.notes.manual")
+          });
+          sessionDecisionPersisted = true;
+        } else {
+          await saveMigrationSessionDecisions(authToken, session.id, {
+            candidateId: input.item.candidateId,
+            decision: "add-to-plan",
+            note: t("migratePipeline.reviewInbox.notes.recommendation")
+          });
+          sessionDecisionPersisted = true;
+        }
+
+        await resolveReviewInboxItem(authToken, input.item.id, {
+          status: "accepted",
+          note: t("migratePipeline.reviewInbox.notes.accepted"),
+          remember: input.remember ? {
+            scope: "connection",
+            scopeId: session.connectionId,
+            pattern: stack?.name ?? input.item.title,
+            preferredOutcome: selectedOption === "record-only" ? "record-only" : "suggested-decision",
+            confidence: 0.7
+          } : undefined
+        });
+      }
+      await loadAnalysis(session.id);
+      pushLog?.("success", t("migratePipeline.reviewInbox.actionSaved"));
+    } catch (err) {
+      setReviewActionErrorItemId(input.item.id);
+      if (sessionDecisionPersisted) await loadAnalysis(session.id);
+      setReviewActionError(sessionDecisionPersisted
+        ? t("migratePipeline.reviewInbox.partialActionFailure")
+        : err instanceof Error ? err.message : t("migratePipeline.reviewInbox.actionFailed"));
+    } finally {
+      setReviewActionItemId(null);
+    }
+  }
+
+  async function exportAssessmentReport(format: "json" | "markdown") {
+    if (!session) return;
+    setReportExporting(format);
+    setAssessmentReportError("");
+    try {
+      const exported = format === "json"
+        ? await getMigrationSessionAssessmentReport(authToken, session.id, "json")
+        : await getMigrationSessionAssessmentReport(authToken, session.id, "markdown");
+      const content = format === "json" ? JSON.stringify(exported, null, 2) : String(exported);
+      const blob = new Blob([content], { type: format === "json" ? "application/json" : "text/markdown" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `envforge-assessment-${session.id}.${format === "json" ? "json" : "md"}`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      setAssessmentReportError(err instanceof Error ? err.message : t("migratePipeline.assessment.reportError"));
+    } finally {
+      setReportExporting(null);
+    }
+  }
+
   async function saveConfigDecision(input: { bundleId: string; strategy: ConfigBundle["migrationStrategy"]; status: "approved" | "blocked"; note?: string }) {
     if (!session) return;
     setStepLoading(true);
@@ -454,7 +642,7 @@ export function MigratePipelinePage({
 
   const content = (() => {
     if (!authToken) return <EmptyPipelineState title={t("migratePipeline.shell.loginTitle")} body={t("migratePipeline.shell.loginBody")} />;
-    if (!connectionId) return <EmptyPipelineState title={t("migratePipeline.shell.sourceTitle")} body={t("migratePipeline.shell.sourceBody")} />;
+    if (!connectionId) return <AssessmentLandingPanel canAssess hasAssessment={false} loading={false} onAssess={onOpenHostDetails} onGeneratePlan={() => void 0} />;
     if (loading) return <EmptyPipelineState title={t("migratePipeline.shell.openingTitle")} body={t("migratePipeline.shell.openingBody")} />;
 
     switch (activeStep) {
@@ -466,11 +654,39 @@ export function MigratePipelinePage({
             connected={connected}
             loading={stepLoading}
             onCollect={() => void collectAndAttachSnapshot()}
+            onGeneratePlan={() => void goStep("analysis")}
             onOpenHostDetails={onOpenHostDetails}
           />
         );
       case "analysis":
-        return <AnalysisStep session={session} analysis={analysis} onRefresh={() => session && void loadAnalysis(session.id)} onContinue={() => void goStep("select")} />;
+        return (
+          <AssessmentExperience
+            assessment={assessment}
+            assessmentLoading={assessmentLoading}
+            assessmentError={assessmentError}
+            reviewItems={reviewItems}
+            reviewLoading={reviewLoading}
+            reviewError={reviewError}
+            reviewHistory={reviewHistory}
+            actionItemId={reviewActionItemId}
+            actionErrorItemId={reviewActionErrorItemId}
+            actionError={reviewActionError}
+            reportLoading={reportExporting}
+            reportError={assessmentReportError}
+            onRefresh={() => session && void loadAnalysis(session.id)}
+            onExport={(format) => void exportAssessmentReport(format)}
+            onReviewAction={(input) => void handleReviewDecision(input)}
+            onContinue={() => {
+              if (assessment?.requiredDecisions.length) {
+                const heading = document.getElementById("review-inbox-title");
+                heading?.scrollIntoView({ behavior: "smooth", block: "start" });
+                heading?.focus({ preventScroll: true });
+                return;
+              }
+              void goStep("select");
+            }}
+          />
+        );
       case "select":
         return <CapabilitySelectionStep analysis={analysis} decisions={decisionByCandidate} loading={stepLoading} onDecision={saveDecision} />;
       case "unknown":
@@ -555,7 +771,7 @@ export function MigratePipelinePage({
   return (
     <section className="migrate-pipeline-page">
       <MigrateStepHeader activeStep={activeStep} session={session} onStep={(step) => void goStep(step)} />
-      <StagedPlanBar session={session} onRecommended={() => session && void goStep(session.recommendedStep)} onPlan={() => void goStep("plan")} />
+      {activeProbe || assessment ? <StagedPlanBar session={session} onRecommended={() => session && void goStep(session.recommendedStep)} onPlan={() => void goStep("plan")} /> : null}
       {error ? <div className="pipeline-error"><AlertTriangle aria-hidden />{error}</div> : null}
       {content}
       {summary && !error ? (
@@ -658,6 +874,7 @@ function SourceStep({
   connected,
   loading,
   onCollect,
+  onGeneratePlan,
   onOpenHostDetails
 }: {
   connection?: ConnectionProfile;
@@ -665,6 +882,7 @@ function SourceStep({
   connected: boolean;
   loading: boolean;
   onCollect: () => void;
+  onGeneratePlan: () => void;
   onOpenHostDetails: () => void;
 }) {
   const { t } = useTranslation();
@@ -749,42 +967,9 @@ function SourceStep({
         )}
       </section>
       <aside className="source-action-panel">
-        <h3>{t("migratePipeline.source.readOnly")}</h3>
-        <p>{t("migratePipeline.source.intro")}</p>
-        <Button variant="primary" disabled={!connected || loading} onClick={onCollect}>
-          {loading ? <RefreshCw className="spinning" aria-hidden /> : <MonitorCog aria-hidden />}
-          {loading ? t("migratePipeline.source.collecting") : probe ? t("migratePipeline.source.recollect") : t("migratePipeline.source.collect")}
-        </Button>
+        <AssessmentLandingPanel canAssess={connected} hasAssessment={Boolean(probe)} loading={loading} onAssess={onCollect} onGeneratePlan={onGeneratePlan} />
         <Button variant="secondary" disabled={!connection} onClick={onOpenHostDetails}><Eye aria-hidden />{t("migratePipeline.source.details")}</Button>
       </aside>
-    </div>
-  );
-}
-
-function AnalysisStep({ session, analysis, onRefresh, onContinue }: { session: MigrationSessionView | null; analysis: MigrationSessionAnalysis | null; onRefresh: () => void; onContinue: () => void }) {
-  const { t } = useTranslation();
-  const summary = session?.summary;
-  return (
-    <div className="pipeline-step-surface">
-      <div className="pipeline-section-heading">
-        <div>
-          <p className="eyebrow">{t("migratePipeline.analysis.eyebrow")}</p>
-          <h3>{t("migratePipeline.analysis.title")}</h3>
-        </div>
-        <Button variant="secondary" onClick={onRefresh}><RefreshCw aria-hidden />{t("migratePipeline.analysis.refresh")}</Button>
-      </div>
-      <div className="analysis-metric-grid">
-        <MetricCard icon={<PackagePlus aria-hidden />} label={t("migratePipeline.analysis.candidates")} value={summary?.totalCandidates ?? 0} />
-        <MetricCard icon={<CheckCircle2 aria-hidden />} label={t("migratePipeline.analysis.autoSuggested")} value={summary?.autoCandidates ?? 0} tone="safe" />
-        <MetricCard icon={<AlertTriangle aria-hidden />} label={t("migratePipeline.analysis.needsReview")} value={summary?.reviewCandidates ?? 0} tone="warn" />
-        <MetricCard icon={<ShieldAlert aria-hidden />} label={t("migratePipeline.analysis.configRisk")} value={summary?.configRiskCount ?? 0} tone="warn" />
-        <MetricCard icon={<Database aria-hidden />} label={t("migratePipeline.analysis.dataReview")} value={summary?.dataReviewCount ?? 0} tone="warn" />
-        <MetricCard icon={<X aria-hidden />} label={t("migratePipeline.analysis.ignoredBaseline")} value={summary?.ignoredArtifacts ?? 0} />
-      </div>
-      <div className="analysis-callout">
-        <p>{analysis?.report ? t("migratePipeline.analysis.next") : t("migratePipeline.analysis.unavailable")}</p>
-        <Button variant="primary" disabled={!analysis?.report} onClick={onContinue}>{t("migratePipeline.analysis.start")}<ArrowRight aria-hidden /></Button>
-      </div>
     </div>
   );
 }
@@ -1263,11 +1448,6 @@ function EvidenceDrawer({ candidate, onClose }: { candidate: MigrationCandidate;
       </aside>
     </div>
   );
-}
-
-function MetricCard({ icon, label, value, tone = "neutral" }: { icon: React.ReactNode; label: string; value: number; tone?: "neutral" | "safe" | "warn" | "danger" }) {
-  const cardTone = tone === "safe" ? "ok" : tone === "warn" ? "warn" : tone === "danger" ? "danger" : "default";
-  return <Card as="article" className={`analysis-metric-card ${tone}`} tone={cardTone}>{icon}<strong>{value}</strong><span>{label}</span></Card>;
 }
 
 function Fact({ label, value }: { label: string; value: string | number }) {

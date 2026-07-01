@@ -655,7 +655,7 @@ export const en = {
       sourceVmHint: "Connect to the old VM through SSH",
       snapshot: "Snapshot",
       snapshotHint: "Read-only collect OS / packages / services / configs",
-      analysis: "Analysis",
+      analysis: "Assessment",
       analysisHint: "Package Intent Score + classifier",
       reviewQueue: "Review Queue",
       reviewPending: "{{count}} item(s) pending decision",
@@ -976,6 +976,101 @@ export const en = {
       commandEvidence: "Command evidence ({{count}} sections)",
       commandTimedOut: "timed out",
       noCommandFailures: "No failed or timed-out collector commands."
+    },
+    assessment: {
+      firstRunEyebrow: "First-run value", firstRunTitle: "Read-only Assessment",
+      firstRunBody: "Understand what this Linux server runs before deciding whether to migrate anything.",
+      readOnlyBadge: "Read-only mode", noModifyPromise: "This mode will not modify your server.",
+      assessServer: "Assess a server", generatePlan: "Generate a migration plan", applyApprovedPlan: "Apply an approved plan",
+      applyCtaHint: "Controlled Apply is available only from the Plan center after immutable Plan approval.",
+      whatReads: "What EnvForge reads", whatDoesNotRead: "What EnvForge does not read",
+      reads: {
+        os: "OS metadata", services: "Running services", ports: "Open ports", packages: "Package list", docker: "Docker metadata",
+        configs: "Selected config paths", certificates: "Certificate metadata", database: "Database presence indicators", security: "Security baseline hints"
+      },
+      doesNotRead: {
+        privateKeys: "Private keys", databaseContents: "Database table contents", secretValues: "Full secret values",
+        applicationData: "Application user data", homeDirectories: "Arbitrary home directory content"
+      },
+      loadingTitle: "Building the read-only assessment", loadingBody: "EnvForge is organizing collector evidence into service stacks, risks, and decisions.",
+      unavailableTitle: "Assessment is not available yet", unavailableBody: "Run a read-only scan first. Snapshot or analysis evidence may still be missing.", retry: "Retry assessment",
+      eyebrow: "Assessment summary", title: "What this server is really running", valueStatement: "Even without migration, this view should make the old server understandable.",
+      refresh: "Refresh assessment", unknownHost: "Unknown source host",
+      metrics: { stacks: "service stacks", highRisk: "high risk", decisions: "required decisions", completeness: "evidence completeness", readiness: "migration readiness" },
+      readinessTitle: "Migration Readiness",
+      readiness: {
+        "assessment-complete": "Assessment complete", "plan-possible": "Plan possible", "apply-requires-decisions": "Apply requires decisions",
+        "blocked-by-missing-evidence": "Blocked by missing evidence", "record-only-recommended": "Record-only recommended"
+      },
+      readinessMeaning: {
+        "assessment-complete": "Assessment complete does not mean the server can be applied directly.",
+        "plan-possible": "Plan possible does not mean a Plan exists or has been approved.",
+        "apply-requires-decisions": "Resolve the Review Inbox before preparing a trusted Plan draft.",
+        "blocked-by-missing-evidence": "Re-run collection or confirm missing evidence manually before planning.",
+        "record-only-recommended": "Automated migration is not recommended; preserve evidence and assign follow-up."
+      },
+      blockers: "Blockers", warnings: "Warnings", nextActions: "Next actions", noBlockers: "No assessment blockers.", noWarnings: "No assessment warnings.", noNextActions: "No next action suggested.",
+      reviewDecisions: "Review required decisions", continueToSelection: "Continue to migration selection",
+      serviceStacksEyebrow: "Product view", serviceStacks: "Service Stacks", emptyStacksTitle: "No service stack identified",
+      emptyStacksBody: "No user-facing stack was identified from the available evidence. Check collector quality before treating this as absence.",
+      categories: {
+        "web-entry": "Web entry", "app-runtime": "App runtime", database: "Database", cache: "Cache", queue: "Queue", storage: "Storage",
+        security: "Security", network: "Network", "scheduled-job": "Scheduled job", unknown: "Unknown"
+      },
+      confidence: "Confidence", confidenceValues: { high: "High", medium: "Medium", low: "Low", unknown: "Unknown" },
+      risk: { high: "High", medium: "Medium", low: "Low", unknown: "Unknown" },
+      statefulness: "Statefulness", statefulnessValues: { stateful: "Stateful", stateless: "Stateless", mixed: "Mixed", unknown: "Unknown" },
+      stackReadiness: "Readiness",
+      stackReadinessValues: {
+        "assessment-complete": "Assessment complete", "plan-possible": "Plan possible", "requires-decision": "Requires decision",
+        "blocked-by-missing-evidence": "Missing evidence", "record-only-recommended": "Record only", manual: "Manual"
+      },
+      evidenceCount: "Evidence", whyDetected: "Why EnvForge identified it", recommendedStrategy: "Recommended strategy",
+      strategyUnavailable: "No supported strategy is available yet.", requiredDecisions: "Required decisions",
+      evidenceDetails: "Evidence ({{count}})", riskReasons: "Risk reasons ({{count}})", noRiskReasons: "No risk reason recorded.",
+      relationships: "Relationships", relatedStackMissing: "Related stack unavailable", capabilityRefs: "Capability references",
+      evidenceEyebrow: "Collector envelope", evidenceQuality: "Evidence Quality",
+      collectorStatus: { ok: "OK", partial: "Partial", failed: "Failed", skipped: "Skipped", unknown: "Unknown" },
+      dockerNotDetected: "Docker collector completed successfully and no Docker service stack was detected.",
+      dockerFailed: "Docker collection failed. An empty Docker result must not be interpreted as Docker being absent.",
+      dockerPartial: "Docker collection returned partial evidence; Docker presence remains uncertain.", dockerDetected: "Docker evidence contributed to an identified service stack.",
+      dockerUnknown: "Docker collector evidence is unavailable; Docker presence is unknown.",
+      partialEvidenceWarning: "Some collectors returned incomplete evidence. Missing findings are not proof of absence.",
+      failedCommand: "Failed command", timedOutCommand: "Timed-out command", noCollectorErrors: "No command failure, timeout, stderr, or collector error recorded.", notes: "Evidence notes",
+      reportEyebrow: "Portable evidence", reportTitle: "Assessment Report", reportIntro: "Export the backend-generated, redacted assessment for a ticket or internal review.",
+      reportReadOnly: "This assessment was generated in read-only mode.", reportNoApply: "No apply run was created.", reportNoMutation: "No target mutation was performed.",
+      reportRedacted: "Sensitive values are redacted by default.", downloadJson: "Download JSON", downloadMarkdown: "Download Markdown", exporting: "Exporting…",
+      reportError: "Report export failed. Please try again or inspect the session logs."
+    },
+    reviewInbox: {
+      eyebrow: "Decision layer", title: "Review Inbox", intro: "A small set of decisions distilled from collector evidence—not a stream of raw scan results.",
+      openItems: "open decisions", securityBoundary: "Review decisions feed Plan generation. Review completion does not approve a Plan or execute Apply.",
+      loadingTitle: "Loading Review Inbox", loadingBody: "EnvForge is loading decisions and their audit history.",
+      unavailableTitle: "Review Inbox is unavailable", unavailableBody: "Review Inbox is not available for this assessment yet.",
+      emptyTitle: "No review decisions are required", emptyBody: "No key decision is open for this assessment right now.",
+      types: { "required-decision": "Required decision", "suggested-decision": "Suggested decision", blocker: "Blocker", "manual-confirmation": "Manual confirmation", "policy-violation": "Policy violation", "record-only": "Record only" },
+      status: { open: "Open", accepted: "Accepted", rejected: "Rejected", deferred: "Deferred", resolved: "Resolved" },
+      relatedStack: "Related service stack", relatedStackMissing: "The related service stack is unavailable.",
+      decision: "Decision", evidence: "Evidence ({{count}})", confidence: "Confidence", risk: "Risk", reason: "Why this needs review",
+      recommended: "Recommended option", defaultSafeChoice: "Default safe choice", requiredInput: "Required user input",
+      impactUnresolved: "Impact if unresolved", impactPlan: "Impact on Plan", alternatives: "Alternatives",
+      unresolvedImpact: "The Plan should keep this component record-only or blocked until the decision is resolved.",
+      planImpact: "The selected advisory decision is used only when explicitly generating a Plan draft. Approval remains separate.",
+      recommendationUnavailable: "No supported recommendation is available yet.", defaultSafeFallback: "Defer or keep record-only until evidence is sufficient.", chooseOutcome: "Choose an outcome or defer this item.",
+      evidenceMissing: "No linked evidence is available for this item.", riskReasons: "Risk reasons ({{count}})", noRiskReasons: "No linked risk reason is available.",
+      history: "Decision history ({{count}})", historyUnavailable: "Decision history is not available for this item.",
+      rememberPreference: "Remember this advisory preference", rememberBoundary: "Preferences tune future recommendations; they never approve a Plan or authorize Apply.",
+      accept: "Accept recommendation", chooseAlternative: "Choose alternative", recordOnly: "Record only", markManual: "Mark manual", defer: "Defer",
+      actionSaved: "Review decision saved. No Plan was approved and no Apply run was created.", actionFailed: "Action failed. No Plan was approved and no Apply run was created.",
+      partialActionFailure: "The session decision was saved, but the Inbox status update failed. The Assessment was refreshed; no Plan was approved and no Apply run was created.",
+      unsupportedAction: "This decision option is not supported yet. No decision was saved.",
+      notes: {
+        accepted: "Decision recorded for the next explicit Plan-only draft; Plan approval remains separate.",
+        deferred: "Deferred by the operator; no Plan or Apply authorization was created.",
+        logical: "Logical export/import strategy selected in Review Inbox.", physical: "Physical or supported backup/restore strategy selected in Review Inbox.",
+        recordOnly: "Keep this component in evidence and reports without automated migration actions.", manual: "Assign this component to manual follow-up.",
+        recommendation: "Recommended advisory decision accepted for the next Plan-only draft."
+      }
     },
     analysis: {
       eyebrow: "Analysis summary",

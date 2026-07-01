@@ -208,8 +208,11 @@ Apply kernel:
 - Authenticated CRUD/read APIs live under `/api/decision-engine/*`. No Decision
   Engine route can approve or execute an Environment Plan.
 
-The API and migration integration are complete for this batch. A dedicated Web
-Review Inbox and preference-management surface remains a later product task.
+The API and migration integration are complete for this batch. Prompt2B+C adds
+a Migrate-local Web Review Inbox, Decision Explanation cards, decision history,
+and safe action handling. Review actions may update migration-session advisory
+decisions or data strategy and may remember a preference, but they cannot
+approve or execute an Environment Plan.
 
 ## Read-only Assessment backend baseline
 
@@ -230,9 +233,23 @@ reports:
   records, create an Environment Plan or Approval, create Apply/Action/session
   runs, or mutate a source or target host.
 
-This is the backend Prompt2A baseline only. Web First-run Assessment UI remains
-future Prompt2B work, and Review Inbox productization remains future Prompt2C
-work. Do not describe the complete First-run Assessment baseline as finished.
+Prompt2B+C now exposes the backend Assessment in the Migrate Web flow:
+
+- Read-only Assessment is the first-run primary action; Generate Plan is
+  secondary and Apply is not an active first-run action.
+- The source step discloses what is and is not read, while the Assessment view
+  renders service stacks, evidence quality, readiness, required decisions, and
+  backend-generated JSON/Markdown report export.
+- Review Inbox items join to Service Stacks and evidence through candidate ids.
+  Decision Explanation cards show recommendation, alternatives, default safe
+  choice, unresolved impact, Plan-draft impact, and available history.
+- Accept, alternative, record-only, manual, defer, and advisory-preference
+  actions use existing Decision Engine and migration-session APIs. They do not
+  create Approval or Apply Run records.
+
+The Web First-run Assessment and Review Inbox productization baseline is now in
+place. Failure / Repair UX, golden-scenario lab depth, Capability SDK, and
+Production Team Adoption remain future roadmap work.
 
 ## Verification report evidence
 

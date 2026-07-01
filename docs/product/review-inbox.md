@@ -68,3 +68,25 @@ Decision Engine
 Environment Plan
 Team Approval
 ~~~
+
+## Web productization baseline
+
+Prompt2B+C embeds Review Inbox in the Migrate Assessment experience. Inbox
+items join to Service Stacks through the backend candidate id and therefore show
+related evidence, confidence, risks, recommendation, alternatives, default safe
+choice, unresolved impact, and decision history without exposing raw scanner
+result spam as the primary UI.
+
+Supported actions use existing Decision Engine and migration-session contracts:
+
+- accept a supported recommendation and record its session decision or data
+  strategy for a future Plan-only draft;
+- choose a backend-provided alternative;
+- keep a component record-only;
+- assign manual follow-up;
+- defer an Inbox item;
+- optionally remember an advisory preference.
+
+Review completion is not Environment Plan approval. A remembered preference is
+not Apply authorization. No Inbox action creates an Approval or Apply Run, and
+Controlled Apply still requires a separately approved immutable Plan.

@@ -79,5 +79,10 @@ manual items instead of being forced into a supported category.
 
 Collector envelopes remain authoritative: a successful empty Docker collector
 means no Docker workload was found, while a failed Docker collector means the
-Docker evidence is unavailable. The Web service-stack presentation remains
-future Prompt2B work.
+Docker evidence is unavailable.
+
+Prompt2B+C renders this model in Migrate as Service Stack cards. Each card keeps
+the backend-provided summary, confidence and reason, risk and reasons,
+statefulness, readiness, evidence, required decisions, recommended strategy,
+relationships, and capability references. The Web does not reclassify raw
+packages, ports, files, or processes.
