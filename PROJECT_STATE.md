@@ -32,8 +32,9 @@ Current Productization Focus:
 1. First-run Assessment
 2. Review Inbox
 3. Golden Scenario Lab
-4. Capability SDK
-5. Production Team Adoption
+4. Failure / Repair Experience
+5. Capability SDK
+6. Production Team Adoption
 
 ## Stack
 
