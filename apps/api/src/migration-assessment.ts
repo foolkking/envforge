@@ -460,9 +460,9 @@ function categoryForCandidate(candidate: MigrationCandidate): AssessmentServiceC
   if (/redis|memcached/.test(text)) return "cache";
   if (/rabbitmq|kafka|nats|queue/.test(text)) return "queue";
   if (/docker|compose|podman|node(?:js)?|python|php|java|ruby|go runtime|application/.test(text)) return "app-runtime";
-  if (/cron|systemd-timer|timer\b|scheduled/.test(text) || candidate.source === "cron" || candidate.source === "systemd-timer") return "scheduled-job";
   if (/ufw|firewall|fail2ban|apparmor|selinux|certificate|certbot|security/.test(text)) return "security";
   if (/ssh|sshd|wireguard|tailscale|network|dns|frp/.test(text)) return "network";
+  if (/cron|systemd-timer|timer\b|scheduled/.test(text) || candidate.source === "cron" || candidate.source === "systemd-timer") return "scheduled-job";
   if (/minio|nfs|samba|storage|filesystem/.test(text)) return "storage";
   return "unknown";
 }

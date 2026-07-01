@@ -1,0 +1,51 @@
+{
+  "agentId": "golden-docker-compose",
+  "collectedAt": "2026-07-01T11:00:00.000Z",
+  "collection": {
+    "status": "ok", "completeness": 0.94,
+    "commands": [{ "command": "envforge read-only docker inventory", "exitCode": 0 }],
+    "errors": [], "timedOut": false
+  },
+  "collectors": {
+    "docker-images": {
+      "id": "docker-images", "status": "ok", "completeness": 1,
+      "commands": [{ "command": "docker image ls --digests", "exitCode": 0 }],
+      "errors": [], "collectedAt": "2026-07-01T11:00:00.000Z",
+      "data": ["ghcr.io/example/web@sha256:2222222222222222", "postgres:16@sha256:3333333333333333"]
+    },
+    "docker-compose": {
+      "id": "docker-compose", "status": "ok", "completeness": 0.95,
+      "commands": [{ "command": "find selected roots -name compose.yml", "exitCode": 0 }],
+      "errors": [], "collectedAt": "2026-07-01T11:00:00.000Z",
+      "data": [{ "path": "/srv/acme/compose.yml", "services": ["web", "db"], "networks": ["frontend", "backend"], "healthchecks": true, "dependsOn": ["db"], "restart": "unless-stopped" }]
+    },
+    "docker-volumes": {
+      "id": "docker-volumes", "status": "ok", "completeness": 1,
+      "commands": [{ "command": "docker volume ls", "exitCode": 0 }],
+      "errors": [], "collectedAt": "2026-07-01T11:00:00.000Z",
+      "data": ["acme_postgres_data", "acme_uploads"]
+    }
+  },
+  "system": {
+    "hostname": "compose-source.example", "platform": "linux", "arch": "arm64", "release": "6.8.0", "uptime": 172800,
+    "osPretty": "Ubuntu 24.04 LTS", "cpu": { "model": "Golden ARM", "cores": 4, "speedMhz": 2200 },
+    "memory": { "totalBytes": 4294967296, "freeBytes": 1073741824, "usedBytes": 3221225472, "totalGb": "4", "freeGb": "1" }
+  },
+  "software": [
+    { "name": "docker.io", "version": "26", "source": "apt", "status": "installed", "trust": "user" },
+    { "name": "docker", "version": "running-service", "source": "systemd", "status": "running", "trust": "user" },
+    { "name": "docker-compose-plugin", "version": "2.27", "source": "apt", "status": "installed", "trust": "user" },
+    { "name": "ghcr.io/example/web", "version": "sha256:2222222222222222", "source": "docker", "status": "present", "trust": "user" }
+  ],
+  "configChecklist": [
+    { "id": "docker-compose-config", "label": "/srv/acme/compose.yml includes healthchecks, depends_on, restart policies and reverse proxy labels", "category": "containers", "status": "review", "lastChanged": "2026-07-01" },
+    { "id": "docker-env", "label": "DATABASE_URL=postgres://acme:compose-super-secret@db/acme GITHUB_TOKEN=ghp_fixturetoken123456789", "category": "containers", "status": "review", "lastChanged": "2026-07-01" },
+    { "id": "docker-volumes", "label": "Named volumes acme_postgres_data and acme_uploads contain persistent data", "category": "data", "status": "review", "lastChanged": "2026-07-01" },
+    { "id": "docker-networks", "label": "Networks frontend and backend found", "category": "network", "status": "healthy", "lastChanged": "2026-07-01" }
+  ],
+  "counts": {
+    "apt": 2, "rpm": 0, "snap": 0, "flatpak": 0, "npm": 0, "pip": 0, "gem": 0, "cargo": 0,
+    "localBin": 0, "opt": 0, "userBin": 0, "nvm": 0, "pyenv": 0, "docker": 2,
+    "enabledServices": 1, "runningServices": 1, "total": 4
+  }
+}

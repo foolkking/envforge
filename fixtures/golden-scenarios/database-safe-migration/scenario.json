@@ -1,0 +1,41 @@
+{
+  "id": "database-safe-migration",
+  "name": "Safe database migration",
+  "goal": "Require explicit safe strategies for PostgreSQL and MySQL while preserving Redis state evidence.",
+  "mode": "assessment-first",
+  "source": { "type": "snapshot-fixture", "file": "snapshot.json" },
+  "expected": {
+    "serviceStacks": ["database", "cache"],
+    "statefulStacks": ["database", "cache"],
+    "reviewDecisions": [
+      { "titleIncludes": "PostgreSQL data migration strategy", "relatedServiceStackCategory": "database" },
+      { "titleIncludes": "MySQL", "relatedServiceStackCategory": "database" },
+      { "candidateIncludes": "redis", "reasonIncludes": "Database data strategy" }
+    ],
+    "readiness": ["apply-requires-decisions"],
+    "collectors": [
+      { "name": "database-presence", "status": "ok" },
+      { "name": "backup-freshness", "status": "partial" }
+    ],
+    "reports": {
+      "json": true,
+      "markdown": true,
+      "includes": ["pg_dump/pg_restore", "supported backup/restore", "PostgreSQL data migration strategy", "MySQL"]
+    },
+    "planOnly": { "minimumItems": 3 }
+  },
+  "security": {
+    "readOnlyAssessmentCreatesPlan": false,
+    "readOnlyAssessmentCreatesApproval": false,
+    "readOnlyAssessmentCreatesApplyRun": false,
+    "targetMutationPerformed": false,
+    "reviewDecisionApprovesPlan": false,
+    "reviewDecisionCreatesApplyRun": false,
+    "secretsRedacted": true,
+    "forbiddenValues": ["database-fixture-password"]
+  },
+  "limitations": [
+    "The fixture proves decision and report contracts, not physical backup consistency.",
+    "No database table content is collected and no backup, transfer, restore, or rollback command runs."
+  ]
+}

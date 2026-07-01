@@ -1,0 +1,52 @@
+{
+  "agentId": "golden-databases",
+  "collectedAt": "2026-07-01T12:00:00.000Z",
+  "collection": {
+    "status": "partial", "completeness": 0.88,
+    "commands": [{ "command": "envforge read-only database presence inventory", "exitCode": 0 }],
+    "stderr": "backup timestamp command unavailable for one database",
+    "errors": ["backup freshness is incomplete"], "timedOut": false
+  },
+  "collectors": {
+    "database-presence": {
+      "id": "database-presence", "status": "ok", "completeness": 1,
+      "commands": [{ "command": "systemctl is-active postgresql mysql redis-server", "exitCode": 0 }],
+      "errors": [], "collectedAt": "2026-07-01T12:00:00.000Z",
+      "data": ["postgresql active", "mysql active", "redis-server active"]
+    },
+    "backup-freshness": {
+      "id": "backup-freshness", "status": "partial", "completeness": 0.5,
+      "commands": [{ "command": "inspect backup metadata only", "exitCode": 1 }],
+      "stderr": "MySQL backup timestamp unavailable", "errors": ["backup freshness unknown"],
+      "collectedAt": "2026-07-01T12:00:00.000Z", "data": ["postgres backup metadata exists", "redis RDB timestamp exists"]
+    }
+  },
+  "system": {
+    "hostname": "database-source.example", "platform": "linux", "arch": "x86_64", "release": "6.1", "uptime": 604800,
+    "osPretty": "Debian GNU/Linux 12", "cpu": { "model": "Golden DB CPU", "cores": 8, "speedMhz": 2800 },
+    "memory": { "totalBytes": 17179869184, "freeBytes": 4294967296, "usedBytes": 12884901888, "totalGb": "16", "freeGb": "4" }
+  },
+  "software": [
+    { "name": "postgresql", "version": "16", "source": "apt", "status": "installed", "trust": "user" },
+    { "name": "postgresql", "version": "running-service", "source": "systemd", "status": "running", "trust": "user" },
+    { "name": "mysql-server", "version": "8.0", "source": "apt", "status": "installed", "trust": "user" },
+    { "name": "mysql", "version": "running-service", "source": "systemd", "status": "running", "trust": "user" },
+    { "name": "redis-server", "version": "7.2", "source": "apt", "status": "installed", "trust": "user" },
+    { "name": "redis-server", "version": "running-service", "source": "systemd", "status": "running", "trust": "user" }
+  ],
+  "configChecklist": [
+    { "id": "database-ports", "label": "Open ports: 5432 3306 6379", "category": "network", "status": "healthy", "lastChanged": "2026-07-01" },
+    { "id": "postgresql-config", "label": "pg_hba.conf and postgresql.conf found", "category": "database", "status": "review", "lastChanged": "2026-06-30" },
+    { "id": "postgresql-data", "label": "/var/lib/postgresql exists; contents were not read", "category": "database", "status": "review", "lastChanged": "2026-06-30" },
+    { "id": "mysql-config", "label": "/etc/mysql/my.cnf found", "category": "database", "status": "review", "lastChanged": "2026-06-30" },
+    { "id": "mysql-data", "label": "/var/lib/mysql exists; contents were not read", "category": "database", "status": "review", "lastChanged": "2026-06-30" },
+    { "id": "mysql-env", "label": "MYSQL_PASSWORD=database-fixture-password", "category": "database", "status": "review", "lastChanged": "2026-06-30" },
+    { "id": "redis-config", "label": "/etc/redis/redis.conf found", "category": "database", "status": "review", "lastChanged": "2026-06-30" },
+    { "id": "redis-data", "label": "/var/lib/redis dump.rdb and appendonly metadata detected; content not read", "category": "database", "status": "review", "lastChanged": "2026-06-30" }
+  ],
+  "counts": {
+    "apt": 3, "rpm": 0, "snap": 0, "flatpak": 0, "npm": 0, "pip": 0, "gem": 0, "cargo": 0,
+    "localBin": 0, "opt": 0, "userBin": 0, "nvm": 0, "pyenv": 0, "docker": 0,
+    "enabledServices": 3, "runningServices": 3, "total": 6
+  }
+}

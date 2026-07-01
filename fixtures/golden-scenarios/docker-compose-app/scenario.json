@@ -1,0 +1,40 @@
+{
+  "id": "docker-compose-app",
+  "name": "Docker Compose application rebuild",
+  "goal": "Explain a Compose workload, secret-bearing environment config, volumes, networks, and runtime dependencies.",
+  "mode": "assessment-first",
+  "source": { "type": "snapshot-fixture", "file": "snapshot.json" },
+  "expected": {
+    "serviceStacks": ["app-runtime"],
+    "statefulStacks": ["app-runtime"],
+    "reviewDecisions": [
+      { "candidateIncludes": "docker", "reasonIncludes": "Secret config", "relatedServiceStackCategory": "app-runtime" }
+    ],
+    "readiness": ["plan-possible", "apply-requires-decisions"],
+    "collectors": [
+      { "name": "docker-images", "status": "ok" },
+      { "name": "docker-compose", "status": "ok" },
+      { "name": "docker-volumes", "status": "ok" }
+    ],
+    "reports": {
+      "json": true,
+      "markdown": true,
+      "includes": ["Docker", "Secret config must be handled out of band", "Service stacks", "Evidence quality"]
+    },
+    "planOnly": { "minimumItems": 1 }
+  },
+  "security": {
+    "readOnlyAssessmentCreatesPlan": false,
+    "readOnlyAssessmentCreatesApproval": false,
+    "readOnlyAssessmentCreatesApplyRun": false,
+    "targetMutationPerformed": false,
+    "reviewDecisionApprovesPlan": false,
+    "reviewDecisionCreatesApplyRun": false,
+    "secretsRedacted": true,
+    "forbiddenValues": ["compose-super-secret", "ghp_fixturetoken123456789"]
+  },
+  "limitations": [
+    "Compose parsing is represented by collected metadata rather than a live Docker daemon.",
+    "Volume transfer and target container health are not executed in this fixture baseline."
+  ]
+}

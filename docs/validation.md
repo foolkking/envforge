@@ -37,12 +37,17 @@ Cross-cutting refusal rules:
 ## Harness commands
 
 ```bash
+npm run test:golden
 npm run harness:scenarios
 npm run harness:scenario
 npm run harness:target:check
 npm run harness:certify
 npm run harness:certify:dry-run
 ```
+
+`test:golden` runs the five product-level Assessment/Review/report fixtures in
+`fixtures/golden-scenarios/`. `harness:scenarios` remains the broader capability
+Plan/dry-run suite; the two layers are complementary.
 
 Ubuntu live helpers:
 

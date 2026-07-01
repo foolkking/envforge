@@ -1,0 +1,75 @@
+{
+  "agentId": "golden-post-migration-verification",
+  "collectedAt": "2026-07-01T14:00:00.000Z",
+  "collection": {
+    "status": "partial", "completeness": 0.84,
+    "commands": [{ "command": "envforge read-only verification evidence", "exitCode": 0 }],
+    "stderr": "docker health unavailable; backup freshness unknown",
+    "errors": ["one failed collector and one partial collector"], "timedOut": false
+  },
+  "collectors": {
+    "service-health": {
+      "id": "service-health", "status": "ok", "completeness": 1,
+      "commands": [{ "command": "systemctl is-active nginx docker postgresql", "exitCode": 0 }],
+      "errors": [], "collectedAt": "2026-07-01T14:00:00.000Z", "data": ["nginx active", "docker active", "postgresql active"]
+    },
+    "port-status": {
+      "id": "port-status", "status": "ok", "completeness": 1,
+      "commands": [{ "command": "ss -lnt", "exitCode": 0 }],
+      "errors": [], "collectedAt": "2026-07-01T14:00:00.000Z", "data": ["80/tcp", "443/tcp", "5432/tcp"]
+    },
+    "certificate-expiry": {
+      "id": "certificate-expiry", "status": "ok", "completeness": 1,
+      "commands": [{ "command": "openssl x509 -noout -enddate", "exitCode": 0 }],
+      "errors": [], "collectedAt": "2026-07-01T14:00:00.000Z", "data": ["example certificate valid for 68 days"]
+    },
+    "config-drift": {
+      "id": "config-drift", "status": "ok", "completeness": 1,
+      "commands": [{ "command": "compare approved config hashes", "exitCode": 0 }],
+      "errors": [], "collectedAt": "2026-07-01T14:00:00.000Z", "data": ["nginx config matches approved artifact"]
+    },
+    "docker-health": {
+      "id": "docker-health", "status": "failed", "completeness": 0,
+      "commands": [{ "command": "docker ps --format health", "exitCode": 1 }],
+      "stderr": "permission denied connecting to Docker socket", "errors": ["docker health unavailable; empty evidence does not mean the component is absent"],
+      "collectedAt": "2026-07-01T14:00:00.000Z", "data": []
+    },
+    "database-connectivity": {
+      "id": "database-connectivity", "status": "ok", "completeness": 1,
+      "commands": [{ "command": "psql -c 'select 1'", "exitCode": 0 }],
+      "errors": [], "collectedAt": "2026-07-01T14:00:00.000Z", "data": ["PostgreSQL accepted a local health query"]
+    },
+    "backup-freshness": {
+      "id": "backup-freshness", "status": "partial", "completeness": 0.4,
+      "commands": [{ "command": "inspect backup metadata", "exitCode": 1 }],
+      "stderr": "remote backup manifest unavailable", "errors": ["backup freshness unknown"],
+      "collectedAt": "2026-07-01T14:00:00.000Z", "data": ["local backup metadata is 26 hours old"]
+    }
+  },
+  "system": {
+    "hostname": "post-migration.example", "platform": "linux", "arch": "x86_64", "release": "6.8", "uptime": 7200,
+    "osPretty": "Ubuntu 24.04 LTS", "cpu": { "model": "Golden Target CPU", "cores": 4, "speedMhz": 2600 },
+    "memory": { "totalBytes": 8589934592, "freeBytes": 4294967296, "usedBytes": 4294967296, "totalGb": "8", "freeGb": "4" }
+  },
+  "software": [
+    { "name": "nginx", "version": "1.24", "source": "apt", "status": "installed", "trust": "user" },
+    { "name": "nginx", "version": "running-service", "source": "systemd", "status": "running", "trust": "user" },
+    { "name": "docker.io", "version": "26", "source": "apt", "status": "installed", "trust": "user" },
+    { "name": "docker", "version": "running-service", "source": "systemd", "status": "running", "trust": "user" },
+    { "name": "postgresql", "version": "16", "source": "apt", "status": "installed", "trust": "user" },
+    { "name": "postgresql", "version": "running-service", "source": "systemd", "status": "running", "trust": "user" }
+  ],
+  "configChecklist": [
+    { "id": "verification-ports", "label": "Open ports: 80 443 5432", "category": "network", "status": "healthy", "lastChanged": "2026-07-01" },
+    { "id": "nginx-config", "label": "/etc/nginx config hash matches approved artifact", "category": "web", "status": "healthy", "lastChanged": "2026-07-01" },
+    { "id": "docker-compose", "label": "/srv/app/compose.yml found; container health could not be collected", "category": "containers", "status": "review", "lastChanged": "2026-07-01" },
+    { "id": "postgresql-config", "label": "postgresql.conf and pg_hba.conf found", "category": "database", "status": "healthy", "lastChanged": "2026-07-01" },
+    { "id": "postgresql-data", "label": "/var/lib/postgresql exists; content not read", "category": "database", "status": "review", "lastChanged": "2026-07-01" },
+    { "id": "database-health-env", "label": "DATABASE_URL=postgres://verify:verification-db-password@localhost/app", "category": "database", "status": "review", "lastChanged": "2026-07-01" }
+  ],
+  "counts": {
+    "apt": 3, "rpm": 0, "snap": 0, "flatpak": 0, "npm": 0, "pip": 0, "gem": 0, "cargo": 0,
+    "localBin": 0, "opt": 0, "userBin": 0, "nvm": 0, "pyenv": 0, "docker": 1,
+    "enabledServices": 3, "runningServices": 3, "total": 6
+  }
+}

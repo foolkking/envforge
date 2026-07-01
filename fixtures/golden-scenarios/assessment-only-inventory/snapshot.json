@@ -1,0 +1,51 @@
+{
+  "agentId": "golden-inventory-only",
+  "collectedAt": "2026-07-01T13:00:00.000Z",
+  "collection": {
+    "status": "ok", "completeness": 0.91,
+    "commands": [{ "command": "envforge read-only inventory", "exitCode": 0 }],
+    "errors": [], "timedOut": false
+  },
+  "collectors": {
+    "docker-images": {
+      "id": "docker-images", "status": "ok", "completeness": 1,
+      "commands": [{ "command": "docker image ls --digests", "exitCode": 0 }],
+      "errors": [], "collectedAt": "2026-07-01T13:00:00.000Z", "data": []
+    },
+    "listening-ports": {
+      "id": "listening-ports", "status": "ok", "completeness": 1,
+      "commands": [{ "command": "ss -lntup", "exitCode": 0 }],
+      "errors": [], "collectedAt": "2026-07-01T13:00:00.000Z", "data": ["22/tcp", "80/tcp", "443/tcp"]
+    },
+    "security-baseline": {
+      "id": "security-baseline", "status": "ok", "completeness": 0.82,
+      "commands": [{ "command": "sshd -T; fail2ban-client status", "exitCode": 0 }],
+      "errors": [], "collectedAt": "2026-07-01T13:00:00.000Z", "data": ["ssh active", "fail2ban active"]
+    }
+  },
+  "system": {
+    "hostname": "inventory-only.example", "platform": "linux", "arch": "x86_64", "release": "5.15", "uptime": 2592000,
+    "osPretty": "Ubuntu 20.04.6 LTS", "cpu": { "model": "Golden Inventory CPU", "cores": 2, "speedMhz": 2200 },
+    "memory": { "totalBytes": 2147483648, "freeBytes": 536870912, "usedBytes": 1610612736, "totalGb": "2", "freeGb": "0.5" }
+  },
+  "software": [
+    { "name": "nginx", "version": "1.18", "source": "apt", "status": "installed", "trust": "user" },
+    { "name": "nginx", "version": "running-service", "source": "systemd", "status": "running", "trust": "user" },
+    { "name": "openssh-server", "version": "8.9", "source": "apt", "status": "installed", "trust": "user" },
+    { "name": "fail2ban", "version": "1.0", "source": "apt", "status": "installed", "trust": "user" },
+    { "name": "backup.timer", "version": "enabled", "source": "systemd-timer", "status": "enabled", "trust": "user" },
+    { "name": "custom-backup-agent", "version": "unknown", "source": "opt", "status": "present", "trust": "user" }
+  ],
+  "configChecklist": [
+    { "id": "open-ports", "label": "Open ports: 22 80 443", "category": "network", "status": "healthy", "lastChanged": "2026-07-01" },
+    { "id": "nginx-config", "label": "/etc/nginx/nginx.conf found", "category": "web", "status": "review", "lastChanged": "2026-06-30" },
+    { "id": "ssh-fail2ban", "label": "sshd_config and fail2ban jail metadata found", "category": "security", "status": "review", "lastChanged": "2026-06-30" },
+    { "id": "backup-timer", "label": "backup.timer runs /opt/custom-backup-agent/run", "category": "service", "status": "review", "lastChanged": "2026-06-30" },
+    { "id": "application-env", "label": "INVENTORY_TOKEN=inventory-secret-value", "category": "application", "status": "review", "lastChanged": "2026-06-30" }
+  ],
+  "counts": {
+    "apt": 3, "rpm": 0, "snap": 0, "flatpak": 0, "npm": 0, "pip": 0, "gem": 0, "cargo": 0,
+    "localBin": 0, "opt": 1, "userBin": 0, "nvm": 0, "pyenv": 0, "docker": 0,
+    "enabledServices": 4, "runningServices": 3, "total": 6
+  }
+}

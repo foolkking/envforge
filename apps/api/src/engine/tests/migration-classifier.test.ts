@@ -61,6 +61,22 @@ test("Package Intent Score separates user intent from installed package noise", 
   assert.ok((byName.get("redis")?.recommendedActions ?? []).some((action) => action.includes("Validate")));
 });
 
+test("generic Docker packages prefer the native Docker rule over application rules that depend on Docker", () => {
+  const report = buildMigrationCandidateReport(snapshot([
+    { name: "docker.io", version: "26", source: "apt", status: "installed", trust: "user" },
+    { name: "docker", version: "running-service", source: "systemd", status: "running", trust: "user" },
+    { name: "docker-compose-plugin", version: "2.27", source: "apt", status: "installed", trust: "user" }
+  ], [
+    { id: "docker-compose", label: "/srv/app/compose.yaml and .env found", category: "containers", status: "review", lastChanged: "2026-07-01" }
+  ]));
+  const docker = report.candidates.find((candidate) => candidate.id === "catalog:docker");
+  assert.ok(docker);
+  assert.equal(docker.catalogRuleName, "Docker");
+  assert.equal(report.candidates.some((candidate) => /vaultwarden/i.test(candidate.catalogRuleName ?? "")), false);
+  assert.ok(docker.configBundles?.some((bundle) => bundle.migrationStrategy === "secret-out-of-band"));
+  assert.ok(report.candidates.some((candidate) => candidate.id === "catalog:docker-compose-dev"));
+});
+
 test("catalog-only candidates are medium while operational evidence raises confidence", () => {
   const report = buildMigrationCandidateReport(snapshot([
     { name: "nginx", version: "1.24", source: "apt", status: "installed", trust: "user" },

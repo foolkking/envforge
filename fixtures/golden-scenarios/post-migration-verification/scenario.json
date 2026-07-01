@@ -1,0 +1,47 @@
+{
+  "id": "post-migration-verification",
+  "name": "Post-migration continuous verification",
+  "goal": "Preserve representative health, port, certificate, drift, container, database, and backup evidence for the future continuous verification loop.",
+  "mode": "assessment-first",
+  "source": { "type": "snapshot-fixture", "file": "snapshot.json" },
+  "expected": {
+    "serviceStacks": ["web-entry", "app-runtime", "database"],
+    "statefulStacks": ["app-runtime", "database"],
+    "reviewDecisions": [
+      { "titleIncludes": "PostgreSQL data migration strategy", "relatedServiceStackCategory": "database" }
+    ],
+    "readiness": ["apply-requires-decisions"],
+    "collectors": [
+      { "name": "service-health", "status": "ok" },
+      { "name": "port-status", "status": "ok" },
+      { "name": "certificate-expiry", "status": "ok" },
+      { "name": "config-drift", "status": "ok" },
+      { "name": "docker-health", "status": "failed" },
+      { "name": "database-connectivity", "status": "ok" },
+      { "name": "backup-freshness", "status": "partial" }
+    ],
+    "reports": {
+      "json": true,
+      "markdown": true,
+      "includes": ["post-migration.example", "docker health unavailable", "backup freshness unknown", "PostgreSQL Database"]
+    },
+    "verification": {
+      "status": "fixture-expectation",
+      "signals": ["service-health", "port-status", "certificate-expiry", "config-drift", "docker-health", "database-connectivity", "backup-freshness"]
+    }
+  },
+  "security": {
+    "readOnlyAssessmentCreatesPlan": false,
+    "readOnlyAssessmentCreatesApproval": false,
+    "readOnlyAssessmentCreatesApplyRun": false,
+    "targetMutationPerformed": false,
+    "reviewDecisionApprovesPlan": false,
+    "reviewDecisionCreatesApplyRun": false,
+    "secretsRedacted": true,
+    "forbiddenValues": ["verification-db-password"]
+  },
+  "limitations": [
+    "This is a documented verification evidence expectation, not a scheduled continuous verification service.",
+    "No controlled Apply, live target probe, drift remediation, retry, or rollback is executed by this fixture."
+  ]
+}

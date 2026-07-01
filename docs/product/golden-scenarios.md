@@ -77,3 +77,39 @@ Covers:
 - Docker container health
 - 数据库可访问性
 - backup freshness
+
+## Golden Scenario Lab baseline
+
+Prompt3 establishes five deterministic product-level fixtures under
+`fixtures/golden-scenarios/`. Run the lab with:
+
+```bash
+npm run test:golden
+```
+
+The runner calls the real migration classifier, Assessment projection,
+Decision Engine Review-Inbox eligibility contract, migration plan-only
+projection, and JSON/Markdown Assessment report builders. It does not copy
+classification or report logic into fixture assertions.
+
+| Scenario | Automated baseline | Current limitation |
+|---|---|---|
+| Legacy VPS | web/app/database/cache/security/network/scheduled stacks, required decisions, relationships, plan-only projection, reports, redaction | no live target Apply, database transfer, certificate issuance, verify, or rollback |
+| Docker Compose app | Compose/runtime stack, `.env` secret-out-of-band review, volume/data evidence, image/network/health metadata, reports | no live Docker daemon, volume transfer, container startup, or target health check |
+| Safe database migration | PostgreSQL, MySQL/MariaDB and Redis statefulness; PostgreSQL logical dump recommendation; backup/restore decisions; no raw config-copy recommendation | no backup consistency, transfer, restore, query verification, or rollback execution |
+| Assessment-only inventory | server/service summary, ports, configs, unknown/manual item, evidence quality, reports, successful-empty Docker semantics | no Plan, Approval, dry-run, Apply, or target mutation by design |
+| Post-migration verification | service, port, certificate, config drift, Docker health, database connectivity and backup-freshness evidence expectations | fixture expectation only; continuous scheduling and live remediation are not implemented |
+
+Every fixture declares its expected service stacks, Review decisions,
+readiness, collectors, report content, redaction sentinels, read-only security
+boundary, and limitations. The lab asserts the report boundary:
+
+```text
+This assessment was generated in read-only mode.
+No apply run was created.
+No target mutation was performed.
+Sensitive values are redacted by default.
+```
+
+This product-level lab complements rather than replaces the existing 109
+capability Plan/dry-run scenarios under `scripts/harness/scenarios/`.

@@ -1,0 +1,42 @@
+{
+  "id": "legacy-vps",
+  "name": "Legacy VPS migration",
+  "goal": "Assess and prepare a plan-only projection for a representative legacy Linux VPS.",
+  "mode": "assessment-first",
+  "source": { "type": "snapshot-fixture", "file": "snapshot.json" },
+  "expected": {
+    "serviceStacks": ["web-entry", "app-runtime", "database", "cache", "security", "scheduled-job"],
+    "statefulStacks": ["database", "cache", "app-runtime"],
+    "reviewDecisions": [
+      { "titleIncludes": "PostgreSQL data migration strategy", "relatedServiceStackCategory": "database" },
+      { "candidateIncludes": "docker", "reasonIncludes": "Secret config" },
+      { "candidateIncludes": "certbot" }
+    ],
+    "readiness": ["apply-requires-decisions"],
+    "collectors": [
+      { "name": "services-running", "status": "ok" },
+      { "name": "docker-images", "status": "ok" },
+      { "name": "security-baseline", "status": "ok" }
+    ],
+    "reports": {
+      "json": true,
+      "markdown": true,
+      "includes": ["PostgreSQL Database", "Migration readiness", "Collector completeness", "PostgreSQL data migration strategy"]
+    },
+    "planOnly": { "minimumItems": 6 }
+  },
+  "security": {
+    "readOnlyAssessmentCreatesPlan": false,
+    "readOnlyAssessmentCreatesApproval": false,
+    "readOnlyAssessmentCreatesApplyRun": false,
+    "targetMutationPerformed": false,
+    "reviewDecisionApprovesPlan": false,
+    "reviewDecisionCreatesApplyRun": false,
+    "secretsRedacted": true,
+    "forbiddenValues": ["legacy-vps-secret"]
+  },
+  "limitations": [
+    "This baseline stops at the migration plan-only projection; it does not apply to a live VPS.",
+    "Certificate issuance and database transfer require operator-owned target fixtures in a later live lab."
+  ]
+}

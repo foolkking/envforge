@@ -72,5 +72,39 @@ collector semantics, migration readiness, backend report export, Review Inbox
 joining, decision history, and advisory decision actions. Tests assert that
 accepting or remembering a Review decision does not call Plan approval or Apply.
 
-Golden-scenario lab fixtures, Failure / Repair UX, Capability SDK, and
-Production Team Adoption remain later work.
+At the Prompt2B+C checkpoint, Golden-scenario fixtures, Failure / Repair UX,
+Capability SDK, and Production Team Adoption remained later work.
+
+## Prompt3 product Golden Scenario Lab
+
+The Golden Scenario Lab now lives in `fixtures/golden-scenarios/` with a shared
+runner in `apps/api/src/golden-scenario-harness.ts` and regression tests in
+`apps/api/src/engine/tests/golden-scenarios.test.ts`.
+
+```bash
+npm run test:golden
+```
+
+The five fixtures exercise the real classifier, Assessment, Service Stack,
+Decision outcome/Review eligibility, plan-only projection, report, and
+redaction paths. Assertions cover expected stack categories, statefulness,
+readiness, collector status, required decisions, report boundary text, and
+sentinel-secret absence.
+
+The harness is read-only by construction: it does not import or call Plan
+approval, apply claim, Managed Execution, ActionRunRecord append, or target
+write functions. Existing route and P0 regression tests remain authoritative
+for the guarantee that Assessment/Review cannot approve or apply a Plan.
+
+Automated depth is intentionally explicit:
+
+- the first four scenarios are deterministic Assessment/Review/report fixtures;
+- legacy VPS, Docker Compose, and database scenarios also build the existing
+  migration plan-only projection without applying it;
+- post-migration verification validates evidence-envelope expectations only;
+  scheduled continuous verification, remediation, and rollback remain pending;
+- live disposable-target certification continues to use
+  `npm run harness:certify`, not the fixture lab.
+
+Failure / Repair UX, Capability SDK, and Production Team Adoption remain later
+roadmap work.

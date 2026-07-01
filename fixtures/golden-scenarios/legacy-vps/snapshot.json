@@ -1,0 +1,75 @@
+{
+  "agentId": "golden-legacy-vps",
+  "collectedAt": "2026-07-01T10:00:00.000Z",
+  "collection": {
+    "status": "ok",
+    "completeness": 0.96,
+    "commands": [{ "command": "envforge read-only inventory", "exitCode": 0 }],
+    "errors": [],
+    "timedOut": false
+  },
+  "collectors": {
+    "services-running": {
+      "id": "services-running", "status": "ok", "completeness": 1,
+      "commands": [{ "command": "systemctl list-units --type=service", "exitCode": 0 }],
+      "errors": [], "collectedAt": "2026-07-01T10:00:00.000Z",
+      "data": ["nginx.service", "docker.service", "postgresql.service", "redis-server.service", "sshd.service"]
+    },
+    "docker-images": {
+      "id": "docker-images", "status": "ok", "completeness": 1,
+      "commands": [{ "command": "docker image ls --digests", "exitCode": 0 }],
+      "errors": [], "collectedAt": "2026-07-01T10:00:00.000Z",
+      "data": ["ghcr.io/example/legacy-app@sha256:1111111111111111"]
+    },
+    "security-baseline": {
+      "id": "security-baseline", "status": "ok", "completeness": 0.9,
+      "commands": [{ "command": "sshd -T && ufw status", "exitCode": 0 }],
+      "errors": [], "collectedAt": "2026-07-01T10:00:00.000Z",
+      "data": ["ssh enabled", "ufw active", "80/tcp allow", "443/tcp allow"]
+    }
+  },
+  "system": {
+    "hostname": "legacy-vps.example",
+    "platform": "linux",
+    "arch": "x86_64",
+    "release": "6.8.0",
+    "uptime": 864000,
+    "osPretty": "Ubuntu 22.04.5 LTS",
+    "cpu": { "model": "Golden CPU", "cores": 4, "speedMhz": 2400 },
+    "memory": { "totalBytes": 8589934592, "freeBytes": 2147483648, "usedBytes": 6442450944, "totalGb": "8", "freeGb": "2" }
+  },
+  "software": [
+    { "name": "nginx", "version": "1.18", "source": "apt", "status": "installed", "trust": "user" },
+    { "name": "nginx", "version": "running-service", "source": "systemd", "status": "running", "trust": "user" },
+    { "name": "docker.io", "version": "26", "source": "apt", "status": "installed", "trust": "user" },
+    { "name": "docker", "version": "running-service", "source": "systemd", "status": "running", "trust": "user" },
+    { "name": "docker-compose-plugin", "version": "2.27", "source": "apt", "status": "installed", "trust": "user" },
+    { "name": "postgresql", "version": "16", "source": "apt", "status": "installed", "trust": "user" },
+    { "name": "postgresql", "version": "running-service", "source": "systemd", "status": "running", "trust": "user" },
+    { "name": "redis-server", "version": "7", "source": "apt", "status": "installed", "trust": "user" },
+    { "name": "redis-server", "version": "running-service", "source": "systemd", "status": "running", "trust": "user" },
+    { "name": "certbot", "version": "2.9", "source": "apt", "status": "installed", "trust": "user" },
+    { "name": "certbot.timer", "version": "enabled", "source": "systemd-timer", "status": "enabled", "trust": "user" },
+    { "name": "ufw", "version": "0.36", "source": "apt", "status": "installed", "trust": "user" },
+    { "name": "openssh-server", "version": "9.6", "source": "apt", "status": "installed", "trust": "user" },
+    { "name": "backup.timer", "version": "enabled", "source": "systemd-timer", "status": "enabled", "trust": "user" }
+  ],
+  "configChecklist": [
+    { "id": "open-ports", "label": "Open ports: 22 80 443 5432 6379", "category": "network", "status": "healthy", "lastChanged": "2026-07-01" },
+    { "id": "nginx-config", "label": "/etc/nginx/nginx.conf and sites-enabled found", "category": "web", "status": "review", "lastChanged": "2026-06-30" },
+    { "id": "docker-compose", "label": "/srv/legacy-app/docker-compose.yml with healthchecks, depends_on, networks, and restart policies", "category": "containers", "status": "review", "lastChanged": "2026-06-30" },
+    { "id": "docker-env", "label": "DATABASE_URL=postgres://app:legacy-vps-secret@postgres/app", "category": "containers", "status": "review", "lastChanged": "2026-06-30" },
+    { "id": "postgresql-config", "label": "pg_hba.conf and postgresql.conf found", "category": "database", "status": "review", "lastChanged": "2026-06-29" },
+    { "id": "postgresql-data", "label": "/var/lib/postgresql exists", "category": "database", "status": "review", "lastChanged": "2026-06-29" },
+    { "id": "redis-config", "label": "/etc/redis/redis.conf found", "category": "database", "status": "review", "lastChanged": "2026-06-29" },
+    { "id": "redis-data", "label": "/var/lib/redis exists", "category": "database", "status": "review", "lastChanged": "2026-06-29" },
+    { "id": "certbot-renewal", "label": "/etc/letsencrypt renewal metadata and privkey.pem detected; private key content not read", "category": "security", "status": "review", "lastChanged": "2026-06-28" },
+    { "id": "ufw-ssh", "label": "UFW active and sshd_config present", "category": "security", "status": "review", "lastChanged": "2026-06-28" },
+    { "id": "backup-timer", "label": "backup.timer triggers database backup script", "category": "service", "status": "review", "lastChanged": "2026-06-28" }
+  ],
+  "counts": {
+    "apt": 8, "rpm": 0, "snap": 0, "flatpak": 0, "npm": 0, "pip": 0, "gem": 0, "cargo": 0,
+    "localBin": 0, "opt": 0, "userBin": 0, "nvm": 0, "pyenv": 0, "docker": 1,
+    "enabledServices": 6, "runningServices": 5, "total": 14
+  }
+}

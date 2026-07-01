@@ -1083,7 +1083,10 @@ export const catalogDetectionRules: CatalogDetectionRule[] = [
       ports: []
     },
     configFiles: ["/etc/docker/daemon.json"],
-    configGlobs: ["/opt/*/docker-compose.yml", "/opt/*/compose.yaml", "/srv/*/docker-compose.yml", "/srv/*/compose.yaml"],
+    configGlobs: [
+      "/opt/*/docker-compose.yml", "/opt/*/compose.yaml", "/opt/*/.env",
+      "/srv/*/docker-compose.yml", "/srv/*/compose.yaml", "/srv/*/.env"
+    ],
     configMaxSizeKB: 256,
     dataPaths: ["/var/lib/docker"],
     references: [
@@ -2834,8 +2837,14 @@ export function getDetectionRules(): CatalogDetectionRule[] {
 
 export function findRuleForPackage(name: string, source?: string): CatalogDetectionRule | undefined {
   const normalized = normalizeName(name);
-  return getDetectionRules().find((rule) => {
-    if (normalizeName(rule.id) === normalized) return true;
+  const rules = getDetectionRules();
+  const exactRule = rules.find((rule) => normalizeName(rule.id) === normalized);
+  if (exactRule) return exactRule;
+  if (normalized === "docker-compose-plugin" || normalized === "docker-buildx-plugin") {
+    const composeRule = rules.find((rule) => rule.id === "docker-compose-dev");
+    if (composeRule) return composeRule;
+  }
+  return rules.find((rule) => {
     if (rule.displayName.toLowerCase().includes(normalized)) return true;
     const packageSets = rule.detect.packages ?? {};
     for (const [manager, names] of Object.entries(packageSets)) {

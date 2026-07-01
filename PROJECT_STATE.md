@@ -157,8 +157,8 @@ The 2026-06-30 security pass established the target-mutation boundary:
 
 Security regression coverage is in `plan-security-core.test.ts`,
 `plan-apply-security-routes.test.ts`, `managed-plan-execution.test.ts`, and the
-expanded apply-gate/collector tests. Current validation: 800 API tests and 12
-Web smoke projects pass; root typecheck and build pass.
+expanded apply-gate/collector tests. Current validation: 816 API/engine tests
+and 16 Web smoke tests pass; root typecheck and build pass.
 
 Current atomic apply claim is guaranteed within a single API process runtime
 store. The runtime database update path is serialized by an in-process Mutex.
@@ -248,8 +248,38 @@ Prompt2B+C now exposes the backend Assessment in the Migrate Web flow:
   create Approval or Apply Run records.
 
 The Web First-run Assessment and Review Inbox productization baseline is now in
-place. Failure / Repair UX, golden-scenario lab depth, Capability SDK, and
+place. Failure / Repair UX, live golden-scenario depth, Capability SDK, and
 Production Team Adoption remain future roadmap work.
+
+## Golden Scenario Lab
+
+Prompt3 adds a deterministic product-level fixture lab under
+`fixtures/golden-scenarios/`:
+
+- legacy VPS migration;
+- Docker Compose application rebuild;
+- safe PostgreSQL/MySQL/Redis migration;
+- Assessment-only server inventory report;
+- post-migration verification evidence expectation.
+
+Run it with `npm run test:golden`. The shared harness invokes the real migration
+classifier, Assessment/Service Stack projection, Decision Engine Review
+eligibility, migration plan-only projection, and JSON/Markdown report builders.
+It verifies expected stacks, statefulness, evidence completeness and collector
+failures, Review decisions, readiness, report content, sentinel redaction, and
+the explicit read-only/no-Apply/no-target-mutation report boundary.
+
+The lab also fixed two evidence-classification ambiguities exposed by the
+fixtures: generic Docker packages now prefer Docker/Docker Compose rules instead
+of unrelated applications that merely depend on Docker, and Certbot timer
+evidence remains a security stack rather than a generic scheduled job.
+
+This is a fixture/harness baseline, not a claim that all five scenarios are
+production-ready end to end. The post-migration verification case is a
+documented evidence expectation; live target Apply, transfer, continuous
+verification, remediation, and rollback remain outside Prompt3. The existing
+109 capability Plan/dry-run scenarios and live disposable-target certification
+remain separate complementary layers.
 
 ## Verification report evidence
 

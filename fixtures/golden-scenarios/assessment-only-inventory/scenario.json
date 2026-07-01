@@ -1,0 +1,39 @@
+{
+  "id": "assessment-only-inventory",
+  "name": "Server environment inventory report",
+  "goal": "Produce a useful read-only environment report without creating or applying a Plan.",
+  "mode": "assessment-first",
+  "source": { "type": "snapshot-fixture", "file": "snapshot.json" },
+  "expected": {
+    "serviceStacks": ["web-entry", "security", "network", "scheduled-job", "unknown"],
+    "reviewDecisions": [
+      { "candidateIncludes": "custom-backup-agent" },
+      { "candidateIncludes": "ssh" }
+    ],
+    "readiness": ["plan-possible", "apply-requires-decisions", "record-only-recommended"],
+    "collectors": [
+      { "name": "docker-images", "status": "ok" },
+      { "name": "listening-ports", "status": "ok" },
+      { "name": "security-baseline", "status": "ok" }
+    ],
+    "reports": {
+      "json": true,
+      "markdown": true,
+      "includes": ["inventory-only.example", "Service stacks", "Evidence quality", "Risk summary", "Migration readiness"]
+    }
+  },
+  "security": {
+    "readOnlyAssessmentCreatesPlan": false,
+    "readOnlyAssessmentCreatesApproval": false,
+    "readOnlyAssessmentCreatesApplyRun": false,
+    "targetMutationPerformed": false,
+    "reviewDecisionApprovesPlan": false,
+    "reviewDecisionCreatesApplyRun": false,
+    "secretsRedacted": true,
+    "forbiddenValues": ["inventory-secret-value"]
+  },
+  "limitations": [
+    "The unknown custom agent remains a manual/record-only item.",
+    "A successful empty Docker collector proves not detected only for this captured snapshot."
+  ]
+}
