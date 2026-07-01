@@ -73,7 +73,7 @@ export interface GoldenScenarioRun {
   candidateReport: MigrationCandidateReport;
   assessment: AssessmentSummary;
   reviewItems: GoldenReviewProjection[];
-  planOnly: MigrationPlan;
+  planOnly?: MigrationPlan;
   jsonReport: string;
   markdownReport: string;
   assertions: string[];
@@ -107,7 +107,9 @@ export async function runGoldenScenario(
     catalogVersion: "repository-catalog"
   });
   const reviewItems = reviewProjection(assessment, candidateReport);
-  const planOnly = buildMigrationPlanFromCandidates(candidateReport);
+  const planOnly = definition.expected.planOnly
+    ? buildMigrationPlanFromCandidates(candidateReport)
+    : undefined;
   const jsonReport = JSON.stringify(assessment, null, 2);
   const markdownReport = assessmentReportToMarkdown(assessment);
   const run: GoldenScenarioRun = {
@@ -171,7 +173,8 @@ function assertGoldenScenario(run: GoldenScenarioRun): void {
   }
   run.assertions.push("review-decisions");
 
-  if (expected.planOnly) invariant(planOnly.items.length >= expected.planOnly.minimumItems, definition.id, "plan-only projection is empty");
+  if (expected.planOnly) invariant((planOnly?.items.length ?? 0) >= expected.planOnly.minimumItems, definition.id, "plan-only projection is empty");
+  else invariant(planOnly === undefined, definition.id, "Assessment-only scenario must not build a plan-only projection");
   invariant(expected.reports.json && jsonReport.length > 0, definition.id, "JSON report missing");
   invariant(expected.reports.markdown && markdownReport.length > 0, definition.id, "Markdown report missing");
   for (const text of expected.reports.includes) {

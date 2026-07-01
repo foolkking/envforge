@@ -24,6 +24,8 @@ test("golden lab: five product scenarios run through real Assessment and report 
     assert.ok(run.assertions.includes("reports-and-redaction"));
     assert.ok(run.assertions.includes("read-only-security-boundary"));
   }
+  assert.equal(runs.find((run) => run.definition.id === "assessment-only-inventory")?.planOnly, undefined);
+  assert.equal(runs.find((run) => run.definition.id === "post-migration-verification")?.planOnly, undefined);
 });
 
 test("golden lab: database fixtures require safe stateful decisions rather than raw config copy", async () => {
