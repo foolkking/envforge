@@ -1,0 +1,27 @@
+{
+  "failure": {
+    "category": "config-invalid",
+    "step": "Validate generated Nginx configuration before reload.",
+    "command": "nginx -t",
+    "exitCode": 1,
+    "impact": "Nginx was not reloaded. Existing target service state was not changed.",
+    "likelyCauses": [
+      "Referenced certificate path does not exist on target.",
+      "Included upstream config was not migrated.",
+      "Target Nginx version does not support a directive."
+    ],
+    "recommendedActions": [
+      "view-diff",
+      "generate-repair-plan-draft",
+      "mark-manual"
+    ],
+    "rollback": {
+      "required": false,
+      "boundary": "Validation failed before reload."
+    }
+  },
+  "redaction": {
+    "stderr": "nginx: [emerg] cannot load certificate <redacted-path>"
+  }
+}
+

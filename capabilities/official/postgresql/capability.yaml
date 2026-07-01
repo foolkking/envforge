@@ -1,0 +1,107 @@
+id: official.postgresql
+name: PostgreSQL
+publisher: envforge
+version: 0.1.0
+status: official
+riskLevel: high
+catalogRefs:
+  - postgres-profile
+
+supports:
+  os:
+    - ubuntu-20.04
+    - ubuntu-22.04
+    - ubuntu-24.04
+    - debian-12
+  architectures:
+    - x86_64
+    - arm64
+
+features:
+  discover: true
+  plan: true
+  apply: true
+  verify: true
+  rollback: manual
+
+permissions:
+  read:
+    - postgresql.service status
+    - listening ports
+    - /var/lib/postgresql existence metadata
+    - pg_hba.conf path metadata
+    - postgresql.conf path metadata
+  write:
+    - logical dump artifact staging
+    - restore target database
+  commands:
+    - pg_dump
+    - pg_restore
+    - psql -c select 1
+
+requiresGates:
+  - data-migration-strategy-confirm
+  - backup-freshness-confirm
+  - version-compatibility-confirm
+  - secret-handling-confirm
+  - manual-follow-up-confirm
+
+testMatrix:
+  - ubuntu-22.04
+  - debian-12
+
+fixtures:
+  - id: postgresql-assessment
+    path: fixtures/postgresql-assessment.json
+    type: assessment
+    covers:
+      - stateful database
+      - data migration strategy required
+      - pg_dump/pg_restore recommendation
+      - raw file copy risk
+  - id: postgresql-backup-unknown
+    path: fixtures/postgresql-backup-unknown.json
+    type: failure-diagnostic
+    covers:
+      - backup freshness unknown
+      - record-only safe default
+      - manual follow-up
+
+certification:
+  evidence:
+    discoverClassifyTests: true
+    redactionTests: true
+    goldenScenario: true
+    planOnlyTests: true
+    failureDiagnosticFixture: true
+    officialDocs: true
+    certificationHarness: true
+    p0SafetyGates: true
+    liveDisposableTarget: false
+    applyVerifyReportTested: false
+    rollbackBoundaryDocumented: true
+    upgradeRegressionPolicy: false
+  notes:
+    - Database data movement requires an explicit reviewed strategy.
+    - Raw data directory copy is unsafe and must not be auto-staged.
+
+redaction:
+  sensitiveKeys:
+    - DATABASE_URL
+    - PGUSER
+    - PGPASSWORD
+  assertions:
+    - database URLs with credentials are redacted
+    - table contents are not collected
+    - backup freshness is reported as evidence metadata
+
+safety:
+  approvedPlanRequired: true
+  appliesViaManagedExecution: true
+  publicMutationApi: false
+  directMutationRoutes: []
+  environmentPlanBoundary: Target-changing applier steps execute only as actions in an approved immutable Environment Plan through Managed Execution.
+
+docs:
+  readme: README.md
+

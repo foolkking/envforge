@@ -1,0 +1,32 @@
+{
+  "serviceStack": {
+    "name": "PostgreSQL Database",
+    "category": "database",
+    "statefulness": "stateful",
+    "evidence": [
+      "postgresql.service active",
+      "port 5432 listening",
+      "/var/lib/postgresql exists",
+      "pg_hba.conf found",
+      "postgresql.conf found"
+    ],
+    "decision": "Requires data migration strategy confirmation.",
+    "recommendedStrategy": "Use pg_dump/pg_restore for logical migration.",
+    "alternatives": [
+      "physical base backup",
+      "record-only",
+      "manual follow-up"
+    ],
+    "riskReasons": [
+      "Direct file copy may corrupt data if PostgreSQL is running.",
+      "Version mismatch may break restore.",
+      "Data volume size unknown.",
+      "Backup freshness unknown."
+    ]
+  },
+  "redaction": {
+    "DATABASE_URL": "<redacted>",
+    "tableContentsRead": false
+  }
+}
+

@@ -96,3 +96,29 @@ testMatrix:
 - Production-certified
 
 Certification must be based on harness results, not manual claims.
+
+## Capability SDK baseline
+
+Prompt5 establishes the contributor-facing SDK baseline:
+
+- package root: capabilities/;
+- schema: capabilities/schema/capability.schema.json;
+- certification harness: apps/api/src/capability-certification.ts;
+- script: npm run test:capabilities;
+- official examples: official.nginx and official.postgresql;
+- contributor guide: docs/capability-sdk.md.
+
+This is not a marketplace and not dynamic third-party plugin execution. The
+existing catalog remains the runtime capability knowledge base. Capability
+packages may reference catalog ids; future work may sync certified packages into
+catalog entries.
+
+Certification is evidence-bounded. A package cannot claim a level higher than
+its fixtures, tests, safety gates, redaction checks, and harness results
+support. apply=true capabilities must declare write scope, required gates,
+approved immutable Environment Plan boundary, and Managed Execution boundary.
+
+Current official examples are certified to the official level, not
+production-certified. Production-certified still requires live disposable target
+apply/verify/report evidence, rollback boundary proof, and an upgrade/regression
+policy.

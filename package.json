@@ -41,6 +41,7 @@
     "smoke:test": "node scripts/smoke-test.mjs",
     "smoke:web": "npm run test:ui --workspace @fool/web",
     "test:golden": "npm run build:server && node scripts/golden-scenarios.mjs",
+    "test:capabilities": "npm run build:server && node scripts/certify-capabilities.mjs",
     "harness:scenarios": "npm run build:server && node scripts/run-harness-scenarios.mjs",
     "harness:scenario": "npm run build:server && node scripts/run-harness-scenarios.mjs",
     "harness:certify": "npm run build:server && node scripts/harness/live-ubuntu-certify.mjs",

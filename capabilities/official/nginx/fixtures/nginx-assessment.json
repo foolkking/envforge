@@ -1,0 +1,22 @@
+{
+  "serviceStack": {
+    "name": "Nginx Web Entry",
+    "category": "web-entry",
+    "evidence": [
+      "nginx.service active",
+      "port 80 listening",
+      "/etc/nginx/nginx.conf found",
+      "/etc/nginx/sites-enabled/app.conf found",
+      "certificate path metadata detected"
+    ],
+    "risks": [
+      "certificate path may not exist on target",
+      "reload can interrupt traffic if config is invalid"
+    ]
+  },
+  "redaction": {
+    "ssl_certificate_key": "<redacted>",
+    "privateKeyContentRead": false
+  }
+}
+

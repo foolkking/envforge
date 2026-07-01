@@ -1,0 +1,101 @@
+id: official.nginx
+name: Nginx
+publisher: envforge
+version: 0.1.0
+status: official
+riskLevel: medium
+catalogRefs:
+  - nginx-web-service
+
+supports:
+  os:
+    - ubuntu-20.04
+    - ubuntu-22.04
+    - ubuntu-24.04
+    - debian-12
+  architectures:
+    - x86_64
+    - arm64
+
+features:
+  discover: true
+  plan: true
+  apply: true
+  verify: true
+  rollback: partial
+
+permissions:
+  read:
+    - /etc/nginx
+    - systemd status
+    - listening ports
+    - certificate path metadata
+  write:
+    - /etc/nginx
+  commands:
+    - nginx -t
+    - systemctl reload nginx
+
+requiresGates:
+  - config-diff-confirm
+  - service-reload-confirm
+  - secret-handling-confirm
+
+testMatrix:
+  - ubuntu-22.04
+  - debian-12
+
+fixtures:
+  - id: nginx-assessment
+    path: fixtures/nginx-assessment.json
+    type: assessment
+    covers:
+      - discover config
+      - detect service
+      - cert path risk
+      - config validation
+  - id: nginx-failure
+    path: fixtures/nginx-config-validation-failure.json
+    type: failure-diagnostic
+    covers:
+      - nginx -t failure
+      - repair draft
+      - support bundle evidence
+
+certification:
+  evidence:
+    discoverClassifyTests: true
+    redactionTests: true
+    goldenScenario: true
+    planOnlyTests: true
+    failureDiagnosticFixture: true
+    officialDocs: true
+    certificationHarness: true
+    p0SafetyGates: true
+    liveDisposableTarget: false
+    applyVerifyReportTested: false
+    rollbackBoundaryDocumented: true
+    upgradeRegressionPolicy: false
+  notes:
+    - Reload is gated by service-reload-confirm.
+    - Rollback is partial and config-bound; certificate issuance remains manual.
+
+redaction:
+  sensitiveKeys:
+    - ssl_certificate_key
+    - proxy_set_header Authorization
+  assertions:
+    - private key contents are not collected
+    - certificate paths may be reported as metadata only
+    - support bundles contain redacted command evidence
+
+safety:
+  approvedPlanRequired: true
+  appliesViaManagedExecution: true
+  publicMutationApi: false
+  directMutationRoutes: []
+  environmentPlanBoundary: Target-changing applier steps execute only as actions in an approved immutable Environment Plan through Managed Execution.
+
+docs:
+  readme: README.md
+

@@ -247,7 +247,7 @@ Prompt2B+C now exposes the backend Assessment in the Migrate Web flow:
   create Approval or Apply Run records.
 
 The Web First-run Assessment and Review Inbox productization baseline is now in
-place. Capability SDK and Production Team Adoption remain future roadmap work.
+place. Production Team Adoption remains future roadmap work.
 
 ## Golden Scenario Lab
 
@@ -308,6 +308,37 @@ Repair Plan is a suggestion/draft only. Target-changing draft steps require a
 separately reviewed and approved immutable Environment Plan. Rollback content is
 an evidence boundary explanation, not a claim that automatic recovery occurred.
 Full automatic repair and rollback are not implemented.
+
+## Capability SDK and Certification Harness baseline
+
+Prompt5 adds the contributor-facing capability package baseline without
+changing the trusted Apply kernel:
+
+- capabilities/README.md documents the SDK package model and safety boundary.
+- capabilities/schema/capability.schema.json defines the manifest fields.
+- capabilities/official/nginx/ and capabilities/official/postgresql/ provide
+  official example packages with fixtures, tests directories, docs, gates,
+  redaction assertions, and catalog references.
+- apps/api/src/capability-certification.ts validates manifests and package
+  files, scans for raw secret assignments and forbidden direct mutation route
+  references, checks required gates, and bounds claimed certification level by
+  evidence.
+- scripts/certify-capabilities.mjs and npm run test:capabilities provide the
+  certification entry point.
+- docs/capability-sdk.md explains contribution workflow, certification levels,
+  safety gates, and limitations.
+
+Certification levels are experimental, community, verified, official, and
+production-certified. The two official examples currently certify to official;
+production-certified remains future work because live disposable target
+apply/verify/report coverage and stronger rollback evidence are not part of
+this baseline.
+
+Capability packages cannot bypass Environment Plan review/apply. Collector and
+classifier work is read-only, planner work can only produce Plan actions or
+recommendations, and appliers are allowed only as approved immutable Plan
+actions through Managed Execution. Marketplace, remote registry, dynamic
+third-party plugin loading, and untrusted-code sandboxing are not implemented.
 
 ## Verification report evidence
 

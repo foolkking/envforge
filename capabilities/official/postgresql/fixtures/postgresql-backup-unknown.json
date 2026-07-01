@@ -1,0 +1,17 @@
+{
+  "failure": {
+    "category": "data-risk",
+    "title": "PostgreSQL backup freshness unknown",
+    "impact": "Plan generation should keep PostgreSQL record-only or blocked until backup freshness is confirmed.",
+    "recommendedActions": [
+      "update-decision",
+      "mark-manual",
+      "export-support-bundle"
+    ],
+    "defaultSafeChoice": "Record only until backup freshness is confirmed."
+  },
+  "redaction": {
+    "PGPASSWORD": "<redacted>"
+  }
+}
+

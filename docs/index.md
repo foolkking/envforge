@@ -12,6 +12,7 @@ This is the durable documentation map for EnvForge. Human entry point:
 | [product/README.md](./product/README.md) | Productization design map for first-run assessment, trust, explainability, support, ecosystem, adoption, and roadmap |
 | [system-design.md](./system-design.md) | Architecture, migration engine, Environment Plan, execution, config/security |
 | [catalog.md](./catalog.md) | Capability Catalog schema, certification, authoring, quality gate, admin governance |
+| [capability-sdk.md](./capability-sdk.md) | Contributor-facing capability package format, certification harness, safety gates |
 | [web-ui.md](./web-ui.md) | Web IA, page responsibilities, UI patterns, design-system constraints |
 | [operations.md](./operations.md) | Deployment, runtime configuration, backups, operational SOPs |
 | [validation.md](./validation.md) | E2E scenarios, harness workflow, target readiness, report template |

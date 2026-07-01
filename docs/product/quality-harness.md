@@ -131,3 +131,31 @@ that no Plan review/apply request is sent.
 
 Automatic repair/rollback, Capability SDK, and Production Team Adoption remain
 later roadmap work.
+
+## Prompt5 capability certification harness
+
+Prompt5 adds a contributor-facing capability harness:
+
+~~~bash
+npm run test:capabilities
+~~~
+
+The harness validates capability package manifests and package-local docs,
+fixtures, and tests. It checks:
+
+- schema validity and required fields;
+- status and risk level enums;
+- declared read/write/command permissions;
+- write/apply safety gates;
+- approved immutable Environment Plan boundary;
+- Managed Execution boundary;
+- no public direct mutation API declaration;
+- no forbidden direct mutation route references;
+- redaction assertions and raw secret scans;
+- certification level does not exceed evidence;
+- package docs and fixtures exist.
+
+This harness complements the golden scenario lab. It does not replace the P0
+Apply regression tests or live disposable-target certification. The official
+Nginx and PostgreSQL examples currently reach the official level only.
+production-certified remains future work.
