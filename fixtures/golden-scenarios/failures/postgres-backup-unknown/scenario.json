@@ -1,0 +1,10 @@
+{
+  "id": "postgres-backup-unknown",
+  "name": "PostgreSQL backup freshness unknown",
+  "goal": "Explain why stateful database migration remains blocked when backup freshness is unknown.",
+  "evidenceFile": "failure-evidence.json",
+  "expectedDiagnosticFile": "expected-diagnostic.json",
+  "expectedSupportBundleFile": "expected-support-bundle.json",
+  "security": { "createsPlan": false, "createsApproval": false, "createsApplyRun": false, "createsActionRun": false, "executesRepair": false, "executesRollback": false, "secretsRedacted": true },
+  "limitations": ["The fixture does not run pg_dump, restore data, or verify backup contents."]
+}

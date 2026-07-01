@@ -3515,6 +3515,89 @@
   padding: 18px;
 }
 
+.failure-support-panel {
+  display: grid;
+  gap: 16px;
+}
+
+.failure-diagnostic-card {
+  display: grid;
+  gap: 14px;
+}
+
+.failure-diagnostic-card h4 {
+  margin: 8px 0 0;
+}
+
+.failure-diagnostic-fields,
+.failure-boundary-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.failure-diagnostic-fields > div,
+.failure-boundary-grid > span,
+.repair-plan-draft,
+.support-bundle-card {
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  padding: 12px;
+  background: var(--surface-raised);
+}
+
+.failure-diagnostic-fields dt,
+.failure-boundary-grid strong {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.failure-diagnostic-fields dd {
+  margin: 0;
+}
+
+.failure-diagnostic-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.failure-diagnostic-grid ul,
+.repair-plan-draft ol {
+  margin: 8px 0 0;
+  padding-left: 20px;
+}
+
+.failure-diagnostic-grid li span,
+.repair-plan-draft li small {
+  display: block;
+  color: var(--text-muted);
+  margin-top: 3px;
+}
+
+.repair-plan-draft > div:first-child {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.support-bundle-card {
+  display: grid;
+  gap: 12px;
+}
+
+@media (max-width: 760px) {
+  .failure-diagnostic-fields,
+  .failure-boundary-grid,
+  .failure-diagnostic-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 .assessment-card-heading,
 .decision-card-heading,
 .service-stack-heading {

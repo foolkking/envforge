@@ -32,9 +32,8 @@ Current Productization Focus:
 1. First-run Assessment
 2. Review Inbox
 3. Golden Scenario Lab
-4. Failure / Repair Experience
-5. Capability SDK
-6. Production Team Adoption
+4. Capability SDK
+5. Production Team Adoption
 
 ## Stack
 
@@ -157,7 +156,7 @@ The 2026-06-30 security pass established the target-mutation boundary:
 
 Security regression coverage is in `plan-security-core.test.ts`,
 `plan-apply-security-routes.test.ts`, `managed-plan-execution.test.ts`, and the
-expanded apply-gate/collector tests. Current validation: 816 API/engine tests
+expanded apply-gate/collector tests. Current validation: 828 API/engine tests
 and 16 Web smoke tests pass; root typecheck and build pass.
 
 Current atomic apply claim is guaranteed within a single API process runtime
@@ -248,8 +247,7 @@ Prompt2B+C now exposes the backend Assessment in the Migrate Web flow:
   create Approval or Apply Run records.
 
 The Web First-run Assessment and Review Inbox productization baseline is now in
-place. Failure / Repair UX, live golden-scenario depth, Capability SDK, and
-Production Team Adoption remain future roadmap work.
+place. Capability SDK and Production Team Adoption remain future roadmap work.
 
 ## Golden Scenario Lab
 
@@ -280,6 +278,36 @@ documented evidence expectation; live target Apply, transfer, continuous
 verification, remediation, and rollback remain outside Prompt3. The existing
 109 capability Plan/dry-run scenarios and live disposable-target certification
 remain separate complementary layers.
+
+## Failure Diagnostic and Support Bundle baseline
+
+Prompt4 adds a read-only failure explanation and support layer without changing
+the trusted Apply kernel:
+
+- `apps/api/src/failure-diagnostics.ts` maps collector, review, apply,
+  ActionRunRecord, and verification evidence into structured diagnostics with
+  impact, likely causes, recommended actions, retry/skip/rollback boundaries,
+  and optional draft-only repair suggestions.
+- `apps/api/src/support-bundle.ts` exports default-redacted JSON/Markdown
+  bundles. It includes assessment, collector, review, Plan/hash/artifact,
+  Apply/ActionRun, verification, and version evidence when available; missing
+  Plan/Apply metadata remains explicit for assessment-only sessions.
+- `GET /api/migration/sessions/:sessionId/failures` and
+  `GET /api/migration/sessions/:sessionId/support-bundle?format=json|markdown`
+  are read-only derived views. Runtime-state snapshot tests verify they create
+  no Approval, Apply Run, ActionRunRecord, repair, rollback, or mutation.
+- Migrate renders Failure Diagnostic cards and Support Bundle export. Retry,
+  rollback, and manual-action controls remain disabled in this baseline; no Web
+  failure action calls Plan approval or Apply.
+- Five golden failure fixtures cover Nginx config validation, Docker secret
+  missing, PostgreSQL backup freshness unknown, partial collection, and
+  unhealthy service verification. `npm run test:golden` runs both 5 product and
+  5 failure scenarios.
+
+Repair Plan is a suggestion/draft only. Target-changing draft steps require a
+separately reviewed and approved immutable Environment Plan. Rollback content is
+an evidence boundary explanation, not a claim that automatic recovery occurred.
+Full automatic repair and rollback are not implemented.
 
 ## Verification report evidence
 

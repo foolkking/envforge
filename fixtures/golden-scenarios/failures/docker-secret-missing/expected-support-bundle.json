@@ -1,0 +1,5 @@
+{
+  "format": ["json", "markdown"],
+  "includes": ["Required secret is missing", "Sensitive values are redacted by default", "No approval, Apply Run, or ActionRunRecord was created"],
+  "forbiddenValues": ["SENTINEL_API_TOKEN_SHOULD_NOT_LEAK", "SENTINEL_DB_PASSWORD_SHOULD_NOT_LEAK"]
+}

@@ -1,0 +1,10 @@
+{
+  "id": "verification-service-unhealthy",
+  "name": "Post-apply service verification unhealthy",
+  "goal": "Explain an unhealthy service without assuming rollback availability or executing recovery.",
+  "evidenceFile": "failure-evidence.json",
+  "expectedDiagnosticFile": "expected-diagnostic.json",
+  "expectedSupportBundleFile": "expected-support-bundle.json",
+  "security": { "createsPlan": false, "createsApproval": false, "createsApplyRun": false, "createsActionRun": false, "executesRepair": false, "executesRollback": false, "secretsRedacted": true },
+  "limitations": ["The fixture does not start a real service or execute rollback; availability depends on recorded Plan and ActionRun evidence."]
+}

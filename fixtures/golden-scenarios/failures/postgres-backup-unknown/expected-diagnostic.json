@@ -1,0 +1,8 @@
+{
+  "category": "data-risk",
+  "recommendedActions": ["update-decision", "mark-manual", "export-support-bundle"],
+  "retryAllowed": false,
+  "skipAllowed": true,
+  "rollbackRequired": false,
+  "includes": ["Backup freshness is unknown", "record-only", "review decision"]
+}

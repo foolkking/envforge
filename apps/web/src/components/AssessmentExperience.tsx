@@ -9,15 +9,18 @@ import {
   FileJson,
   FileText,
   Layers3,
+  LifeBuoy,
   RefreshCw,
   SearchCheck,
-  ShieldCheck
+  ShieldCheck,
+  Wrench
 } from "lucide-react";
 import type {
   AssessmentRequiredDecision,
   AssessmentServiceStack,
   AssessmentSummary,
   DecisionHistoryRecord,
+  FailureDiagnostic,
   ReviewInboxItem
 } from "../api";
 import { Button } from "./ui/Button";
@@ -87,8 +90,14 @@ export function AssessmentExperience({
   actionError,
   reportLoading,
   reportError,
+  failureDiagnostics,
+  failureLoading,
+  failureError,
+  supportLoading,
+  supportError,
   onRefresh,
   onExport,
+  onExportSupport,
   onReviewAction,
   onContinue
 }: {
@@ -104,8 +113,14 @@ export function AssessmentExperience({
   actionError: string;
   reportLoading: "json" | "markdown" | null;
   reportError: string;
+  failureDiagnostics: FailureDiagnostic[];
+  failureLoading: boolean;
+  failureError: string;
+  supportLoading: "json" | "markdown" | null;
+  supportError: string;
   onRefresh: () => void;
   onExport: (format: "json" | "markdown") => void;
+  onExportSupport: (format: "json" | "markdown") => void;
   onReviewAction: (input: ReviewDecisionAction) => void;
   onContinue: () => void;
 }) {
@@ -140,6 +155,14 @@ export function AssessmentExperience({
       />
       <ServiceStackSection assessment={assessment} />
       <EvidenceQualityPanel assessment={assessment} />
+      <FailureSupportPanel
+        diagnostics={failureDiagnostics}
+        loading={failureLoading}
+        error={failureError}
+        exportLoading={supportLoading}
+        exportError={supportError}
+        onExport={onExportSupport}
+      />
       <AssessmentReportPanel
         assessment={assessment}
         loading={reportLoading}
@@ -147,6 +170,84 @@ export function AssessmentExperience({
         onExport={onExport}
       />
     </div>
+  );
+}
+
+export function FailureSupportPanel({ diagnostics, loading, error, exportLoading, exportError, onExport }: {
+  diagnostics: FailureDiagnostic[];
+  loading: boolean;
+  error: string;
+  exportLoading: "json" | "markdown" | null;
+  exportError: string;
+  onExport: (format: "json" | "markdown") => void;
+}) {
+  const { t } = useTranslation();
+  return (
+    <section className="failure-support-panel" aria-labelledby="failure-support-title" data-testid="failure-support-panel">
+      <header className="assessment-card-heading">
+        <div><p className="eyebrow">{t("migratePipeline.failure.eyebrow")}</p><h3 id="failure-support-title">{t("migratePipeline.failure.title")}</h3></div>
+        <LifeBuoy aria-hidden />
+      </header>
+      <p className="pipeline-muted">{t("migratePipeline.failure.intro")}</p>
+      {loading ? <AssessmentState title={t("migratePipeline.failure.loadingTitle")} body={t("migratePipeline.failure.loadingBody")} /> : null}
+      {!loading && error ? <AssessmentState title={t("migratePipeline.failure.unavailableTitle")} body={error} /> : null}
+      {!loading && !error && !diagnostics.length ? <AssessmentState title={t("migratePipeline.failure.emptyTitle")} body={t("migratePipeline.failure.emptyBody")} /> : null}
+      {diagnostics.map((diagnostic) => <FailureDiagnosticCard key={diagnostic.id} diagnostic={diagnostic} />)}
+      <Card className="support-bundle-card">
+        <div><strong>{t("migratePipeline.failure.supportTitle")}</strong><p>{t("migratePipeline.failure.supportIntro")}</p></div>
+        <div className="assessment-panel-actions">
+          <Button variant="secondary" data-testid="support-export-json" disabled={exportLoading !== null} onClick={() => onExport("json")}><FileJson aria-hidden />{exportLoading === "json" ? t("migratePipeline.failure.exporting") : t("migratePipeline.failure.downloadJson")}</Button>
+          <Button variant="secondary" data-testid="support-export-markdown" disabled={exportLoading !== null} onClick={() => onExport("markdown")}><Download aria-hidden />{exportLoading === "markdown" ? t("migratePipeline.failure.exporting") : t("migratePipeline.failure.downloadMarkdown")}</Button>
+        </div>
+        <ul className="assessment-report-boundary">
+          <li>{t("migratePipeline.failure.redacted")}</li>
+          <li>{t("migratePipeline.failure.noExecution")}</li>
+          <li>{t("migratePipeline.failure.rollbackBoundary")}</li>
+        </ul>
+        {exportError ? <p className="pipeline-error"><AlertTriangle aria-hidden />{exportError}</p> : null}
+      </Card>
+    </section>
+  );
+}
+
+export function FailureDiagnosticCard({ diagnostic }: { diagnostic: FailureDiagnostic }) {
+  const { t } = useTranslation();
+  return (
+    <Card className={`failure-diagnostic-card severity-${diagnostic.severity}`} data-testid={`failure-diagnostic-${diagnostic.category}`} tone={diagnostic.severity === "critical" || diagnostic.severity === "error" ? "danger" : "warn"}>
+      <header className="assessment-card-heading">
+        <div><Badge tone={diagnostic.severity === "critical" || diagnostic.severity === "error" ? "danger" : "warn"}>{t(`migratePipeline.failure.categories.${diagnostic.category}`)}</Badge><h4>{diagnostic.title}</h4></div>
+        <AlertTriangle aria-hidden />
+      </header>
+      <dl className="failure-diagnostic-fields">
+        <DecisionField label={t("migratePipeline.failure.whatFailed")} value={diagnostic.whatFailed} />
+        <DecisionField label={t("migratePipeline.failure.whereFailed")} value={diagnostic.whereFailed ?? t("migratePipeline.failure.unavailableValue")} />
+        <DecisionField label={t("migratePipeline.failure.attempted")} value={diagnostic.attempted ?? t("migratePipeline.failure.unavailableValue")} />
+        <DecisionField label={t("migratePipeline.failure.impact")} value={diagnostic.impact} />
+      </dl>
+      <div className="failure-diagnostic-grid">
+        <div><strong>{t("migratePipeline.failure.likelyCauses")}</strong><ul>{diagnostic.likelyCauses.map((cause) => <li key={cause}>{cause}</li>)}</ul></div>
+        <div><strong>{t("migratePipeline.failure.recommendedActions")}</strong><ul>{diagnostic.recommendedActions.filter((action) => action.available).map((action) => <li key={action.kind}><strong>{action.label}</strong><span>{action.description}</span></li>)}</ul></div>
+      </div>
+      <div className="failure-boundary-grid">
+        <span><strong>{t("migratePipeline.failure.canRetry")}</strong>{diagnostic.retry.allowed ? t("migratePipeline.failure.yes") : t("migratePipeline.failure.no")} · {diagnostic.retry.reason}</span>
+        <span><strong>{t("migratePipeline.failure.canSkip")}</strong>{diagnostic.skip.allowed ? t("migratePipeline.failure.yes") : t("migratePipeline.failure.no")} · {diagnostic.skip.reason}</span>
+        <span><strong>{t("migratePipeline.failure.canRollback")}</strong>{diagnostic.rollback.available ? t("migratePipeline.failure.yes") : t("migratePipeline.failure.no")} · {diagnostic.rollback.boundary}</span>
+      </div>
+      <details><summary>{t("migratePipeline.failure.evidence", { count: diagnostic.evidence.length })}</summary>{diagnostic.evidence.length ? <ul>{diagnostic.evidence.map((item) => <li key={item.id}><strong>{item.label}</strong>{item.value ? <code>{item.value}</code> : null}</li>)}</ul> : <p>{t("migratePipeline.failure.noEvidence")}</p>}</details>
+      {diagnostic.repairPlanDraft ? (
+        <div className="repair-plan-draft" data-testid="repair-plan-draft">
+          <div><Wrench aria-hidden /><strong>{diagnostic.repairPlanDraft.title}</strong><Badge tone="warn">{t("migratePipeline.failure.draft")}</Badge></div>
+          <p>{diagnostic.repairPlanDraft.summary}</p>
+          <ol>{diagnostic.repairPlanDraft.proposedSteps.map((step) => <li key={step.id}>{step.description}{step.wouldRequireApprovedPlan ? <small>{t("migratePipeline.failure.requiresApprovedPlan")}</small> : null}</li>)}</ol>
+          {diagnostic.repairPlanDraft.safetyNotes.map((note) => <p className="assessment-boundary-note" key={note}><ShieldCheck aria-hidden />{note}</p>)}
+        </div>
+      ) : null}
+      <div className="assessment-panel-actions">
+        <Button variant="secondary" disabled title={diagnostic.retry.reason}>{t("migratePipeline.failure.retry")}</Button>
+        <Button variant="secondary" disabled title={diagnostic.rollback.boundary}>{t("migratePipeline.failure.rollback")}</Button>
+        <Button variant="ghost" disabled title={t("migratePipeline.failure.manualOnlyHint")}>{t("migratePipeline.failure.markManual")}</Button>
+      </div>
+    </Card>
   );
 }
 

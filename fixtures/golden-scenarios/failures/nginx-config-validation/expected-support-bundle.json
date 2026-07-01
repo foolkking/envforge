@@ -1,0 +1,5 @@
+{
+  "format": ["json", "markdown"],
+  "includes": ["Nginx configuration validation failed", "No target mutation was performed", "Repair Plan suggestions remain drafts"],
+  "forbiddenValues": []
+}

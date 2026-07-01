@@ -279,3 +279,24 @@ Redis or PostgreSQL queues, Meilisearch, ClickHouse.
 - catalog certification;
 - SQLite persistence and queues;
 - UI source regression tests.
+
+## Read-only failure diagnostics and support export
+
+Migration sessions expose two derived GET surfaces:
+
+```text
+GET /api/migration/sessions/:sessionId/failures
+GET /api/migration/sessions/:sessionId/support-bundle?format=json|markdown
+```
+
+They consume persisted collector envelopes, Assessment/Review decisions,
+migration-session run results, verification evidence, and—when explicitly
+available—immutable Plan, Apply, artifact, and ActionRun metadata. All text is
+passed through the shared secret-redaction path before export.
+
+These endpoints are not execution APIs. They do not persist diagnostics, create
+or approve Plans, claim Apply, append ActionRunRecord, execute repair, execute
+rollback, or mutate a source/target host. `RepairPlanDraft` is advisory data;
+any target-changing suggestion must first become a separately reviewed,
+artifact-bound immutable Environment Plan. Rollback fields describe recorded
+boundaries and never imply automatic recovery.

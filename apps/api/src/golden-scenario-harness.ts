@@ -80,10 +80,19 @@ export interface GoldenScenarioRun {
 }
 
 export async function loadGoldenScenarioDefinitions(root = GOLDEN_SCENARIO_ROOT): Promise<GoldenScenarioDefinition[]> {
-  const directories = (await fs.readdir(root, { withFileTypes: true }))
+  const candidates = (await fs.readdir(root, { withFileTypes: true }))
     .filter((entry) => entry.isDirectory())
     .map((entry) => entry.name)
     .sort();
+  const directories: string[] = [];
+  for (const directory of candidates) {
+    try {
+      await fs.access(path.join(root, directory, "scenario.json"));
+      directories.push(directory);
+    } catch {
+      // Container directories such as failures/ are loaded by their own harness.
+    }
+  }
   return Promise.all(directories.map(async (directory) => {
     const raw = await fs.readFile(path.join(root, directory, "scenario.json"), "utf8");
     return JSON.parse(raw) as GoldenScenarioDefinition;

@@ -113,3 +113,22 @@ Sensitive values are redacted by default.
 
 This product-level lab complements rather than replaces the existing 109
 capability Plan/dry-run scenarios under `scripts/harness/scenarios/`.
+
+## Golden failure fixtures
+
+Prompt4 extends the same `npm run test:golden` entry with five deterministic
+failure fixtures under `fixtures/golden-scenarios/failures/`:
+
+| Failure fixture | Automated assertion | Limitation |
+|---|---|---|
+| Nginx config validation | `config-invalid`, likely causes, diff/repair/manual actions, no rollback before reload, draft-only repair | no target config restore or reload |
+| Docker secret missing | `secret-missing`, out-of-band decision, record-only/manual boundary, sentinel redaction | no secret provisioning or Compose startup |
+| PostgreSQL backup unknown | `data-risk`, backup/restore decision, record-only safe default | no dump, transfer, restore, or data verification |
+| Collector partial | `collector-failed`, timeout evidence, absence is not inferred, read-only reassessment | no live reconnect or permission repair |
+| Verification service unhealthy | `verification-failed`, Action/verification evidence explanation, conservative rollback boundary | no live service repair or rollback |
+
+Every failure fixture produces JSON and Markdown Support Bundles, checks raw
+secret sentinels are absent, and declares that it creates no Plan, Approval,
+Apply Run, ActionRunRecord, repair execution, rollback execution, or target
+mutation. These fixtures prove diagnostic/report behavior, not production-ready
+automatic recovery.

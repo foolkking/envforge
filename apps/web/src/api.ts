@@ -2882,6 +2882,59 @@ export interface AssessmentSummary {
   redactionNote: string;
 }
 
+export type FailureCategory =
+  | "validation-failed" | "command-failed" | "missing-artifact" | "missing-dependency"
+  | "collector-failed" | "permission-denied" | "network-unreachable" | "service-unhealthy"
+  | "config-invalid" | "secret-missing" | "data-risk" | "verification-failed"
+  | "rollback-required" | "manual-follow-up" | "unknown";
+
+export interface FailureDiagnostic {
+  id: string;
+  source: "assessment" | "review" | "plan" | "apply" | "verify" | "report" | "golden-scenario";
+  severity: "info" | "warning" | "error" | "critical";
+  category: FailureCategory;
+  title: string;
+  summary: string;
+  whatFailed: string;
+  whereFailed?: string;
+  attempted?: string;
+  impact: string;
+  likelyCauses: string[];
+  evidence: Array<{ id: string; kind: string; source: string; label: string; value?: string; exitCode?: number; timedOut?: boolean }>;
+  recommendedActions: Array<{ kind: string; label: string; description: string; available: boolean; unavailableReason?: string }>;
+  retry: { allowed: boolean; reason: string };
+  skip: { allowed: boolean; reason: string };
+  rollback: { required: boolean; available: boolean; boundary: string };
+  repairPlanDraft?: {
+    id: string;
+    title: string;
+    status: "draft" | "not-available";
+    summary: string;
+    proposedSteps: Array<{ id: string; description: string; risk: "low" | "medium" | "high" | "unknown"; requiresReview: boolean; wouldRequireApprovedPlan: boolean }>;
+    safetyNotes: string[];
+  };
+  supportBundleRefs: string[];
+  redactionApplied: boolean;
+}
+
+export interface SupportBundle {
+  id: string;
+  generatedAt: string;
+  sessionId: string;
+  failureDiagnostics: FailureDiagnostic[];
+  redaction: { applied: true; note: string; excluded: string[] };
+  safetyBoundary: {
+    readOnlyExport: true;
+    approvalCreated: false;
+    applyRunCreated: false;
+    actionRunCreated: false;
+    repairExecuted: false;
+    rollbackExecuted: false;
+    statements: string[];
+  };
+  [key: string]: unknown;
+}
+
 export type DecisionOutcome = "auto-staged" | "required-decision" | "suggested-decision" | "record-only" | "hidden-noise" | "blocker";
 export type ReviewInboxStatus = "open" | "accepted" | "rejected" | "deferred" | "resolved";
 export type DecisionPreferenceScope = "global" | "connection" | "project" | "service" | "capability";
@@ -3165,6 +3218,31 @@ export async function getMigrationSessionAssessmentReport(
   }
   const body = await readJsonOrThrow<{ format: "json"; report: AssessmentSummary }>(response, "Export Assessment Report failed");
   return body.report;
+}
+
+export async function getMigrationSessionFailures(token: string, sessionId: string): Promise<FailureDiagnostic[]> {
+  const response = await fetch(`/api/migration/sessions/${encodeURIComponent(sessionId)}/failures`, {
+    headers: { "Authorization": `Bearer ${token}` }
+  });
+  const body = await readJsonOrThrow<{ diagnostics: FailureDiagnostic[] }>(response, "Fetch failure diagnostics failed");
+  return body.diagnostics;
+}
+
+export async function getMigrationSessionSupportBundle(token: string, sessionId: string, format: "json"): Promise<SupportBundle>;
+export async function getMigrationSessionSupportBundle(token: string, sessionId: string, format: "markdown"): Promise<string>;
+export async function getMigrationSessionSupportBundle(token: string, sessionId: string, format: "json" | "markdown"): Promise<SupportBundle | string> {
+  const response = await fetch(`/api/migration/sessions/${encodeURIComponent(sessionId)}/support-bundle?format=${encodeURIComponent(format)}`, {
+    headers: { "Authorization": `Bearer ${token}` }
+  });
+  if (format === "markdown") {
+    if (!response.ok) {
+      const body = await response.json().catch(() => ({})) as { error?: string };
+      throw new Error(body.error ?? "Export Support Bundle failed");
+    }
+    return response.text();
+  }
+  const body = await readJsonOrThrow<{ format: "json"; bundle: SupportBundle }>(response, "Export Support Bundle failed");
+  return body.bundle;
 }
 
 export async function getReviewInbox(

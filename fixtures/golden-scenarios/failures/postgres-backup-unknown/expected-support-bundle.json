@@ -1,0 +1,5 @@
+{
+  "format": ["json", "markdown"],
+  "includes": ["Stateful data safety is unresolved", "No target mutation was performed", "Rollback boundaries are explanatory"],
+  "forbiddenValues": []
+}

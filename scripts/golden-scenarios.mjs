@@ -1,4 +1,5 @@
 import { runAllGoldenScenarios } from "../apps/api/dist/golden-scenario-harness.js";
+import { runAllGoldenFailureScenarios } from "../apps/api/dist/golden-failure-harness.js";
 
 const runs = await runAllGoldenScenarios();
 for (const run of runs) {
@@ -8,4 +9,8 @@ for (const run of runs) {
     console.log(`     verification=fixture-expectation (${run.definition.expected.verification.signals.join(", ")})`);
   }
 }
-console.log(`\nGolden Scenario Lab: ${runs.length}/${runs.length} fixture scenarios passed.`);
+const failureRuns = await runAllGoldenFailureScenarios();
+for (const run of failureRuns) {
+  console.log(`[ok] failure/${run.definition.id}: category=${run.diagnostic.category}; repair=${run.diagnostic.repairPlanDraft?.status ?? "not-available"}`);
+}
+console.log(`\nGolden Scenario Lab: ${runs.length}/${runs.length} product scenarios and ${failureRuns.length}/${failureRuns.length} failure scenarios passed.`);

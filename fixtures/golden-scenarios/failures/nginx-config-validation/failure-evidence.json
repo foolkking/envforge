@@ -1,0 +1,12 @@
+{
+  "id": "nginx-config-validation",
+  "source": "apply",
+  "severity": "error",
+  "whatFailed": "Nginx configuration validation failed.",
+  "whereFailed": "Validate generated Nginx configuration before reload.",
+  "attempted": "nginx -t",
+  "command": "nginx -t",
+  "stderr": "nginx: [emerg] cannot load certificate /etc/ssl/private/example.key",
+  "exitCode": 1,
+  "beforeMutation": true
+}

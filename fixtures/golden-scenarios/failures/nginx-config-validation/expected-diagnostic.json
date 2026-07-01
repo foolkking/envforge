@@ -1,0 +1,9 @@
+{
+  "category": "config-invalid",
+  "recommendedActions": ["view-diff", "generate-repair-plan-draft", "mark-manual", "export-support-bundle"],
+  "retryAllowed": false,
+  "skipAllowed": true,
+  "rollbackRequired": false,
+  "repairPlanStatus": "draft",
+  "includes": ["Nginx was not reloaded", "Referenced certificate path", "must be reviewed before it can become an approved Environment Plan"]
+}

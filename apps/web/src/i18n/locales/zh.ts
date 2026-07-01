@@ -1071,6 +1071,27 @@ export const zh = {
         recommendation: "已接受推荐建议，供下次显式生成 Plan-only 草稿使用。"
       }
     },
+    failure: {
+      eyebrow: "失败证据", title: "失败、修复与支持", intro: "在不绕过计划审查的前提下，说明失败内容、影响和安全的下一步。",
+      loadingTitle: "正在加载失败证据", loadingBody: "EnvForge 正在根据采集器、验证和已存储运行证据生成诊断。",
+      unavailableTitle: "失败诊断不可用", unavailableBody: "无法加载此迁移会话的失败证据。",
+      emptyTitle: "没有已存储的失败证据", emptyBody: "当前会话证据不需要生成失败诊断。",
+      whatFailed: "发生了什么失败", whereFailed: "在哪一步失败", attempted: "当时正在尝试什么", impact: "影响",
+      likelyCauses: "可能原因", recommendedActions: "建议的下一步", canRetry: "能否重试：", canSkip: "能否跳过：", canRollback: "能否回滚：",
+      yes: "可以", no: "不可以", evidence: "脱敏证据（{{count}}）", noEvidence: "没有记录关联证据。", unavailableValue: "不可用",
+      draft: "仅草案", requiresApprovedPlan: "此步骤会修改目标；必须先形成并批准独立的不可变 Plan。",
+      retry: "重试", rollback: "回滚", markManual: "标记人工处理", manualOnlyHint: "此只读面板不会执行人工状态变更。",
+      supportTitle: "Support Bundle", supportIntro: "导出已脱敏的会话、诊断、证据质量和运行元数据，供团队或维护者分析。",
+      downloadJson: "下载 Support JSON", downloadMarkdown: "下载 Support Markdown", exporting: "正在导出…", exportError: "Support Bundle 导出失败。",
+      redacted: "敏感值和命令输出默认脱敏。", noExecution: "导出不会创建审批、Apply Run、ActionRunRecord、修复或目标写入。",
+      rollbackBoundary: "回滚信息只是解释边界，不代表系统已经自动恢复。",
+      categories: {
+        "validation-failed": "验证失败", "command-failed": "命令失败", "missing-artifact": "产物缺失或无效", "missing-dependency": "依赖缺失",
+        "collector-failed": "采集器失败", "permission-denied": "权限不足", "network-unreachable": "网络不可达", "service-unhealthy": "服务不健康",
+        "config-invalid": "配置无效", "secret-missing": "密钥缺失", "data-risk": "数据安全未确认", "verification-failed": "验证失败",
+        "rollback-required": "需要审查回滚", "manual-follow-up": "需要人工跟进", unknown: "未知失败"
+      }
+    },
     analysis: {
       eyebrow: "分析摘要",
       title: "系统识别到的迁移能力",

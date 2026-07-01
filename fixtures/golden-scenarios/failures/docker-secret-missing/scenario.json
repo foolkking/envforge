@@ -1,0 +1,10 @@
+{
+  "id": "docker-secret-missing",
+  "name": "Docker Compose secret missing",
+  "goal": "Keep a Compose service blocked or record-only when a required secret is absent, without exposing the supplied sentinel token.",
+  "evidenceFile": "failure-evidence.json",
+  "expectedDiagnosticFile": "expected-diagnostic.json",
+  "expectedSupportBundleFile": "expected-support-bundle.json",
+  "security": { "createsPlan": false, "createsApproval": false, "createsApplyRun": false, "createsActionRun": false, "executesRepair": false, "executesRollback": false, "secretsRedacted": true },
+  "limitations": ["The fixture does not provision a secret manager or start Docker Compose."]
+}

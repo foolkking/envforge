@@ -1,0 +1,5 @@
+{
+  "format": ["json", "markdown"],
+  "includes": ["docker-images collection partial", "Support Bundle was generated", "Sensitive values are redacted by default"],
+  "forbiddenValues": ["SENTINEL_DB_PASSWORD_SHOULD_NOT_LEAK"]
+}

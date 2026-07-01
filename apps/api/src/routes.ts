@@ -84,6 +84,8 @@ import { runMigrationVerificationPreview } from "./migration-verify-runner.js";
 import { assessMigrationApplyReadiness } from "./migration-apply-readiness.js";
 import { buildMigrationSessionArtifacts, initialMigrationSessionState, isMigrationSessionStatus, isMigrationSessionStep } from "./migration-session.js";
 import { assessmentReportToMarkdown, buildAssessmentSummary } from "./migration-assessment.js";
+import { buildFailureDiagnostics, collectSessionFailureEvidence } from "./failure-diagnostics.js";
+import { buildSupportBundle, supportBundleToMarkdown } from "./support-bundle.js";
 import { buildConfigChangePlan, buildConfigMigrationPlan, buildImportedRecipePlan, buildPlanReport, buildRebuildPlan, buildRemovePlan, buildRepairPlan, evaluateApplyGate, migrationPlanToEnvironmentPlan, planReportToMarkdown, type EnvironmentPlan, type EnvironmentPlanStatus, type PlanApprovalRecord, type PlanApprovalState, type RepairFailure } from "./environment-plan.js";
 import {
   appendPlanHistory,
@@ -4509,6 +4511,83 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
       return reply.type("text/markdown; charset=utf-8").send(assessmentReportToMarkdown(assessment));
     }
     return { format: "json", report: assessment };
+  });
+
+  app.get("/api/migration/sessions/:sessionId/failures", async (request, reply) => {
+    const user = await getUserByToken(readBearerToken(request.headers.authorization));
+    if (!user) { reply.code(401); return { error: "Login required." }; }
+    const { sessionId } = request.params as { sessionId: string };
+    const context = await loadMigrationSessionContext(user.id, sessionId);
+    if (!context) { reply.code(404); return { error: "Migration session not found.", status: "failure-diagnostics-unavailable" }; }
+    const artifacts = buildSessionArtifacts(context);
+    const assessment = context.conn.probeSnapshot && artifacts.report
+      ? buildAssessmentSummary({
+        session: context.session,
+        snapshot: context.conn.probeSnapshot,
+        report: artifacts.report,
+        host: context.conn.fields.host ?? context.conn.label,
+        decisions: context.decisions,
+        dataDecisions: context.dataDecisions
+      })
+      : undefined;
+    const evidence = collectSessionFailureEvidence({
+      assessment,
+      snapshot: context.conn.probeSnapshot,
+      runs: context.runs
+    });
+    const diagnostics = buildFailureDiagnostics(evidence);
+    return {
+      status: diagnostics.length ? "failures-found" : "no-failure-evidence",
+      readOnly: true,
+      diagnostics
+    };
+  });
+
+  app.get("/api/migration/sessions/:sessionId/support-bundle", async (request, reply) => {
+    const user = await getUserByToken(readBearerToken(request.headers.authorization));
+    if (!user) { reply.code(401); return { error: "Login required." }; }
+    const { sessionId } = request.params as { sessionId: string };
+    const { format = "json" } = request.query as { format?: string };
+    if (format !== "json" && format !== "markdown") {
+      reply.code(400);
+      return { error: "Support Bundle format must be json or markdown." };
+    }
+    const context = await loadMigrationSessionContext(user.id, sessionId);
+    if (!context) { reply.code(404); return { error: "Migration session not found.", status: "support-bundle-unavailable" }; }
+    const artifacts = buildSessionArtifacts(context);
+    const assessment = context.conn.probeSnapshot && artifacts.report
+      ? buildAssessmentSummary({
+        session: context.session,
+        snapshot: context.conn.probeSnapshot,
+        report: artifacts.report,
+        host: context.conn.fields.host ?? context.conn.label,
+        decisions: context.decisions,
+        dataDecisions: context.dataDecisions
+      })
+      : undefined;
+    const diagnostics = buildFailureDiagnostics(collectSessionFailureEvidence({
+      assessment,
+      snapshot: context.conn.probeSnapshot,
+      runs: context.runs
+    }));
+    const latestApply = latestMigrationSessionRun(context, "apply");
+    const latestVerify = latestMigrationSessionRun(context, "verify");
+    const bundle = buildSupportBundle({
+      sessionId,
+      assessment,
+      apply: latestApply ? {
+        applyRunId: latestApply.id,
+        status: latestApply.status,
+        targetConnectionId: latestApply.targetConnectionId,
+        createdAt: latestApply.createdAt
+      } : undefined,
+      verification: latestVerify?.result,
+      failureDiagnostics: diagnostics
+    });
+    if (format === "markdown") {
+      return reply.type("text/markdown; charset=utf-8").send(supportBundleToMarkdown(bundle));
+    }
+    return { format: "json", bundle };
   });
 
   app.post("/api/migration/sessions/:sessionId/decisions", async (request, reply) => {

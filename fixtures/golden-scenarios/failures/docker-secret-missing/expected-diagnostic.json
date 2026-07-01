@@ -1,0 +1,9 @@
+{
+  "category": "secret-missing",
+  "recommendedActions": ["update-decision", "generate-repair-plan-draft", "mark-manual", "export-support-bundle"],
+  "retryAllowed": false,
+  "skipAllowed": true,
+  "rollbackRequired": false,
+  "repairPlanStatus": "draft",
+  "includes": ["will not invent or expose a secret", "out-of-band process", "Record the service"]
+}

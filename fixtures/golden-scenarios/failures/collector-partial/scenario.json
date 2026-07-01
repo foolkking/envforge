@@ -1,0 +1,10 @@
+{
+  "id": "collector-partial",
+  "name": "Collector returned partial evidence",
+  "goal": "Represent timed-out Docker collection as partial evidence rather than component absence.",
+  "evidenceFile": "failure-evidence.json",
+  "expectedDiagnosticFile": "expected-diagnostic.json",
+  "expectedSupportBundleFile": "expected-support-bundle.json",
+  "security": { "createsPlan": false, "createsApproval": false, "createsApplyRun": false, "createsActionRun": false, "executesRepair": false, "executesRollback": false, "secretsRedacted": true },
+  "limitations": ["The fixture does not reconnect to a source host or resolve its permission problem."]
+}

@@ -1,0 +1,12 @@
+{
+  "id": "verification-service-unhealthy",
+  "source": "verify",
+  "severity": "error",
+  "whatFailed": "Nginx service health verification failed; service is unhealthy.",
+  "whereFailed": "Post-apply verification",
+  "attempted": "systemctl is-active nginx",
+  "command": "systemctl is-active nginx",
+  "stdout": "inactive",
+  "stderr": "API_TOKEN=SENTINEL_API_TOKEN_SHOULD_NOT_LEAK",
+  "exitCode": 3
+}

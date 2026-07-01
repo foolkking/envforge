@@ -1,0 +1,8 @@
+{
+  "category": "collector-failed",
+  "recommendedActions": ["rerun-assessment", "inspect-evidence", "mark-manual", "export-support-bundle"],
+  "retryAllowed": true,
+  "skipAllowed": true,
+  "rollbackRequired": false,
+  "includes": ["cannot be treated as proof", "Re-running the read-only assessment", "unknown/manual"]
+}

@@ -1,0 +1,10 @@
+{
+  "id": "docker-secret-missing",
+  "source": "review",
+  "severity": "error",
+  "whatFailed": "Docker Compose required secret is missing from the target .env policy.",
+  "whereFailed": "compose service app",
+  "attempted": "Resolve required environment keys before Plan generation",
+  "stderr": "API_TOKEN=SENTINEL_API_TOKEN_SHOULD_NOT_LEAK\nDATABASE_URL=postgres://app:SENTINEL_DB_PASSWORD_SHOULD_NOT_LEAK@db/app",
+  "beforeMutation": true
+}

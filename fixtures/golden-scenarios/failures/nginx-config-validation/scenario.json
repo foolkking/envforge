@@ -1,0 +1,10 @@
+{
+  "id": "nginx-config-validation",
+  "name": "Nginx configuration validation failure",
+  "goal": "Explain a failed nginx -t before reload and produce a draft-only repair suggestion.",
+  "evidenceFile": "failure-evidence.json",
+  "expectedDiagnosticFile": "expected-diagnostic.json",
+  "expectedSupportBundleFile": "expected-support-bundle.json",
+  "security": { "createsPlan": false, "createsApproval": false, "createsApplyRun": false, "createsActionRun": false, "executesRepair": false, "executesRollback": false, "secretsRedacted": true },
+  "limitations": ["The fixture explains the rollback boundary but does not restore a real target file or reload Nginx."]
+}

@@ -1,0 +1,10 @@
+{
+  "id": "postgres-backup-unknown",
+  "source": "review",
+  "severity": "warning",
+  "whatFailed": "PostgreSQL backup freshness is unknown and the data migration strategy is unresolved.",
+  "whereFailed": "PostgreSQL Database review",
+  "attempted": "Confirm backup/restore evidence before Plan generation",
+  "impact": "PostgreSQL must remain record-only or blocked until backup freshness and restore compatibility are confirmed.",
+  "beforeMutation": true
+}

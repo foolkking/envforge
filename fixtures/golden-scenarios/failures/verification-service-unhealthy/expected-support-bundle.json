@@ -1,0 +1,5 @@
+{
+  "format": ["json", "markdown"],
+  "includes": ["Post-apply verification failed", "Rollback boundaries are explanatory", "Repair Plan suggestions remain drafts"],
+  "forbiddenValues": ["SENTINEL_API_TOKEN_SHOULD_NOT_LEAK"]
+}

@@ -78,6 +78,28 @@ const assessment = {
   redactionNote: "Sensitive values are redacted by default."
 };
 
+const failureDiagnostic = {
+  id: "nginx-validation", source: "apply", severity: "error", category: "config-invalid",
+  title: "Nginx configuration validation failed", summary: "nginx -t failed before reload.",
+  whatFailed: "Nginx configuration validation failed.", whereFailed: "Validate configuration before reload.", attempted: "nginx -t",
+  impact: "Nginx was not reloaded. Existing target service state was not changed.",
+  likelyCauses: ["Referenced certificate path does not exist on target."],
+  evidence: [{ id: "stderr", kind: "stderr", source: "ActionRunRecord", label: "Redacted stderr", value: "certificate path missing" }],
+  recommendedActions: [
+    { kind: "view-diff", label: "View configuration diff", description: "Review the approved candidate.", available: true },
+    { kind: "generate-repair-plan-draft", label: "Generate Repair Plan draft", description: "Prepare a reviewed draft.", available: true }
+  ],
+  retry: { allowed: false, reason: "No safe retry endpoint is exposed." },
+  skip: { allowed: true, reason: "Keep as manual follow-up." },
+  rollback: { required: false, available: false, boundary: "Validation failed before reload; rollback is not required." },
+  repairPlanDraft: {
+    id: "repair-draft", title: "Repair Nginx configuration validation", status: "draft", summary: "Correct dependencies and validate before reload.",
+    proposedSteps: [{ id: "validate", description: "Run nginx -t before reload.", risk: "low", requiresReview: true, wouldRequireApprovedPlan: false }],
+    safetyNotes: ["This repair plan is a draft and must be reviewed before it can become an approved Environment Plan."]
+  },
+  supportBundleRefs: ["support:nginx"], redactionApplied: true
+};
+
 function inbox(status: "open" | "accepted" = "open") {
   return [{
     id: "inbox-postgresql", candidateId: "catalog:postgresql", snapshotId: "source-assessment:2026-07-01T00:01:00.000Z",
@@ -122,6 +144,8 @@ test("first-run Assessment and Review Inbox expose value without approval or app
   }));
   await page.route("**/api/migration/sessions/msess-web-assessment/assessment", (route) => json(route, { assessment }));
   await page.route("**/api/migration/sessions/msess-web-assessment/assessment/report?format=markdown", (route) => route.fulfill({ status: 200, contentType: "text/markdown", body: "# Read-only Assessment\nNo apply run was created." }));
+  await page.route("**/api/migration/sessions/msess-web-assessment/failures", (route) => json(route, { status: "failures-found", readOnly: true, diagnostics: [failureDiagnostic] }));
+  await page.route("**/api/migration/sessions/msess-web-assessment/support-bundle?format=markdown", (route) => route.fulfill({ status: 200, contentType: "text/markdown", body: "# Support Bundle\nNo approval, Apply Run, or ActionRunRecord was created." }));
   await page.route("**/api/decision-engine/review-inbox?*", (route) => json(route, { items: inbox(inboxStatus) }));
   await page.route("**/api/decision-engine/history?*", (route) => json(route, { history: [{ id: "history-1", subjectId: "catalog:postgresql", subjectType: "migration-candidate", outcome: "required-decision", scores: inbox()[0].scores, reasons: [requiredDecision.reason], requiredGates: ["data-strategy-confirm"], profileId: "balanced", createdAt: "2026-07-01T00:02:00.000Z" }] }));
   await page.route("**/api/migration/sessions/msess-web-assessment/data-decisions", async (route) => { mutations.push(route.request().url()); return json(route, { session: session("analysis"), configDecisions: [], dataDecisions: [] }); });
@@ -153,6 +177,17 @@ test("first-run Assessment and Review Inbox expose value without approval or app
   await expect(page.getByTestId("docker-evidence-status")).toContainText(locale === "zh" ? "未识别到 Docker" : "no Docker service stack");
   await expect(page.getByTestId("review-inbox-panel")).toContainText("PostgreSQL data migration strategy");
   await expect(page.getByTestId("review-item-required-decision")).toContainText("Record only until backup freshness is confirmed.");
+  const failureCard = page.getByTestId("failure-diagnostic-config-invalid");
+  await expect(failureCard).toContainText("Nginx configuration validation failed");
+  await expect(failureCard).toContainText("Nginx was not reloaded");
+  await expect(failureCard.getByTestId("repair-plan-draft")).toContainText("approved Environment Plan");
+  await expect(failureCard.getByRole("button", { name: locale === "zh" ? "重试" : "Retry" })).toBeDisabled();
+  await expect(failureCard.getByRole("button", { name: locale === "zh" ? "回滚" : "Rollback" })).toBeDisabled();
+
+  const supportDownload = page.waitForEvent("download");
+  await page.getByTestId("support-export-markdown").click();
+  expect((await supportDownload).suggestedFilename()).toMatch(/envforge-support.*\.md$/);
+  expect(mutations.some((url) => /\/api\/plans\/[^/]+\/(review|apply)/.test(url))).toBeFalsy();
 
   const download = page.waitForEvent("download");
   await page.getByRole("button", { name: locale === "zh" ? "下载 Markdown" : "Download Markdown" }).click();

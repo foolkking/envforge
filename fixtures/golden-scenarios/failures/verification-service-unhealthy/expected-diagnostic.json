@@ -1,0 +1,9 @@
+{
+  "category": "verification-failed",
+  "recommendedActions": ["inspect-evidence", "generate-repair-plan-draft", "mark-manual", "export-support-bundle"],
+  "retryAllowed": false,
+  "skipAllowed": true,
+  "rollbackRequired": false,
+  "repairPlanStatus": "draft",
+  "includes": ["cannot be considered verified", "does not assume or execute rollback", "approved execution context"]
+}

@@ -106,5 +106,28 @@ Automated depth is intentionally explicit:
 - live disposable-target certification continues to use
   `npm run harness:certify`, not the fixture lab.
 
-Failure / Repair UX, Capability SDK, and Production Team Adoption remain later
-roadmap work.
+## Prompt4 failure and Support Bundle regression baseline
+
+`npm run test:golden` now runs both 5/5 product scenarios and 5/5 failure
+scenarios. Failure fixtures invoke the real diagnostic and Support Bundle
+builders and assert:
+
+- Nginx invalid config, missing Docker secret, unknown PostgreSQL backup
+  freshness, partial collector, and unhealthy verification taxonomy;
+- what/where/attempt/impact, likely causes, recommended actions, and honest
+  retry/skip/rollback boundaries;
+- Repair Plan output remains a review-required draft and has no execution
+  function;
+- JSON and Markdown Support Bundles contain useful evidence while sentinel
+  database passwords, API tokens, private-key content, `.env` values, and
+  database URLs are redacted;
+- diagnostics and exports create no Plan, Approval, Apply Run,
+  ActionRunRecord, repair, rollback, or target mutation.
+
+API route tests snapshot runtime state before and after GET exports. Web smoke
+coverage renders the diagnostic card, verifies the repair draft label, keeps
+retry/rollback controls disabled, exports Support Bundle Markdown, and checks
+that no Plan review/apply request is sent.
+
+Automatic repair/rollback, Capability SDK, and Production Team Adoption remain
+later roadmap work.

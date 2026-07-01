@@ -1,0 +1,15 @@
+{
+  "id": "collector-partial",
+  "source": "assessment",
+  "severity": "warning",
+  "categoryHint": "collector-failed",
+  "title": "docker-images collection partial",
+  "whatFailed": "Read-only Docker collector returned partial evidence.",
+  "whereFailed": "collector:docker-images",
+  "attempted": "docker images",
+  "command": "docker images",
+  "stderr": "permission denied while connecting to Docker socket; password=SENTINEL_DB_PASSWORD_SHOULD_NOT_LEAK",
+  "exitCode": 124,
+  "timedOut": true,
+  "beforeMutation": true
+}

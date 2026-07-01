@@ -25,6 +25,8 @@ import {
   getDecisionHistory,
   getMigrationSessionAssessment,
   getMigrationSessionAssessmentReport,
+  getMigrationSessionFailures,
+  getMigrationSessionSupportBundle,
   getReviewInbox,
   resolveReviewInboxItem,
   saveMigrationSessionDecisions,
@@ -34,6 +36,7 @@ import {
   verifyMigrationSession,
   type AgentProbeResult,
   type AssessmentSummary,
+  type FailureDiagnostic,
   type ConfigBundle,
   type ConnectionProfile,
   type MigrationApplyResult,
@@ -161,6 +164,11 @@ export function MigratePipelinePage({
   const [reviewActionErrorItemId, setReviewActionErrorItemId] = useState<string | null>(null);
   const [reportExporting, setReportExporting] = useState<"json" | "markdown" | null>(null);
   const [assessmentReportError, setAssessmentReportError] = useState("");
+  const [failureDiagnostics, setFailureDiagnostics] = useState<FailureDiagnostic[]>([]);
+  const [failureLoading, setFailureLoading] = useState(false);
+  const [failureError, setFailureError] = useState("");
+  const [supportExporting, setSupportExporting] = useState<"json" | "markdown" | null>(null);
+  const [supportExportError, setSupportExportError] = useState("");
   const [configBundles, setConfigBundles] = useState<ConfigBundle[]>([]);
   const [configDecisions, setConfigDecisions] = useState<MigrationConfigDecision[]>([]);
   const [dataDecisions, setDataDecisions] = useState<MigrationDataDecision[]>([]);
@@ -183,6 +191,9 @@ export function MigratePipelinePage({
     setReviewItems([]);
     setReviewHistory({});
     setReviewError("");
+    setFailureDiagnostics([]);
+    setFailureError("");
+    setSupportExportError("");
     setConfigBundles([]);
     setConfigDecisions([]);
     setDataDecisions([]);
@@ -248,7 +259,10 @@ export function MigratePipelinePage({
       const next = await getMigrationSessionAssessment(authToken, sessionId);
       if (cancelled) return;
       setAssessment(next);
-      await loadReviewInboxForAssessment(next, cancelled);
+      await Promise.all([
+        loadReviewInboxForAssessment(next, cancelled),
+        loadFailureDiagnostics(sessionId, cancelled)
+      ]);
     } catch (err) {
       if (!cancelled) {
         setAssessment(null);
@@ -256,6 +270,22 @@ export function MigratePipelinePage({
       }
     } finally {
       if (!cancelled) setAssessmentLoading(false);
+    }
+  }
+
+  async function loadFailureDiagnostics(sessionId: string, cancelled = false) {
+    setFailureLoading(true);
+    setFailureError("");
+    try {
+      const diagnostics = await getMigrationSessionFailures(authToken, sessionId);
+      if (!cancelled) setFailureDiagnostics(diagnostics);
+    } catch (err) {
+      if (!cancelled) {
+        setFailureDiagnostics([]);
+        setFailureError(err instanceof Error ? err.message : t("migratePipeline.failure.unavailableBody"));
+      }
+    } finally {
+      if (!cancelled) setFailureLoading(false);
     }
   }
 
@@ -534,6 +564,31 @@ export function MigratePipelinePage({
     }
   }
 
+  async function exportSupportBundle(format: "json" | "markdown") {
+    if (!session) return;
+    setSupportExporting(format);
+    setSupportExportError("");
+    try {
+      const exported = format === "json"
+        ? await getMigrationSessionSupportBundle(authToken, session.id, "json")
+        : await getMigrationSessionSupportBundle(authToken, session.id, "markdown");
+      const content = format === "json" ? JSON.stringify(exported, null, 2) : String(exported);
+      const blob = new Blob([content], { type: format === "json" ? "application/json" : "text/markdown" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `envforge-support-${session.id}.${format === "json" ? "json" : "md"}`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      setSupportExportError(err instanceof Error ? err.message : t("migratePipeline.failure.exportError"));
+    } finally {
+      setSupportExporting(null);
+    }
+  }
+
   async function saveConfigDecision(input: { bundleId: string; strategy: ConfigBundle["migrationStrategy"]; status: "approved" | "blocked"; note?: string }) {
     if (!session) return;
     setStepLoading(true);
@@ -673,8 +728,14 @@ export function MigratePipelinePage({
             actionError={reviewActionError}
             reportLoading={reportExporting}
             reportError={assessmentReportError}
+            failureDiagnostics={failureDiagnostics}
+            failureLoading={failureLoading}
+            failureError={failureError}
+            supportLoading={supportExporting}
+            supportError={supportExportError}
             onRefresh={() => session && void loadAnalysis(session.id)}
             onExport={(format) => void exportAssessmentReport(format)}
+            onExportSupport={(format) => void exportSupportBundle(format)}
             onReviewAction={(input) => void handleReviewDecision(input)}
             onContinue={() => {
               if (assessment?.requiredDecisions.length) {

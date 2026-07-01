@@ -1072,6 +1072,27 @@ export const en = {
         recommendation: "Recommended advisory decision accepted for the next Plan-only draft."
       }
     },
+    failure: {
+      eyebrow: "Failure evidence", title: "Failure, repair, and support", intro: "Understand what failed, its impact, and the safe next step without bypassing Plan review.",
+      loadingTitle: "Loading failure evidence", loadingBody: "EnvForge is deriving diagnostics from collectors, verification, and stored run evidence.",
+      unavailableTitle: "Failure diagnostics are unavailable", unavailableBody: "Failure evidence could not be loaded for this migration session.",
+      emptyTitle: "No stored failure evidence", emptyBody: "No failure diagnostic is required for the stored session evidence.",
+      whatFailed: "What failed", whereFailed: "Where it failed", attempted: "What was being attempted", impact: "Impact",
+      likelyCauses: "Likely causes", recommendedActions: "Recommended next actions", canRetry: "Can retry: ", canSkip: "Can skip: ", canRollback: "Can rollback: ",
+      yes: "Yes", no: "No", evidence: "Redacted evidence ({{count}})", noEvidence: "No linked evidence was recorded.", unavailableValue: "Unavailable",
+      draft: "Draft only", requiresApprovedPlan: "Target-changing step; would require a separately approved immutable Plan.",
+      retry: "Retry", rollback: "Rollback", markManual: "Mark manual", manualOnlyHint: "Manual status changes are not executed from this read-only panel.",
+      supportTitle: "Support Bundle", supportIntro: "Export redacted session, diagnostic, evidence-quality, and run metadata for team or maintainer review.",
+      downloadJson: "Download Support JSON", downloadMarkdown: "Download Support Markdown", exporting: "Exporting…", exportError: "Support Bundle export failed.",
+      redacted: "Sensitive values and command output are redacted by default.", noExecution: "Export does not create approval, Apply Run, ActionRunRecord, repair, or target mutation.",
+      rollbackBoundary: "Rollback information is an explanation boundary, not a claim that automatic recovery ran.",
+      categories: {
+        "validation-failed": "Validation failed", "command-failed": "Command failed", "missing-artifact": "Artifact missing or invalid", "missing-dependency": "Dependency missing",
+        "collector-failed": "Collector failed", "permission-denied": "Permission denied", "network-unreachable": "Network unreachable", "service-unhealthy": "Service unhealthy",
+        "config-invalid": "Configuration invalid", "secret-missing": "Secret missing", "data-risk": "Data safety unresolved", "verification-failed": "Verification failed",
+        "rollback-required": "Rollback review required", "manual-follow-up": "Manual follow-up", unknown: "Unknown failure"
+      }
+    },
     analysis: {
       eyebrow: "Analysis summary",
       title: "Detected migration capabilities",
