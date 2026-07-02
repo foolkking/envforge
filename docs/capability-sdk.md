@@ -11,11 +11,18 @@ Current baseline:
 - validator and harness: apps/api/src/capability-certification.ts
 - CLI entry: npm run test:capabilities
 - official examples: official.nginx and official.postgresql
+- catalog preview: apps/api/src/capability-catalog-preview.ts and
+  npm run preview:capabilities
 
 The existing catalog under configs/catalog remains the runtime capability
 knowledge base. Capability packages can reference catalog ids through
 catalogRefs. Future work may sync or generate catalog entries from certified
 capability packages.
+
+Prompt6 adds a review-only preview step for that future sync path. Certified
+packages can be converted into deterministic catalog preview artifacts under
+generated/catalog-preview/, but those artifacts are not loaded by runtime code
+and do not modify configs/catalog.
 
 ## Capability package contract
 
@@ -111,6 +118,7 @@ paths, and explicit redaction placeholders such as <redacted>.
 
 ~~~bash
 npm run test:capabilities
+npm run preview:capabilities
 npm run test:golden
 npm test
 ~~~
@@ -124,4 +132,6 @@ npm test
   implemented for official examples.
 - The SDK package format is additive; current Assessment and Apply runtime still
   use the existing catalog and Environment Plan kernel.
-
+- Capability-to-catalog preview is review-only. Runtime catalog automatic
+  enablement, marketplace distribution, and dynamic plugin loading are not
+  implemented.

@@ -159,3 +159,30 @@ This harness complements the golden scenario lab. It does not replace the P0
 Apply regression tests or live disposable-target certification. The official
 Nginx and PostgreSQL examples currently reach the official level only.
 production-certified remains future work.
+
+## Prompt6 capability catalog preview harness
+
+Prompt6 adds a review-only preview harness:
+
+~~~bash
+npm run preview:capabilities
+~~~
+
+The preview harness verifies that certified capability packages can be converted
+into catalog-facing diff artifacts without changing runtime behavior. Regression
+coverage checks:
+
+- official.nginx and official.postgresql produce catalog previews;
+- uncertified packages are blocked;
+- write/apply capabilities require gates and the approved Environment Plan
+  boundary;
+- PostgreSQL data-migration gates and Nginx reload gates cannot be removed;
+- risk downgrade relative to an existing catalog item is blocked;
+- secret sentinel leaks block preview through certification;
+- diff entries include service-stack mappings, gates, risks, and permissions;
+- generated artifacts are deterministic, redacted, and carry
+  `enabledByDefault=false`;
+- preview does not modify `configs/catalog/*` or runtime catalog behavior.
+
+This is not a production catalog sync. Generated artifacts are review evidence
+only; an explicit reviewed promotion workflow remains future work.

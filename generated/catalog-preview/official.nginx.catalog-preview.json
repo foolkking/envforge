@@ -1,0 +1,244 @@
+{
+  "blockers": [],
+  "catalogArtifact": {
+    "certificationLevel": "official",
+    "discoverSignals": [
+      "nginx service",
+      "/etc/nginx",
+      "nginx -t"
+    ],
+    "features": {
+      "apply": true,
+      "discover": true,
+      "plan": true,
+      "rollback": "partial",
+      "verify": true
+    },
+    "fixtures": [
+      "nginx-assessment",
+      "nginx-failure"
+    ],
+    "id": "nginx-web-service",
+    "name": "Nginx",
+    "permissions": {
+      "commands": [
+        "nginx -t",
+        "systemctl reload nginx"
+      ],
+      "read": [
+        "/etc/nginx",
+        "certificate path metadata",
+        "listening ports",
+        "systemd status"
+      ],
+      "write": [
+        "/etc/nginx"
+      ]
+    },
+    "publisher": "envforge",
+    "requiredGates": [
+      "config-diff-confirm",
+      "secret-handling-confirm",
+      "service-reload-confirm"
+    ],
+    "riskLevel": "medium",
+    "risks": [
+      "capability risk level: medium",
+      "certificate path missing",
+      "config invalid",
+      "reload impact"
+    ],
+    "runtimeEnabled": false,
+    "serviceStackCategory": "web-entry",
+    "sourceCapabilityId": "official.nginx"
+  },
+  "diff": [
+    {
+      "after": "Nginx",
+      "before": "Nginx web service",
+      "kind": "metadata",
+      "operation": "modify",
+      "path": "metadata.name",
+      "reason": "Capability identity maps into a review-only catalog artifact."
+    },
+    {
+      "after": "medium",
+      "before": "medium",
+      "kind": "risk",
+      "operation": "modify",
+      "path": "riskLevel",
+      "reason": "Capability risk is compared against existing catalog sensitivity."
+    },
+    {
+      "after": {
+        "category": "web-entry",
+        "signals": [
+          "nginx service",
+          "/etc/nginx",
+          "nginx -t"
+        ]
+      },
+      "before": "service",
+      "kind": "service-stack-mapping",
+      "operation": "modify",
+      "path": "serviceStackMappings[0]",
+      "reason": "Capability signals become service-stack mapping review data."
+    },
+    {
+      "after": [
+        "config-diff-confirm",
+        "secret-handling-confirm",
+        "service-reload-confirm"
+      ],
+      "before": [],
+      "kind": "gate",
+      "operation": "modify",
+      "path": "requiresGates",
+      "reason": "Required gates must be reviewed before any runtime catalog sync."
+    },
+    {
+      "after": {
+        "commands": [
+          "nginx -t",
+          "systemctl reload nginx"
+        ],
+        "read": [
+          "/etc/nginx",
+          "certificate path metadata",
+          "listening ports",
+          "systemd status"
+        ],
+        "write": [
+          "/etc/nginx"
+        ]
+      },
+      "kind": "permission",
+      "operation": "modify",
+      "path": "permissions",
+      "reason": "Declared read/write/command permissions are review-only metadata."
+    },
+    {
+      "after": [
+        "capability risk level: medium",
+        "certificate path missing",
+        "config invalid",
+        "reload impact"
+      ],
+      "before": [],
+      "kind": "risk",
+      "operation": "modify",
+      "path": "risks",
+      "reason": "Capability risk notes are surfaced in catalog review."
+    },
+    {
+      "after": {
+        "apply": true,
+        "discover": true,
+        "plan": true,
+        "rollback": "partial",
+        "verify": true
+      },
+      "kind": "feature",
+      "operation": "modify",
+      "path": "features",
+      "reason": "Feature flags do not enable runtime behavior in preview."
+    },
+    {
+      "after": [
+        "nginx-assessment",
+        "nginx-failure"
+      ],
+      "kind": "fixture",
+      "operation": "modify",
+      "path": "fixtures",
+      "reason": "Fixture coverage is attached as certification evidence."
+    },
+    {
+      "after": {
+        "claimed": "official",
+        "effective": "official",
+        "passed": true
+      },
+      "kind": "certification",
+      "operation": "modify",
+      "path": "certification",
+      "reason": "Certification level is evidence-bounded by the harness."
+    },
+    {
+      "after": [
+        "private key contents are not collected",
+        "certificate paths may be reported as metadata only",
+        "support bundles contain redacted command evidence"
+      ],
+      "kind": "redaction",
+      "operation": "modify",
+      "path": "redaction",
+      "reason": "Redaction assertions are included for review."
+    }
+  ],
+  "features": {
+    "apply": true,
+    "discover": true,
+    "plan": true,
+    "rollback": "partial",
+    "verify": true
+  },
+  "gates": [
+    "config-diff-confirm",
+    "secret-handling-confirm",
+    "service-reload-confirm"
+  ],
+  "generatedArtifact": {
+    "enabledByDefault": false,
+    "hash": "ffbcb14f69acbc5d2309545404fc69e3c49229145dc385435a91c9face37de5c",
+    "path": "generated/catalog-preview/official.nginx.catalog-preview.json"
+  },
+  "permissions": {
+    "commands": [
+      "nginx -t",
+      "systemctl reload nginx"
+    ],
+    "read": [
+      "/etc/nginx",
+      "certificate path metadata",
+      "listening ports",
+      "systemd status"
+    ],
+    "write": [
+      "/etc/nginx"
+    ]
+  },
+  "risks": [
+    "capability risk level: medium",
+    "certificate path missing",
+    "config invalid",
+    "reload impact"
+  ],
+  "serviceStackMappings": [
+    {
+      "category": "web-entry",
+      "confidence": "high",
+      "signals": [
+        "nginx service",
+        "/etc/nginx",
+        "nginx -t"
+      ]
+    }
+  ],
+  "source": {
+    "capabilityId": "official.nginx",
+    "capabilityVersion": "0.1.0",
+    "certificationLevel": "official",
+    "certificationPassed": true,
+    "publisher": "envforge"
+  },
+  "summary": "Nginx would update review metadata for nginx-web-service. Runtime catalog remains unchanged.",
+  "targetCatalog": {
+    "existingCatalogId": "nginx-web-service",
+    "generatedCatalogId": "nginx-web-service",
+    "operation": "update"
+  },
+  "warnings": [
+    "apply=true remains review-only in preview and does not enable runtime execution."
+  ]
+}

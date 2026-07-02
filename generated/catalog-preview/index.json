@@ -1,0 +1,23 @@
+{
+  "artifacts": [
+    {
+      "capabilityId": "official.nginx",
+      "enabledByDefault": false,
+      "hash": "ffbcb14f69acbc5d2309545404fc69e3c49229145dc385435a91c9face37de5c",
+      "operation": "update",
+      "path": "generated/catalog-preview/official.nginx.catalog-preview.json"
+    },
+    {
+      "capabilityId": "official.postgresql",
+      "enabledByDefault": false,
+      "hash": "4a35d5b0cc0ec758a9b9e879d2dca0c8282e6be65aed529a3e1d9db7f4850899",
+      "operation": "update",
+      "path": "generated/catalog-preview/official.postgresql.catalog-preview.json"
+    }
+  ],
+  "blockedCapabilityCount": 0,
+  "capabilityCount": 2,
+  "configsCatalogMutated": false,
+  "runtimeCatalogEnabled": false,
+  "schema": "envforge.capability-catalog-preview.index.v1"
+}

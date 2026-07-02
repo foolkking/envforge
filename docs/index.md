@@ -13,6 +13,7 @@ This is the durable documentation map for EnvForge. Human entry point:
 | [system-design.md](./system-design.md) | Architecture, migration engine, Environment Plan, execution, config/security |
 | [catalog.md](./catalog.md) | Capability Catalog schema, certification, authoring, quality gate, admin governance |
 | [capability-sdk.md](./capability-sdk.md) | Contributor-facing capability package format, certification harness, safety gates |
+| [capability-catalog-preview.md](./capability-catalog-preview.md) | Review-only preview and diff from certified capability packages to catalog artifacts |
 | [web-ui.md](./web-ui.md) | Web IA, page responsibilities, UI patterns, design-system constraints |
 | [operations.md](./operations.md) | Deployment, runtime configuration, backups, operational SOPs |
 | [validation.md](./validation.md) | E2E scenarios, harness workflow, target readiness, report template |
@@ -42,6 +43,7 @@ Product design entry path: `docs/product/README.md`.
 |---|---|
 | [generated/catalog-certification.md](./generated/catalog-certification.md) | Generated Full Migration certification summary |
 | [generated/catalog-certification.json](./generated/catalog-certification.json) | Machine-readable certification output |
+| `../generated/catalog-preview/` | Review-only generated capability catalog preview artifacts; not runtime catalog |
 
 Generated files are refreshed by scripts and should not be edited by hand.
 

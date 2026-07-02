@@ -59,6 +59,7 @@ Current Productization Focus:
 | Web dev | `npm run dev:web` |
 | API dev | `npm run dev:api` |
 | Catalog certification | `npm run certification:check` |
+| Capability catalog preview | `npm run preview:capabilities` |
 | Harness scenarios | `npm run harness:scenarios` |
 
 ## Current durable docs
@@ -77,6 +78,8 @@ docs are intentionally few:
 | `docs/system-design.md` | Architecture, migration engine, execution, config/security |
 | `docs/catalog.md` | Catalog schema, certification, authoring, quality gate |
 | `docs/web-ui.md` | Web IA, UI patterns, design-system rules |
+| `docs/capability-sdk.md` | Contributor-facing capability package format and certification |
+| `docs/capability-catalog-preview.md` | Review-only capability-to-catalog preview and diff |
 | `docs/operations.md` | Deploy, runtime operations, backups |
 | `docs/validation.md` | E2E scenarios, harness, target readiness |
 | `docs/decisions.md` | Durable decisions not obvious from code |
@@ -340,6 +343,38 @@ classifier work is read-only, planner work can only produce Plan actions or
 recommendations, and appliers are allowed only as approved immutable Plan
 actions through Managed Execution. Marketplace, remote registry, dynamic
 third-party plugin loading, and untrusted-code sandboxing are not implemented.
+
+## Capability Catalog Preview baseline
+
+Prompt6 adds a review-only bridge from certified capability packages to catalog
+review artifacts:
+
+- `apps/api/src/capability-catalog-preview.ts` maps certified capability
+  manifests to catalog preview models with source certification, target catalog
+  operation, service-stack mappings, permissions, gates, risks, features, diff
+  entries, blockers, warnings, and generated artifact metadata.
+- `scripts/preview-capability-catalog.mjs` and `npm run preview:capabilities`
+  run certification first, generate deterministic JSON artifacts under
+  `generated/catalog-preview/`, and print per-capability summaries.
+- `apps/api/src/engine/tests/capability-catalog-preview.test.ts` verifies
+  official.nginx and official.postgresql previews, blocked uncertified input,
+  required gates, Environment Plan boundary checks, risk-downgrade blocking,
+  secret-leak blocking, deterministic artifacts, and that `configs/catalog/*`
+  is not modified.
+
+The generated preview artifacts are review artifacts only:
+
+- `generatedArtifact.enabledByDefault` is always false.
+- `catalogArtifact.runtimeEnabled` is always false.
+- `configs/catalog/*` is not rewritten.
+- The runtime catalog is not replaced.
+- No capability is enabled.
+- No Environment Plan approval or Apply Run is created.
+
+Capability SDK remains contributor-facing. The existing catalog remains the
+runtime knowledge base. Marketplace, remote registry, dynamic plugin loading,
+automatic runtime catalog enablement, and production promotion workflow remain
+future work.
 
 ## Verification report evidence
 

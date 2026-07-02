@@ -122,3 +122,40 @@ Current official examples are certified to the official level, not
 production-certified. Production-certified still requires live disposable target
 apply/verify/report evidence, rollback boundary proof, and an upgrade/regression
 policy.
+
+## Capability to Catalog Preview baseline
+
+Prompt6 establishes a safe bridge from certified capability packages to catalog
+review artifacts:
+
+~~~text
+certified capability package
+-> catalog preview
+-> catalog diff
+-> validation
+-> generated review artifact
+~~~
+
+Run it with:
+
+~~~bash
+npm run preview:capabilities
+~~~
+
+The preview reads package manifests, reuses the certification harness, maps
+approved capability metadata to catalog-facing review data, and writes
+deterministic JSON artifacts under `generated/catalog-preview/`.
+
+The preview does not:
+
+- modify `configs/catalog/*`;
+- replace the runtime catalog;
+- enable a capability;
+- load dynamic third-party plugins;
+- approve an Environment Plan;
+- run Apply.
+
+Generated catalog preview artifacts are review-only. They carry
+`enabledByDefault=false` and must be manually reviewed before any future sync
+process can be considered. Marketplace, remote registry, dynamic plugin loading,
+and automatic runtime catalog enablement remain unimplemented.
