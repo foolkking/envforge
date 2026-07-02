@@ -481,6 +481,140 @@ export async function fetchCapabilityRulesAdmin(token: string): Promise<{
   return response.json();
 }
 
+export type CatalogPreviewOperation = "create" | "update" | "no-op" | "blocked";
+export type CatalogPreviewSafetyStatus = "safe" | "needs-review" | "blocked";
+
+export interface CatalogPreviewDiffSummary {
+  added: number;
+  modified: number;
+  removed: number;
+  blocked: number;
+  riskChanges: number;
+  gateChanges: number;
+  permissionChanges: number;
+  serviceStackMappingChanges: number;
+}
+
+export interface CatalogPreviewSafetySummary {
+  hasRuntimeMutation: false;
+  hasConfigCatalogMutation: false;
+  hasSecretLeak: boolean;
+  hasRiskDowngrade: boolean;
+  hasGateRemoval: boolean;
+  hasWritePermissionWithoutGate: boolean;
+  hasApplyWithoutPlanBoundary: boolean;
+  blockedReasons: string[];
+}
+
+export interface CatalogPreviewDiffItem {
+  id: string;
+  capabilityId: string;
+  catalogItemId: string;
+  changeType: "added" | "modified" | "removed" | "blocked";
+  title: string;
+  category: string;
+  riskBefore?: string;
+  riskAfter?: string;
+  gatesBefore?: string[];
+  gatesAfter?: string[];
+  permissionsBefore?: string[];
+  permissionsAfter?: string[];
+  serviceStackBefore?: string[];
+  serviceStackAfter?: string[];
+  safetyStatus: CatalogPreviewSafetyStatus;
+  reasons: string[];
+  evidence: string[];
+}
+
+export interface CatalogPreviewReview {
+  id: string;
+  source: "generated-artifact" | "on-demand";
+  artifactPath?: string;
+  deterministic: boolean;
+  runtimeEnabled: false;
+  catalogMutated: false;
+  capabilityCount: number;
+  certifiedCapabilityCount: number;
+  blockedCapabilityCount: number;
+  diffSummary: CatalogPreviewDiffSummary;
+  safetySummary: CatalogPreviewSafetySummary;
+  serviceStackImpact: Array<{
+    capabilityId: string;
+    catalogId: string;
+    operation: CatalogPreviewOperation;
+    category: string;
+    signals: string[];
+  }>;
+  reviewRequired: boolean;
+  diffItems: CatalogPreviewDiffItem[];
+  artifacts: Array<{
+    capabilityId: string;
+    operation: CatalogPreviewOperation;
+    path?: string;
+    hash?: string;
+    enabledByDefault: false;
+  }>;
+}
+
+export interface CatalogPromotionRequestDraft {
+  id: string;
+  previewId: string;
+  status: "draft";
+  runtimeEnabled: false;
+  catalogMutated: false;
+  summary: string;
+  diffItems: CatalogPreviewDiffItem[];
+  requiredReview: string[];
+  blockedItems: CatalogPreviewDiffItem[];
+  generatedArtifacts: string[];
+  redactionNote: string;
+  runtimeMutationNote: string;
+  manualNextSteps: string[];
+}
+
+export async function fetchCapabilityCatalogPreview(token: string): Promise<CatalogPreviewReview> {
+  const response = await fetch("/api/capabilities/catalog-preview", {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  if (response.status === 403) throw new Error("Capability Catalog Preview requires an admin token.");
+  const body = await readJsonOrThrow<{ preview: CatalogPreviewReview }>(response, "Fetch catalog preview failed");
+  return body.preview;
+}
+
+export async function fetchCapabilityCatalogPreviewDiff(token: string): Promise<{
+  previewId: string;
+  diffSummary: CatalogPreviewDiffSummary;
+  safetySummary: CatalogPreviewSafetySummary;
+  diffItems: CatalogPreviewDiffItem[];
+}> {
+  const response = await fetch("/api/capabilities/catalog-preview/diff", {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  return readJsonOrThrow(response, "Fetch catalog preview diff failed");
+}
+
+export async function fetchCapabilityCatalogPreviewArtifact(token: string): Promise<{
+  previewId: string;
+  deterministic: boolean;
+  runtimeEnabled: false;
+  catalogMutated: false;
+  artifacts: CatalogPreviewReview["artifacts"];
+}> {
+  const response = await fetch("/api/capabilities/catalog-preview/artifact", {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  return readJsonOrThrow(response, "Fetch catalog preview artifact failed");
+}
+
+export async function createCapabilityCatalogPromotionRequest(token: string): Promise<CatalogPromotionRequestDraft> {
+  const response = await fetch("/api/capabilities/catalog-preview/promotion-request", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  const body = await readJsonOrThrow<{ draft: CatalogPromotionRequestDraft }>(response, "Create promotion request draft failed");
+  return body.draft;
+}
+
 /**
  * Admin-only: fetch every catalog item (certified + not-ready) for
  * display in the registry. End-user Build code MUST NOT call this.

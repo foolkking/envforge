@@ -347,7 +347,8 @@ third-party plugin loading, and untrusted-code sandboxing are not implemented.
 ## Capability Catalog Preview baseline
 
 Prompt6 adds a review-only bridge from certified capability packages to catalog
-review artifacts:
+review artifacts. Prompt7 adds the admin review surface and draft promotion
+request layer on top of the same review-only model:
 
 - `apps/api/src/capability-catalog-preview.ts` maps certified capability
   manifests to catalog preview models with source certification, target catalog
@@ -361,6 +362,16 @@ review artifacts:
   required gates, Environment Plan boundary checks, risk-downgrade blocking,
   secret-leak blocking, deterministic artifacts, and that `configs/catalog/*`
   is not modified.
+- `GET /api/capabilities/catalog-preview`,
+  `/diff`, `/artifact`, and
+  `POST /api/capabilities/catalog-preview/promotion-request` are admin-only
+  derived views. They return review summaries, diff items, generated artifact
+  metadata, safety flags, and a draft promotion request.
+- Capability Admin includes a Catalog Preview tab with read-only status, diff
+  review, risk/gate/permission/service-stack mapping impact, generated artifact
+  status, and promotion request draft generation.
+- `apps/api/src/engine/tests/capability-catalog-preview-routes.test.ts` and Web
+  smoke verify the API/UI layer remains read-only and draft-only.
 
 The generated preview artifacts are review artifacts only:
 
@@ -370,10 +381,12 @@ The generated preview artifacts are review artifacts only:
 - The runtime catalog is not replaced.
 - No capability is enabled.
 - No Environment Plan approval or Apply Run is created.
+- Promotion request drafts do not create production changes; they are review
+  artifacts only.
 
 Capability SDK remains contributor-facing. The existing catalog remains the
 runtime knowledge base. Marketplace, remote registry, dynamic plugin loading,
-automatic runtime catalog enablement, and production promotion workflow remain
+automatic runtime catalog enablement, and production promotion execution remain
 future work.
 
 ## Verification report evidence

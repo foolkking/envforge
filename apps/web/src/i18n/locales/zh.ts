@@ -1667,6 +1667,7 @@ export const zh = {
         standards: "标准",
         suggestions: "建议收件箱",
         integrations: "软件包映射",
+        catalogPreview: "目录预览",
         usersQueues: "用户与队列"
       }
     },
@@ -1758,6 +1759,61 @@ export const zh = {
       },
       dataStrategy: "数据策略",
       migrationStrategy: "迁移策略"
+    },
+    catalogPreview: {
+      intro: "在任何运行时目录同步之前，审查已认证 capability package 会如何影响 catalog 元数据。这是评审层，不是启用流程。",
+      readOnlyTitle: "只读预览",
+      runtimeUnchanged: "运行时 catalog 未改变。",
+      configsUnchanged: "configs/catalog 未改变。",
+      noDynamicPlugins: "没有启用动态插件。",
+      artifactsReviewOnly: "生成的 preview artifact 仅用于评审。",
+      capabilities: "能力数",
+      certified: "已认证",
+      blocked: "已阻断",
+      diffItems: "Diff 项",
+      riskChanges: "风险变化",
+      gateChanges: "Gate 变化",
+      permissionChanges: "权限变化",
+      safetySummary: "安全摘要",
+      runtimeCatalog: "运行时 catalog",
+      configCatalog: "configs/catalog",
+      secretLeak: "Secret 泄露",
+      riskDowngrade: "风险降级",
+      gateRemoval: "Gate 移除",
+      writeWithoutGate: "写权限缺少 gate",
+      applyWithoutBoundary: "Apply 缺少 Environment Plan 边界",
+      generatedArtifacts: "生成 artifact",
+      generatedArtifactNote: "Artifact 是确定性的评审记录；运行时 catalog 不会加载它们。",
+      enabledByDefault: "enabledByDefault",
+      serviceStackImpact: "Service Stack 映射变化",
+      catalogDiff: "Catalog Diff",
+      change: "变化",
+      risk: "风险",
+      gates: "Gates",
+      permissions: "权限",
+      serviceStack: "Service Stack",
+      safetyStatus: "安全状态",
+      promotionRequestDraft: "Promotion Request Draft",
+      promotionDraftNote: "该草案只记录需要人工评审的内容。它不会启用能力、修改 catalog 文件、批准 Plan 或创建 Apply Run。",
+      generatePromotionRequest: "生成 promotion request",
+      exportPromotionRequest: "导出 promotion request",
+      requiredReview: "需要评审",
+      noBlockedItems: "没有阻断项。",
+      noDraftYet: "尚未生成 promotion request draft。",
+      unavailable: "Catalog preview 暂不可用。",
+      filters: {
+        all: "全部",
+        "needs-review": "需要评审",
+        blocked: "已阻断"
+      },
+      safetyStatuses: {
+        safe: "可安全评审",
+        "needs-review": "需要评审",
+        blocked: "能力已阻断"
+      },
+      errors: {
+        draftFailed: "Promotion request draft 生成失败。"
+      }
     },
     usersQueues: {
       intro: "这里管理规则维护负责人、认证审核人、建议处理人和队列分派，不是账号中心，也不是主机用户管理。",

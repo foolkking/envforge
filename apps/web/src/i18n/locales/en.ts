@@ -1668,6 +1668,7 @@ export const en = {
         standards: "Standards",
         suggestions: "Suggestion Inbox",
         integrations: "Package Integrations",
+        catalogPreview: "Catalog Preview",
         usersQueues: "Users & Queues"
       }
     },
@@ -1759,6 +1760,61 @@ export const en = {
       },
       dataStrategy: "data strategy",
       migrationStrategy: "migration strategy"
+    },
+    catalogPreview: {
+      intro: "Review how certified capability packages would affect catalog metadata before any runtime catalog sync. This is a review layer, not enablement.",
+      readOnlyTitle: "Read-only preview",
+      runtimeUnchanged: "Runtime catalog unchanged.",
+      configsUnchanged: "configs/catalog unchanged.",
+      noDynamicPlugins: "No dynamic plugins are enabled.",
+      artifactsReviewOnly: "Generated preview artifacts are review artifacts only.",
+      capabilities: "Capabilities",
+      certified: "Certified",
+      blocked: "Blocked",
+      diffItems: "Diff items",
+      riskChanges: "Risk changes",
+      gateChanges: "Gate changes",
+      permissionChanges: "Permission changes",
+      safetySummary: "Safety summary",
+      runtimeCatalog: "Runtime catalog",
+      configCatalog: "configs/catalog",
+      secretLeak: "Secret leak",
+      riskDowngrade: "Risk downgrade",
+      gateRemoval: "Gate removal",
+      writeWithoutGate: "Write permission without gate",
+      applyWithoutBoundary: "Apply without Environment Plan boundary",
+      generatedArtifacts: "Generated artifact",
+      generatedArtifactNote: "Artifacts are deterministic review records; they are not loaded by runtime catalog.",
+      enabledByDefault: "enabledByDefault",
+      serviceStackImpact: "Service stack mapping changes",
+      catalogDiff: "Catalog Diff",
+      change: "Change",
+      risk: "Risk",
+      gates: "Gates",
+      permissions: "Permissions",
+      serviceStack: "Service Stack",
+      safetyStatus: "Safety status",
+      promotionRequestDraft: "Promotion Request Draft",
+      promotionDraftNote: "This draft records what humans should review. It does not enable a capability, modify catalog files, approve a Plan, or create an Apply Run.",
+      generatePromotionRequest: "Generate promotion request",
+      exportPromotionRequest: "Export promotion request",
+      requiredReview: "Required review",
+      noBlockedItems: "No blocked items.",
+      noDraftYet: "No promotion request draft generated yet.",
+      unavailable: "Catalog preview is unavailable.",
+      filters: {
+        all: "All",
+        "needs-review": "Needs review",
+        blocked: "Blocked"
+      },
+      safetyStatuses: {
+        safe: "Safe to review",
+        "needs-review": "Needs review",
+        blocked: "Blocked capability"
+      },
+      errors: {
+        draftFailed: "Promotion request draft failed."
+      }
     },
     usersQueues: {
       intro: "This workspace manages rule maintainers, certification reviewers, suggestion triage, and queue assignment. It is not an account center or a host user manager.",

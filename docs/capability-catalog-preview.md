@@ -25,6 +25,31 @@ The command builds the API package, runs capability certification, generates
 preview JSON under `generated/catalog-preview/`, and prints a summary for each
 capability.
 
+## Admin review API and UI
+
+Prompt7 exposes the preview as an admin review layer:
+
+~~~text
+GET /api/capabilities/catalog-preview
+GET /api/capabilities/catalog-preview/diff
+GET /api/capabilities/catalog-preview/artifact
+POST /api/capabilities/catalog-preview/promotion-request
+~~~
+
+Capability Admin includes a Catalog Preview tab that shows:
+
+- read-only preview status;
+- runtime catalog unchanged;
+- `configs/catalog/*` unchanged;
+- generated artifact metadata;
+- risk, gate, permission, and service-stack mapping changes;
+- blocked or needs-review diff items with reasons;
+- a promotion request draft.
+
+The promotion request is a draft artifact only. It does not modify runtime
+catalog, does not enable a capability, does not approve a Plan, and does not
+create an Apply Run.
+
 ## Generated artifacts
 
 Artifacts are review records only. They are safe to commit only when they are
@@ -100,4 +125,4 @@ with:
 - Remote capability registry is not implemented.
 - Dynamic third-party plugin loading is not implemented.
 - Runtime catalog automatic enablement is not implemented.
-- Promotion UI and production approval workflow are future work.
+- Production promotion execution and team approval workflow are future work.

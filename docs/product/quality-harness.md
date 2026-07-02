@@ -186,3 +186,21 @@ coverage checks:
 
 This is not a production catalog sync. Generated artifacts are review evidence
 only; an explicit reviewed promotion workflow remains future work.
+
+## Prompt7 catalog preview review harness
+
+Prompt7 adds API and Web coverage for the review layer:
+
+- admin-only catalog preview routes return summary, diff, artifact metadata, and
+  a promotion request draft;
+- route tests snapshot runtime state and `configs/catalog/*` before and after
+  preview/draft calls;
+- promotion request remains `status=draft` with `runtimeEnabled=false` and
+  `catalogMutated=false`;
+- Web smoke verifies the Capability Admin Catalog Preview tab, read-only
+  status, diff review, safety summary, and promotion request draft;
+- the preview flow does not expose Apply as a primary or available action.
+
+This still does not implement runtime catalog promotion. The generated preview
+artifact remains deterministic review evidence; a future sync must be explicit,
+reviewed, and separately validated.

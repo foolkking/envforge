@@ -24,6 +24,7 @@ import { useTranslation } from "react-i18next";
 import {
   AlertTriangle,
   BookOpen,
+  GitCompareArrows,
   Inbox,
   LayoutDashboard,
   Package as PackageIcon,
@@ -63,6 +64,7 @@ import { RuleRegistryTab } from "./governance/RuleRegistryTab";
 import { StandardsTab } from "./governance/StandardsTab";
 import { SuggestionInboxTab } from "./governance/SuggestionInboxTab";
 import { PackageIntegrationsTab } from "./governance/PackageIntegrationsTab";
+import { CatalogPreviewTab } from "./governance/CatalogPreviewTab";
 import { UsersQueuesTab } from "./governance/UsersQueuesTab";
 import { CapabilityEditorDrawer } from "../components/CapabilityEditorDrawer";
 import { ArchetypeRuleDrawer } from "../components/ArchetypeRuleDrawer";
@@ -224,6 +226,9 @@ export function CapabilityRulesAdminPage({ authToken, isAdmin, locale }: Props):
         <TabButton active={tab === "integrations"} onClick={() => setTab("integrations")}
           icon={<PackageIcon size={14} aria-hidden />} testId="tab-integrations"
           label={t("governance.admin.tabs.integrations")} />
+        <TabButton active={tab === "catalog-preview"} onClick={() => setTab("catalog-preview")}
+          icon={<GitCompareArrows size={14} aria-hidden />} testId="tab-catalog-preview"
+          label={t("governance.admin.tabs.catalogPreview")} />
         <TabButton active={tab === "users-queues"} onClick={() => setTab("users-queues")}
           icon={<UsersRound size={14} aria-hidden />} testId="tab-users-queues"
           label={t("governance.admin.tabs.usersQueues")}
@@ -321,6 +326,10 @@ export function CapabilityRulesAdminPage({ authToken, isAdmin, locale }: Props):
           loading={integrationsLoading}
           authToken={authToken}
         />
+      ) : null}
+
+      {tab === "catalog-preview" ? (
+        <CatalogPreviewTab authToken={authToken} />
       ) : null}
 
       {tab === "users-queues" ? (

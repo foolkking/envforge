@@ -5,6 +5,8 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
+  buildCatalogPreviewReviewFromPreviews,
+  buildCatalogPromotionRequestDraft,
   buildCapabilityCatalogPreview,
   runCapabilityCatalogPreview,
   stableStringify,
@@ -179,6 +181,50 @@ test("capability catalog preview: generated artifacts are deterministic and revi
     assert.ok(!text.includes(repoRoot.replace(/\\/g, "/")), "artifact must not contain absolute repo path");
     assert.ok(!/"generatedAt"/.test(text), "committed artifact must not include timestamp metadata");
   }
+});
+
+test("capability catalog preview: review model summarizes safety, diff, and review-only artifact state", async () => {
+  const summary = await runCapabilityCatalogPreview(capabilitiesRoot);
+  const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "envforge-preview-review-"));
+  const previews = await writeCapabilityCatalogPreviewArtifacts(tmp, summary.previews);
+  const review = buildCatalogPreviewReviewFromPreviews(previews);
+
+  assert.equal(review.runtimeEnabled, false);
+  assert.equal(review.catalogMutated, false);
+  assert.equal(review.deterministic, true);
+  assert.equal(review.capabilityCount, 2);
+  assert.equal(review.certifiedCapabilityCount, 2);
+  assert.equal(review.blockedCapabilityCount, 0);
+  assert.equal(review.safetySummary.hasRuntimeMutation, false);
+  assert.equal(review.safetySummary.hasConfigCatalogMutation, false);
+  assert.equal(review.safetySummary.hasSecretLeak, false);
+  assert.ok(review.diffSummary.riskChanges > 0);
+  assert.ok(review.diffSummary.gateChanges > 0);
+  assert.ok(review.diffSummary.permissionChanges > 0);
+  assert.ok(review.diffSummary.serviceStackMappingChanges > 0);
+  assert.ok(review.diffItems.some((item) => item.safetyStatus === "needs-review" && item.category === "permission"));
+  assert.ok(review.serviceStackImpact.some((impact) => impact.capabilityId === "official.nginx" && impact.category === "web-entry"));
+  assert.ok(review.artifacts.every((artifact) => artifact.enabledByDefault === false));
+});
+
+test("capability catalog preview: promotion request is draft-only and cannot enable runtime catalog", async () => {
+  const summary = await runCapabilityCatalogPreview(capabilitiesRoot);
+  const previews = summary.previews.map((preview) => ({
+    ...preview,
+    generatedArtifact: { path: `generated/catalog-preview/${preview.source.capabilityId}.catalog-preview.json`, enabledByDefault: false as const }
+  }));
+  const review = buildCatalogPreviewReviewFromPreviews(previews);
+  const draft = buildCatalogPromotionRequestDraft(review);
+
+  assert.equal(draft.status, "draft");
+  assert.equal(draft.runtimeEnabled, false);
+  assert.equal(draft.catalogMutated, false);
+  assert.match(draft.summary, /No runtime catalog was changed/);
+  assert.match(draft.summary, /No capability was enabled/);
+  assert.match(draft.summary, /No apply run was created/);
+  assert.match(draft.runtimeMutationNote, /does not modify configs\/catalog/);
+  assert.ok(draft.generatedArtifacts.every((artifact) => artifact.startsWith("generated/catalog-preview/")));
+  assert.ok(draft.diffItems.length > 0);
 });
 
 function resultFor(

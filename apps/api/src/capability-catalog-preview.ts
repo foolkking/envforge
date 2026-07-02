@@ -104,6 +104,97 @@ export interface CapabilityCatalogPreviewSummary {
   blocked: CapabilityCatalogPreview[];
 }
 
+export interface CatalogDiffSummary {
+  added: number;
+  modified: number;
+  removed: number;
+  blocked: number;
+  riskChanges: number;
+  gateChanges: number;
+  permissionChanges: number;
+  serviceStackMappingChanges: number;
+}
+
+export interface CatalogPreviewSafetySummary {
+  hasRuntimeMutation: false;
+  hasConfigCatalogMutation: false;
+  hasSecretLeak: boolean;
+  hasRiskDowngrade: boolean;
+  hasGateRemoval: boolean;
+  hasWritePermissionWithoutGate: boolean;
+  hasApplyWithoutPlanBoundary: boolean;
+  blockedReasons: string[];
+}
+
+export interface ServiceStackImpact {
+  capabilityId: string;
+  catalogId: string;
+  operation: CatalogPreviewOperation;
+  category: string;
+  signals: string[];
+}
+
+export interface CatalogPreviewDiffItem {
+  id: string;
+  capabilityId: string;
+  catalogItemId: string;
+  changeType: "added" | "modified" | "removed" | "blocked";
+  title: string;
+  category: CatalogDiffKind;
+  riskBefore?: string;
+  riskAfter?: string;
+  gatesBefore?: string[];
+  gatesAfter?: string[];
+  permissionsBefore?: string[];
+  permissionsAfter?: string[];
+  serviceStackBefore?: string[];
+  serviceStackAfter?: string[];
+  safetyStatus: "safe" | "needs-review" | "blocked";
+  reasons: string[];
+  evidence: string[];
+}
+
+export interface CatalogPreviewReview {
+  id: string;
+  source: "generated-artifact" | "on-demand";
+  artifactPath?: string;
+  deterministic: boolean;
+  runtimeEnabled: false;
+  catalogMutated: false;
+  capabilityCount: number;
+  certifiedCapabilityCount: number;
+  blockedCapabilityCount: number;
+  diffSummary: CatalogDiffSummary;
+  safetySummary: CatalogPreviewSafetySummary;
+  serviceStackImpact: ServiceStackImpact[];
+  reviewRequired: boolean;
+  previews: CapabilityCatalogPreview[];
+  diffItems: CatalogPreviewDiffItem[];
+  artifacts: Array<{
+    capabilityId: string;
+    operation: CatalogPreviewOperation;
+    path?: string;
+    hash?: string;
+    enabledByDefault: false;
+  }>;
+}
+
+export interface CatalogPromotionRequestDraft {
+  id: string;
+  previewId: string;
+  status: "draft";
+  runtimeEnabled: false;
+  catalogMutated: false;
+  summary: string;
+  diffItems: CatalogPreviewDiffItem[];
+  requiredReview: string[];
+  blockedItems: CatalogPreviewDiffItem[];
+  generatedArtifacts: string[];
+  redactionNote: string;
+  runtimeMutationNote: string;
+  manualNextSteps: string[];
+}
+
 const RISK_ORDER: Record<CapabilityRiskLevel, number> = {
   low: 0,
   medium: 1,
@@ -162,6 +253,105 @@ export function buildCapabilityCatalogPreviewSummary(
     certificationPassed: certification.passed,
     previews,
     blocked: previews.filter((preview) => preview.targetCatalog.operation === "blocked")
+  };
+}
+
+export async function buildCapabilityCatalogReview(
+  rootDir?: string,
+  source: "generated-artifact" | "on-demand" = "generated-artifact"
+): Promise<CatalogPreviewReview> {
+  const summary = await runCapabilityCatalogPreview(rootDir);
+  const previews = summary.previews.map((preview) => {
+    const relativePath = normalizePortablePath(
+      path.join("generated", "catalog-preview", preview.source.capabilityId + ".catalog-preview.json")
+    );
+    return withGeneratedArtifactMetadata(preview, relativePath);
+  });
+  return buildCatalogPreviewReviewFromPreviews(previews, source);
+}
+
+export function buildCatalogPreviewReviewFromPreviews(
+  previews: CapabilityCatalogPreview[],
+  source: "generated-artifact" | "on-demand" = "generated-artifact"
+): CatalogPreviewReview {
+  const diffItems = previews.flatMap((preview) => preview.diff.map((entry, index) => toDiffItem(preview, entry, index)));
+  const diffSummary = summarizeDiff(diffItems);
+  const safetySummary = summarizeSafety(previews);
+  const id = "catalog-preview-" + hashStableJson({
+    artifacts: previews.map((preview) => ({
+      capabilityId: preview.source.capabilityId,
+      operation: preview.targetCatalog.operation,
+      hash: preview.generatedArtifact?.hash
+    })),
+    diffSummary,
+    safetySummary
+  }).slice(0, 16);
+  return {
+    id,
+    source,
+    artifactPath: "generated/catalog-preview/index.json",
+    deterministic: true,
+    runtimeEnabled: false,
+    catalogMutated: false,
+    capabilityCount: previews.length,
+    certifiedCapabilityCount: previews.filter((preview) => preview.source.certificationPassed).length,
+    blockedCapabilityCount: previews.filter((preview) => preview.targetCatalog.operation === "blocked").length,
+    diffSummary,
+    safetySummary,
+    serviceStackImpact: previews.map((preview) => ({
+      capabilityId: preview.source.capabilityId,
+      catalogId: preview.targetCatalog.generatedCatalogId,
+      operation: preview.targetCatalog.operation,
+      category: preview.serviceStackMappings[0]?.category ?? "unknown",
+      signals: preview.serviceStackMappings.flatMap((mapping) => mapping.signals)
+    })),
+    reviewRequired: diffItems.length > 0 || safetySummary.blockedReasons.length > 0,
+    previews,
+    diffItems,
+    artifacts: previews.map((preview) => ({
+      capabilityId: preview.source.capabilityId,
+      operation: preview.targetCatalog.operation,
+      path: preview.generatedArtifact?.path,
+      hash: preview.generatedArtifact?.hash,
+      enabledByDefault: false
+    }))
+  };
+}
+
+export function buildCatalogPromotionRequestDraft(review: CatalogPreviewReview): CatalogPromotionRequestDraft {
+  const reviewItems = review.diffItems.filter((item) => item.safetyStatus !== "safe");
+  const blockedItems = review.diffItems.filter((item) => item.safetyStatus === "blocked");
+  return {
+    id: "promotion-request-" + hashStableJson({
+      previewId: review.id,
+      diffItems: review.diffItems.map((item) => ({ id: item.id, safetyStatus: item.safetyStatus })),
+      artifacts: review.artifacts
+    }).slice(0, 16),
+    previewId: review.id,
+    status: "draft",
+    runtimeEnabled: false,
+    catalogMutated: false,
+    summary: [
+      "This is a promotion request draft for certified capability catalog previews.",
+      "No runtime catalog was changed.",
+      "No capability was enabled.",
+      "No apply run was created."
+    ].join(" "),
+    diffItems: review.diffItems,
+    requiredReview: uniqueSorted([
+      ...reviewItems.map((item) => item.title),
+      ...review.safetySummary.blockedReasons
+    ]),
+    blockedItems,
+    generatedArtifacts: review.artifacts.map((artifact) => artifact.path).filter((value): value is string => Boolean(value)),
+    redactionNote: "Generated preview artifacts and promotion drafts are review artifacts only; secrets and raw credential values are not included.",
+    runtimeMutationNote: "This draft does not modify configs/catalog, replace runtime catalog, enable dynamic plugins, approve Plans, or create Apply Runs.",
+    manualNextSteps: [
+      "Review diff items, risk changes, gate changes, permissions, and service-stack mappings.",
+      "Resolve blocked items before any future catalog sync.",
+      "Open a human-reviewed change to update runtime catalog files if promotion is accepted.",
+      "Run capability, golden scenario, typecheck, test, and build validation before merging a catalog sync."
+    ]
   };
 }
 
@@ -351,6 +541,114 @@ function buildDiffEntries(
   entries.push(diffEntry("certification", existing ? "modify" : "add", "certification", undefined, { claimed: result.claimedLevel, effective: result.effectiveLevel, passed: result.passed }, "Certification level is evidence-bounded by the harness.", blocked));
   entries.push(diffEntry("redaction", existing ? "modify" : "add", "redaction", undefined, capability.redaction.assertions, "Redaction assertions are included for review.", blocked));
   return entries;
+}
+
+function toDiffItem(
+  preview: CapabilityCatalogPreview,
+  entry: CatalogDiffEntry,
+  index: number
+): CatalogPreviewDiffItem {
+  const blocked = preview.targetCatalog.operation === "blocked" || entry.operation === "blocked";
+  const risky =
+    entry.kind === "risk" ||
+    entry.kind === "gate" ||
+    entry.kind === "permission" ||
+    entry.kind === "service-stack-mapping";
+  const reasons = uniqueSorted([
+    entry.reason,
+    ...preview.blockers,
+    ...preview.warnings
+  ]);
+  const riskBefore = entry.kind === "risk" ? stringifyMaybe(entry.before) : undefined;
+  const riskAfter = entry.kind === "risk" ? stringifyMaybe(entry.after) : undefined;
+  const gatesBefore = entry.kind === "gate" ? stringList(entry.before) : undefined;
+  const gatesAfter = entry.kind === "gate" ? stringList(entry.after) : undefined;
+  const serviceStackBefore = entry.kind === "service-stack-mapping" ? stringList(entry.before) : undefined;
+  const serviceStackAfter = entry.kind === "service-stack-mapping" ? stringList(entry.after) : undefined;
+  const permissionsBefore = entry.kind === "permission" ? flattenPermissionValue(entry.before) : undefined;
+  const permissionsAfter = entry.kind === "permission" ? flattenPermissionValue(entry.after) : undefined;
+  return {
+    id: `${preview.source.capabilityId}:${entry.path}:${index}`,
+    capabilityId: preview.source.capabilityId,
+    catalogItemId: preview.targetCatalog.generatedCatalogId,
+    changeType: preview.targetCatalog.operation === "create"
+      ? "added"
+      : preview.targetCatalog.operation === "blocked"
+        ? "blocked"
+        : preview.targetCatalog.operation === "update"
+          ? "modified"
+          : "modified",
+    title: `${preview.source.capabilityId} ${entry.path}`,
+    category: entry.kind,
+    riskBefore,
+    riskAfter,
+    gatesBefore,
+    gatesAfter,
+    permissionsBefore,
+    permissionsAfter,
+    serviceStackBefore,
+    serviceStackAfter,
+    safetyStatus: blocked ? "blocked" : risky ? "needs-review" : "safe",
+    reasons,
+    evidence: uniqueSorted([
+      `operation=${preview.targetCatalog.operation}`,
+      `catalog=${preview.targetCatalog.generatedCatalogId}`,
+      `certification=${preview.source.certificationLevel}`,
+      `runtimeEnabled=${preview.catalogArtifact.runtimeEnabled}`,
+      `enabledByDefault=${preview.generatedArtifact?.enabledByDefault ?? false}`
+    ])
+  };
+}
+
+function summarizeDiff(diffItems: CatalogPreviewDiffItem[]): CatalogDiffSummary {
+  return {
+    added: diffItems.filter((item) => item.changeType === "added").length,
+    modified: diffItems.filter((item) => item.changeType === "modified").length,
+    removed: diffItems.filter((item) => item.changeType === "removed").length,
+    blocked: diffItems.filter((item) => item.changeType === "blocked" || item.safetyStatus === "blocked").length,
+    riskChanges: diffItems.filter((item) => item.category === "risk").length,
+    gateChanges: diffItems.filter((item) => item.category === "gate").length,
+    permissionChanges: diffItems.filter((item) => item.category === "permission").length,
+    serviceStackMappingChanges: diffItems.filter((item) => item.category === "service-stack-mapping").length
+  };
+}
+
+function summarizeSafety(previews: CapabilityCatalogPreview[]): CatalogPreviewSafetySummary {
+  const blockers = uniqueSorted(previews.flatMap((preview) => preview.blockers));
+  return {
+    hasRuntimeMutation: false,
+    hasConfigCatalogMutation: false,
+    hasSecretLeak: blockers.some((blocker) => /secret|credential|redaction|sentinel|token|password/i.test(blocker)),
+    hasRiskDowngrade: blockers.some((blocker) => /risk downgrade/i.test(blocker)),
+    hasGateRemoval: blockers.some((blocker) => /gate removed|gate.*missing|required gate/i.test(blocker)),
+    hasWritePermissionWithoutGate: blockers.some((blocker) => /write permissions require review gates/i.test(blocker)),
+    hasApplyWithoutPlanBoundary: blockers.some((blocker) => /Environment Plan boundary/i.test(blocker)),
+    blockedReasons: blockers
+  };
+}
+
+function stringifyMaybe(input: unknown): string | undefined {
+  if (input === undefined) return undefined;
+  if (typeof input === "string") return input;
+  return stableStringify(input);
+}
+
+function stringList(input: unknown): string[] | undefined {
+  if (input === undefined) return undefined;
+  if (Array.isArray(input)) return input.map((value) => typeof value === "string" ? value : stableStringify(value));
+  if (typeof input === "string") return [input];
+  return [stableStringify(input)];
+}
+
+function flattenPermissionValue(input: unknown): string[] | undefined {
+  if (input === undefined) return undefined;
+  if (!input || typeof input !== "object") return stringList(input);
+  const value = input as { read?: string[]; write?: string[]; commands?: string[] };
+  return uniqueSorted([
+    ...(value.read ?? []).map((item) => "read:" + item),
+    ...(value.write ?? []).map((item) => "write:" + item),
+    ...(value.commands ?? []).map((item) => "command:" + item)
+  ]);
 }
 
 function diffEntry(

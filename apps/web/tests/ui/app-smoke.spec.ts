@@ -110,6 +110,21 @@ test.describe("EnvForge web smoke", () => {
     await assertHealthyPage(page);
     await expect(page.getByTestId("capability-admin-workbench")).toBeVisible();
 
+    const catalogPreviewTab = page.getByTestId("tab-catalog-preview");
+    await expect(catalogPreviewTab).toHaveAttribute("role", "tab");
+    await catalogPreviewTab.click();
+    await expect(catalogPreviewTab).toHaveAttribute("aria-selected", "true");
+    await expect(page.getByTestId("catalog-preview-tab")).toBeVisible();
+    await expect(page.getByTestId("catalog-preview-readonly-note")).toContainText(/Runtime catalog unchanged|运行时 catalog 未改变/);
+    await expect(page.getByTestId("catalog-preview-diff-review")).toBeVisible();
+    await expect(page.getByTestId("catalog-preview-safety")).toBeVisible();
+    await expect(page.getByTestId("catalog-preview-promotion-draft")).toContainText(/No promotion request draft|尚未生成 promotion request draft/);
+    await page.getByRole("button", { name: /Generate promotion request|生成 promotion request/ }).click();
+    await expect(page.getByTestId("catalog-preview-promotion-draft")).toContainText(/No runtime catalog was changed|运行时 catalog/);
+    await expect(page.getByTestId("catalog-preview-promotion-draft")).toContainText(/No capability was enabled|不会启用能力|没有启用/);
+    await expect(page.getByTestId("catalog-preview-promotion-draft")).toContainText(/No apply run was created|Apply Run/);
+    await expect(page.getByTestId("catalog-preview-tab")).not.toContainText(/Apply an approved plan|真实 Apply/);
+
     const standardsTab = page.getByTestId("tab-standards");
     await expect(standardsTab).toHaveAttribute("role", "tab");
     await standardsTab.click();

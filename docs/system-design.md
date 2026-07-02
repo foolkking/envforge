@@ -300,3 +300,23 @@ rollback, or mutate a source/target host. `RepairPlanDraft` is advisory data;
 any target-changing suggestion must first become a separately reviewed,
 artifact-bound immutable Environment Plan. Rollback fields describe recorded
 boundaries and never imply automatic recovery.
+
+## Capability catalog preview and promotion draft
+
+Certified capability packages can be projected into catalog review artifacts
+without changing runtime catalog behavior:
+
+```text
+GET /api/capabilities/catalog-preview
+GET /api/capabilities/catalog-preview/diff
+GET /api/capabilities/catalog-preview/artifact
+POST /api/capabilities/catalog-preview/promotion-request
+```
+
+These admin-only endpoints reuse capability certification and catalog preview
+models. They return review summaries, diff items, safety flags, generated
+artifact metadata, and a promotion request draft. The draft is not an enablement
+operation: it does not modify `configs/catalog/*`, replace the runtime catalog,
+enable dynamic plugins, approve an Environment Plan, create an Apply Run, or
+execute target mutation. Generated preview artifacts remain deterministic
+review records with `enabledByDefault=false`.

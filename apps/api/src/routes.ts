@@ -86,6 +86,7 @@ import { buildMigrationSessionArtifacts, initialMigrationSessionState, isMigrati
 import { assessmentReportToMarkdown, buildAssessmentSummary } from "./migration-assessment.js";
 import { buildFailureDiagnostics, collectSessionFailureEvidence } from "./failure-diagnostics.js";
 import { buildSupportBundle, supportBundleToMarkdown } from "./support-bundle.js";
+import { buildCapabilityCatalogReview, buildCatalogPromotionRequestDraft } from "./capability-catalog-preview.js";
 import { buildConfigChangePlan, buildConfigMigrationPlan, buildImportedRecipePlan, buildPlanReport, buildRebuildPlan, buildRemovePlan, buildRepairPlan, evaluateApplyGate, migrationPlanToEnvironmentPlan, planReportToMarkdown, type EnvironmentPlan, type EnvironmentPlanStatus, type PlanApprovalRecord, type PlanApprovalState, type RepairFailure } from "./environment-plan.js";
 import {
   appendPlanHistory,
@@ -366,6 +367,66 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
         notReady: annotated.filter((i) => i.certification.status === "not-ready").length
       }
     };
+  });
+
+  /**
+   * Capability Catalog Preview (admin only, read-only).
+   *
+   * This surfaces the Prompt6 generated/certified capability preview as an
+   * audit-friendly review model. It never mutates configs/catalog, never
+   * replaces runtime catalog behavior, never enables capabilities/plugins, and
+   * never creates Environment Plan approvals or Apply runs.
+   */
+  app.get("/api/capabilities/catalog-preview", async (request, reply) => {
+    const user = await getUserByToken(readBearerToken(request.headers.authorization));
+    if (!user || user.role !== "admin") {
+      reply.code(403);
+      return { error: "Admin only." };
+    }
+    const preview = await buildCapabilityCatalogReview(undefined, "generated-artifact");
+    return { preview };
+  });
+
+  app.get("/api/capabilities/catalog-preview/diff", async (request, reply) => {
+    const user = await getUserByToken(readBearerToken(request.headers.authorization));
+    if (!user || user.role !== "admin") {
+      reply.code(403);
+      return { error: "Admin only." };
+    }
+    const preview = await buildCapabilityCatalogReview(undefined, "generated-artifact");
+    return {
+      previewId: preview.id,
+      diffSummary: preview.diffSummary,
+      safetySummary: preview.safetySummary,
+      diffItems: preview.diffItems
+    };
+  });
+
+  app.get("/api/capabilities/catalog-preview/artifact", async (request, reply) => {
+    const user = await getUserByToken(readBearerToken(request.headers.authorization));
+    if (!user || user.role !== "admin") {
+      reply.code(403);
+      return { error: "Admin only." };
+    }
+    const preview = await buildCapabilityCatalogReview(undefined, "generated-artifact");
+    return {
+      previewId: preview.id,
+      deterministic: preview.deterministic,
+      runtimeEnabled: preview.runtimeEnabled,
+      catalogMutated: preview.catalogMutated,
+      artifacts: preview.artifacts
+    };
+  });
+
+  app.post("/api/capabilities/catalog-preview/promotion-request", async (request, reply) => {
+    const user = await getUserByToken(readBearerToken(request.headers.authorization));
+    if (!user || user.role !== "admin") {
+      reply.code(403);
+      return { error: "Admin only." };
+    }
+    const preview = await buildCapabilityCatalogReview(undefined, "generated-artifact");
+    const draft = buildCatalogPromotionRequestDraft(preview);
+    return { draft };
   });
 
   /**

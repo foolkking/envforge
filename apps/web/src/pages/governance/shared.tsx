@@ -32,7 +32,7 @@ export interface StandardProfileEditorState {
   sections: CapabilityStandardSection[];
 }
 
-export type WorkbenchTab = "overview" | "registry" | "standards" | "suggestions" | "integrations" | "users-queues";
+export type WorkbenchTab = "overview" | "registry" | "standards" | "suggestions" | "integrations" | "catalog-preview" | "users-queues";
 
 export const CATEGORY_ICONS: Record<string, LucideIcon> = {
   service: Server,

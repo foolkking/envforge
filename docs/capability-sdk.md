@@ -24,6 +24,12 @@ packages can be converted into deterministic catalog preview artifacts under
 generated/catalog-preview/, but those artifacts are not loaded by runtime code
 and do not modify configs/catalog.
 
+Prompt7 adds an admin review surface for that preview. Capability Admin can show
+preview summaries, catalog diffs, safety flags, service-stack mapping impact,
+generated artifact metadata, and a promotion request draft. The draft is an
+audit artifact only: it does not enable a capability, modify `configs/catalog`,
+replace runtime catalog behavior, approve a Plan, or create an Apply Run.
+
 ## Capability package contract
 
 Minimum package structure:
@@ -135,3 +141,5 @@ npm test
 - Capability-to-catalog preview is review-only. Runtime catalog automatic
   enablement, marketplace distribution, and dynamic plugin loading are not
   implemented.
+- Catalog preview promotion requests are draft-only. A future runtime catalog
+  sync still requires explicit human review, code changes, and validation.

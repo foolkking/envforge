@@ -159,3 +159,21 @@ Generated catalog preview artifacts are review-only. They carry
 `enabledByDefault=false` and must be manually reviewed before any future sync
 process can be considered. Marketplace, remote registry, dynamic plugin loading,
 and automatic runtime catalog enablement remain unimplemented.
+
+## Catalog Preview Review baseline
+
+Prompt7 turns the Prompt6 CLI/artifact baseline into an admin review surface:
+
+- Capability Admin includes a Catalog Preview tab;
+- the tab shows read-only runtime/config mutation status;
+- diff review highlights risk, gate, permission, and service-stack mapping
+  changes;
+- blocked or needs-review items remain visible with reasons and evidence;
+- generated artifacts are shown as review artifacts only;
+- admins can generate a promotion request draft.
+
+The promotion request is not a promotion execution. It does not modify
+`configs/catalog/*`, replace runtime catalog behavior, enable a capability,
+approve a Plan, create an Apply Run, or enable dynamic plugins. Future work may
+add an explicit reviewed sync process, but automatic runtime catalog enablement
+is still not implemented.
