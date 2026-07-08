@@ -194,11 +194,44 @@ export async function testSshConnectionWithContent(
  * 将 FullSystemSnapshot 转换为 StoredProbeSnapshot（兼容现有存储格式）
  */
 export function fullSnapshotToStored(full: FullSystemSnapshot): StoredProbeSnapshot {
+  // Phase 2: merge collector-level metadata into the collection envelope.
+  // Existing remote-collector already builds per-section collectors, so we
+  // enrich the collection.status and collection.completeness from those.
+  const collectors = full.collectors ?? {};
+  const collectorSummaries = Object.values(collectors);
+  let completeness = full.collection?.completeness ?? 1;
+  let collectionStatus: "ok" | "partial" | "failed" = full.collection?.status ?? "ok";
+
+  // Compute from per-collector data if available (Phase 2).
+  if (collectorSummaries.length > 0) {
+    // Import the Phase 2 completeness helper.
+    // Dynamic import to avoid circular dependency at module init.
+    const completenessSum = collectorSummaries.reduce((s, r) => s + r.completeness, 0);
+    completeness = collectorSummaries.length > 0
+      ? Math.round((completenessSum / collectorSummaries.length) * 1000) / 1000
+      : completeness;
+
+    const failedCount = collectorSummaries.filter(r => r.status === "failed").length;
+    const partialCount = collectorSummaries.filter(r => r.status === "partial").length;
+    collectionStatus = failedCount > 0 ? "partial"
+      : partialCount > 0 ? "partial"
+      : "ok";
+    if (completeness === 0) collectionStatus = "failed";
+  }
+
   return {
     agentId: full.agentId,
     collectedAt: full.collectedAt,
-    collection: full.collection,
-    collectors: full.collectors,
+    collection: {
+      status: collectionStatus as "ok" | "partial" | "failed",
+      completeness,
+      // Carry over original fields from the remote collector
+      commands: collectors.os?.commands ?? [],
+      stderr: Object.values(collectors).find(r => r.stderr)?.stderr ?? undefined,
+      errors: Object.values(collectors).flatMap(r => r.errors),
+      timedOut: false as boolean
+    },
+    collectors: collectors as Record<string, any> | undefined,
     system: full.system,
     software: full.software.map((s) => ({
       name: s.name,
