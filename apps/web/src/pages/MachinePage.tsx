@@ -240,8 +240,8 @@ export function MachinePage({
       {showNewForm ? (
         <section className="connection-card connection-create-card">
           <div>
-            <h2>{i18nT("machine.connectTitle")}</h2>
-            <p>{i18nT("machine.connectHint")}</p>
+            <h2>{i18nT("fields.connectTitle")}</h2>
+            <p>{i18nT("fields.connectHint")}</p>
           </div>
           <select value={method} onChange={(event) => onMethod(event.target.value as ConnectionMethod)}>
             <option value="ssh-password">{i18nT("machine.sshPassword")}</option>
@@ -312,7 +312,7 @@ export function MachinePage({
           {probing ? <p className="connection-note probing-note">{i18nT("machine.probing")}</p> : null}
           <Button variant="primary" onClick={connect} disabled={probing}>
             {probing ? <span className="spinning">...</span> : <KeyRound aria-hidden />}
-            {probing ? i18nT("machine.connecting") : i18nT("machine.connectBtn")}
+            {probing ? i18nT("machine.connecting") : i18nT("fields.connectBtn")}
           </Button>
         </section>
       ) : null}
