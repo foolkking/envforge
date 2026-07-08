@@ -7,7 +7,7 @@ import { appendActionRunRecord } from "../plan-store.js";
 import { computeEnvironmentPlanHash, verifyEnvironmentPlanHash } from "../plan-hash.js";
 import { runManagedAction, type ManagedExecutionAdapter } from "../managed-execution.js";
 import type { StoredConnection } from "../runtime-store.js";
-import { executePlaybook } from "./index.js";
+import { executePlaybook, type ApprovedArtifactExecutionContext } from "./index.js";
 
 export interface ManagedPlanExecutionResult {
   ok: boolean;
@@ -121,7 +121,7 @@ function adapterForAction(
 ): ManagedExecutionAdapter {
   if (plan.type === "imported-recipe" && action.id === "recipe:apply") {
     if (!artifactContent) throw new Error("Imported recipe action is missing its frozen recipe artifact.");
-    return createRecipeArtifactAdapter(context.connection, artifactContent.toString("utf8"));
+    return createRecipeArtifactAdapter(context.connection, artifactContent.toString("utf8"), plan, action, action.applySpec?.artifactId ?? "recipe:unknown");
   }
   if (action.kind === "writeConfig" || action.kind === "copyConfig") {
     const targetPath = action.applySpec?.path ?? action.path ?? "";
@@ -132,10 +132,22 @@ function adapterForAction(
   return createPackageAdapter(context);
 }
 
-function createRecipeArtifactAdapter(connection: StoredConnection, yaml: string): ManagedExecutionAdapter {
+function createRecipeArtifactAdapter(connection: StoredConnection, yaml: string, plan: EnvironmentPlan, action: EnvironmentPlanAction, artifactId: string): ManagedExecutionAdapter {
   let stdout = "";
   let stderr = "";
   let lastApply: ActionApplyResult | undefined;
+
+  // Phase 1: Only approved-artifact execution context is accepted.
+  // The plan has already passed planHash + approvedPlanHash + apply-gate
+  // checks before reaching executeEnvironmentPlan().
+  const execCtx: ApprovedArtifactExecutionContext = {
+    planId: plan.id,
+    planHash: plan.planHash ?? "",
+    artifactHash: plan.artifacts?.find((a) => a.id === artifactId)?.contentSha256 ?? "",
+    actionId: action.id,
+    source: "approved-artifact"
+  };
+
   return {
     async snapshot(): Promise<ActionSnapshot> {
       return { kind: "generic", capturedAt: new Date().toISOString(), notes: ["Recipe artifact hash verified before execution."] };
@@ -148,7 +160,7 @@ function createRecipeArtifactAdapter(connection: StoredConnection, yaml: string)
           if (log.result?.stdout) stdout += `${log.result.stdout}\n`;
           if (log.result?.stderr) stderr += `${log.result.stderr}\n`;
         }
-      });
+      }, execCtx);
       lastApply = {
         ok: result.ok,
         message: result.ok ? "Frozen recipe artifact applied." : (result.error ?? "Recipe apply failed."),

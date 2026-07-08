@@ -1,5 +1,13 @@
 /**
- * 引擎入口：执行 Playbook 并通过回调推送进度
+ * 引擎入口
+ *
+ * Phase 1 hardening (2026-07-08):
+ *   executePlaybook() and executeBatchPlaybooks() now require an
+ *   ApprovedArtifactExecutionContext. Without it they throw immediately.
+ *   The only consumer that supplies this context is
+ *   createRecipeArtifactAdapter() in engine/managed-execution.ts, which
+ *   is itself only reachable through executeEnvironmentPlan() after
+ *   Plan approval + hash verification + apply-gate checks.
  */
 
 import fs from "node:fs/promises";
@@ -17,6 +25,26 @@ export type { RunOptions, RunResult };
 export { parsePlaybook, runPlaybook };
 export { substitute, evalWhen } from "./runner.js";
 
+// ══ Approved-artifact execution context (Phase 1) ═══════════════════
+
+/**
+ * Required context for any call to executePlaybook / executeBatchPlaybooks.
+ *
+ * Only createRecipeArtifactAdapter() inside engine/managed-execution.ts is
+ * allowed to supply this context, and only after the Environment Plan has
+ * passed planHash verification, approvedPlanHash verification, and the
+ * apply-gate audit (evaluateApplyGate).
+ */
+export interface ApprovedArtifactExecutionContext {
+  planId: string;
+  planHash: string;
+  artifactHash: string;
+  actionId: string;
+  source: "approved-artifact";
+}
+
+// ══ Catalog helpers (read-only) ═════════════════════════════════════
+
 /** 读取 catalog 中的 playbook YAML 文件（优先 admin override，回退到基线） */
 export async function loadPlaybookFromCatalog(playbookId: string): Promise<string> {
   const { resolvePlaybookYaml } = await import("../catalog-overrides.js");
@@ -29,12 +57,31 @@ export async function hasPlaybook(playbookId: string): Promise<boolean> {
   return await hasResolvedPlaybook(playbookId);
 }
 
-/** 通过已保存的连接执行 Playbook YAML */
+// ══ executePlaybook — gated behind approved-artifact context ════════
+
+/**
+ * Execute a recipe YAML over SSH.
+ *
+ * Phase 1: this function REQUIRES an ApprovedArtifactExecutionContext.
+ * Without it the call throws immediately. The only valid caller is
+ * createRecipeArtifactAdapter() in managed-execution.ts, which supplies
+ * the context after the Environment Plan has been approved and
+ * hash-verified.
+ */
 export async function executePlaybook(
   yamlText: string,
   connection: StoredConnection,
-  options: RunOptions
+  options: RunOptions,
+  execCtx?: ApprovedArtifactExecutionContext
 ): Promise<RunResult> {
+  if (!execCtx || execCtx.source !== "approved-artifact" || !execCtx.planId || !execCtx.planHash || !execCtx.artifactHash || !execCtx.actionId) {
+    throw new Error(
+      "Direct playbook execution is disabled. " +
+      "Recipe YAML must be imported as an Environment Plan, reviewed, approved, and applied " +
+      "through the approved immutable artifact pipeline (executeEnvironmentPlan)."
+    );
+  }
+
   const playbook = parsePlaybook(yamlText);
 
   const client = await connectSsh(connection);
@@ -47,12 +94,13 @@ export async function executePlaybook(
   }
 }
 
+// ══ Batch execution — blocked (Phase 1) ═════════════════════════════
+
 /**
- * 批量执行多个 Playbook，复用同一个 SSH 连接（高性能 + 减少 sudo 提示）
+ * 批量执行多个 Playbook — DISABLED (Phase 1).
  *
- * @param items 要顺序执行的 playbook 列表，每项含 catalogId 和 displayName
- * @param connection 已保存的 SSH 连接
- * @param options dryRun 标志和进度回调（每个 item 开始/结束时触发，每个 task 也会触发）
+ * Direct batch playbook execution from catalog is blocked. Callers must
+ * go through the Environment Plan pipeline for each capability.
  */
 export interface BatchItemProgress {
   itemIndex: number;
@@ -88,103 +136,43 @@ export interface BatchRunResult {
   itemResults: BatchItemProgress[];
 }
 
+/**
+ * Direct batch playbook execution is DISABLED (Phase 1).
+ *
+ * Each capability should be applied through its own Environment Plan:
+ *   POST /api/plans → review → approve → apply
+ */
 export async function executeBatchPlaybooks(
-  items: Array<{ catalogId: string; displayName: string }>,
-  connection: StoredConnection,
-  options: BatchRunOptions
+  _items: Array<{ catalogId: string; displayName: string }>,
+  _connection: StoredConnection,
+  options: BatchRunOptions,
+  _execCtx?: ApprovedArtifactExecutionContext
 ): Promise<BatchRunResult> {
-  const itemResults: BatchItemProgress[] = items.map((item, index) => ({
+  const itemResults: BatchItemProgress[] = (_items ?? []).map((item, index) => ({
     itemIndex: index,
     itemId: item.catalogId,
     itemName: item.displayName,
-    status: "pending",
+    status: "failed" as const,
     ok_count: 0,
     changed: 0,
-    failed: 0
+    failed: 1,
+    error: "Direct batch playbook execution is disabled. Create individual Environment Plans for each capability, review, approve, and apply them through the approved immutable artifact pipeline."
   }));
 
-  // 一次 SSH 连接复用所有 item
-  let client: Client;
-  try {
-    client = await connectSsh(connection);
-  } catch (err) {
-    // 连接失败：所有 item 标记为失败
-    for (const result of itemResults) {
-      result.status = "failed";
-      result.error = err instanceof Error ? err.message : "SSH connect failed";
-      options.onItemProgress?.(result);
-    }
-    return { ok: false, totalItems: items.length, succeededItems: 0, failedItems: items.length, itemResults };
+  for (const result of itemResults) {
+    options.onItemProgress?.(result);
   }
-
-  const executor = new Ssh2Executor(client);
-
-  try {
-    for (let i = 0; i < items.length; i++) {
-      // 检查取消
-      if (options.isCancelled?.()) {
-        for (let j = i; j < itemResults.length; j++) {
-          itemResults[j].status = "skipped";
-          options.onItemProgress?.(itemResults[j]);
-        }
-        break;
-      }
-
-      const item = items[i];
-      const result = itemResults[i];
-      result.status = "running";
-      options.onItemProgress?.(result);
-
-      try {
-        if (!(await hasPlaybook(item.catalogId))) {
-          result.status = "failed";
-          result.error = `Playbook not found: ${item.catalogId}`;
-          options.onItemProgress?.(result);
-          continue;
-        }
-
-        const yamlText = await loadPlaybookFromCatalog(item.catalogId);
-        const playbook = parsePlaybook(yamlText);
-
-        const runResult = await runPlaybook(playbook, executor, {
-          dryRun: options.dryRun,
-          onProgress: (log) => options.onTaskProgress?.(i, log),
-          userVars: options.userVarsByCatalogId?.[item.catalogId]
-        });
-
-        result.ok_count = runResult.ok_count;
-        result.changed = runResult.changed;
-        result.failed = runResult.failed;
-
-        if (runResult.ok) {
-          result.status = "succeeded";
-        } else {
-          result.status = "failed";
-          result.error = runResult.error;
-        }
-        options.onItemProgress?.(result);
-      } catch (err) {
-        result.status = "failed";
-        result.error = err instanceof Error ? err.message : "Unknown error";
-        options.onItemProgress?.(result);
-      }
-    }
-  } finally {
-    await executor.close();
-    client.end();
-  }
-
-  const succeededItems = itemResults.filter((r) => r.status === "succeeded").length;
-  const failedItems = itemResults.filter((r) => r.status === "failed").length;
 
   return {
-    ok: failedItems === 0,
-    totalItems: items.length,
-    succeededItems,
-    failedItems,
+    ok: false,
+    totalItems: (_items ?? []).length,
+    succeededItems: 0,
+    failedItems: (_items ?? []).length,
     itemResults
   };
 }
+
+// ══ SSH helpers (internal) ══════════════════════════════════════════
 
 async function connectSsh(connection: StoredConnection): Promise<Client> {
   return new Promise((resolve, reject) => {

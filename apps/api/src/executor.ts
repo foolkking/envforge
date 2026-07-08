@@ -1,5 +1,16 @@
 /**
- * executor.ts — 任务执行器（使用 Playbook 引擎）
+ * executor.ts — 任务执行器
+ *
+ * Phase 1 hardening (2026-07-08):
+ *   Direct playbook/YAML execution is DISABLED. All mutating work must
+ *   go through the Environment Plan pipeline:
+ *
+ *     Recipe Import → Plan → Review → Approval → Immutable Artifact → Apply → Verify → Report
+ *
+ *   executePlaybookTask, executeBatchCatalogTask, and executeCatalogTask
+ *   all return a blocked/failed task with instructions to use the Plan
+ *   flow instead. The only trusted mutating entry point is
+ *   executeEnvironmentPlan() in engine/managed-execution.ts.
  */
 
 import { Client } from "ssh2";
@@ -7,7 +18,7 @@ import fs from "node:fs/promises";
 import { createId, readRuntimeDatabase, updateRuntimeDatabase, type StoredConnection, type StoredUserProfile, type StoredTaskHistory } from "./runtime-store.js";
 import { decryptStoredFields } from "./connections.js";
 import { readUserKey } from "./key-store.js";
-import { executePlaybook, loadPlaybookFromCatalog, hasPlaybook, parsePlaybook, type BatchRunOptions } from "./engine/index.js";
+import { loadPlaybookFromCatalog, hasPlaybook, parsePlaybook, type BatchRunOptions } from "./engine/index.js";
 import type { TaskExecutionLog } from "./engine/types.js";
 import { enqueueTask, cancelQueuedTask, getQueuePosition, isConnectionBusy } from "./task-queue.js";
 import { listCatalogFromDatabase } from "./database.js";
@@ -88,27 +99,23 @@ export async function executeBatchCatalogTask(
   items: Array<{ catalogId: string; displayName: string }>,
   dryRun: boolean,
   taskId?: string,
-  userVarsByCatalogId?: Record<string, Record<string, unknown>>
+  _userVarsByCatalogId?: Record<string, Record<string, unknown>>
 ): Promise<ExecutionTask> {
   const resolvedTaskId = taskId ?? registerBatchTask(userId, connection.id, items, dryRun);
 
-  // Compatibility wrapper: catalog execution is no longer a direct "install"
-  // path. It first resolves selected capabilities into a Rebuild Plan, then
-  // applies that plan through the same playbook runner used by reviewed plans.
-  const catalogItems = await listCatalogFromDatabase();
-  const selected = items
-    .map((item) => catalogItems.find((catalogItem) => catalogItem.id === item.catalogId))
-    .filter((item): item is NonNullable<typeof item> => Boolean(item));
-  if (selected.length !== items.length) {
-    const task = taskStore.get(resolvedTaskId)!;
-    task.status = "failed";
-    task.error = "One or more catalog capabilities could not be resolved into a Rebuild Plan.";
-    notifySubscribers(task.id, task);
-    void persistTaskToHistory(task);
-    return task;
-  }
-  const plan = buildRebuildPlan(selected, connection.id);
-  return executePlaybookTask(userId, connection, plan.export?.yaml ?? "", dryRun, resolvedTaskId, userVarsByCatalogId);
+  // Phase 1: Direct catalog batch execution is blocked. All mutating
+  // work must go through the Environment Plan pipeline.
+  //
+  // The caller should instead:
+  //   1. POST /api/plans (capability-selection kind) → create a Rebuild Plan
+  //   2. POST /api/plans/:id/review → approve the plan
+  //   3. POST /api/plans/:id/apply  → apply the approved immutable artifact
+  const task = taskStore.get(resolvedTaskId)!;
+  task.status = "failed";
+  task.error = "Direct catalog execution is disabled. Create an Environment Plan, review it, approve it, then apply the approved immutable artifact via POST /api/plans.";
+  notifySubscribers(task.id, task);
+  void persistTaskToHistory(task);
+  return task;
 }
 
 export async function executeCatalogTask(
@@ -130,81 +137,34 @@ export async function executeCatalogTask(
   );
 }
 
-/** Execute a raw YAML playbook on a connection */
+/** Direct playbook execution is DISABLED (Phase 1).
+ *
+ * All mutating work must go through:
+ *   Recipe Import → Plan → Review → Approval → Immutable Artifact → Apply → Verify → Report
+ *
+ * Callers should use POST /api/plans with source.kind="recipe" to create an
+ * Imported Recipe Plan, then approve and apply it through the standard
+ * Environment Plan pipeline.
+ */
 export async function executePlaybookTask(
   userId: string,
   connection: StoredConnection,
-  yamlText: string,
+  _yamlText: string,
   dryRun: boolean,
   taskId?: string,
-  userVars?: Record<string, unknown>
+  _userVars?: Record<string, unknown>
 ): Promise<ExecutionTask> {
   if (!taskId) taskId = registerBatchTask(userId, connection.id, [{ catalogId: "playbook", displayName: "Playbook" }], dryRun);
   const task = taskStore.get(taskId)!;
 
-  const positionAhead = enqueueTask({
-    taskId: task.id,
-    userId,
-    connectionId: connection.id,
-    enqueuedAt: new Date().toISOString(),
-    onStart: () => {
-      task.status = "running";
-      task.queuePosition = undefined;
-      task.startedAt = new Date().toISOString();
-      notifySubscribers(task.id, task);
-      void persistTaskToHistory(task);
-    },
-    run: async () => {
-      try {
-        const result = await executePlaybook(yamlText, connection, {
-          dryRun,
-          userVars,
-          onProgress: (log) => {
-            const existing = task.steps.find((s) => s.label === log.taskName);
-            if (existing) {
-              existing.status = mapStatus(log.status);
-              existing.stdout = log.result?.stdout || log.result?.msg || "";
-              existing.stderr = log.result?.stderr ?? "";
-              existing.durationMs = log.durationMs ?? 0;
-            } else {
-              task.steps.push({
-                id: createId("step"),
-                label: log.taskName,
-                command: log.command || log.moduleName,
-                stdout: log.result?.stdout || log.result?.msg || "",
-                stderr: log.result?.stderr ?? "",
-                exitCode: log.result?.failed ? 1 : 0,
-                status: mapStatus(log.status),
-                durationMs: log.durationMs ?? 0,
-                itemIndex: 0
-              });
-            }
-            notifySubscribers(task.id, task);
-          }
-        });
-        task.status = result.ok ? "succeeded" : "failed";
-        if (!result.ok) task.error = result.error;
-        if (task.items?.[0]) { task.items[0].status = result.ok ? "succeeded" : "failed"; task.items[0].error = result.error; }
-      } catch (err) {
-        task.status = "failed";
-        task.error = err instanceof Error ? err.message : "Unknown error";
-        if (task.items?.[0]) { task.items[0].status = "failed"; task.items[0].error = task.error; }
-      }
-
-      task.completedAt = new Date().toISOString();
-      notifySubscribers(task.id, task);
-      void persistTaskToHistory(task);
-    }
-  });
-
-  if (positionAhead > 0) {
-    task.status = "queued";
-    task.queuePosition = positionAhead;
-    notifySubscribers(task.id, task);
-  }
-
+  // Phase 1: Direct playbook execution is blocked. We do NOT invoke
+  // executePlaybook / runPlaybook / shellModule.run / any SSH mutating path.
+  task.status = "failed";
+  task.error = "Direct playbook execution is disabled. Import the recipe as an Environment Plan, review it, approve it, then apply the approved immutable artifact.";
+  task.completedAt = new Date().toISOString();
+  if (task.items?.[0]) { task.items[0].status = "failed"; task.items[0].error = task.error; }
+  notifySubscribers(task.id, task);
   void persistTaskToHistory(task);
-
   return task;
 }
 

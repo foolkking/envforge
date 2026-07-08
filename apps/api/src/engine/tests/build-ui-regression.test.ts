@@ -292,7 +292,7 @@ test("legacy mutation route handlers fail closed in their own bodies", async () 
     assert.ok(match, `routes.ts missing ${handler.method.toUpperCase()} ${handler.path}`);
     const body = match[0]!;
     assert.match(body, /legacyMutationGone\(reply\)|reply\.code\(410\)/, `${handler.path} must return 410 in the handler body`);
-    for (const forbidden of ["executePlaybook", "writeConfigFile", "restoreConfigFileFromBackup", "runMigrationApplyPlan", "executeTask", "buildSnapshotDeployTask"]) {
+    for (const forbidden of ["executePlaybookTask", "executePlaybook", "writeConfigFile", "restoreConfigFileFromBackup", "runMigrationApplyPlan", "executeBatchCatalogTask", "buildSnapshotDeployTask"]) {
       assert.doesNotMatch(body, new RegExp(`\\b${forbidden}\\b`), `${handler.path} must not retain ${forbidden}`);
     }
   }
