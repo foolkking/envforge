@@ -3,6 +3,18 @@ import { getConfig } from "./config.js";
 import { SafeJsonStore } from "./db-store.js";
 import { getSqliteDb, initializeDatabase } from "./db-sqlite.js";
 import type { CatalogDetectionRule } from "./catalog-rules.js";
+import type {
+  ProcessItem,
+  DataPathItem,
+  EnvFileItem,
+  SecretRefItem,
+  VolumeItem,
+  NetworkItem as NetworkSurfaceItem,
+  CertificateItem,
+  DomainItem,
+  UserGroupItem,
+  ScheduledTaskItem,
+} from "./collectors/data-surfaces.js";
 
 // Singleton store instance (reused across requests for cache efficiency)
 let _store: SafeJsonStore<RuntimeDatabase> | null = null;
@@ -187,6 +199,17 @@ export interface StoredProbeSnapshot {
     runningServices: number;
     total: number;
   };
+  /** Phase 3-B structured data surfaces (all optional for backward compat). */
+  processes?: ProcessItem[];
+  dataPaths?: DataPathItem[];
+  envFiles?: EnvFileItem[];
+  secretRefs?: SecretRefItem[];
+  volumes?: VolumeItem[];
+  networks?: NetworkSurfaceItem[];
+  certificates?: CertificateItem[];
+  domains?: DomainItem[];
+  usersGroups?: UserGroupItem[];
+  scheduledTasks?: ScheduledTaskItem[];
 }
 
 export interface StoredConnection {

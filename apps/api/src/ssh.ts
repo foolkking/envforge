@@ -241,6 +241,17 @@ export function fullSnapshotToStored(full: FullSystemSnapshot): StoredProbeSnaps
       trust: s.trust
     })),
     configChecklist: full.configChecklist,
-    counts: full.counts
+    counts: full.counts,
+    // Phase 3-B: pass through structured data surfaces
+    processes: full.processes,
+    dataPaths: full.dataPaths,
+    envFiles: full.envFiles,
+    secretRefs: full.secretRefs,
+    volumes: full.volumes,
+    networks: full.networks,
+    certificates: full.certificates,
+    domains: full.domains,
+    usersGroups: full.usersGroups,
+    scheduledTasks: full.scheduledTasks,
   };
 }

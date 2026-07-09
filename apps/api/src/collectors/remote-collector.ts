@@ -16,6 +16,12 @@
 
 import type { Client } from "ssh2";
 import { isKnownUserPackage } from "./known-packages.js";
+import type {
+  ProcessItem, DataPathItem, EnvFileItem, SecretRefItem,
+  VolumeItem, NetworkItem, CertificateItem, DomainItem,
+  UserGroupItem, ScheduledTaskItem, EvidenceRef,
+} from "./data-surfaces.js";
+import { fingerprintSecret, extractEnvKeys, isSecretKeyName } from "./data-surfaces.js";
 
 const COLLECT_SCRIPT = String.raw`
 run_limited() {
@@ -247,6 +253,101 @@ echo "---"
 grep -vE '^(127\.|::1|#|$)' /etc/hosts 2>>"$COLLECT_ERR" | head -5
 emit_status user-prefs $?
 
+echo "===SECTION:ps-aux==="
+ps aux --no-headers 2>>"$COLLECT_ERR" | awk '{printf "%s|%s|%s|%s|%s\n",$2,$1,$3,$4,$11}' | head -100
+emit_status ps-aux $?
+
+echo "===SECTION:data-paths==="
+# systemd WorkingDirectory + Known app data dirs
+for svc in $(systemctl list-units --type=service --state=running --no-legend 2>>"$COLLECT_ERR" | awk '{print $1}' | head -30); do
+  [ -n "$svc" ] && systemctl show "$svc" 2>>"$COLLECT_ERR" | grep -E '^(WorkingDirectory|ExecStart)=' | head -2 | sed "s/^/SVC:$svc|/"
+done
+# Common app data dirs
+for d in /srv /opt /var/lib /var/www /var/log /home; do
+  [ -d "$d" ] && ls -1d "$d"/*/ 2>>"$COLLECT_ERR" | head -10 | while read -r sub; do
+    bn=$(basename "$sub")
+    sz=$(du -sk "$sub" 2>>"$COLLECT_ERR" | awk '{print $1}')
+    echo "DIR:$bn|$sub|$sz"
+  done
+done
+emit_status data-paths $?
+
+echo "===SECTION:env-files==="
+# systemd EnvironmentFile references — extract paths only
+systemctl show --all 2>>"$COLLECT_ERR" | grep -E '^EnvironmentFile=' | head -20 | sed 's/^EnvironmentFile=//' | while read -r f; do
+  f=$(echo "$f" | sed 's/^-//') # handle "-" prefix for reset
+  if [ -f "$f" ]; then
+    echo "ENVFILE:$f"
+    # Print key names ONLY, strip values at the = sign
+    grep -vE '^[[:space:]]*#' "$f" 2>>"$COLLECT_ERR" | grep '[a-zA-Z_]' | awk -F= '{print $1}' | head -20 | sed 's/^/  KEY:/'
+  fi
+done
+# Common .env files in known locations
+for envf in /srv/.env /opt/.env /var/www/.env /etc/environment /home/*/.env 2>>"$COLLECT_ERR"; do
+  [ -f "$envf" ] && echo "ENVFILE:$envf" && grep -vE '^[[:space:]]*#' "$envf" 2>>"$COLLECT_ERR" | grep '[a-zA-Z_]' | awk -F= '{print $1}' | head -20 | sed 's/^/  KEY:/'
+done
+emit_status env-files $?
+
+echo "===SECTION:certificates==="
+# Find TLS certificates and check expiry
+for cert in /etc/ssl/certs/*.pem /etc/letsencrypt/live/*/cert.pem /etc/nginx/ssl/*.pem /etc/caddy/certs/*.pem 2>>"$COLLECT_ERR"; do
+  [ -f "$cert" ] || continue
+  echo "CERT:$cert"
+  openssl x509 -in "$cert" -noout -subject -issuer -dates 2>>"$COLLECT_ERR" | sed 's/^/  /'
+  openssl x509 -in "$cert" -noout -ext subjectAltName 2>>"$COLLECT_ERR" | grep DNS | sed 's/^/  SAN:/'
+done
+emit_status certificates $?
+
+echo "===SECTION:users-groups==="
+# Non-system users (UID >= 500, < 65534)
+awk -F: '$3>=500 && $3<65534{printf "USER:%s|%s|%s|%s\n",$1,$3,$6,$7}' /etc/passwd 2>>"$COLLECT_ERR"
+# User-relevant groups (docker, sudo, admin, wheel)
+for grp in docker sudo admin wheel; do
+  getent group "$grp" 2>>"$COLLECT_ERR" && echo "GROUP:$grp|$(getent group "$grp" 2>>"$COLLECT_ERR")"
+done
+emit_status users-groups $?
+
+echo "===SECTION:domains==="
+# Extract server_name from nginx configs (bounded: common paths only)
+for ncf in /etc/nginx/sites-enabled/* /etc/nginx/conf.d/*.conf /etc/nginx/nginx.conf 2>>"$COLLECT_ERR"; do
+  [ -f "$ncf" ] || continue
+  grep -oP 'server_name\s+\K[^;]+' "$ncf" 2>>"$COLLECT_ERR" | tr -d '\r' | while read -r names; do
+    for nm in $names; do [ "$nm" != "_" ] && echo "DOMAIN:$nm|nginx|$ncf"; done
+  done
+done
+# Caddy Caddyfile
+[ -f /etc/caddy/Caddyfile ] && grep -E '^\s*[a-zA-Z0-9.-]+\.[a-z]{2,}\s*\{' /etc/caddy/Caddyfile 2>>"$COLLECT_ERR" | awk '{print "DOMAIN:"$1"|caddy|/etc/caddy/Caddyfile"}'
+# Apache ServerName/ServerAlias
+for acf in /etc/apache2/sites-enabled/*.conf /etc/httpd/conf.d/*.conf 2>>"$COLLECT_ERR"; do
+  [ -f "$acf" ] || continue
+  grep -iE '^\s*Server(Name|Alias)\s+' "$acf" 2>>"$COLLECT_ERR" | awk '{print "DOMAIN:"$2"|apache|'"$acf"'"}'
+done
+emit_status domains $?
+
+echo "===SECTION:docker-networks==="
+if command -v docker >/dev/null 2>&1; then
+  docker network ls --format '{{.ID}}|{{.Name}}|{{.Driver}}|{{.Scope}}' 2>>"$COLLECT_ERR"
+  # Per-network details (subnet, gateway)
+  for netid in $(docker network ls -q 2>>"$COLLECT_ERR"); do
+    [ -n "$netid" ] && docker network inspect "$netid" 2>>"$COLLECT_ERR" | grep -E '"(Name|Subnet|Gateway|com.docker.compose.project)"' | head -20
+  done
+  emit_status docker-networks 0
+else
+  emit_status docker-networks 127
+fi
+
+echo "===SECTION:docker-volumes==="
+if command -v docker >/dev/null 2>&1; then
+  docker volume ls --format '{{.Name}}|{{.Driver}}|{{.Scope}}|{{.Mountpoint}}' 2>>"$COLLECT_ERR"
+  # Per-volume details
+  for vol in $(docker volume ls -q 2>>"$COLLECT_ERR"); do
+    [ -n "$vol" ] && echo "VOL:$vol" && docker volume inspect "$vol" 2>>"$COLLECT_ERR" | grep -E '"(Name|Mountpoint|Driver|Labels)"' | head -10
+  done
+  emit_status docker-volumes 0
+else
+  emit_status docker-volumes 127
+fi
+
 echo "===SECTION:end==="
 emit_status end 0
 cat "$COLLECT_ERR" >&2
@@ -342,6 +443,17 @@ export interface FullSystemSnapshot {
     runningServices: number;
     total: number;
   };
+  /** Phase 3-B structured data surfaces (all optional for backward compat). */
+  processes?: ProcessItem[];
+  dataPaths?: DataPathItem[];
+  envFiles?: EnvFileItem[];
+  secretRefs?: SecretRefItem[];
+  volumes?: VolumeItem[];
+  networks?: NetworkItem[];
+  certificates?: CertificateItem[];
+  domains?: DomainItem[];
+  usersGroups?: UserGroupItem[];
+  scheduledTasks?: ScheduledTaskItem[];
 }
 
 /** Collect a comprehensive snapshot via a single SSH exec */
@@ -806,6 +918,18 @@ function parseFullOutput(
     });
   }
 
+  // ── Phase 3-B: Data surfaces ────────────────────────────────
+  const processes = parseProcesses(sections, enabledServices, runningServices, software);
+  const dataPaths = parseDataPaths(sections, software);
+  const envFiles = parseEnvFiles(sections);
+  const volumes = parseVolumes(sections);
+  const networks = parseNetworks(sections);
+  const certificates = parseCertificates(sections);
+  const domains = parseDomains(sections);
+  const usersGroups = parseUsersGroups(sections);
+  const scheduledTasks = parseScheduledTasks(sections);
+  const secretRefs = deriveSecretRefs(envFiles, usersGroups, certificates, host);
+
   return {
     agentId: `ssh:${host}`,
     collectedAt,
@@ -838,8 +962,449 @@ function parseFullOutput(
     },
     software,
     configChecklist,
-    counts
+    counts,
+    processes,
+    dataPaths,
+    envFiles,
+    secretRefs,
+    volumes,
+    networks,
+    certificates,
+    domains,
+    usersGroups,
+    scheduledTasks,
   };
+}
+
+// ── Phase 3-B Parser functions ──
+
+/** Evidence helper: stamp a collector as the source */
+function ev(collectorId: string, extra?: Partial<EvidenceRef>): EvidenceRef[] {
+  return [{ collectorId, source: collectorId, confidence: "high", ...extra }];
+}
+
+function parseProcesses(
+  sections: Record<string, string>,
+  enabledServices: string[],
+  runningServices: string[],
+  software: SoftwareItem[]
+): ProcessItem[] {
+  const raw = sections["ps-aux"] ?? "";
+  const lines = parseLines(raw);
+  if (lines.length === 0) return [];
+
+  const runningSet = new Set(runningServices.map(s => s.replace(/\.service$/, "")));
+  const enabledSet = new Set(enabledServices.map(s => s.replace(/\.service$/, "")));
+
+  const processes: ProcessItem[] = [];
+  for (const line of lines) {
+    const parts = line.split("|");
+    const pid = parseInt(parts[0] ?? "0", 10);
+    const user = parts[1]?.trim() || undefined;
+    const cpuPct = parseFloat(parts[2] ?? "0") || undefined;
+    const memPct = parseFloat(parts[3] ?? "0") || undefined;
+    const cmd = parts.slice(4).join("|").trim();
+    if (!cmd || pid === 0) continue;
+
+    // Try cross-reference to systemd service
+    let serviceName: string | undefined;
+    const cmdBase = cmd.split(/\s+/)[0].split("/").pop() ?? "";
+    if (runningSet.has(cmdBase) || enabledSet.has(cmdBase)) {
+      serviceName = cmdBase;
+    }
+
+    // Try cross-reference to package
+    const pkg = software.find(s =>
+      s.name === cmdBase ||
+      (s.source === "systemd" && s.name === cmdBase) ||
+      cmd.startsWith(s.name)
+    );
+
+    // Try cross-reference to listening ports (will be resolved in inventory graph)
+    processes.push({
+      pid,
+      user,
+      cpuPct,
+      memPct,
+      command: cmd,
+      serviceName,
+      packageName: pkg?.name,
+      evidence: ev("ps-aux", { command: "ps aux" })
+    });
+  }
+  return processes;
+}
+
+function parseDataPaths(
+  sections: Record<string, string>,
+  software: SoftwareItem[]
+): DataPathItem[] {
+  const raw = sections["data-paths"] ?? "";
+  const lines = parseLines(raw);
+  if (lines.length === 0) return [];
+
+  const dataPaths: DataPathItem[] = [];
+  for (const line of lines) {
+    // systemd WorkingDirectory/ExecStart lines: "SVC:svcname|WorkingDirectory=/path"
+    if (line.startsWith("SVC:")) {
+      const svcMatch = line.match(/^SVC:([^|]+)\|(WorkingDirectory|ExecStart)=(.*)$/);
+      if (svcMatch) {
+        const svcName = svcMatch[1].replace(/\.service$/, "");
+        const field = svcMatch[2];
+        const val = svcMatch[3].trim();
+        // For ExecStart, extract a likely path
+        let path = val;
+        if (field === "ExecStart") {
+          // Extract a directory-like path from the command
+          const pathMatch = val.match(/^(\/[^\s]+)/);
+          if (pathMatch) {
+            // Check if this looks like a directory path
+            const dir = pathMatch[1].replace(/\/[^/]+$/, "");
+            if (dir.length > 2) path = dir;
+            else path = pathMatch[1];
+          }
+        }
+        if (path && path.length > 2) {
+          dataPaths.push({
+            path,
+            kind: field === "WorkingDirectory" ? "service-workdir" : "unknown",
+            serviceName: svcName,
+            evidence: ev("data-paths", { path })
+          });
+        }
+      }
+    }
+    // Directory line: "DIR:name|/path|sizeKb"
+    else if (line.startsWith("DIR:")) {
+      const dirMatch = line.match(/^DIR:([^|]+)\|([^|]+)\|(\d+)?$/);
+      if (dirMatch) {
+        const name = dirMatch[1];
+        const p = dirMatch[2];
+        const sz = parseInt(dirMatch[3] ?? "0", 10) || undefined;
+        const pkg = software.find(s => s.name === name);
+        const kind: DataPathItem["kind"] =
+          p?.includes("/var/lib") || p?.includes("/var/log") ? (p.includes("/var/lib") ? "database-data" : "log-dir")
+            : p?.includes("/srv") || p?.includes("/var/www") ? "app-data"
+              : "unknown";
+        dataPaths.push({
+          path: p,
+          kind,
+          serviceName: pkg?.name || name,
+          packageName: pkg?.name,
+          sizeBytes: sz ? sz * 1024 : undefined,
+          evidence: ev("data-paths", { path: p })
+        });
+      }
+    }
+  }
+  return dataPaths;
+}
+
+function parseEnvFiles(sections: Record<string, string>): EnvFileItem[] {
+  const raw = sections["env-files"] ?? "";
+  if (!raw.trim()) return [];
+
+  const envFiles: EnvFileItem[] = [];
+  let currentPath: string | null = null;
+  let currentKeys: string[] = [];
+
+  for (const line of raw.split("\n").map(l => l.trim()).filter(Boolean)) {
+    if (line.startsWith("ENVFILE:")) {
+      // Flush previous
+      if (currentPath && currentKeys.length > 0) {
+        envFiles.push({
+          path: currentPath,
+          keys: currentKeys,
+          redacted: true,
+          evidence: ev("env-files", { path: currentPath })
+        });
+      }
+      currentPath = line.slice("ENVFILE:".length).trim();
+      currentKeys = [];
+    } else if (line.startsWith("KEY:") && currentPath) {
+      const key = line.slice("KEY:".length).trim();
+      if (key) currentKeys.push(key);
+    }
+  }
+  // Flush last
+  if (currentPath && currentKeys.length > 0) {
+    envFiles.push({
+      path: currentPath,
+      keys: currentKeys,
+      redacted: true,
+      evidence: ev("env-files", { path: currentPath })
+    });
+  }
+  return envFiles;
+}
+
+function parseVolumes(sections: Record<string, string>): VolumeItem[] {
+  const raw = sections["docker-volumes"] ?? "";
+  const lines = parseLines(raw);
+  if (lines.length === 0) return [];
+
+  const volumes: VolumeItem[] = [];
+  let current: Partial<VolumeItem> | null = null;
+
+  for (const line of lines) {
+    if (line.startsWith("VOL:")) {
+      if (current?.name) volumes.push(current as VolumeItem);
+      current = {
+        id: line.slice("VOL:".length),
+        name: line.slice("VOL:".length),
+        evidence: ev("docker-volumes")
+      };
+    } else if (line.includes("|")) {
+      const parts = line.split("|");
+      if (parts.length >= 3) {
+        // Could be either Name|Driver|Scope|Mountpoint (simple listing)
+        // or additional per-inspect detail
+        if (current) {
+          // Enrich existing current entry
+          if (!current.name || current.name === current.id) current.name = parts[0];
+          if (!current.driver) current.driver = parts[1] || parts[2] || undefined;
+          if (!current.scope) current.scope = (parts[2] as "local" | "global") || undefined;
+          if (!current.mountpoint && parts.length >= 4) current.mountpoint = parts[3] || undefined;
+        }
+        // Always try the simple listing format: Name|Driver|Scope|Mountpoint
+        if (parts.length >= 4) {
+          volumes.push({
+            id: parts[0],
+            name: parts[0],
+            driver: parts[1] || undefined,
+            scope: (parts[2] as "local" | "global") || undefined,
+            mountpoint: parts[3] || undefined,
+            evidence: ev("docker-volumes")
+          });
+        }
+      }
+    }
+  }
+  if (current?.name && !volumes.find(v => v.name === current!.name)) {
+    volumes.push(current as VolumeItem);
+  }
+  return volumes;
+}
+
+function parseNetworks(sections: Record<string, string>): NetworkItem[] {
+  const raw = sections["docker-networks"] ?? "";
+  const lines = parseLines(raw);
+  if (lines.length === 0) return [];
+
+  const networks: NetworkItem[] = [];
+  for (const line of lines) {
+    if (line.includes("|")) {
+      const parts = line.split("|");
+      if (parts.length >= 3) {
+        networks.push({
+          id: parts[0],
+          name: parts[1],
+          kind: parts[2] === "bridge" ? "docker-bridge"
+            : parts[2] === "overlay" ? "docker-overlay"
+              : parts[2] === "macvlan" ? "docker-macvlan"
+                : "unknown",
+          driver: parts[2] || undefined,
+          evidence: ev("docker-networks")
+        });
+      }
+    }
+  }
+  return networks;
+}
+
+function parseCertificates(sections: Record<string, string>): CertificateItem[] {
+  const raw = sections["certificates"] ?? "";
+  if (!raw.trim()) return [];
+
+  const certificates: CertificateItem[] = [];
+  let current: Partial<CertificateItem> | null = null;
+  let currentDomains: string[] = [];
+
+  for (const line of raw.split("\n").map(l => l.trim()).filter(Boolean)) {
+    if (line.startsWith("CERT:")) {
+      if (current?.path) {
+        certificates.push({
+          ...current as CertificateItem,
+          domains: currentDomains.length > 0 ? currentDomains : undefined,
+          evidence: ev("certificates", { path: current.path })
+        });
+      }
+      current = { path: line.slice("CERT:".length) };
+      currentDomains = [];
+    } else if (current && line.startsWith("subject=")) {
+      current.subject = line.slice("subject=".length).trim();
+    } else if (current && line.startsWith("issuer=")) {
+      current.issuer = line.slice("issuer=".length).trim();
+    } else if (current && line.startsWith("notBefore=")) {
+      current.notBefore = line.slice("notBefore=".length).trim();
+    } else if (current && line.startsWith("notAfter=")) {
+      const na = line.slice("notAfter=".length).trim();
+      current.notAfter = na;
+      const days = Math.ceil((new Date(na).getTime() - Date.now()) / 86400000);
+      current.daysRemaining = isNaN(days) ? undefined : days;
+    } else if (current && line.startsWith("SAN:") && line.includes("DNS:")) {
+      const dnsMatches = line.match(/DNS:[^,\s]+/g);
+      if (dnsMatches) currentDomains.push(...dnsMatches.map(d => d.slice(4)));
+    }
+  }
+  if (current?.path) {
+    certificates.push({
+      ...current as CertificateItem,
+      domains: currentDomains.length > 0 ? currentDomains : undefined,
+      evidence: ev("certificates", { path: current.path })
+    });
+  }
+  return certificates;
+}
+
+function parseDomains(sections: Record<string, string>): DomainItem[] {
+  const raw = sections["domains"] ?? "";
+  if (!raw.trim()) return [];
+
+  const domains: DomainItem[] = [];
+  for (const line of raw.split("\n").map(l => l.trim()).filter(Boolean)) {
+    if (line.startsWith("DOMAIN:")) {
+      const parts = line.slice("DOMAIN:".length).split("|");
+      if (parts.length >= 3) {
+        const name = parts[0];
+        const source = parts[1] as DomainItem["source"];
+        const configPath = parts[2];
+        if (name && name !== "_") {
+          domains.push({
+            name,
+            source: source || "unknown",
+            certificatePath: undefined, // cross-ref in inventory graph
+            evidence: ev("domains", { path: configPath })
+          });
+        }
+      }
+    }
+  }
+  return domains;
+}
+
+function parseUsersGroups(sections: Record<string, string>): UserGroupItem[] {
+  const raw = sections["users-groups"] ?? "";
+  if (!raw.trim()) return [];
+
+  const items: UserGroupItem[] = [];
+  for (const line of raw.split("\n").map(l => l.trim()).filter(Boolean)) {
+    if (line.startsWith("USER:")) {
+      const parts = line.slice("USER:".length).split("|");
+      if (parts.length >= 4) {
+        items.push({
+          name: parts[0],
+          kind: "user",
+          uid: parseInt(parts[1], 10) || undefined,
+          home: parts[2] || undefined,
+          shell: parts[3] || undefined,
+          system: (parseInt(parts[1], 10) || 1000) < 1000,
+          evidence: ev("users-groups")
+        });
+      }
+    } else if (line.startsWith("GROUP:")) {
+      const parts = line.slice("GROUP:".length).split("|");
+      if (parts.length >= 2) {
+        const gid = parseInt(parts[1] ?? "", 10) || undefined;
+        items.push({
+          name: parts[0],
+          kind: "group",
+          gid,
+          system: (gid ?? 1000) < 1000,
+          evidence: ev("users-groups")
+        });
+      }
+    }
+  }
+  return items;
+}
+
+function parseScheduledTasks(sections: Record<string, string>): ScheduledTaskItem[] {
+  // Use existing cron-jobs and systemd-timers sections
+  const cronRaw = sections["cron-jobs"] ?? "";
+  const timerRaw = sections["systemd-timers"] ?? "";
+
+  const tasks: ScheduledTaskItem[] = [];
+
+  // Parse cron jobs from existing section
+  for (const line of parseLines(cronRaw)) {
+    if (!line || line.startsWith("#") || line.startsWith("SHELL") || line.startsWith("PATH") || line.startsWith("MAILTO")) continue;
+    // Match cron entry: five fields + command
+    const cronMatch = line.match(/^(\S+\s+\S+\s+\S+\s+\S+\s+\S+)\s+(.+)$/);
+    if (cronMatch) {
+      tasks.push({
+        id: `cron:${cronMatch[2].split(/\s+/)[0].slice(0, 30)}`,
+        kind: "cron",
+        schedule: cronMatch[1],
+        command: cronMatch[2],
+        enabled: true, // If in crontab, it's enabled
+        evidence: ev("cron-jobs", { command: "crontab -l" })
+      });
+    }
+  }
+
+  // Parse systemd timers from existing section
+  for (const timer of parseLines(timerRaw)) {
+    if (!timer) continue;
+    const name = timer.replace(/\.timer$/, "");
+    tasks.push({
+      id: `systemd-timer:${name}`,
+      kind: "systemd-timer",
+      serviceName: name,
+      enabled: true,
+      evidence: ev("systemd-timers", { command: "systemctl list-timers" })
+    });
+  }
+
+  return tasks;
+}
+
+function deriveSecretRefs(
+  envFiles: EnvFileItem[],
+  usersGroups: UserGroupItem[],
+  certificates: CertificateItem[],
+  host: string
+): SecretRefItem[] {
+  const refs: SecretRefItem[] = [];
+  const seen = new Set<string>();
+
+  // From env files — keys matching known secret patterns
+  for (const ef of envFiles) {
+    for (const key of ef.keys) {
+      if (isSecretKeyName(key)) {
+        const fp = fingerprintSecret(ef.path, key);
+        if (seen.has(fp)) continue;
+        seen.add(fp);
+        refs.push({
+          id: `secret:${fp}`,
+          sourceLocation: `${ef.path}:${key}`,
+          kind: "env",
+          fingerprint: fp,
+          redacted: true,
+          evidence: ev("env-files", { path: ef.path, command: `env key:${key}` })
+        });
+      }
+    }
+  }
+
+  // From certificates — key files
+  for (const cert of certificates) {
+    if (cert.path.includes("key") || cert.path.includes("privkey")) {
+      const fp = fingerprintSecret(cert.path, "certificate-key");
+      if (seen.has(fp)) continue;
+      seen.add(fp);
+      refs.push({
+        id: `secret:${fp}`,
+        sourceLocation: cert.path,
+        kind: "certificate-key",
+        fingerprint: fp,
+        redacted: true,
+        evidence: ev("certificates", { path: cert.path })
+      });
+    }
+  }
+
+  return refs;
 }
 
 // ── Filters ──
