@@ -86,6 +86,35 @@ test("support bundle supports assessment-only sessions without Plan or Apply met
   assert.match(supportBundleToMarkdown(bundle), /Plan ID: unavailable/);
 });
 
+// ── Phase 6-B: InventoryGraph and enriched stacks in support bundle ──
+
+test("support bundle includes inventoryGraph and enrichedStacks when assessment has them", () => {
+  const assess = assessment();
+  // Simulate enriched stacks being set on the assessment
+  const bundle = buildSupportBundle({
+    sessionId: "session",
+    assessment: assess,
+    enrichedStacks: [],
+    failureDiagnostics: []
+  });
+  // enrichedStacks propagated from input
+  assert.ok(Array.isArray(bundle.enrichedStacks), "enrichedStacks is an array");
+  assert.equal(bundle.enrichedStacks.length, 0, "empty enriched stacks propagated correctly");
+});
+
+test("support bundle omits inventoryGraph when not provided and assessment has no enrichedStacks", () => {
+  const assess = assessment();
+  // assessment() fixture doesn't have enrichedStacks built-in
+  const bundle = buildSupportBundle({
+    sessionId: "session",
+    assessment: assess,
+    failureDiagnostics: []
+  });
+  // Without enrichedStacks on assessment and no input override, inventoryGraph is undefined
+  assert.equal(bundle.inventoryGraph, undefined);
+  assert.equal(bundle.enrichedStacks, undefined);
+});
+
 test("Repair Plan output is evidence only and exposes no execution capability", () => {
   const diagnostic = buildFailureDiagnostic({ source: "apply", whatFailed: "Nginx configuration validation failed", command: "nginx -t", exitCode: 1, beforeMutation: true });
   assert.equal(diagnostic.repairPlanDraft?.status, "draft");

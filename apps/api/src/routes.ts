@@ -86,6 +86,7 @@ import { buildMigrationSessionArtifacts, initialMigrationSessionState, isMigrati
 import { assessmentReportToMarkdown, buildAssessmentSummary } from "./migration-assessment.js";
 import { buildFailureDiagnostics, collectSessionFailureEvidence } from "./failure-diagnostics.js";
 import { buildSupportBundle, supportBundleToMarkdown } from "./support-bundle.js";
+import { extractInventoryGraph, aggregateServiceStacks } from "./inventory-graph.js";
 import { buildCapabilityCatalogReview, buildCatalogPromotionRequestDraft } from "./capability-catalog-preview.js";
 import { buildConfigChangePlan, buildConfigMigrationPlan, buildImportedRecipePlan, buildPlanReport, buildRebuildPlan, buildRemovePlan, buildRepairPlan, evaluateApplyGate, migrationPlanToEnvironmentPlan, planReportToMarkdown, type EnvironmentPlan, type EnvironmentPlanStatus, type PlanApprovalRecord, type PlanApprovalState, type RepairFailure } from "./environment-plan.js";
 import {
@@ -4572,6 +4573,40 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
       return reply.type("text/markdown; charset=utf-8").send(assessmentReportToMarkdown(assessment));
     }
     return { format: "json", report: assessment };
+  });
+
+  // ── Phase 6-B: Inventory Graph & enriched Service Stack routes ──
+
+  app.get("/api/migration/sessions/:sessionId/inventory-graph", async (request, reply) => {
+    const user = await getUserByToken(readBearerToken(request.headers.authorization));
+    if (!user) { reply.code(401); return { error: "Login required." }; }
+    const { sessionId } = request.params as { sessionId: string };
+    const context = await loadMigrationSessionContext(user.id, sessionId);
+    if (!context) { reply.code(404); return { error: "Migration session not found." }; }
+    if (!context.conn.probeSnapshot) { reply.code(400); return { error: "No snapshot available." }; }
+    return { graph: extractInventoryGraph(context.conn.probeSnapshot) };
+  });
+
+  app.get("/api/migration/sessions/:sessionId/service-stacks", async (request, reply) => {
+    const user = await getUserByToken(readBearerToken(request.headers.authorization));
+    if (!user) { reply.code(401); return { error: "Login required." }; }
+    const { sessionId } = request.params as { sessionId: string };
+    const context = await loadMigrationSessionContext(user.id, sessionId);
+    if (!context) { reply.code(404); return { error: "Migration session not found." }; }
+    if (!context.conn.probeSnapshot) { reply.code(400); return { error: "No snapshot available." }; }
+    const graph = extractInventoryGraph(context.conn.probeSnapshot);
+    return { stacks: aggregateServiceStacks(graph) };
+  });
+
+  app.get("/api/connections/:id/inventory-graph", async (request, reply) => {
+    const user = await getUserByToken(readBearerToken(request.headers.authorization));
+    if (!user) { reply.code(401); return { error: "Login required." }; }
+    const { id } = request.params as { id: string };
+    const db = await readRuntimeDatabase();
+    const conn = db.connections.find((c) => c.id === id && c.userId === user.id);
+    if (!conn) { reply.code(404); return { error: "Connection not found." }; }
+    if (!conn.probeSnapshot) { reply.code(400); return { error: "Probe this connection before requesting inventory graph." }; }
+    return { graph: extractInventoryGraph(conn.probeSnapshot) };
   });
 
   app.get("/api/migration/sessions/:sessionId/failures", async (request, reply) => {

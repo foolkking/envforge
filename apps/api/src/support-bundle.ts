@@ -1,6 +1,7 @@
 import { redactSecrets, safePreview, type ActionRunRecord } from "./action-runs.js";
 import type { FailureDiagnostic } from "./failure-diagnostics.js";
 import type { AssessmentSummary } from "./migration-assessment.js";
+import type { InventoryGraph, ServiceStack } from "./inventory-graph.js";
 
 export interface SupportBundlePlanMetadata {
   id: string;
@@ -60,6 +61,10 @@ export interface SupportBundle {
     riskSummary: AssessmentSummary["riskSummary"];
     serviceStacks: AssessmentSummary["serviceStacks"];
   };
+  /** Phase 6-B: enriched inventory graph evidence. */
+  inventoryGraph?: InventoryGraph;
+  /** Phase 6-B: enriched service stacks from the Inventory Graph engine. */
+  enrichedStacks?: ServiceStack[];
   reviewDecisions: AssessmentSummary["requiredDecisions"];
   verification?: unknown;
   failureDiagnostics: FailureDiagnostic[];
@@ -85,6 +90,10 @@ export interface BuildSupportBundleInput {
   generatedAt?: string;
   goldenScenarioId?: string;
   assessment?: AssessmentSummary;
+  /** Phase 6-B: inventory graph from the session snapshot. */
+  inventoryGraph?: InventoryGraph;
+  /** Phase 6-B: enriched service stacks from the Inventory Graph engine. */
+  enrichedStacks?: ServiceStack[];
   plan?: SupportBundlePlanMetadata;
   apply?: SupportBundleApplyMetadata;
   actionRecords?: ActionRunRecord[];
@@ -134,6 +143,8 @@ export function buildSupportBundle(input: BuildSupportBundleInput): SupportBundl
       riskSummary: assessment.riskSummary,
       serviceStacks: assessment.serviceStacks
     } : undefined,
+    inventoryGraph: input.inventoryGraph,
+    enrichedStacks: input.enrichedStacks ?? assessment?.enrichedStacks,
     reviewDecisions: assessment?.requiredDecisions ?? [],
     verification: input.verification,
     failureDiagnostics: input.failureDiagnostics ?? [],

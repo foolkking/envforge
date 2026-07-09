@@ -214,3 +214,62 @@ test("Assessment JSON and Markdown reports redact secrets and state the read-onl
   assert.match(markdown, /No apply run was created/);
   assert.match(markdown, /No target mutation was performed/);
 });
+
+// ── Phase 6-B: enriched Inventory Graph stacks in assessment ──
+
+test("Assessment summary includes enrichedStacks from InventoryGraph", () => {
+  const result = assessment(snapshot());
+  assert.ok(Array.isArray(result.enrichedStacks), "enrichedStacks is an array");
+  assert.ok(result.enrichedStacks!.length > 0, "at least one enriched stack");
+
+  const pgStack = result.enrichedStacks!.find((s) => s.label.toLowerCase().includes("postgres"));
+  assert.ok(pgStack, "postgres enriched stack found");
+  assert.ok(pgStack!.packages.some((p) => p.name === "postgresql"), "postgresql package in enriched stack");
+  assert.ok(pgStack!.enrichment, "enrichment metadata present");
+  assert.equal(pgStack!.enrichment!.version, "phase5.stack.v1");
+});
+
+test("Assessment enrichedStacks do not alter existing serviceStacks", () => {
+  const result = assessment(snapshot());
+  // Existing serviceStacks (AssessmentServiceStack) unchanged
+  const postgres = result.serviceStacks.find((stack) => stack.category === "database");
+  assert.ok(postgres);
+  assert.equal(postgres.name, "PostgreSQL Database");
+  assert.equal(postgres.risk, "high");
+  assert.equal(postgres.migrationReadiness, "requires-decision");
+
+  // enrichedStacks has different shape (ServiceStack)
+  const pgEnriched = result.enrichedStacks!.find((s) => s.label.toLowerCase().includes("postgres"));
+  assert.ok(pgEnriched);
+  // ServiceStack has 'service' field, AssessmentServiceStack does not
+  assert.ok(pgEnriched!.service, "ServiceStack has service node");
+  assert.equal(pgEnriched!.service.unit, "postgresql");
+});
+
+test("Assessment with no software produces empty enrichedStacks", () => {
+  const source = snapshot({
+    software: [],
+    configChecklist: []
+  });
+  const result = assessment(source);
+  assert.ok(Array.isArray(result.enrichedStacks), "enrichedStacks is an array");
+  assert.equal(result.enrichedStacks!.length, 0, "no stacks when no software");
+});
+
+test("Assessment read-only boundary is not violated by InventoryGraph extraction", () => {
+  const result = assessment(snapshot());
+  const json = JSON.stringify(result);
+
+  // Redaction still works
+  assert.doesNotMatch(json, /super-secret-password/);
+
+  // No secret-like values leak through enriched stacks
+  // SecretRef nodes use fingerprints, never raw values
+  if (json.includes("secretRef")) {
+    assert.doesNotMatch(json, /\bpassword\b/i);
+  }
+
+  // Enriched stacks exist alongside existing fields
+  assert.ok(result.serviceStacks.length > 0, "existing serviceStacks still present");
+  assert.ok(result.enrichedStacks!.length > 0, "enrichedStacks present");
+});

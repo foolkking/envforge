@@ -1,5 +1,10 @@
 import { redactSecrets, safePreview } from "./action-runs.js";
 import type { FullSystemSnapshot } from "./collectors/remote-collector.js";
+import {
+  extractInventoryGraph,
+  aggregateServiceStacks,
+  type ServiceStack
+} from "./inventory-graph.js";
 import type {
   MigrationCandidate,
   MigrationCandidateReport,
@@ -128,6 +133,8 @@ export interface AssessmentSummary {
   source?: { host?: string; os?: string; architecture?: string };
   snapshot?: { capturedAt?: string; completeness: AssessmentCompleteness };
   serviceStacks: AssessmentServiceStack[];
+  /** Phase 6-B: enriched service stacks from the Inventory Graph engine. */
+  enrichedStacks?: ServiceStack[];
   riskSummary: AssessmentRiskSummary;
   readiness: AssessmentReadiness;
   requiredDecisions: AssessmentRequiredDecision[];
@@ -165,6 +172,11 @@ export function buildAssessmentSummary(input: BuildAssessmentInput): AssessmentS
     stackForCandidate(candidate, evidenceQuality, decisions.get(candidate.id), confirmedData.has(candidate.id))
   );
   attachRelationships(serviceStacks);
+
+  // Phase 6-B: extract InventoryGraph + aggregate enriched ServiceStack array
+  const graph = extractInventoryGraph(input.snapshot as StoredProbeSnapshot);
+  const enrichedStacks = aggregateServiceStacks(graph);
+
   const requiredDecisions = dedupeDecisions(serviceStacks.flatMap((stack) => stack.requiredDecisions));
   const riskSummary = buildRiskSummary(serviceStacks);
   const readiness = buildAssessmentReadiness(serviceStacks, requiredDecisions, evidenceQuality);
@@ -191,6 +203,7 @@ export function buildAssessmentSummary(input: BuildAssessmentInput): AssessmentS
       }
     },
     serviceStacks,
+    enrichedStacks,
     riskSummary,
     readiness,
     requiredDecisions,
