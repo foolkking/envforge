@@ -859,6 +859,102 @@ export function extractInventoryGraph(snapshot: StoredProbeSnapshot): InventoryG
   };
 }
 
+// ══ Service stack ref types (Phase 5-B) ════════════════════════════════
+
+export interface StackProcessRef {
+  id: string;
+  pid?: number;
+  command?: string;
+  user?: string;
+  ports?: number[];
+  confidence: "high" | "medium" | "low";
+  evidence: string[];
+}
+
+export interface StackDataPathRef {
+  id: string;
+  path: string;
+  kind?: string;
+  owner?: string;
+  confidence: "high" | "medium" | "low";
+  evidence: string[];
+}
+
+export interface StackEnvFileRef {
+  id: string;
+  path: string;
+  keyCount?: number;
+  confidence: "high" | "medium" | "low";
+  evidence: string[];
+}
+
+export interface StackSecretRef {
+  id: string;
+  fingerprint: string;
+  kind?: string;
+  sourceLocation?: string;
+  redacted: true;
+  confidence: "high" | "medium" | "low";
+  evidence: string[];
+}
+
+export interface StackVolumeRef {
+  id: string;
+  name?: string;
+  mountpoint?: string;
+  confidence: "high" | "medium" | "low";
+  evidence: string[];
+}
+
+export interface StackNetworkRef {
+  id: string;
+  name?: string;
+  kind?: string;
+  confidence: "high" | "medium" | "low";
+  evidence: string[];
+}
+
+export interface StackCertificateRef {
+  id: string;
+  path?: string;
+  domains?: string[];
+  daysRemaining?: number;
+  confidence: "high" | "medium" | "low";
+  evidence: string[];
+}
+
+export interface StackDomainRef {
+  id: string;
+  name: string;
+  certificateId?: string;
+  confidence: "high" | "medium" | "low";
+  evidence: string[];
+}
+
+export interface StackUserGroupRef {
+  id: string;
+  name: string;
+  kind: "user" | "group";
+  confidence: "high" | "medium" | "low";
+  evidence: string[];
+}
+
+export interface StackScheduledTaskRef {
+  id: string;
+  kind?: string;
+  schedule?: string;
+  command?: string;
+  confidence: "high" | "medium" | "low";
+  evidence: string[];
+}
+
+export interface StackEnrichment {
+  version: "phase5.stack.v1";
+  sourceGraphNodeCount: number;
+  sourceGraphEdgeCount: number;
+  enrichmentWarnings: string[];
+}
+
 // ══ Service stack aggregator ═════════════════════════════════════════
 
 export interface ServiceStack {
@@ -874,45 +970,420 @@ export interface ServiceStack {
   /** How confident the system is that this is a coherent stack. */
   confidence: "high" | "medium" | "low";
   reasoning: string;
+
+  // ── Phase 5-B: enriched stack fields (all optional, backward-compatible) ──
+  processes?: StackProcessRef[];
+  dataPaths?: StackDataPathRef[];
+  envFiles?: StackEnvFileRef[];
+  secretRefs?: StackSecretRef[];
+  volumes?: StackVolumeRef[];
+  networks?: StackNetworkRef[];
+  certificates?: StackCertificateRef[];
+  domains?: StackDomainRef[];
+  usersGroups?: StackUserGroupRef[];
+  scheduledTasks?: StackScheduledTaskRef[];
+  enrichment?: StackEnrichment;
 }
 
+// ══ Aggregation helpers ══════════════════════════════════════════════
+
+/** Parse confidence from edge evidence prefix. Defaults to "medium". */
+function parseConfidence(evidence: string): "high" | "medium" | "low" {
+  if (evidence.startsWith("[high]")) return "high";
+  if (evidence.startsWith("[medium]")) return "medium";
+  if (evidence.startsWith("[low]")) return "low";
+  return "medium";
+}
+
+/** Collect edges of a given kind where `from` matches any of the given node IDs. */
+function collectEdgesFrom(
+  rels: InventoryRel[],
+  fromIds: Set<string>,
+  kind: RelKind
+): InventoryRel[] {
+  return rels.filter(r => fromIds.has(r.from) && r.kind === kind);
+}
+
+/** Collect edges of a given kind where `to` matches any of the given node IDs (reverse lookup). */
+function collectEdgesTo(
+  rels: InventoryRel[],
+  toIds: Set<string>,
+  kind: RelKind
+): InventoryRel[] {
+  return rels.filter(r => toIds.has(r.to) && r.kind === kind);
+}
+
+/** Sort refs by confidence (high→med→low) then id. Deterministic. */
+function sortRefs<T extends { confidence: string; id: string }>(refs: T[]): void {
+  const order: Record<string, number> = { high: 0, medium: 1, low: 2 };
+  refs.sort((a, b) => {
+    const cmp = order[a.confidence] - order[b.confidence];
+    return cmp !== 0 ? cmp : a.id.localeCompare(b.id);
+  });
+}
+
+/** Build a node lookup by id for fast access. */
+function nodeById(nodes: InventoryNode[]): Map<string, InventoryNode> {
+  const m = new Map<string, InventoryNode>();
+  for (const n of nodes) m.set(n.id, n);
+  return m;
+}
+
+// ══ Main aggregator ══════════════════════════════════════════════════
+
 /**
- * Group nodes into service stacks by linking services → packages → ports
- * through evidence already present in the graph. This is the first
- * aggregator; future ones will handle container workloads and
- * database-cluster detection.
+ * Group nodes into service stacks by linking services to their surrounding
+ * resources through graph edges.
+ *
+ * Phase 5-B enrichment: consumes Phase 4 expanded graph edges to attach
+ * processes, dataPaths, envFiles, secretRefs, volumes, networks,
+ * certificates, domains, usersGroups, and scheduledTasks to each stack.
+ *
+ * All new fields are optional — old snapshots without Phase 4 data
+ * surfaces produce stacks identical to the pre-Phase-5 shape.
  */
 export function aggregateServiceStacks(graph: InventoryGraph): ServiceStack[] {
   const stacks: ServiceStack[] = [];
-  const assigned = new Set<string>(); // track assigned nodes
+  const assigned = new Set<string>();
+  const nodeMap = nodeById(graph.nodes);
+
+  // Pre-build edge index maps for O(1) lookups
+  const edgesFrom = new Map<string, Map<RelKind, InventoryRel[]>>();
+  const edgesTo = new Map<string, Map<RelKind, InventoryRel[]>>();
+  for (const rel of graph.rels) {
+    // from-index
+    let fm = edgesFrom.get(rel.from);
+    if (!fm) { fm = new Map(); edgesFrom.set(rel.from, fm); }
+    let arr = fm.get(rel.kind);
+    if (!arr) { arr = []; fm.set(rel.kind, arr); }
+    arr.push(rel);
+    // to-index
+    let tm = edgesTo.get(rel.to);
+    if (!tm) { tm = new Map(); edgesTo.set(rel.to, tm); }
+    arr = tm.get(rel.kind);
+    if (!arr) { arr = []; tm.set(rel.kind, arr); }
+    arr.push(rel);
+  }
+
+  const hasPhase4Surfaces =
+    graph.nodes.some(n => n.kind === "process") ||
+    graph.nodes.some(n => n.kind === "dataPath");
 
   const services = graph.nodes.filter(n => n.kind === "service") as ServiceNode[];
+
   for (const svc of services) {
-    // Packages linked via the owns rel
-    const ownedPkgIds = graph.rels
-      .filter(r => r.from === svc.id && r.kind === "owns")
-      .map(r => r.to);
-    const packages = graph.nodes.filter(n => ownedPkgIds.includes(n.id)) as PackageNode[];
+    const svcBareName = svc.unit.replace(/\.(service|timer)$/, "");
+    const warnings: string[] = [];
 
-    // Ports: heuristic match — port number commonly associated with this
-    // service's well-known port (e.g. service "nginx" matches port 80/443);
-    // for now assign ports in the same evidence cluster.
-    const ports = graph.nodes.filter(n =>
-      n.kind === "port" &&
-      ownedPkgIds.some(pid => {
-        // loose heuristic: same-named package → likely same service stack
-        const pkgNode = graph.nodes.find(nn => nn.id === pid) as PackageNode | undefined;
-        return pkgNode && (svc.label.includes(pkgNode.name) || pkgNode.name.includes(svc.label.replace(/\.service$/, "")));
-      })
-    ) as PortNode[];
+    // ── 1-hop from service ──────────────────────────────────────────
+    const sf = edgesFrom.get(svc.id) ?? new Map<RelKind, InventoryRel[]>();
 
-    // Config files with matching label
-    const configFiles = graph.nodes.filter(n =>
-      n.kind === "configFile" && n.label.toLowerCase().includes(svc.label.replace(/\.service$/, "").toLowerCase())
-    ) as ConfigFileNode[];
+    // Packages (owns — existing logic, unchanged)
+    const ownedRels = sf.get("owns") ?? [];
+    const ownedPkgIds = ownedRels.map((r: InventoryRel) => r.to);
+    const packages = ownedPkgIds
+      .map((id: string) => nodeMap.get(id) as PackageNode | undefined)
+      .filter((n): n is PackageNode => n !== undefined && n.kind === "package");
+
+    // Config files (usesConfig — new edge-based; fall back to label heuristic)
+    let configEdges = sf.get("usesConfig") ?? [];
+    let configFiles: ConfigFileNode[];
+    if (configEdges.length > 0) {
+      configFiles = configEdges
+        .map((r: InventoryRel) => nodeMap.get(r.to) as ConfigFileNode | undefined)
+        .filter((n): n is ConfigFileNode => n !== undefined && n.kind === "configFile");
+    } else {
+      // Fallback: label-substring heuristic (original behavior)
+      configFiles = graph.nodes.filter(n =>
+        n.kind === "configFile" &&
+        n.label.toLowerCase().includes(svcBareName.toLowerCase())
+      ) as ConfigFileNode[];
+    }
+
+    // Ports (prefer process→listensOn 2-hop; fall back to heuristic)
+    let ports: PortNode[] = [];
+    const portIds = new Set<string>();
+
+    const processEdges = sf.get("runs") ?? [];
+    const processIds = new Set<string>(processEdges.map((r: InventoryRel) => r.to));
+
+    if (processIds.size > 0) {
+      // Edge-based: process → listensOn → port (2-hop)
+      for (const pid of processIds) {
+        const pf = edgesFrom.get(pid);
+        if (!pf) continue;
+        const listenEdges = pf.get("listensOn") ?? [];
+        for (const le of listenEdges) {
+          const portNode = nodeMap.get(le.to) as PortNode | undefined;
+          if (portNode?.kind === "port" && !portIds.has(portNode.id)) {
+            ports.push(portNode);
+            portIds.add(portNode.id);
+          }
+        }
+      }
+    }
+
+    if (ports.length === 0) {
+      // Fallback: original heuristic (package-name substring matching)
+      ports = graph.nodes.filter(n =>
+        n.kind === "port" &&
+        ownedPkgIds.some((pid: string) => {
+          const pkgNode = nodeMap.get(pid) as PackageNode | undefined;
+          return pkgNode && (
+            svc.label.includes(pkgNode.name) ||
+            pkgNode.name.includes(svcBareName)
+          );
+        })
+      ) as PortNode[];
+    }
+
+    // Containers (image-name heuristic matching)
+    const containers = graph.nodes.filter(n => {
+      if (n.kind !== "container") return false;
+      const cn = n as ContainerNode;
+      return cn.image.toLowerCase().includes(svcBareName.toLowerCase()) ||
+             svcBareName.toLowerCase().includes(cn.image.toLowerCase());
+    }) as ContainerNode[];
+    const containerIds = new Set(containers.map(c => c.id));
+
+    // ── Phase 5-B enrichment: 1-hop from service ──────────────────
+    // Processes (runs)
+    const runsEdges = sf.get("runs") ?? [];
+    const stackProcessIds = new Set<string>(runsEdges.map((r: InventoryRel) => r.to));
+    const processes: StackProcessRef[] = [];
+    for (const re of runsEdges) {
+      const pn = nodeMap.get(re.to) as ProcessNode | undefined;
+      if (!pn || pn.kind !== "process") continue;
+      // Collect ports this process listens on
+      const pf = edgesFrom.get(pn.id);
+      const pPorts: number[] = [];
+      if (pf) {
+        for (const le of pf.get("listensOn") ?? []) {
+          const portNode = nodeMap.get(le.to) as PortNode | undefined;
+          if (portNode?.kind === "port") pPorts.push(portNode.port);
+        }
+      }
+      processes.push({
+        id: pn.id,
+        pid: pn.pid,
+        command: pn.command,
+        user: pn.user,
+        ports: pPorts.length > 0 ? pPorts : undefined,
+        confidence: parseConfidence(re.evidence),
+        evidence: [re.evidence],
+      });
+    }
+
+    // DataPaths (writesTo)
+    const writesEdges = sf.get("writesTo") ?? [];
+    const stackDataPathIds = new Set<string>(writesEdges.map((r: InventoryRel) => r.to));
+    const dataPaths: StackDataPathRef[] = [];
+    for (const we of writesEdges) {
+      const dp = nodeMap.get(we.to) as DataPathNode | undefined;
+      if (!dp || dp.kind !== "dataPath") continue;
+      dataPaths.push({
+        id: dp.id,
+        path: dp.path,
+        kind: dp.dataPathKind,
+        owner: undefined,
+        confidence: parseConfidence(we.evidence),
+        evidence: [we.evidence],
+      });
+    }
+
+    // EnvFiles (readsEnv)
+    const readsEnvEdges = sf.get("readsEnv") ?? [];
+    const stackEnvFileIds = new Set<string>(readsEnvEdges.map((r: InventoryRel) => r.to));
+    const envFiles: StackEnvFileRef[] = [];
+    for (const ree of readsEnvEdges) {
+      const ef = nodeMap.get(ree.to) as EnvFileNode | undefined;
+      if (!ef || ef.kind !== "envFile") continue;
+      envFiles.push({
+        id: ef.id,
+        path: ef.path,
+        keyCount: ef.keyCount,
+        confidence: parseConfidence(ree.evidence),
+        evidence: [ree.evidence],
+      });
+    }
+
+    // ── Phase 5-B enrichment: 2-hop ────────────────────────────────
+    // SecretRefs (envFile → references → secretRef)
+    const secretRefs: StackSecretRef[] = [];
+    const secretRefIds = new Set<string>();
+    for (const efId of stackEnvFileIds) {
+      const eff = edgesFrom.get(efId);
+      if (!eff) continue;
+      const refEdges = eff.get("references") ?? [];
+      for (const re of refEdges) {
+        const sr = nodeMap.get(re.to) as SecretRefNode | undefined;
+        if (!sr || sr.kind !== "secretRef" || secretRefIds.has(sr.id)) continue;
+        secretRefIds.add(sr.id);
+        secretRefs.push({
+          id: sr.id,
+          fingerprint: sr.fingerprint,
+          kind: sr.secretKind,
+          sourceLocation: sr.sourceLocation,
+          redacted: true,
+          confidence: parseConfidence(re.evidence),
+          evidence: [re.evidence],
+        });
+      }
+    }
+
+    // ── Phase 5-B enrichment: container resources ──────────────────
+    const volumes: StackVolumeRef[] = [];
+    const volumeIds = new Set<string>();
+    for (const cid of containerIds) {
+      const cf = edgesFrom.get(cid);
+      if (!cf) continue;
+      const mountEdges = cf.get("mounts") ?? [];
+      for (const me of mountEdges) {
+        const vol = nodeMap.get(me.to) as VolumeNode | undefined;
+        if (!vol || vol.kind !== "volume" || volumeIds.has(vol.id)) continue;
+        volumeIds.add(vol.id);
+        volumes.push({
+          id: vol.id,
+          name: vol.name,
+          mountpoint: vol.mountpoint,
+          confidence: parseConfidence(me.evidence),
+          evidence: [me.evidence],
+        });
+      }
+    }
+
+    const networks: StackNetworkRef[] = [];
+    const networkIds = new Set<string>();
+    for (const cid of containerIds) {
+      const cf = edgesFrom.get(cid);
+      if (!cf) continue;
+      const netEdges = cf.get("attachedTo") ?? [];
+      for (const ne of netEdges) {
+        const net = nodeMap.get(ne.to) as NetworkNode | undefined;
+        if (!net || net.kind !== "network" || networkIds.has(net.id)) continue;
+        networkIds.add(net.id);
+        networks.push({
+          id: net.id,
+          name: net.name,
+          kind: net.networkKind,
+          confidence: parseConfidence(ne.evidence),
+          evidence: [ne.evidence],
+        });
+      }
+    }
+
+    // ── Phase 5-B enrichment: domain + certificate (name matching) ──
+    const domainNodes = graph.nodes.filter(n =>
+      n.kind === "domain" && (
+        (n as DomainNode).serviceName === svcBareName ||
+        (n as DomainNode).serviceName === svc.unit ||
+        (n as DomainNode).source.toLowerCase() === svcBareName.toLowerCase() ||
+        (n as DomainNode).source.toLowerCase() === svc.label.toLowerCase()
+      )
+    ) as DomainNode[];
+
+    const domains: StackDomainRef[] = [];
+    const certificates: StackCertificateRef[] = [];
+    const certIds = new Set<string>();
+
+    for (const dom of domainNodes) {
+      const df = edgesFrom.get(dom.id);
+      const certEdges = df?.get("usesCertificate") ?? [];
+      let certId: string | undefined;
+      for (const ce of certEdges) {
+        const cert = nodeMap.get(ce.to) as CertificateNode | undefined;
+        if (!cert || cert.kind !== "certificate") continue;
+        if (!certIds.has(cert.id)) {
+          certIds.add(cert.id);
+          certificates.push({
+            id: cert.id,
+            path: cert.path,
+            domains: cert.domains,
+            daysRemaining: cert.daysRemaining,
+            confidence: parseConfidence(ce.evidence),
+            evidence: [ce.evidence],
+          });
+        }
+        certId = certId ?? cert.id;
+      }
+      domains.push({
+        id: dom.id,
+        name: dom.name,
+        certificateId: certId,
+        confidence: "high",
+        evidence: [fmtEvidence(`domain ${dom.name} from ${dom.source}`)],
+      });
+    }
+
+    // ── Phase 5-B enrichment: reverse edges ────────────────────────
+    // scheduledTask → invokes → service
+    const scheduledTasks: StackScheduledTaskRef[] = [];
+    const stIds = new Set<string>();
+    const invokesToSvc = collectEdgesTo(graph.rels, new Set([svc.id]), "invokes");
+    for (const ie of invokesToSvc) {
+      const st = nodeMap.get(ie.from) as ScheduledTaskNode | undefined;
+      if (!st || st.kind !== "scheduledTask" || stIds.has(st.id)) continue;
+      stIds.add(st.id);
+      const conf = parseConfidence(ie.evidence);
+      if (conf === "low") warnings.push(`Low confidence: scheduledTask ${st.taskId} → service ${svcBareName}`);
+      scheduledTasks.push({
+        id: st.id,
+        kind: st.taskKind,
+        schedule: st.schedule,
+        command: st.command,
+        confidence: conf,
+        evidence: [ie.evidence],
+      });
+    }
+
+    // userGroup → owns → process/dataPath (that are in this stack)
+    const usersGroups: StackUserGroupRef[] = [];
+    const ugIds = new Set<string>();
+    // userGroup owns processes in this stack
+    const ugOwnsProcesses = collectEdgesTo(graph.rels, stackProcessIds, "owns")
+      .filter(r => nodeMap.get(r.from)?.kind === "userGroup");
+    for (const re of ugOwnsProcesses) {
+      const ug = nodeMap.get(re.from) as UserGroupNode | undefined;
+      if (!ug || ug.kind !== "userGroup" || ugIds.has(ug.id)) continue;
+      ugIds.add(ug.id);
+      usersGroups.push({
+        id: ug.id,
+        name: ug.name,
+        kind: ug.ugKind,
+        confidence: parseConfidence(re.evidence),
+        evidence: [re.evidence],
+      });
+    }
+    // userGroup owns dataPaths in this stack
+    const ugOwnsDps = collectEdgesTo(graph.rels, stackDataPathIds, "owns")
+      .filter(r => nodeMap.get(r.from)?.kind === "userGroup");
+    for (const re of ugOwnsDps) {
+      const ug = nodeMap.get(re.from) as UserGroupNode | undefined;
+      if (!ug || ug.kind !== "userGroup" || ugIds.has(ug.id)) continue;
+      ugIds.add(ug.id);
+      usersGroups.push({
+        id: ug.id,
+        name: ug.name,
+        kind: ug.ugKind,
+        confidence: parseConfidence(re.evidence),
+        evidence: [re.evidence],
+      });
+    }
+
+    // ── Sort all refs deterministically ──────────────────
+    sortRefs(processes);
+    sortRefs(dataPaths);
+    sortRefs(envFiles);
+    sortRefs(secretRefs);
+    sortRefs(volumes);
+    sortRefs(networks);
+    sortRefs(certificates);
+    sortRefs(domains);
+    sortRefs(usersGroups);
+    sortRefs(scheduledTasks);
 
     // Assign all
-    for (const n of [svc, ...packages, ...ports, ...configFiles]) assigned.add(n.id);
+    for (const n of [svc, ...packages, ...ports, ...configFiles, ...containers]) assigned.add(n.id);
 
     if (packages.length > 0 || ports.length > 0) {
       stacks.push({
@@ -922,11 +1393,28 @@ export function aggregateServiceStacks(graph: InventoryGraph): ServiceStack[] {
         packages,
         ports,
         configFiles,
-        containers: [],
+        containers,
         confidence: packages.length >= 2 ? "high" : packages.length === 1 ? "medium" : "low",
         reasoning: packages.length > 0
           ? `Service ${svc.unit} owns ${packages.length} packages, ${ports.length} known ports`
-          : `Service ${svc.unit} has no directly linked packages`
+          : `Service ${svc.unit} has no directly linked packages`,
+        // Phase 5-B enrichment (only include if there's data)
+        processes: processes.length > 0 ? processes : undefined,
+        dataPaths: dataPaths.length > 0 ? dataPaths : undefined,
+        envFiles: envFiles.length > 0 ? envFiles : undefined,
+        secretRefs: secretRefs.length > 0 ? secretRefs : undefined,
+        volumes: volumes.length > 0 ? volumes : undefined,
+        networks: networks.length > 0 ? networks : undefined,
+        certificates: certificates.length > 0 ? certificates : undefined,
+        domains: domains.length > 0 ? domains : undefined,
+        usersGroups: usersGroups.length > 0 ? usersGroups : undefined,
+        scheduledTasks: scheduledTasks.length > 0 ? scheduledTasks : undefined,
+        enrichment: {
+          version: "phase5.stack.v1",
+          sourceGraphNodeCount: graph.nodes.length,
+          sourceGraphEdgeCount: graph.rels.length,
+          enrichmentWarnings: warnings,
+        },
       });
     }
   }
