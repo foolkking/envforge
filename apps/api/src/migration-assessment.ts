@@ -11,6 +11,8 @@ import type {
   RawMigrationEvidence,
   RiskLevel
 } from "./migration-classifier.js";
+import type { PostgresDataMigrationDryRun } from "./postgres-data-migration.js";
+import { postgresDataMigrationDryRunForAssessment } from "./postgres-data-migration.js";
 import type {
   StoredMigrationDataDecision,
   StoredMigrationDecision,
@@ -135,6 +137,8 @@ export interface AssessmentSummary {
   serviceStacks: AssessmentServiceStack[];
   /** Phase 6-B: enriched service stacks from the Inventory Graph engine. */
   enrichedStacks?: ServiceStack[];
+  /** Phase 5R-B: PostgreSQL data migration dry-run evidence. Only populated when a PostgreSQL candidate exists. */
+  postgresDataMigrationDryRun?: PostgresDataMigrationDryRun;
   riskSummary: AssessmentRiskSummary;
   readiness: AssessmentReadiness;
   requiredDecisions: AssessmentRequiredDecision[];
@@ -177,6 +181,14 @@ export function buildAssessmentSummary(input: BuildAssessmentInput): AssessmentS
   const graph = extractInventoryGraph(input.snapshot as StoredProbeSnapshot);
   const enrichedStacks = aggregateServiceStacks(graph);
 
+  // Phase 5R-B: PostgreSQL data migration dry-run evidence
+  const postgresDataMigrationDryRun = postgresDataMigrationDryRunForAssessment({
+    candidates: input.report.candidates,
+    snapshot: input.snapshot as StoredProbeSnapshot,
+    dataDecisions: input.dataDecisions ?? [],
+    host: input.host ?? input.snapshot.system.hostname,
+  });
+
   const requiredDecisions = dedupeDecisions(serviceStacks.flatMap((stack) => stack.requiredDecisions));
   const riskSummary = buildRiskSummary(serviceStacks);
   const readiness = buildAssessmentReadiness(serviceStacks, requiredDecisions, evidenceQuality);
@@ -204,6 +216,7 @@ export function buildAssessmentSummary(input: BuildAssessmentInput): AssessmentS
     },
     serviceStacks,
     enrichedStacks,
+    postgresDataMigrationDryRun,
     riskSummary,
     readiness,
     requiredDecisions,
