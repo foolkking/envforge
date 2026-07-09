@@ -3,6 +3,9 @@ import { collectSnapshotInputs } from "@fool/collectors";
 import { createSnapshotManifest, defaultPolicy, diffSnapshots } from "@fool/core";
 import { createRestorePlan } from "@fool/restorers";
 import { getUserByToken, loginUser, registerUser, startRegistration, verifyRegistration, toPublicUser, updateUserProfile } from "./auth.js";
+// Phase 6R-B: runtime schema validation
+import { validateCreatePlanBody, validateReviewPlanBody, validateApplyPlanBody } from "./schemas/plan-schemas.js";
+import { validateMigrationDecisionsBody } from "./schemas/migration-schemas.js";
 import {
   getAuthorizeUrl as getGitHubAuthorizeUrl,
   exchangeCodeForToken as exchangeGitHubCode,
@@ -3142,6 +3145,9 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
   app.post("/api/plans", async (request, reply) => {
     const user = await getUserByToken(readBearerToken(request.headers.authorization));
     if (!user) { reply.code(401); return { error: "Login required." }; }
+    const parsed = validateCreatePlanBody(request.body);
+    if (!parsed.ok) { reply.code(400); return { error: "Invalid request body.", details: [parsed] }; }
+    const validated = parsed.value;
     const body = (request.body ?? {}) as {
       type?: EnvironmentPlan["type"];
       targetConnectionId?: string;
@@ -3329,6 +3335,9 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
     const user = await getUserByToken(readBearerToken(request.headers.authorization));
     if (!user) { reply.code(401); return { error: "Login required." }; }
     const { id } = request.params as { id: string };
+    const parsed = validateReviewPlanBody(request.body);
+    if (!parsed.ok) { reply.code(400); return { error: "Invalid request body.", details: [parsed] }; }
+    const validated = parsed.value;
     const body = (request.body ?? {}) as {
       plan?: EnvironmentPlan;
       decision?: "approved" | "rejected";
@@ -3385,6 +3394,9 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
     const user = await getUserByToken(readBearerToken(request.headers.authorization));
     if (!user) { reply.code(401); return { error: "Login required." }; }
     const { id } = request.params as { id: string };
+    const parsed = validateApplyPlanBody(request.body);
+    if (!parsed.ok) { reply.code(400); return { error: "Invalid request body.", details: [parsed] }; }
+    const validated = parsed.value;
     const body = (request.body ?? {}) as Record<string, unknown> & { dryRun?: boolean; idempotencyKey?: string; targetConnectionId?: string };
     const record = await getStoredPlan(id, user.id);
     if (!record) { reply.code(404); return { error: "Environment Plan not found." }; }
@@ -4690,6 +4702,9 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
     const user = await getUserByToken(readBearerToken(request.headers.authorization));
     if (!user) { reply.code(401); return { error: "Login required." }; }
     const { sessionId } = request.params as { sessionId: string };
+    const parsed = validateMigrationDecisionsBody(request.body);
+    if (!parsed.ok) { reply.code(400); return { error: "Invalid request body.", details: [parsed] }; }
+    const validated = parsed.value;
     const body = (request.body ?? {}) as { candidateId?: string; candidateIds?: string[]; decision?: StoredMigrationDecision["decision"]; note?: string };
     const allowedReviewDecisions: StoredMigrationDecision["decision"][] = ["pending", "approved", "skipped", "ignore", "record-only", "migrate-artifact", "create-catalog-draft", "add-to-plan", "needs-manual-instruction"];
     const candidateIds = [...new Set([...(body.candidateIds ?? []), body.candidateId].filter((value): value is string => typeof value === "string").map((value) => value.trim()).filter(Boolean))];

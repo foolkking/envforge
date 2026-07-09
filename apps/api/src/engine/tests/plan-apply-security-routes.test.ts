@@ -126,7 +126,11 @@ test("Apply uses only URL plan id, cannot create a Plan, and rejects payload inj
   try {
     const { token, connectionId } = await seedIdentity();
     const auth = { authorization: `Bearer ${token}` };
-    const missing = await app.inject({ method: "POST", url: "/api/plans/missing-id/apply", headers: auth, payload: { plan: { id: "attacker" } } });
+    // Phase 6R-B: schema validation catches forbidden fields at the boundary
+    // before the DB lookup, so payload injection returns 400 (not 404).
+    const injection = await app.inject({ method: "POST", url: "/api/plans/missing-id/apply", headers: auth, payload: { plan: { id: "attacker" } } });
+    assert.equal(injection.statusCode, 400, "payload injection with forbidden fields must be 400");
+    const missing = await app.inject({ method: "POST", url: "/api/plans/missing-id/apply", headers: auth, payload: { dryRun: true } });
     assert.equal(missing.statusCode, 404);
     assert.match(missing.body, /not found/i);
 
