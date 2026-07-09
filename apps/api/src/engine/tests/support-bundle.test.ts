@@ -122,3 +122,53 @@ test("Repair Plan output is evidence only and exposes no execution capability", 
   assert.equal("apply" in (diagnostic.repairPlanDraft ?? {}), false);
   assert.ok(diagnostic.repairPlanDraft?.proposedSteps.every((step) => step.requiresReview));
 });
+
+// ── Phase 7-B: H2 — Support bundle auto-propagation from assessment.enrichedStacks ──
+
+test("H2: Support bundle auto-propagates enrichedStacks from assessment when input doesn't override", () => {
+  const mockStack = {
+    id: "stack:test",
+    label: "test",
+    service: { id: "service:test", kind: "service" as const, label: "test", unit: "test", status: "running", evidence: {} },
+    packages: [],
+    ports: [],
+    configFiles: [],
+    containers: [],
+    confidence: "low" as const,
+    reasoning: "test"
+  };
+  const assess = assessment();
+  (assess as unknown as Record<string, unknown>).enrichedStacks = [mockStack];
+
+  // Do NOT pass enrichedStacks explicitly → should auto-propagate from assessment
+  const bundle = buildSupportBundle({
+    sessionId: "session",
+    assessment: assess,
+    failureDiagnostics: []
+  });
+
+  assert.ok(Array.isArray(bundle.enrichedStacks), "enrichedStacks is an array");
+  assert.equal(bundle.enrichedStacks!.length, 1, "enrichedStacks has 1 entry");
+  assert.equal(bundle.enrichedStacks![0].id, "stack:test", "enrichedStacks propagated from assessment");
+  assert.equal(bundle.enrichedStacks![0].confidence, "low", "stack shape preserved during propagation");
+});
+
+// ── Phase 7-B: H2b — Support bundle allows explicit override of enrichedStacks ──
+
+test("H2b: Support bundle accepts explicit enrichedStacks override over assessment", () => {
+  const assess = assessment();
+  (assess as unknown as Record<string, unknown>).enrichedStacks = [{ id: "stack:from-assessment", confidence: "low" }];
+
+  const explicitStack = { id: "stack:explicit", label: "explicit", service: { id: "service:exp", kind: "service" as const, label: "exp", unit: "exp", status: "running", evidence: {} }, packages: [], ports: [], configFiles: [], containers: [], confidence: "high" as const, reasoning: "explicit override" };
+
+  const bundle = buildSupportBundle({
+    sessionId: "session",
+    assessment: assess,
+    enrichedStacks: [explicitStack],
+    failureDiagnostics: []
+  });
+
+  assert.equal(bundle.enrichedStacks!.length, 1, "explicit override has 1 entry");
+  assert.equal(bundle.enrichedStacks![0].id, "stack:explicit", "explicit override wins over assessment");
+  assert.equal(bundle.enrichedStacks![0].confidence, "high", "explicit override shape preserved");
+});
