@@ -179,11 +179,13 @@ No secret-like values in any route response. `SecretRef` uses `fingerprint` only
 
 ---
 
-## 10. Next Step
+## 10. Superseded Next Step
 
-Phase 6 and Phase 7 hardening are both complete. No further hardening is required for the Phase 6 production surfaces. The next logical step would be:
-
-**Phase 8**: New feature development — such as frontend visualization of `ServiceStack` / `InventoryGraph`, or integration of enriched data into the migration pipeline decision engine.
+This historical next-step recommendation was superseded by the phase-plan
+reconciliation and the later Phase 5R, Phase 6R, and Phase 7R work. This report
+remains evidence for its original contract-hardening slice; it does not
+authorize a later roadmap phase or claim that graph/stack UI productization is
+part of the completed production surface.
 
 ---
 
