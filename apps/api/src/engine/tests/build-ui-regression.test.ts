@@ -25,6 +25,7 @@ import path from "node:path";
 import fs from "node:fs/promises";
 import Fastify from "fastify";
 import { _resetStoreForTests, updateRuntimeDatabase } from "../../runtime-store.js";
+import { _resetSqliteDbForTests, getSqliteDb, initializeDatabase } from "../../db-sqlite.js";
 import { registerRoutes } from "../../routes.js";
 
 const here = path.dirname(fileURLToPathSafe(import.meta.url));
@@ -456,7 +457,13 @@ async function bootApp() {
     process.env.ENVFORGE_MASTER_KEY = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
   }
   _resetStoreForTests();
+  await initializeDatabase();
   const app = Fastify({ logger: false });
+  app.addHook("onClose", async () => {
+    _resetStoreForTests();
+    await _resetSqliteDbForTests();
+    await fs.rm(tmpDir, { recursive: true, force: true });
+  });
   await registerRoutes(app);
   return app;
 }
@@ -486,6 +493,21 @@ async function makeUser(role: "admin" | "user"): Promise<string> {
   });
   return token;
 }
+
+test("Build-consumed app factory initializes system_kv before routes are ready", async () => {
+  await _resetSqliteDbForTests();
+  const app = await bootApp();
+  try {
+    const db = await getSqliteDb();
+    const table = await db.get(
+      "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'system_kv'"
+    );
+    assert.equal(table?.name, "system_kv");
+  } finally {
+    await app.close();
+    await _resetSqliteDbForTests();
+  }
+});
 
 test("Build-consumed catalog data contains only certified items (no not-ready leaks)", async () => {
   const app = await bootApp();
