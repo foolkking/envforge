@@ -5,11 +5,11 @@
  * Audit every catalog item against the Full Migration Certified
  * requirements summarized in `docs/catalog.md`. Emits:
  *
- *   - `docs/generated/catalog-certification.json`
+ *   - `artifacts/generated/catalog-certification/catalog-certification.json`
  *     One record per item with certificationStatus, certificationScore,
  *     missingRequirements, blockers, and visibleToUsers.
  *
- *   - `docs/generated/catalog-certification.md`
+ *   - `artifacts/generated/catalog-certification/catalog-certification.md`
  *     Human-readable summary (committed alongside the JSON).
  *
  * Exit codes:
@@ -30,7 +30,10 @@ import { pathToFileURL, fileURLToPath } from "node:url";
 const here = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(here, "..");
 const distRoot = path.resolve(repoRoot, "apps/api/dist");
-const auditDir = path.resolve(repoRoot, "docs/generated");
+const auditDir = path.resolve(
+  repoRoot,
+  process.env.ENVFORGE_CERTIFICATION_OUTPUT_DIR ?? "artifacts/generated/catalog-certification"
+);
 const scenariosDir = path.resolve(repoRoot, "scripts/harness/scenarios");
 
 const databaseMod = await import(pathToFileURL(path.join(distRoot, "database.js")).href);

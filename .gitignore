@@ -50,3 +50,8 @@ Thumbs.db
 
 # Harness run outputs are local evidence, not durable documentation.
 docs/harness-reports/
+
+# Rebuildable design/catalog output. The policy file remains tracked.
+artifacts/generated/*
+!artifacts/generated/README.md
+/generated/

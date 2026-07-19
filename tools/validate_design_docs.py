@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 from pathlib import Path
+import os
 from urllib.parse import unquote
 import re, sys, json, yaml, collections
 
 ROOT=Path(__file__).resolve().parents[1]
-DOCS=ROOT/'docs'
+DOCS=Path(os.environ.get('ENVFORGE_VALIDATE_DOCS_ROOT', ROOT/'docs')).resolve()
 errors=[]; warnings=[]; stats=collections.Counter()
 
 def err(code,msg): errors.append({'code':code,'message':msg})

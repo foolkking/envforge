@@ -4,7 +4,7 @@
  *
  * Operator-driven live certification orchestrator. Produces a single
  * `summary.json` + `summary.md` under
- * `docs/harness-reports/live-ubuntu-certification/`.
+ * `artifacts/generated/harness-reports/live-ubuntu-certification/`.
  *
  * Hard guarantees (each one is unit-tested in
  * `apps/api/src/engine/tests/harness-certification.test.ts` and
@@ -48,7 +48,7 @@ import {
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(here, "../..");
-const certDir = path.resolve(repoRoot, "docs/harness-reports/live-ubuntu-certification");
+const certDir = path.resolve(repoRoot, "artifacts/generated/harness-reports/live-ubuntu-certification");
 const runnerPath = path.resolve(repoRoot, "scripts/run-harness-scenarios.mjs");
 const checkPath = path.resolve(here, "check-target-readiness.mjs");
 const distActionRunsUrl = pathToFileURL(path.resolve(repoRoot, "apps/api/dist/action-runs.js")).href;
@@ -226,7 +226,7 @@ async function runReadinessProbe(targetSpec) {
 async function runOneLive(scenarioId) {
   // Snapshot existing report directories so we can identify the new
   // one the per-scenario runner produced.
-  const reportRoot = path.resolve(repoRoot, "docs/harness-reports");
+  const reportRoot = path.resolve(repoRoot, "artifacts/generated/harness-reports");
   const before = (await fs.readdir(reportRoot).catch(() => [])).filter(isTimestampDir);
   await spawnInherit(process.execPath, [runnerPath, scenarioId], { env, cwd: repoRoot });
   const after = (await fs.readdir(reportRoot).catch(() => [])).filter(isTimestampDir);
@@ -266,7 +266,7 @@ async function summarizeScenario(scenarioId, runDir) {
     runDir,
     targetDifferences: bundle.targetDifferences,
     reportPath: path.join(
-      "docs/harness-reports/live-ubuntu-certification",
+      "artifacts/generated/harness-reports/live-ubuntu-certification",
       `${scenarioId}.report.md`
     ),
     actionRunCount: Array.isArray(bundle.actionRuns) ? bundle.actionRuns.length : 0,

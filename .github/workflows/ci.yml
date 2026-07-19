@@ -25,3 +25,5 @@ jobs:
         run: npm run preflight
       - name: Catalog audit (consistency + package availability)
         run: npm run audit:catalog
+      - name: Validate integrated design baseline
+        run: npm run validate:design

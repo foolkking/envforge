@@ -7,7 +7,7 @@ import {
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(here, "..");
-const outputDir = path.join(repoRoot, "generated", "catalog-preview");
+const outputDir = path.join(repoRoot, "artifacts", "generated", "capability-preview");
 
 const summary = await runCapabilityCatalogPreview();
 if (summary.previews.length === 0) {

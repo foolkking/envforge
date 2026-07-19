@@ -357,24 +357,36 @@ test("certification audit JSON: counts match annotateCertification", async () =>
   // We commit the audit JSON; this assertion catches drift between
   // the runtime gate and the audit script.
   const fs = await import("node:fs/promises");
+  const os = await import("node:os");
+  const childProcess = await import("node:child_process");
+  const util = await import("node:util");
   const path = await import("node:path");
   const { fileURLToPath } = await import("node:url");
   const here = path.dirname(fileURLToPath(import.meta.url));
   const repoRoot = path.resolve(here, "../../../../..");
-  const auditPath = path.resolve(repoRoot, "docs/generated/catalog-certification.json");
-  const raw = await fs.readFile(auditPath, "utf8");
-  const parsed = JSON.parse(raw);
-  assert.equal(parsed.totals.certified, certified, "audit JSON certified count differs from runtime gate");
-  assert.equal(parsed.totals.notReady, notReady, "audit JSON not-ready count differs from runtime gate");
-  const openBacklog = parsed.records.filter(
-    (r: { certificationStatus: string; decisionStatus?: string }) =>
-      r.certificationStatus === "not-ready" && r.decisionStatus === "upgrade-backlog"
-  ).length;
-  const terminalDecisions = parsed.records.filter(
-    (r: { certificationStatus: string; decisionStatus?: string }) =>
-      r.certificationStatus === "not-ready" && r.decisionStatus !== "upgrade-backlog"
-  ).length;
-  assert.equal(parsed.totals.upgradeBacklog, openBacklog, "audit JSON open backlog count differs from records");
-  assert.equal(parsed.totals.terminalDecisions, terminalDecisions, "audit JSON terminal decision count differs from records");
-  assert.equal(openBacklog, 0, "all remaining not-ready capabilities should have explicit terminal decisions");
+  const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "envforge-certification-test-"));
+  const execFile = util.promisify(childProcess.execFile);
+  try {
+    await execFile(process.execPath, [path.resolve(repoRoot, "scripts/check-full-migration-certification.mjs")], {
+      cwd: repoRoot,
+      env: { ...process.env, ENVFORGE_CERTIFICATION_OUTPUT_DIR: tempDir }
+    });
+    const raw = await fs.readFile(path.join(tempDir, "catalog-certification.json"), "utf8");
+    const parsed = JSON.parse(raw);
+    assert.equal(parsed.totals.certified, certified, "audit JSON certified count differs from runtime gate");
+    assert.equal(parsed.totals.notReady, notReady, "audit JSON not-ready count differs from runtime gate");
+    const openBacklog = parsed.records.filter(
+      (r: { certificationStatus: string; decisionStatus?: string }) =>
+        r.certificationStatus === "not-ready" && r.decisionStatus === "upgrade-backlog"
+    ).length;
+    const terminalDecisions = parsed.records.filter(
+      (r: { certificationStatus: string; decisionStatus?: string }) =>
+        r.certificationStatus === "not-ready" && r.decisionStatus !== "upgrade-backlog"
+    ).length;
+    assert.equal(parsed.totals.upgradeBacklog, openBacklog, "audit JSON open backlog count differs from records");
+    assert.equal(parsed.totals.terminalDecisions, terminalDecisions, "audit JSON terminal decision count differs from records");
+    assert.equal(openBacklog, 0, "all remaining not-ready capabilities should have explicit terminal decisions");
+  } finally {
+    await fs.rm(tempDir, { recursive: true, force: true });
+  }
 });

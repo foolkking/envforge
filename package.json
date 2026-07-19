@@ -27,7 +27,7 @@
     "preflight": "node scripts/preflight.mjs",
     "audit:catalog": "node scripts/audit-catalog.mjs && node scripts/audit-catalog-packages.mjs",
     "audit:catalog:packages": "node scripts/audit-catalog-packages.mjs",
-    "catalog:audit": "npm run build:server && node scripts/audit-catalog-items.mjs > docs/generated/catalog-items.dump.json",
+    "catalog:audit": "npm run build:server && node -e \"require('fs').mkdirSync('artifacts/generated/catalog',{recursive:true})\" && node scripts/audit-catalog-items.mjs > artifacts/generated/catalog/catalog-items.dump.json",
     "catalog:check": "npm run build:server && node scripts/check-catalog-quality.mjs",
     "certification:check": "npm run build:server && node scripts/check-full-migration-certification.mjs",
     "certification:backlog": "node scripts/generate-certification-backlog.mjs",
@@ -52,10 +52,30 @@
     "harness:ubuntu:destroy": "node scripts/harness/destroy-multipass-ubuntu.mjs",
     "harness:register": "node scripts/harness/register-connection.mjs",
     "start:prod": "node apps/api/dist/server.js",
-    "typecheck": "npm run typecheck --workspaces --if-present"
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "validate:docs:static": "python tools/validate_design_docs.py",
+    "validate:docs:markdown": "markdownlint-cli2 --config .markdownlint-cli2.jsonc \"docs/**/*.md\" \"delivery/**/*.md\"",
+    "validate:docs:mermaid": "node tools/preparation/render-mermaid.mjs",
+    "validate:openapi": "node tools/preparation/validate-openapi.mjs",
+    "validate:schemas": "node tools/preparation/validate-json-schemas.mjs",
+    "validate:ddl": "node tools/preparation/validate-reference-ddl.mjs",
+    "validate:preparation:security": "node tools/preparation/validate-secret-canary.mjs",
+    "validate:preparation:failure-paths": "node tools/preparation/validate-preparation-failure-paths.mjs",
+    "validate:design": "npm run validate:docs:static && npm run validate:docs:markdown && npm run validate:docs:mermaid && npm run validate:openapi && npm run validate:schemas",
+    "validate:preparation": "npm run validate:design && npm run validate:ddl && npm run validate:preparation:security && npm run validate:preparation:failure-paths"
   },
   "engines": {
     "node": ">=20.0.0",
     "npm": ">=10.0.0"
+  },
+  "devDependencies": {
+    "@mermaid-js/mermaid-cli": "11.12.0",
+    "@redocly/cli": "1.34.5",
+    "ajv": "8.20.0",
+    "ajv-formats": "3.0.1",
+    "markdownlint-cli2": "0.18.1",
+    "openapi-typescript": "7.13.0",
+    "react": "18.3.1",
+    "react-dom": "18.3.1"
   }
 }

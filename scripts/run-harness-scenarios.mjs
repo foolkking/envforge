@@ -7,9 +7,9 @@
  * mode (the default — no SSH required) or live mode against a real
  * target VM, and writes:
  *
- *   - `docs/harness-reports/<runId>/<scenarioId>.report.json`
- *   - `docs/harness-reports/<runId>/<scenarioId>.report.md`
- *   - `docs/harness-reports/<runId>/<scenarioId>.actions.json`
+ *   - `artifacts/generated/harness-reports/<runId>/<scenarioId>.report.json`
+ *   - `artifacts/generated/harness-reports/<runId>/<scenarioId>.report.md`
+ *   - `artifacts/generated/harness-reports/<runId>/<scenarioId>.actions.json`
  *
  * Modes
  * -----
@@ -44,7 +44,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 const here = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(here, "..");
 const scenarioDir = path.resolve(here, "harness/scenarios");
-const reportRoot = path.resolve(repoRoot, "docs/harness-reports");
+const reportRoot = path.resolve(repoRoot, "artifacts/generated/harness-reports");
 const distRoot = path.resolve(repoRoot, "apps/api/dist");
 
 const args = process.argv.slice(2);
@@ -56,7 +56,8 @@ async function loadDist() {
   const env = await import(pathToFileURL(path.join(distRoot, "environment-plan.js")).href);
   const db = await import(pathToFileURL(path.join(distRoot, "database.js")).href);
   const actionRuns = await import(pathToFileURL(path.join(distRoot, "action-runs.js")).href);
-  return { env, db, actionRuns };
+  const planHash = await import(pathToFileURL(path.join(distRoot, "plan-hash.js")).href);
+  return { env, db, actionRuns, planHash };
 }
 
 async function listScenarios() {
@@ -335,7 +336,7 @@ async function collectTargetDifferences() {
 }
 
 async function runOne(scenario, ctx) {
-  const { env, db, actionRuns } = ctx;
+  const { env, db, actionRuns, planHash } = ctx;
   const startedAt = new Date().toISOString();
 
   if (scenario.destructive && mode !== "live") {
@@ -343,7 +344,7 @@ async function runOne(scenario, ctx) {
     // in the report.
   }
 
-  const plan = await buildPlanForScenario(scenario, env, db);
+  const plan = planHash.freezeEnvironmentPlan(await buildPlanForScenario(scenario, env, db));
   const expectations = assertExpected(scenario, plan);
   const gateVerdict = summarizeApplyGate(plan, env);
   const targetDifferences = await collectTargetDifferences();
@@ -361,13 +362,18 @@ async function runOne(scenario, ctx) {
           ? "skipped"
           : "pending"; // would-be mutating; only reaches this in dry-run report
       return {
+        id: `harness-action:${plan.id}:${action.id}`,
         planId: plan.id,
+        planHash: plan.planHash,
         itemId: item.id,
         actionId: action.id,
+        targetConnectionId: plan.targetConnectionId ?? process.env.ENVFORGE_HARNESS_TARGET ?? "harness-dry-run",
+        dryRun: true,
         capabilityKey: item.capabilityKey,
         startedAt,
         endedAt: new Date().toISOString(),
         status,
+        commandSummaries: [],
         snapshot: undefined,
         applyResult: undefined,
         verifyResult: undefined,
