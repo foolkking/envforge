@@ -1,0 +1,21 @@
+{
+  "status": "PASS",
+  "canary": "detected and removed",
+  "scannedRoots": [
+    "docs",
+    "delivery",
+    "PROJECT_STATE.md",
+    "README.md",
+    "AGENTS.md",
+    ".github/workflows"
+  ],
+  "excluded": [
+    ".env",
+    "data",
+    "node_modules",
+    ".migration-backup",
+    ".tmp_logs"
+  ],
+  "repositoryFindings": 0,
+  "sha256": "36b3f05f55107acbf0ba4164088e1fbb17021b5dddf57530b9c7cb897675048f"
+}

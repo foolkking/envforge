@@ -1,0 +1,390 @@
+{
+  "status": "PASS",
+  "command": "npm run validate:schemas",
+  "tool": "ajv 8.20.0 + ajv-formats 3.0.1",
+  "environment": "win32/x64 node v20.13.1",
+  "exitCode": 0,
+  "schemaFiles": 8,
+  "definitions": 55,
+  "generatedPositiveCases": 55,
+  "generatedNegativeCases": 55,
+  "explicitExamples": 7,
+  "examplesSha256": "de184849b25bdea7514b36ee699986a0fd4d52f8e40dd37aa17e7324fbbf4c82",
+  "elapsedMs": 538,
+  "results": [
+    {
+      "file": "archive.yaml",
+      "schema": "ArchiveJob",
+      "positive": "PASS",
+      "negative": "PASS"
+    },
+    {
+      "file": "archive.yaml",
+      "schema": "ArchiveVersion",
+      "positive": "PASS",
+      "negative": "PASS"
+    },
+    {
+      "file": "archive.yaml",
+      "schema": "CreateArchiveRequest",
+      "positive": "PASS",
+      "negative": "PASS"
+    },
+    {
+      "file": "archive.yaml",
+      "schema": "EnvironmentArchive",
+      "positive": "PASS",
+      "negative": "PASS"
+    },
+    {
+      "file": "archive.yaml",
+      "schema": "RestoreDrillRun",
+      "positive": "PASS",
+      "negative": "PASS"
+    },
+    {
+      "file": "archive.yaml",
+      "schema": "SourceReleaseReadiness",
+      "positive": "PASS",
+      "negative": "PASS"
+    },
+    {
+      "file": "common.yaml",
+      "schema": "CommandAccepted",
+      "positive": "PASS",
+      "negative": "PASS"
+    },
+    {
+      "file": "common.yaml",
+      "schema": "Hash",
+      "positive": "PASS",
+      "negative": "PASS"
+    },
+    {
+      "file": "common.yaml",
+      "schema": "HashRef",
+      "positive": "PASS",
+      "negative": "PASS"
+    },
+    {
+      "file": "common.yaml",
+      "schema": "Operation",
+      "positive": "PASS",
+      "negative": "PASS"
+    },
+    {
+      "file": "common.yaml",
+      "schema": "OperationBase",
+      "positive": "PASS",
+      "negative": "PASS"
+    },
+    {
+      "file": "common.yaml",
+      "schema": "PageMeta",
+      "positive": "PASS",
+      "negative": "PASS"
+    },
+    {
+      "file": "common.yaml",
+      "schema": "ProblemDetails",
+      "positive": "PASS",
+      "negative": "PASS"
+    },
+    {
+      "file": "common.yaml",
+      "schema": "Uuid",
+      "positive": "PASS",
+      "negative": "PASS"
+    },
+    {
+      "file": "cutover.yaml",
+      "schema": "CutoverCommitRecord",
+      "positive": "PASS",
+      "negative": "PASS"
+    },
+    {
+      "file": "cutover.yaml",
+      "schema": "CutoverRun",
+      "positive": "PASS",
+      "negative": "PASS"
+    },
+    {
+      "file": "cutover.yaml",
+      "schema": "TrafficState",
+      "positive": "PASS",
+      "negative": "PASS"
+    },
+    {
+      "file": "dataset.yaml",
+      "schema": "DatasetMigrationRun",
+      "positive": "PASS",
+      "negative": "PASS"
+    },
+    {
+      "file": "dataset.yaml",
+      "schema": "TransferSession",
+      "positive": "PASS",
+      "negative": "PASS"
+    },
+    {
+      "file": "execution.yaml",
+      "schema": "ActionRun",
+      "positive": "PASS",
+      "negative": "PASS"
+    },
+    {
+      "file": "execution.yaml",
+      "schema": "CreateRunRequest",
+      "positive": "PASS",
+      "negative": "PASS"
+    },
+    {
+      "file": "execution.yaml",
+      "schema": "ExecutionCommitRecord",
+      "positive": "PASS",
+      "negative": "PASS"
+    },
+    {
+      "file": "execution.yaml",
+      "schema": "ExecutionRun",
+      "positive": "PASS",
+      "negative": "PASS"
+    },
+    {
+      "file": "execution.yaml",
+      "schema": "ExecutionRunState",
+      "positive": "PASS",
+      "negative": "PASS"
+    },
+    {
+      "file": "execution.yaml",
+      "schema": "StageRun",
+      "positive": "PASS",
+      "negative": "PASS"
+    },
+    {
+      "file": "execution.yaml",
+      "schema": "VerificationResult",
+      "positive": "PASS",
+      "negative": "PASS"
+    },
+    {
+      "file": "planning.yaml",
+      "schema": "ApprovalRequest",
+      "positive": "PASS",
+      "negative": "PASS"
+    },
+    {
+      "file": "planning.yaml",
+      "schema": "CreateDecisionSetRequest",
+      "positive": "PASS",
+      "negative": "PASS"
+    },
+    {
+      "file": "planning.yaml",
+      "schema": "DecisionSetRevision",
+      "positive": "PASS",
+      "negative": "PASS"
+    },
+    {
+      "file": "planning.yaml",
+      "schema": "PlanAction",
+      "positive": "PASS",
+      "negative": "PASS"
+    },
+    {
+      "file": "planning.yaml",
+      "schema": "PlanApproval",
+      "positive": "PASS",
+      "negative": "PASS"
+    },
+    {
+      "file": "planning.yaml",
+      "schema": "PlanCompilationRequest",
+      "positive": "PASS",
+      "negative": "PASS"
+    },
+    {
+      "file": "planning.yaml",
+      "schema": "PlanCompilationRun",
+      "positive": "PASS",
+      "negative": "PASS"
+    },
+    {
+      "file": "planning.yaml",
+      "schema": "PlanRevision",
+      "positive": "PASS",
+      "negative": "PASS"
+    },
+    {
+      "file": "project.yaml",
+      "schema": "BindEndpointRequest",
+      "positive": "PASS",
+      "negative": "PASS"
+    },
+    {
+      "file": "project.yaml",
+      "schema": "CandidateGeneration",
+      "positive": "PASS",
+      "negative": "PASS"
+    },
+    {
+      "file": "project.yaml",
+      "schema": "CreateProjectRequest",
+      "positive": "PASS",
+      "negative": "PASS"
+    },
+    {
+      "file": "project.yaml",
+      "schema": "Endpoint",
+      "positive": "PASS",
+      "negative": "PASS"
+    },
+    {
+      "file": "project.yaml",
+      "schema": "EnvironmentProject",
+      "positive": "PASS",
+      "negative": "PASS"
+    },
+    {
+      "file": "project.yaml",
+      "schema": "EnvironmentSnapshot",
+      "positive": "PASS",
+      "negative": "PASS"
+    },
+    {
+      "file": "project.yaml",
+      "schema": "ProjectStatus",
+      "positive": "PASS",
+      "negative": "PASS"
+    },
+    {
+      "file": "project.yaml",
+      "schema": "ProjectType",
+      "positive": "PASS",
+      "negative": "PASS"
+    },
+    {
+      "file": "project.yaml",
+      "schema": "ReadinessResult",
+      "positive": "PASS",
+      "negative": "PASS"
+    },
+    {
+      "file": "project.yaml",
+      "schema": "ReviewCommand",
+      "positive": "PASS",
+      "negative": "PASS"
+    },
+    {
+      "file": "project.yaml",
+      "schema": "ReviewSession",
+      "positive": "PASS",
+      "negative": "PASS"
+    },
+    {
+      "file": "project.yaml",
+      "schema": "SnapshotCollectionRun",
+      "positive": "PASS",
+      "negative": "PASS"
+    },
+    {
+      "file": "project.yaml",
+      "schema": "SnapshotCollectionRunRequest",
+      "positive": "PASS",
+      "negative": "PASS"
+    },
+    {
+      "file": "project.yaml",
+      "schema": "Workload",
+      "positive": "PASS",
+      "negative": "PASS"
+    },
+    {
+      "file": "project.yaml",
+      "schema": "WorkloadBlueprintRevision",
+      "positive": "PASS",
+      "negative": "PASS"
+    },
+    {
+      "file": "project.yaml",
+      "schema": "WorkloadCandidate",
+      "positive": "PASS",
+      "negative": "PASS"
+    },
+    {
+      "file": "secret.yaml",
+      "schema": "CreateSecretBindingRequest",
+      "positive": "PASS",
+      "negative": "PASS"
+    },
+    {
+      "file": "secret.yaml",
+      "schema": "SecretGate",
+      "positive": "PASS",
+      "negative": "PASS"
+    },
+    {
+      "file": "secret.yaml",
+      "schema": "SecretInputRequest",
+      "positive": "PASS",
+      "negative": "PASS"
+    },
+    {
+      "file": "secret.yaml",
+      "schema": "SecretInputSession",
+      "positive": "PASS",
+      "negative": "PASS"
+    },
+    {
+      "file": "secret.yaml",
+      "schema": "SecretProviderBinding",
+      "positive": "PASS",
+      "negative": "PASS"
+    }
+  ],
+  "exampleResults": [
+    {
+      "name": "create-project-valid",
+      "schema": "../schemas/project.yaml#/$defs/CreateProjectRequest",
+      "expectedValid": true,
+      "result": "PASS"
+    },
+    {
+      "name": "create-project-invalid",
+      "schema": "../schemas/project.yaml#/$defs/CreateProjectRequest",
+      "expectedValid": false,
+      "result": "PASS"
+    },
+    {
+      "name": "problem-details-valid",
+      "schema": "../schemas/common.yaml#/$defs/ProblemDetails",
+      "expectedValid": true,
+      "result": "PASS"
+    },
+    {
+      "name": "run-request-valid",
+      "schema": "../schemas/execution.yaml#/$defs/CreateRunRequest",
+      "expectedValid": true,
+      "result": "PASS"
+    },
+    {
+      "name": "run-request-invalid",
+      "schema": "../schemas/execution.yaml#/$defs/CreateRunRequest",
+      "expectedValid": false,
+      "result": "PASS"
+    },
+    {
+      "name": "one-time-secret-shape-valid",
+      "schema": "../schemas/secret.yaml#/$defs/SecretInputRequest",
+      "expectedValid": true,
+      "result": "PASS"
+    },
+    {
+      "name": "one-time-secret-shape-invalid",
+      "schema": "../schemas/secret.yaml#/$defs/SecretInputRequest",
+      "expectedValid": false,
+      "result": "PASS"
+    }
+  ]
+}

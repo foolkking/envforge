@@ -1,0 +1,30 @@
+{
+  "algorithm": "SHA-256",
+  "integratedPackage": {
+    "path": "C:\\Users\\86182\\Downloads\\EnvForge_Design_Docs_v1.1_Integrated.zip",
+    "sha256": "72dedef165e175f6f188c6a17cffde79d199a1b6f4a32ff8658367b5e942b9b0",
+    "bytes": 527221
+  },
+  "legacyDocsPackage": {
+    "path": "C:\\Users\\86182\\Downloads\\EnvForge_Legacy_Docs_Rebuilt_v1.zip",
+    "sha256": "a0f4d259f62a700ac69bbf68c46cc22cd3ad49502bf2786ee1a4f2535a322dc2",
+    "bytes": 218422
+  },
+  "legacyDisposition": {
+    "path": "delivery/history/LEGACY_FILE_DISPOSITION.csv",
+    "sha256": "a61ad8fc8a0b9a266ed6ec53fd7ee5a046cca62cb67d1998f6fc5be1d14ed570",
+    "bytes": 9413
+  },
+  "preInstallDocs": {
+    "commit": "d522abe7fcc593b9038af3f24ea1ca7316d0022e",
+    "count": 47,
+    "manifestSha256": "4d7f0f6ff26143a5600676d6b2788297808cb257cb224a381621e854088c5e3b",
+    "gitTree": "dc403110bdb65dbfaa1c4dbf47c0b6b98f132593"
+  },
+  "installedDesignDocs": {
+    "commit": "a0a9a69cefc0888c32e9fb2ef3f5ca5416a4a254",
+    "count": 178,
+    "manifestSha256": "9c484378ebe0c247ee58da052d65f61ae06d48866472107404c84f144adf5ae6",
+    "gitTree": "021fcc36dc9853337bdec59546ad411d90454a63"
+  }
+}

@@ -1,0 +1,77 @@
+phase: preparation
+verdict: PASS
+design_baseline: "1.2"
+delivery_contract: "EF-DELIVERY-CONTRACT-001@1.1"
+initial_head: a0a9a69cefc0888c32e9fb2ef3f5ca5416a4a254
+final_head: pending-closure-commit
+schema_version: current-sqlite-hybrid-reference-ddl-v1
+api_version: current-legacy-api-plus-openapi-3.1-reference
+artifact_or_archive_format_versions: []
+feature_flags: []
+authoritative_write_paths:
+  - Environment Plan review/apply/verify/rollback boundary
+authoritative_read_paths:
+  - current SQLite runtime store
+deprecated_paths:
+  - generated/catalog-preview/
+new_capabilities:
+  - integrated-design-baseline-adopted
+  - experience-design-baseline
+  - capability-publication-governance
+  - repository-gap-matrix
+  - design-validation-ci
+  - phase-delivery-governance
+experience_baseline:
+  - docs/15-experience
+legacy_document_migration:
+  - delivery/preparation/07-legacy-document-disposition.md
+retired_document_paths:
+  - generated/catalog-preview/
+remaining_document_compatibility_stubs:
+  - current implementation guides under docs/04, docs/10, docs/11, docs/15
+current_implementation_guides:
+  - docs/04-compilation/capability-authoring-guide.md
+  - docs/04-compilation/current-capability-catalog-guide.md
+  - docs/10-operations/current-runtime-operations.md
+  - docs/11-testing/current-harness-guide.md
+  - docs/15-experience/current-web-implementation.md
+historical_evidence_used:
+  - delivery/history
+historical_facts_revalidated:
+  - current API, database, execution, UI, and test baselines
+generated_artifact_policy:
+  - artifacts/generated/README.md
+capability_publication_governance:
+  - preview and certification are separate from runtime enablement
+certification_status:
+  - current catalog certification and preview commands pass
+known_debt:
+  - durable PostgreSQL execution model remains Phase 0-2 work
+  - Dataset, Secret Delivery, Cutover, Archive, and Restore remain later phases
+open_questions: []
+required_next_actions:
+  - generate-phase-0-execution-and-closure-prompt
+blocking_conditions: []
+phase_0_required_inputs:
+  migration_tool: explicit SQL migrations; no ORM auto-sync
+  authentication_baseline: ADR-014
+  artifact_store_baseline: ADR-016
+  repository_paths:
+    - docs/
+    - delivery/
+    - tools/preparation/
+  current_database: SQLite hybrid runtime store
+  current_api: current legacy API inventory under delivery/preparation/evidence/api
+  baseline_test_commands:
+    - npm run typecheck
+    - npm run build
+    - npm test
+    - npm run smoke:web
+    - npm run validate:preparation
+  accepted_adrs:
+    - docs/14-adr/ADR-013-adopt-integrated-design-baseline-v1.2.md
+    - docs/14-adr/ADR-014-authentication-baseline.md
+    - docs/14-adr/ADR-015-explicit-sql-migrations.md
+    - docs/14-adr/ADR-016-artifact-local-and-encryption-baseline.md
+evidence_index: delivery/preparation/evidence/index.md
+closure_report: delivery/preparation/90-closure-report.md

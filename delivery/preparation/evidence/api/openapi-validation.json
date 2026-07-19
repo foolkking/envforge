@@ -1,0 +1,648 @@
+{
+  "status": "PASS",
+  "commands": [
+    "redocly lint docs/08-api/openapi/openapi.yaml",
+    "redocly bundle docs/08-api/openapi/openapi.yaml --output artifacts/generated/preparation/openapi/openapi.bundle.yaml",
+    "openapi-typescript docs/08-api/openapi/openapi.yaml --output artifacts/generated/preparation/openapi/openapi-types.d.ts"
+  ],
+  "tools": {
+    "redocly": "1.34.5",
+    "openapiTypescript": "7.13.0",
+    "yaml": "workspace dependency"
+  },
+  "environment": "win32/x64 node v20.13.1",
+  "exitCode": 0,
+  "openapi": "3.1.0",
+  "apiVersion": "1.1.0",
+  "pathCount": 100,
+  "operationCount": 103,
+  "operationIdsUnique": true,
+  "mockedOperations": 103,
+  "explicitExamples": 7,
+  "lintWarnings": 14,
+  "bundleBytes": 141836,
+  "bundleSha256": "401a0b82086839bae1c65ee1f60bfc593b17c2dd994b07a61d93d1f49e7240b0",
+  "codegenBytes": 181898,
+  "codegenSha256": "34e9c3819ddbf8c72dc50ec5fdaa9ddfb01e5cd5f569259d6fa6600d6d41e85e",
+  "elapsedMs": 12878,
+  "operations": [
+    {
+      "operationId": "CreateProject",
+      "method": "POST",
+      "path": "/projects",
+      "mockStatus": 200
+    },
+    {
+      "operationId": "ListProjects",
+      "method": "GET",
+      "path": "/projects",
+      "mockStatus": 200
+    },
+    {
+      "operationId": "GetProject",
+      "method": "GET",
+      "path": "/projects/{projectId}",
+      "mockStatus": 200
+    },
+    {
+      "operationId": "ArchiveProject",
+      "method": "POST",
+      "path": "/projects/{projectId}/archive",
+      "mockStatus": 200
+    },
+    {
+      "operationId": "BindEndpointToProject",
+      "method": "POST",
+      "path": "/projects/{projectId}/endpoints",
+      "mockStatus": 200
+    },
+    {
+      "operationId": "ListProjectEndpoints",
+      "method": "GET",
+      "path": "/projects/{projectId}/endpoints",
+      "mockStatus": 200
+    },
+    {
+      "operationId": "CreateSnapshotCollectionRun",
+      "method": "POST",
+      "path": "/endpoints/{endpointId}/snapshot-runs",
+      "mockStatus": 202
+    },
+    {
+      "operationId": "GetSnapshotCollectionRun",
+      "method": "GET",
+      "path": "/snapshot-runs/{runId}",
+      "mockStatus": 200
+    },
+    {
+      "operationId": "GetSnapshot",
+      "method": "GET",
+      "path": "/snapshots/{snapshotId}",
+      "mockStatus": 200
+    },
+    {
+      "operationId": "CreateCandidateGeneration",
+      "method": "POST",
+      "path": "/snapshots/{snapshotId}/candidate-generations",
+      "mockStatus": 202
+    },
+    {
+      "operationId": "GetCandidateGeneration",
+      "method": "GET",
+      "path": "/candidate-generations/{generationId}",
+      "mockStatus": 200
+    },
+    {
+      "operationId": "ListWorkloadCandidates",
+      "method": "GET",
+      "path": "/candidate-generations/{generationId}/candidates",
+      "mockStatus": 200
+    },
+    {
+      "operationId": "CreateCandidateReviewSession",
+      "method": "POST",
+      "path": "/candidate-generations/{generationId}/review-sessions",
+      "mockStatus": 200
+    },
+    {
+      "operationId": "GetCandidateReviewSession",
+      "method": "GET",
+      "path": "/candidate-review-sessions/{sessionId}",
+      "mockStatus": 200
+    },
+    {
+      "operationId": "ConfirmCandidateReview",
+      "method": "POST",
+      "path": "/candidate-review-sessions/{sessionId}/confirm",
+      "mockStatus": 202
+    },
+    {
+      "operationId": "Merge",
+      "method": "POST",
+      "path": "/candidate-review-sessions/{sessionId}/merge",
+      "mockStatus": 202
+    },
+    {
+      "operationId": "Split",
+      "method": "POST",
+      "path": "/candidate-review-sessions/{sessionId}/split",
+      "mockStatus": 202
+    },
+    {
+      "operationId": "ReassignEvidence",
+      "method": "POST",
+      "path": "/candidate-review-sessions/{sessionId}/reassign-evidence",
+      "mockStatus": 202
+    },
+    {
+      "operationId": "MarkShared",
+      "method": "POST",
+      "path": "/candidate-review-sessions/{sessionId}/mark-shared",
+      "mockStatus": 202
+    },
+    {
+      "operationId": "ExcludeEvidence",
+      "method": "POST",
+      "path": "/candidate-review-sessions/{sessionId}/exclude-evidence",
+      "mockStatus": 202
+    },
+    {
+      "operationId": "AnswerQuestion",
+      "method": "POST",
+      "path": "/candidate-review-sessions/{sessionId}/answer-question",
+      "mockStatus": 202
+    },
+    {
+      "operationId": "PreviewBlueprint",
+      "method": "POST",
+      "path": "/candidate-review-sessions/{sessionId}/preview-blueprint",
+      "mockStatus": 202
+    },
+    {
+      "operationId": "Promote",
+      "method": "POST",
+      "path": "/candidate-review-sessions/{sessionId}/promote",
+      "mockStatus": 202
+    },
+    {
+      "operationId": "ListWorkloads",
+      "method": "GET",
+      "path": "/workloads",
+      "mockStatus": 200
+    },
+    {
+      "operationId": "GetWorkload",
+      "method": "GET",
+      "path": "/workloads/{workloadId}",
+      "mockStatus": 200
+    },
+    {
+      "operationId": "ArchiveWorkload",
+      "method": "POST",
+      "path": "/workloads/{workloadId}/archive",
+      "mockStatus": 202
+    },
+    {
+      "operationId": "ListBlueprintRevisions",
+      "method": "GET",
+      "path": "/workloads/{workloadId}/blueprints",
+      "mockStatus": 200
+    },
+    {
+      "operationId": "GetBlueprintRevision",
+      "method": "GET",
+      "path": "/blueprint-revisions/{revisionId}",
+      "mockStatus": 200
+    },
+    {
+      "operationId": "DraftSuccessor",
+      "method": "POST",
+      "path": "/blueprint-revisions/{revisionId}/draft-successor",
+      "mockStatus": 200
+    },
+    {
+      "operationId": "ConfirmBlueprintRevision",
+      "method": "POST",
+      "path": "/blueprint-revisions/{revisionId}/confirm",
+      "mockStatus": 200
+    },
+    {
+      "operationId": "EvaluateReadiness",
+      "method": "POST",
+      "path": "/blueprint-revisions/{revisionId}/evaluate-readiness",
+      "mockStatus": 200
+    },
+    {
+      "operationId": "GetBlueprintDrift",
+      "method": "GET",
+      "path": "/blueprint-revisions/{revisionId}/drift",
+      "mockStatus": 200
+    },
+    {
+      "operationId": "AcceptBlueprintUpdateProposal",
+      "method": "POST",
+      "path": "/blueprint-update-proposals/{proposalId}/accept",
+      "mockStatus": 202
+    },
+    {
+      "operationId": "RejectBlueprintUpdateProposal",
+      "method": "POST",
+      "path": "/blueprint-update-proposals/{proposalId}/reject",
+      "mockStatus": 202
+    },
+    {
+      "operationId": "CreateDecisionSetRevision",
+      "method": "POST",
+      "path": "/projects/{projectId}/decision-set-revisions",
+      "mockStatus": 200
+    },
+    {
+      "operationId": "GetDecisionSetRevision",
+      "method": "GET",
+      "path": "/decision-set-revisions/{revisionId}",
+      "mockStatus": 200
+    },
+    {
+      "operationId": "CreatePlanCompilation",
+      "method": "POST",
+      "path": "/projects/{projectId}/plan-compilations",
+      "mockStatus": 202
+    },
+    {
+      "operationId": "GetPlanCompilation",
+      "method": "GET",
+      "path": "/plan-compilations/{compilationId}",
+      "mockStatus": 200
+    },
+    {
+      "operationId": "GetPlanRevision",
+      "method": "GET",
+      "path": "/plans/{planRevisionId}",
+      "mockStatus": 200
+    },
+    {
+      "operationId": "ListPlanActions",
+      "method": "GET",
+      "path": "/plans/{planRevisionId}/actions",
+      "mockStatus": 200
+    },
+    {
+      "operationId": "ListPlanRisks",
+      "method": "GET",
+      "path": "/plans/{planRevisionId}/risks",
+      "mockStatus": 200
+    },
+    {
+      "operationId": "ListPlanGates",
+      "method": "GET",
+      "path": "/plans/{planRevisionId}/gates",
+      "mockStatus": 200
+    },
+    {
+      "operationId": "SubmitForApproval",
+      "method": "POST",
+      "path": "/plans/{planRevisionId}/submit-for-approval",
+      "mockStatus": 200
+    },
+    {
+      "operationId": "Approve",
+      "method": "POST",
+      "path": "/plans/{planRevisionId}/approve",
+      "mockStatus": 200
+    },
+    {
+      "operationId": "Reject",
+      "method": "POST",
+      "path": "/plans/{planRevisionId}/reject",
+      "mockStatus": 200
+    },
+    {
+      "operationId": "Revoke",
+      "method": "POST",
+      "path": "/plans/{planRevisionId}/revoke",
+      "mockStatus": 200
+    },
+    {
+      "operationId": "CreateExecutionRun",
+      "method": "POST",
+      "path": "/plans/{planRevisionId}/runs",
+      "mockStatus": 202
+    },
+    {
+      "operationId": "GetExecutionRun",
+      "method": "GET",
+      "path": "/runs/{runId}",
+      "mockStatus": 200
+    },
+    {
+      "operationId": "GetRunStages",
+      "method": "GET",
+      "path": "/runs/{runId}/stages",
+      "mockStatus": 200
+    },
+    {
+      "operationId": "GetRunActions",
+      "method": "GET",
+      "path": "/runs/{runId}/actions",
+      "mockStatus": 200
+    },
+    {
+      "operationId": "GetRunEvents",
+      "method": "GET",
+      "path": "/runs/{runId}/events",
+      "mockStatus": 200
+    },
+    {
+      "operationId": "GetRunProgress",
+      "method": "GET",
+      "path": "/runs/{runId}/progress",
+      "mockStatus": 200
+    },
+    {
+      "operationId": "StreamRunEvents",
+      "method": "GET",
+      "path": "/runs/{runId}/events/stream",
+      "mockStatus": 200
+    },
+    {
+      "operationId": "PauseExecutionRun",
+      "method": "POST",
+      "path": "/runs/{runId}/pause",
+      "mockStatus": 202
+    },
+    {
+      "operationId": "ResumeExecutionRun",
+      "method": "POST",
+      "path": "/runs/{runId}/resume",
+      "mockStatus": 202
+    },
+    {
+      "operationId": "CancelExecutionRun",
+      "method": "POST",
+      "path": "/runs/{runId}/cancel",
+      "mockStatus": 202
+    },
+    {
+      "operationId": "RetryExecutionRun",
+      "method": "POST",
+      "path": "/runs/{runId}/retry",
+      "mockStatus": 202
+    },
+    {
+      "operationId": "RollbackExecutionRun",
+      "method": "POST",
+      "path": "/runs/{runId}/rollback",
+      "mockStatus": 202
+    },
+    {
+      "operationId": "CompleteManualGate",
+      "method": "POST",
+      "path": "/runs/{runId}/manual-gates/{gateId}/complete",
+      "mockStatus": 202
+    },
+    {
+      "operationId": "ListDatasetRuns",
+      "method": "GET",
+      "path": "/runs/{runId}/dataset-runs",
+      "mockStatus": 200
+    },
+    {
+      "operationId": "GetDatasetRun",
+      "method": "GET",
+      "path": "/dataset-runs/{datasetRunId}",
+      "mockStatus": 200
+    },
+    {
+      "operationId": "PauseDatasetRun",
+      "method": "POST",
+      "path": "/dataset-runs/{datasetRunId}/pause",
+      "mockStatus": 202
+    },
+    {
+      "operationId": "ResumeDatasetRun",
+      "method": "POST",
+      "path": "/dataset-runs/{datasetRunId}/resume",
+      "mockStatus": 202
+    },
+    {
+      "operationId": "RetryDatasetRun",
+      "method": "POST",
+      "path": "/dataset-runs/{datasetRunId}/retry",
+      "mockStatus": 202
+    },
+    {
+      "operationId": "RollbackDatasetRun",
+      "method": "POST",
+      "path": "/dataset-runs/{datasetRunId}/rollback",
+      "mockStatus": 202
+    },
+    {
+      "operationId": "ListTransferSessions",
+      "method": "GET",
+      "path": "/dataset-runs/{datasetRunId}/transfers",
+      "mockStatus": 200
+    },
+    {
+      "operationId": "GetTransferSession",
+      "method": "GET",
+      "path": "/transfer-sessions/{transferSessionId}",
+      "mockStatus": 200
+    },
+    {
+      "operationId": "GetTransferProgress",
+      "method": "GET",
+      "path": "/transfer-sessions/{transferSessionId}/progress",
+      "mockStatus": 200
+    },
+    {
+      "operationId": "GetTransferManifest",
+      "method": "GET",
+      "path": "/transfer-sessions/{transferSessionId}/manifest",
+      "mockStatus": 200
+    },
+    {
+      "operationId": "ListSecretRequirements",
+      "method": "GET",
+      "path": "/projects/{projectId}/secret-requirements",
+      "mockStatus": 200
+    },
+    {
+      "operationId": "CreateSecretProviderBinding",
+      "method": "POST",
+      "path": "/projects/{projectId}/secret-provider-bindings",
+      "mockStatus": 200
+    },
+    {
+      "operationId": "GetSecretProviderBinding",
+      "method": "GET",
+      "path": "/secret-provider-bindings/{bindingId}",
+      "mockStatus": 200
+    },
+    {
+      "operationId": "ValidateSecretProviderBinding",
+      "method": "POST",
+      "path": "/secret-provider-bindings/{bindingId}/validate",
+      "mockStatus": 202
+    },
+    {
+      "operationId": "ListRunSecretGates",
+      "method": "GET",
+      "path": "/runs/{runId}/secret-gates",
+      "mockStatus": 200
+    },
+    {
+      "operationId": "CreateSecretInputSession",
+      "method": "POST",
+      "path": "/runs/{runId}/secret-gates/{gateId}/input-sessions",
+      "mockStatus": 200
+    },
+    {
+      "operationId": "SubmitOneTimeSecret",
+      "method": "POST",
+      "path": "/secret-input-sessions/{sessionId}/submit",
+      "mockStatus": 202
+    },
+    {
+      "operationId": "RetrySecretDelivery",
+      "method": "POST",
+      "path": "/secret-delivery-runs/{deliveryRunId}/retry",
+      "mockStatus": 202
+    },
+    {
+      "operationId": "RotateSecretDelivery",
+      "method": "POST",
+      "path": "/secret-delivery-runs/{deliveryRunId}/rotate",
+      "mockStatus": 202
+    },
+    {
+      "operationId": "RevokeSecretDelivery",
+      "method": "POST",
+      "path": "/secret-delivery-runs/{deliveryRunId}/revoke",
+      "mockStatus": 202
+    },
+    {
+      "operationId": "GetRunCutover",
+      "method": "GET",
+      "path": "/runs/{runId}/cutover",
+      "mockStatus": 200
+    },
+    {
+      "operationId": "GetCutoverRun",
+      "method": "GET",
+      "path": "/cutover-runs/{cutoverRunId}",
+      "mockStatus": 200
+    },
+    {
+      "operationId": "GetCutoverAuthority",
+      "method": "GET",
+      "path": "/cutover-runs/{cutoverRunId}/authority",
+      "mockStatus": 200
+    },
+    {
+      "operationId": "GetCutoverTraffic",
+      "method": "GET",
+      "path": "/cutover-runs/{cutoverRunId}/traffic",
+      "mockStatus": 200
+    },
+    {
+      "operationId": "GetCutoverVerification",
+      "method": "GET",
+      "path": "/cutover-runs/{cutoverRunId}/verification",
+      "mockStatus": 200
+    },
+    {
+      "operationId": "GetCutoverObservation",
+      "method": "GET",
+      "path": "/cutover-runs/{cutoverRunId}/observation",
+      "mockStatus": 200
+    },
+    {
+      "operationId": "StartCutover",
+      "method": "POST",
+      "path": "/cutover-runs/{cutoverRunId}/start",
+      "mockStatus": 202
+    },
+    {
+      "operationId": "ResumeSourceCutover",
+      "method": "POST",
+      "path": "/cutover-runs/{cutoverRunId}/resume-source",
+      "mockStatus": 202
+    },
+    {
+      "operationId": "CommitCutover",
+      "method": "POST",
+      "path": "/cutover-runs/{cutoverRunId}/commit",
+      "mockStatus": 200
+    },
+    {
+      "operationId": "RollbackCutover",
+      "method": "POST",
+      "path": "/cutover-runs/{cutoverRunId}/rollback",
+      "mockStatus": 202
+    },
+    {
+      "operationId": "CreateArchiveCatalog",
+      "method": "POST",
+      "path": "/archives",
+      "mockStatus": 200
+    },
+    {
+      "operationId": "ListArchives",
+      "method": "GET",
+      "path": "/archives",
+      "mockStatus": 200
+    },
+    {
+      "operationId": "GetArchive",
+      "method": "GET",
+      "path": "/archives/{archiveId}",
+      "mockStatus": 200
+    },
+    {
+      "operationId": "ListArchiveVersions",
+      "method": "GET",
+      "path": "/archives/{archiveId}/versions",
+      "mockStatus": 200
+    },
+    {
+      "operationId": "GetArchiveVersion",
+      "method": "GET",
+      "path": "/archive-versions/{versionId}",
+      "mockStatus": 200
+    },
+    {
+      "operationId": "GetArchiveHealth",
+      "method": "GET",
+      "path": "/archive-versions/{versionId}/health",
+      "mockStatus": 200
+    },
+    {
+      "operationId": "CreateArchiveScrub",
+      "method": "POST",
+      "path": "/archive-versions/{versionId}/scrub-runs",
+      "mockStatus": 200
+    },
+    {
+      "operationId": "CreateArchiveRepair",
+      "method": "POST",
+      "path": "/archive-versions/{versionId}/repair-runs",
+      "mockStatus": 200
+    },
+    {
+      "operationId": "CreateRestoreDrill",
+      "method": "POST",
+      "path": "/archive-versions/{versionId}/restore-drill-runs",
+      "mockStatus": 200
+    },
+    {
+      "operationId": "CreateRestoreProject",
+      "method": "POST",
+      "path": "/archive-versions/{versionId}/restore-projects",
+      "mockStatus": 202
+    },
+    {
+      "operationId": "GetSourceReleaseReadiness",
+      "method": "GET",
+      "path": "/archive-versions/{versionId}/source-release-readiness",
+      "mockStatus": 200
+    },
+    {
+      "operationId": "CommitSourceRelease",
+      "method": "POST",
+      "path": "/archive-versions/{versionId}/source-release-commit",
+      "mockStatus": 202
+    },
+    {
+      "operationId": "CreateArchiveReplica",
+      "method": "POST",
+      "path": "/archive-versions/{versionId}/replicas",
+      "mockStatus": 202
+    },
+    {
+      "operationId": "RequestArchiveDeletion",
+      "method": "POST",
+      "path": "/archive-versions/{versionId}/deletion-requests",
+      "mockStatus": 202
+    }
+  ]
+}

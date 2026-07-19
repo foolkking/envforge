@@ -1,0 +1,9 @@
+branch=main
+initial_head=a0a9a69cefc0888c32e9fb2ef3f5ca5416a4a254
+remote_head=d522abe7fcc593b9038af3f24ea1ca7316d0022e
+ahead=2
+behind=0
+ D .claude/launch.json
+?? .migration-backup/
+?? "git add docs"
+No conflicts. No Preparation files existed at capture time.

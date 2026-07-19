@@ -1,0 +1,55 @@
+{
+  "status": "PASS",
+  "checks": [
+    {
+      "name": "broken Markdown link",
+      "pass": true,
+      "exitCode": 1,
+      "marker": "BROKEN_LINK"
+    },
+    {
+      "name": "duplicate document id",
+      "pass": true,
+      "exitCode": 1,
+      "marker": "DUPLICATE_ID"
+    },
+    {
+      "name": "invalid front matter",
+      "pass": true,
+      "exitCode": 1,
+      "marker": "FRONT_MATTER_FIELD"
+    },
+    {
+      "name": "invalid Mermaid",
+      "pass": true,
+      "exitCode": 1
+    },
+    {
+      "name": "broken OpenAPI reference",
+      "pass": true,
+      "exitCode": 1,
+      "marker": "MISSING_RESPONSE"
+    },
+    {
+      "name": "duplicate OpenAPI operationId",
+      "pass": true,
+      "exitCode": 1
+    },
+    {
+      "name": "invalid JSON Schema example",
+      "pass": true,
+      "exitCode": 1
+    },
+    {
+      "name": "missing evidence/source path",
+      "pass": true,
+      "exitCode": 1
+    },
+    {
+      "name": "unavailable PostgreSQL target",
+      "pass": true,
+      "exitCode": 2
+    }
+  ],
+  "sourceMutation": "none"
+}

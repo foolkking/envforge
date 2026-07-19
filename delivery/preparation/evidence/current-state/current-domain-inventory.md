@@ -1,0 +1,19 @@
+# Current Domain Inventory
+
+Classification: `informative-current-implementation`. Verified against `a0a9a69cefc0888c32e9fb2ef3f5ca5416a4a254`; historical audit findings were revalidated because product-code diff from `a77f597` is empty.
+
+| Current name | Code path / symbol | Responsibility | Persistence | Lifecycle/API | Tests | Current authority | Target gap | Confidence |
+|---|---|---|---|---|---|---|---|---|
+| `StoredMigrationSession` | `runtime-store.ts:StoredMigrationSession` | legacy Migrate pipeline/session state | SQLite `system_kv` runtime document | create/update/analysis/decision/dry-run/plan routes | migration-session, assessment, route tests | current legacy session | maps to EnvironmentProject + endpoints + operations | high |
+| `EnvironmentPlan` | `environment-plan.ts:EnvironmentPlan` | unified current Build/Migrate/change/remove/repair contract | `StoredEnvironmentPlan.payload` | create/review/apply/verify/rollback/report | plan security/apply/lifecycle tests | current target-mutation contract | maps to immutable `PlanRevision`, but lacks revision root/input bindings | high |
+| `StoredApplyRun` | `runtime-store.ts:StoredApplyRun`, `plan-store.ts` | apply claim/idempotency/result | runtime document | claimed/running/succeeded/failed | plan-security-core/routes | current apply record, not durable engine | maps to ExecutionRun + Stage/Action/Attempt | high |
+| `ActionRunRecord` | `action-runs.ts` | managed action evidence/state/redaction | embedded in plan/runtime evidence | pending→running→terminal | managed-execution and plan tests | action evidence | target separates ActionRun and ActionAttempt with lease/fencing | high |
+| `StoredProbeSnapshot` | `runtime-store.ts` | collector output, surfaces, status/errors/completeness | connection/runtime document + snapshot files | probe/read/assessment | collector/snapshot/graph tests | current discovery input | maps to CollectionRun + finalized EnvironmentSnapshot/evidence | high |
+| `InventoryGraph` | `inventory-graph.ts:extractInventoryGraph` | derived nodes/edges from snapshot | derived, not authoritative | migration/session/connection read routes | Phase 4 graph/route tests | derived view | evidence relationships feed candidates/workloads in target | high |
+| `ServiceStack` | `inventory-graph.ts:aggregateServiceStacks` | derived service-centric aggregation | derived | assessment/routes/support bundle | service-stack/contract tests | derived current heuristic | maps to WorkloadCandidate, never auto-confirms Workload | high |
+| Verification result | `EnvironmentPlan.verifyResults`, route handlers | latest command/service check results | stored on Plan record | separate verify request | verify and route tests | current evidence only | target VerificationResult in required DAG/run | high |
+| Rollback result | `EnvironmentPlan.rollbackResults`, route handlers | latest reverse-action outcome | stored on Plan record | separate rollback request | rollback/managed tests | current evidence only | target independent rollback ExecutionRun | high |
+| Plan artifact | `artifact-store.ts:putPlanArtifact/getPlanArtifact/verifyPlanArtifact` | immutable content-addressed local bytes | local filesystem + Plan metadata | create/read/hash verify | artifact tamper/managed config tests | current short-lived Plan artifact | maps to ArtifactRecord/provider; not Archive | high |
+| `SecretRef` | snapshot/graph types | fingerprint/reference without plaintext | snapshot/graph metadata | discovery/read only | sensitive surface/redaction tests | current reference | no SecretRequirement/provider/delivery run | high |
+
+Target-only objects such as EnvironmentProject, Workload, WorkloadBlueprintRevision, DecisionSetRevision, PlanRevision, durable ExecutionRun/Attempt/Lease, DatasetMigrationRun, TransferSession, SecretDeliveryRun, CutoverRun, ArchiveVersion, and RestoreDrillRun are not current product authorities.

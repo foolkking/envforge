@@ -1,0 +1,54 @@
+{
+  "status": "PASS",
+  "command": "npm run validate:docs:mermaid",
+  "tool": "@mermaid-js/mermaid-cli 11.12.0",
+  "environment": "win32/x64 node v20.13.1",
+  "exitCode": 0,
+  "sourceCount": 7,
+  "outputBytes": 206215,
+  "elapsedMs": 19230,
+  "rendered": [
+    {
+      "source": "docs/02-architecture/diagrams/archive-restore.mmd",
+      "output": "artifacts/generated/preparation/mermaid/02-architecture/diagrams/archive-restore.mmd.svg",
+      "bytes": 27617,
+      "sha256": "9cc807fd540dd0a833cab749c269957d730db14141c1789b7a3901dcd1e1bc70"
+    },
+    {
+      "source": "docs/02-architecture/diagrams/blueprint-compilation.mmd",
+      "output": "artifacts/generated/preparation/mermaid/02-architecture/diagrams/blueprint-compilation.mmd.svg",
+      "bytes": 28470,
+      "sha256": "071285ea77a171a9b6c7dc1431c0332657962b334024c81c22b82860ddae2b7a"
+    },
+    {
+      "source": "docs/02-architecture/diagrams/components.mmd",
+      "output": "artifacts/generated/preparation/mermaid/02-architecture/diagrams/components.mmd.svg",
+      "bytes": 27939,
+      "sha256": "263cef05642f225855ebf49ad90e91edd48ef0b1f2d35486be58ec9d3b921120"
+    },
+    {
+      "source": "docs/02-architecture/diagrams/containers.mmd",
+      "output": "artifacts/generated/preparation/mermaid/02-architecture/diagrams/containers.mmd.svg",
+      "bytes": 29318,
+      "sha256": "996b8ab6e4a00fe328658321c9e4c2a7f705da0fb0a21b443726030c73a9012e"
+    },
+    {
+      "source": "docs/02-architecture/diagrams/domain-overview.mmd",
+      "output": "artifacts/generated/preparation/mermaid/02-architecture/diagrams/domain-overview.mmd.svg",
+      "bytes": 31909,
+      "sha256": "bf1617c2ae4a6d81f338ee21abdbb6566d133b803e9c73c745241cbd4874fcac"
+    },
+    {
+      "source": "docs/02-architecture/diagrams/execution-runtime.mmd",
+      "output": "artifacts/generated/preparation/mermaid/02-architecture/diagrams/execution-runtime.mmd.svg",
+      "bytes": 40981,
+      "sha256": "10b3aab4bb7fe503f90a3caecaa9366aa250b306d2e1038a272b93e99f1b34ad"
+    },
+    {
+      "source": "docs/02-architecture/diagrams/system-context.mmd",
+      "output": "artifacts/generated/preparation/mermaid/02-architecture/diagrams/system-context.mmd.svg",
+      "bytes": 19981,
+      "sha256": "5e4e2917d67e609f0ab9bcce599a4dd8a4197dba97259802459fdc319cfb2f28"
+    }
+  ]
+}

@@ -1,0 +1,39 @@
+{
+  "status": "PASS",
+  "command": "npm run validate:ddl",
+  "tool": "psql (PostgreSQL) 17.10",
+  "serverVersion": "17.10",
+  "validationTarget": "disposable PostgreSQL; not a final support commitment",
+  "environment": "win32/x64 node v20.13.1",
+  "exitCode": 0,
+  "cleanApply": {
+    "database": "envforge_preparation",
+    "ddlFilesApplied": 3,
+    "probes": "PASS",
+    "tableCount": 50
+  },
+  "cleanReapply": {
+    "database": "envforge_preparation_reapply",
+    "ddlFilesApplied": 3,
+    "probes": "PASS",
+    "tableCount": 50
+  },
+  "constraintProbeCount": 8,
+  "ddl": [
+    {
+      "file": "docs/07-persistence/ddl/phase-0-foundation.sql",
+      "sha256": "ea505bb4dd3047ef06a8883ac8c7eee4c3d02ab09e71561bca313edbcc1e1f9a"
+    },
+    {
+      "file": "docs/07-persistence/ddl/phase-1-domain.sql",
+      "sha256": "d5bb6234e1bf552c3c42b4a429ba448b29da6759ce4bfbfb64b16dd01f296a81"
+    },
+    {
+      "file": "docs/07-persistence/ddl/phase-2-execution.sql",
+      "sha256": "90436b85df162e2ca59b7032ec55bc2dc5a483ad39a483264d365f3409bd1c0b"
+    }
+  ],
+  "probesSha256": "f7d3de961512bb977bbcad9fc6bd1a58efcb60b9e01338f82eb73f3dd6da1814",
+  "elapsedMs": 13461,
+  "productionAuthority": false
+}

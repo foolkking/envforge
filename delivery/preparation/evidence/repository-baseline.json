@@ -1,0 +1,63 @@
+{
+  "phase": "preparation",
+  "repository": "E:/1project/EnvForge",
+  "remote": "https://github.com/foolkking/envforge.git",
+  "branch": "main",
+  "initialHead": "a0a9a69cefc0888c32e9fb2ef3f5ca5416a4a254",
+  "remoteHead": "d522abe7fcc593b9038af3f24ea1ca7316d0022e",
+  "ahead": 2,
+  "behind": 0,
+  "workingTreeClean": false,
+  "preExistingWorkingTree": [
+    "D .claude/launch.json",
+    "?? .migration-backup/",
+    "?? git add docs"
+  ],
+  "worktrees": [
+    "E:/1project/EnvForge"
+  ],
+  "submodules": [],
+  "gitLfs": true,
+  "operatingSystem": "Microsoft Windows 10.0.19045",
+  "architecture": "X64",
+  "shell": "Windows PowerShell 5.1.19041.6456",
+  "packageManagers": [
+    "npm@10.5.2"
+  ],
+  "runtimeVersions": {
+    "node": "20.13.1",
+    "python": "3.11.7"
+  },
+  "lockfiles": [
+    "package-lock.json"
+  ],
+  "docker": {
+    "available": false,
+    "composeAvailable": false
+  },
+  "postgresql": {
+    "psql": "17.10",
+    "pgConfig": "12.17",
+    "localService": "postgresql-x64-17 running",
+    "use": "reference-DDL disposable validation only"
+  },
+  "ciProvider": "GitHub Actions",
+  "database": {
+    "currentEngine": "SQLite",
+    "ddlMigrationVersion": 5,
+    "runtimeDocumentDefaultSchemaVersion": "0.3.0",
+    "jsonMigrationTargetObserved": "0.4.0"
+  },
+  "apiVersion": "legacy unversioned /api; target contract /api/v1 version 1.1.0 is design-only",
+  "schemaVersion": "SQLite DDL migration 5 plus runtime document migration",
+  "featureFlags": [
+    "environment/configuration-driven legacy paths; no target Phase 0 authority flag implemented"
+  ],
+  "designBaseline": "1.2",
+  "sourceDesignPackage": "EnvForge_Design_Docs_v1.1_Integrated.zip",
+  "existingDocsFileCount": 47,
+  "existingDocsTreeHash": "4d7f0f6ff26143a5600676d6b2788297808cb257cb224a381621e854088c5e3b",
+  "installedDocsFileCount": 178,
+  "installedDocsTreeHash": "9c484378ebe0c247ee58da052d65f61ae06d48866472107404c84f144adf5ae6",
+  "capturedAt": "2026-07-19"
+}

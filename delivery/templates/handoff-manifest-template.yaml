@@ -1,0 +1,14 @@
+phase:
+verdict:
+design_baseline:
+delivery_contract: EF-DELIVERY-CONTRACT-001@1.1
+initial_head:
+final_head:
+authoritative_write_paths: []
+deprecated_paths: []
+known_debt: []
+open_questions: []
+required_next_actions: []
+blocking_conditions: []
+evidence_index:
+closure_report:

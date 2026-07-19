@@ -2,7 +2,21 @@
 
 AI-readable current-state snapshot. Read this before changing the repo, then read
 `AGENTS.md` for working rules. Human entry point: `README.md`. Last updated:
-2026-07-01.
+2026-07-20.
+
+## Preparation delivery status
+
+Preparation adopted EnvForge Integrated Design Baseline v1.2 and established the
+delivery governance tree under `delivery/`. Current implementation guides are
+informative and non-authoritative; target PostgreSQL, durable execution, dataset,
+Secret Delivery, Cutover, Archive, and Restore capabilities remain later-phase
+work. Machine validation is rerunnable with `npm run validate:preparation`.
+
+Preparation evidence, Closure, and Phase 0 handoff are maintained at
+`delivery/preparation/evidence/index.md`, `delivery/preparation/90-closure-report.md`,
+and `delivery/preparation/91-handoff-manifest.yaml`. The current baseline is
+API 1001/1001, Web smoke 16/16, and harness scenarios 109/109. No credentials,
+runtime databases, logs, or user backup files belong in Preparation commits.
 
 ## Product snapshot
 

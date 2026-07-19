@@ -1,0 +1,19 @@
+{
+  "sourceCount": 51,
+  "preInstallTrackedDocsCount": 47,
+  "trackedDocsWithoutDisposition": [],
+  "dispositionOnlyEphemeralInputs": [
+    "harness-reports/2026-07-18T08-23-52-375Z/summary.json",
+    "harness-reports/2026-07-18T08-23-52-375Z/summary.md",
+    "harness-reports/2026-07-18T08-34-58-904Z/summary.json",
+    "harness-reports/2026-07-18T08-34-58-904Z/summary.md"
+  ],
+  "actionCounts": {
+    "MERGE-AND-RETIRE": 14,
+    "ARCHIVE-EVIDENCE": 19,
+    "SPLIT-AND-RETAIN": 9,
+    "REGENERATE-OUTSIDE-DOCS": 5,
+    "DELETE-EPHEMERAL": 4
+  },
+  "coverage": "PASS"
+}
