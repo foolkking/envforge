@@ -1,0 +1,136 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$defs:
+  Uuid:
+    type: string
+    format: uuid
+  Hash:
+    type: string
+    pattern: ^[a-f0-9]{64}$
+  HashRef:
+    type: object
+    additionalProperties: false
+    required:
+    - id
+    - hash
+    properties:
+      id:
+        $ref: '#/$defs/Uuid'
+      hash:
+        $ref: '#/$defs/Hash'
+  ProblemDetails:
+    type: object
+    additionalProperties: true
+    required:
+    - type
+    - title
+    - status
+    - code
+    properties:
+      type:
+        type: string
+        format: uri-reference
+      title:
+        type: string
+      status:
+        type: integer
+      code:
+        type: string
+      detail:
+        type: string
+      instance:
+        type: string
+      currentState:
+        type: string
+      expectedVersion:
+        type: integer
+      errors:
+        type: array
+        items:
+          type: object
+  PageMeta:
+    type: object
+    additionalProperties: false
+    required:
+    - limit
+    properties:
+      limit:
+        type: integer
+        minimum: 1
+        maximum: 200
+      nextCursor:
+        type:
+        - string
+        - 'null'
+      total:
+        type:
+        - integer
+        - 'null'
+        minimum: 0
+  CommandAccepted:
+    type: object
+    additionalProperties: false
+    required:
+    - resourceId
+    - resourceType
+    - status
+    properties:
+      resourceId:
+        $ref: '#/$defs/Uuid'
+      resourceType:
+        type: string
+      status:
+        type: string
+      location:
+        type: string
+  OperationBase:
+    type: object
+    required:
+    - id
+    - operationType
+    - state
+    - inputHash
+    - version
+    - createdAt
+    properties:
+      id:
+        $ref: '#/$defs/Uuid'
+      operationType:
+        type: string
+      state:
+        enum:
+        - created
+        - queued
+        - running
+        - waiting
+        - finalizing
+        - succeeded
+        - failed
+        - cancelled
+      inputHash:
+        $ref: '#/$defs/Hash'
+      resultResourceType:
+        type:
+        - string
+        - 'null'
+      resultResourceId:
+        oneOf:
+        - $ref: '#/$defs/Uuid'
+        - type: 'null'
+      version:
+        type: integer
+      createdAt:
+        type: string
+        format: date-time
+      completedAt:
+        type:
+        - string
+        - 'null'
+        format: date-time
+      resultStatus:
+        type:
+        - string
+        - 'null'
+  Operation:
+    allOf:
+    - $ref: '#/$defs/OperationBase'
+    unevaluatedProperties: false

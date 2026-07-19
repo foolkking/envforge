@@ -1,0 +1,420 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$defs:
+  ProjectType:
+    enum:
+    - assessment
+    - build
+    - migration
+    - capture
+    - restore
+  ProjectStatus:
+    enum:
+    - draft
+    - discovering
+    - reviewing
+    - planning
+    - ready
+    - executing
+    - attention-required
+    - completed
+    - archived
+  EnvironmentProject:
+    type: object
+    additionalProperties: false
+    required:
+    - id
+    - workspaceId
+    - type
+    - name
+    - status
+    - version
+    - createdAt
+    properties:
+      id:
+        $ref: common.yaml#/$defs/Uuid
+      workspaceId:
+        $ref: common.yaml#/$defs/Uuid
+      type:
+        $ref: '#/$defs/ProjectType'
+      name:
+        type: string
+      status:
+        $ref: '#/$defs/ProjectStatus'
+      currentBlueprintRevisionId:
+        type:
+        - string
+        - 'null'
+        format: uuid
+      currentDecisionSetRevisionId:
+        type:
+        - string
+        - 'null'
+        format: uuid
+      currentPlanRevisionId:
+        type:
+        - string
+        - 'null'
+        format: uuid
+      version:
+        type: integer
+      createdAt:
+        type: string
+        format: date-time
+      updatedAt:
+        type: string
+        format: date-time
+  CreateProjectRequest:
+    type: object
+    additionalProperties: false
+    required:
+    - type
+    - name
+    properties:
+      type:
+        $ref: '#/$defs/ProjectType'
+      name:
+        type: string
+        minLength: 1
+      archiveVersionId:
+        type: string
+        format: uuid
+  Endpoint:
+    type: object
+    additionalProperties: false
+    required:
+    - id
+    - workspaceId
+    - kind
+    - displayName
+    - status
+    - version
+    properties:
+      id:
+        $ref: common.yaml#/$defs/Uuid
+      workspaceId:
+        $ref: common.yaml#/$defs/Uuid
+      kind:
+        enum:
+        - linux-host
+        - storage-host
+        - external-service
+        - drill-target
+      displayName:
+        type: string
+      status:
+        enum:
+        - unvalidated
+        - available
+        - degraded
+        - unavailable
+        - retired
+      hostIdentity:
+        type: object
+      version:
+        type: integer
+  BindEndpointRequest:
+    type: object
+    additionalProperties: false
+    required:
+    - endpointId
+    - role
+    properties:
+      endpointId:
+        $ref: common.yaml#/$defs/Uuid
+      role:
+        enum:
+        - source
+        - target
+        - storage
+        - drill-target
+  SnapshotCollectionRunRequest:
+    type: object
+    additionalProperties: false
+    required:
+    - collectorPolicy
+    properties:
+      collectorPolicy:
+        type: object
+      collectorVersion:
+        type: string
+  SnapshotCollectionRun:
+    allOf:
+    - $ref: common.yaml#/$defs/OperationBase
+    - type: object
+      properties:
+        operationType:
+          const: snapshot-collection
+        phase:
+          enum:
+          - collecting
+          - normalizing
+          - finalizing
+        collectorVersion:
+          type: string
+        resultSnapshotId:
+          oneOf:
+          - $ref: common.yaml#/$defs/Uuid
+          - type: 'null'
+      required:
+      - operationType
+      - phase
+      - collectorVersion
+    unevaluatedProperties: false
+  EnvironmentSnapshot:
+    type: object
+    additionalProperties: false
+    required:
+    - id
+    - endpointId
+    - schemaVersion
+    - snapshotHash
+    - collectorCompleteness
+    - capturedAt
+    properties:
+      id:
+        $ref: common.yaml#/$defs/Uuid
+      endpointId:
+        $ref: common.yaml#/$defs/Uuid
+      schemaVersion:
+        type: string
+      snapshotHash:
+        $ref: common.yaml#/$defs/Hash
+      collectorCompleteness:
+        type: object
+      capturedAt:
+        type: string
+        format: date-time
+  CandidateGeneration:
+    type: object
+    additionalProperties: false
+    required:
+    - id
+    - snapshotId
+    - builderVersion
+    - rulesetVersion
+    - generationHash
+    - state
+    properties:
+      id:
+        $ref: common.yaml#/$defs/Uuid
+      snapshotId:
+        $ref: common.yaml#/$defs/Uuid
+      builderVersion:
+        type: string
+      rulesetVersion:
+        type: string
+      generationHash:
+        $ref: common.yaml#/$defs/Hash
+      state:
+        enum:
+        - generated
+        - superseded
+  WorkloadCandidate:
+    type: object
+    additionalProperties: false
+    required:
+    - id
+    - generationId
+    - proposedIdentity
+    - components
+    - evidenceAssignments
+    - confidence
+    - completeness
+    - questions
+    - conflicts
+    - disposition
+    properties:
+      id:
+        $ref: common.yaml#/$defs/Uuid
+      generationId:
+        $ref: common.yaml#/$defs/Uuid
+      proposedIdentity:
+        type: object
+      confidence:
+        type: object
+      completeness:
+        type: object
+      disposition:
+        enum:
+        - pending
+        - confirmed
+        - merged
+        - split
+        - dismissed
+        - superseded
+      components:
+        type: array
+        items:
+          type: object
+      relations:
+        type: array
+        items:
+          type: object
+      evidenceAssignments:
+        type: array
+        items:
+          type: object
+      questions:
+        type: array
+        items:
+          type: object
+      conflicts:
+        type: array
+        items:
+          type: object
+      recommendations:
+        type: array
+        items:
+          type: object
+  ReviewSession:
+    type: object
+    additionalProperties: false
+    required:
+    - id
+    - generationId
+    - state
+    - version
+    - openItemCount
+    - criticalUnresolvedCount
+    properties:
+      id:
+        $ref: common.yaml#/$defs/Uuid
+      generationId:
+        $ref: common.yaml#/$defs/Uuid
+      state:
+        enum:
+        - open
+        - reviewing
+        - blocked
+        - ready
+        - promoted
+        - closed
+      version:
+        type: integer
+      openItemCount:
+        type: integer
+        minimum: 0
+      criticalUnresolvedCount:
+        type: integer
+        minimum: 0
+      createdAt:
+        type: string
+        format: date-time
+      updatedAt:
+        type: string
+        format: date-time
+  ReviewCommand:
+    type: object
+    additionalProperties: false
+    required:
+    - reason
+    - payload
+    properties:
+      reason:
+        type: string
+      payload:
+        type: object
+  Workload:
+    type: object
+    additionalProperties: false
+    required:
+    - id
+    - workspaceId
+    - name
+    - kind
+    - lifecycleStatus
+    - version
+    properties:
+      id:
+        $ref: common.yaml#/$defs/Uuid
+      workspaceId:
+        $ref: common.yaml#/$defs/Uuid
+      name:
+        type: string
+      kind:
+        type: string
+      lifecycleStatus:
+        enum:
+        - active
+        - retired
+        - archived
+      currentBlueprintRevisionId:
+        type:
+        - string
+        - 'null'
+        format: uuid
+      version:
+        type: integer
+  WorkloadBlueprintRevision:
+    type: object
+    additionalProperties: false
+    required:
+    - id
+    - workloadId
+    - revision
+    - status
+    - origin
+    - schemaVersion
+    - content
+    - contentHash
+    properties:
+      id:
+        $ref: common.yaml#/$defs/Uuid
+      workloadId:
+        $ref: common.yaml#/$defs/Uuid
+      revision:
+        type: integer
+      status:
+        enum:
+        - draft
+        - confirmed
+        - superseded
+        - retired
+      origin:
+        enum:
+        - manual
+        - legacy-import
+        - candidate-review
+        - update-proposal
+      schemaVersion:
+        type: string
+      content:
+        type: object
+      contentHash:
+        $ref: common.yaml#/$defs/Hash
+  ReadinessResult:
+    type: object
+    additionalProperties: false
+    required:
+    - mode
+    - status
+    - gates
+    - blockers
+    - warnings
+    - evaluatedInputHash
+    properties:
+      mode:
+        enum:
+        - build
+        - migration
+        - capture
+        - restore
+      status:
+        enum:
+        - planner-ready
+        - review-required
+        - blocked
+      gates:
+        type: array
+        items:
+          type: object
+      blockers:
+        type: array
+        items:
+          type: object
+      warnings:
+        type: array
+        items:
+          type: object
+      evaluatedInputHash:
+        $ref: common.yaml#/$defs/Hash

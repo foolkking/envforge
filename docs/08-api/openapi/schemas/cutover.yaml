@@ -1,0 +1,144 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$defs:
+  CutoverRun:
+    type: object
+    additionalProperties: false
+    required:
+    - id
+    - executionRunId
+    - state
+    - currentPhase
+    - sourceAuthorityState
+    - targetAuthorityState
+    - trafficState
+    - datasetCommitIds
+    - verificationRunIds
+    - checkpointIds
+    - version
+    properties:
+      id:
+        $ref: common.yaml#/$defs/Uuid
+      executionRunId:
+        $ref: common.yaml#/$defs/Uuid
+      state:
+        enum:
+        - pending
+        - preparing
+        - ready
+        - waiting-window
+        - draining
+        - quiescing
+        - source-quiesced
+        - final-syncing
+        - target-activating
+        - granting-target-authority
+        - traffic-switching
+        - traffic-switched
+        - business-verifying
+        - observing
+        - commit-pending
+        - committing
+        - committed
+        - rollback-required
+        - rolling-back
+        - rolled-back
+        - partially-rolled-back
+        - blocked
+        - failed
+      currentPhase:
+        type: string
+      sourceAuthorityState:
+        enum:
+        - source
+        - target
+        - none
+        - unknown
+      targetAuthorityState:
+        enum:
+        - source
+        - target
+        - none
+        - unknown
+      rollbackDeadline:
+        type:
+        - string
+        - 'null'
+        format: date-time
+      trafficState:
+        $ref: '#/$defs/TrafficState'
+      datasetCommitIds:
+        type: array
+        items:
+          $ref: common.yaml#/$defs/Uuid
+      verificationRunIds:
+        type: array
+        items:
+          $ref: common.yaml#/$defs/Uuid
+      checkpointIds:
+        type: array
+        items:
+          $ref: common.yaml#/$defs/Uuid
+      commitRecordId:
+        oneOf:
+        - $ref: common.yaml#/$defs/Uuid
+        - type: 'null'
+      rollbackRunId:
+        oneOf:
+        - $ref: common.yaml#/$defs/Uuid
+        - type: 'null'
+      version:
+        type: integer
+        minimum: 0
+      enteredCriticalSectionAt:
+        type:
+        - string
+        - 'null'
+        format: date-time
+  TrafficState:
+    type: object
+    additionalProperties: false
+    required:
+    - authorityState
+    - routeSnapshots
+    - confidence
+    properties:
+      authorityState:
+        enum:
+        - source
+        - target
+        - mixed
+        - none
+        - unknown
+      routeSnapshots:
+        type: array
+        items:
+          type: object
+      confidence:
+        enum:
+        - high
+        - medium
+        - low
+  CutoverCommitRecord:
+    type: object
+    additionalProperties: false
+    required:
+    - id
+    - cutoverRunId
+    - planHash
+    - verificationSnapshotHash
+    - trafficStateHash
+    - committedAt
+    properties:
+      id:
+        $ref: common.yaml#/$defs/Uuid
+      cutoverRunId:
+        $ref: common.yaml#/$defs/Uuid
+      planHash:
+        $ref: common.yaml#/$defs/Hash
+      verificationSnapshotHash:
+        $ref: common.yaml#/$defs/Hash
+      trafficStateHash:
+        $ref: common.yaml#/$defs/Hash
+      committedAt:
+        type: string
+        format: date-time

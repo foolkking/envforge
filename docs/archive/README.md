@@ -1,18 +1,29 @@
-# Archive
+---
+id: EF-ARCHIVE-DOC-001
+title: 历史文档归档说明
+version: '1.1'
+status: accepted
+classification: informative
+owners:
+- architecture
+- engineering
+last_reviewed: '2026-07-19'
+supersedes: []
+related_adrs: []
+source_of_truth_for:
+- historical documentation policy
+---
 
-This directory is for retired historical material only. Archived files are not
-part of the maintained documentation path and should not be used as source of
-truth for product, architecture, catalog, UI, operations, or validation.
+# 历史文档归档说明
 
-Current maintained docs live in:
+Active design facts 不存放在本目录。历史审计、旧 Phase 报告和 superseded 设计迁入 `delivery/history/`，以保留时间、commit、命令和当时结论。
 
-- `docs/product.md`
-- `docs/system-design.md`
-- `docs/catalog.md`
-- `docs/web-ui.md`
-- `docs/operations.md`
-- `docs/validation.md`
-- `docs/decisions.md`
+历史文件必须明确：
 
-Prefer deleting raw session logs and obsolete drafts after their durable
-conclusions have been captured in maintained docs.
+- `classification: historical-evidence` 或等价标记；
+- `status: archived`；
+- `not_source_of_truth: true`；
+- 原始路径和 Hash；
+- 如适用，`superseded_by`。
+
+不得重写历史结果使其看起来符合当前设计。Active 文档引用历史事实时，应重新验证当前 HEAD。

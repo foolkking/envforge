@@ -1,0 +1,17 @@
+%% diagram-version: 1.1
+%% source-of-truth: ../container-architecture.md
+flowchart TB
+  UI[Web UI] --> API[API / Control Plane]
+  API --> PG[(PostgreSQL)]
+  API --> OS[(Artifact Store)]
+  PG -->|durable queue| W[Workers]
+  W --> PG
+  W --> OS
+  W --> EP[Linux Endpoints]
+  W --> PR[External Providers]
+  PG -->|outbox/events| P[Projection Updater]
+  P --> PG
+  R[Recovery Coordinator] --> PG
+  R --> EP
+  A[Archive Service] --> PG
+  A --> OS

@@ -1,0 +1,261 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$defs:
+  EnvironmentArchive:
+    type: object
+    additionalProperties: false
+    required:
+    - id
+    - workspaceId
+    - name
+    - lifecycleStatus
+    - criticality
+    properties:
+      id:
+        $ref: common.yaml#/$defs/Uuid
+      workspaceId:
+        $ref: common.yaml#/$defs/Uuid
+      name:
+        type: string
+      lifecycleStatus:
+        enum:
+        - active
+        - archived
+        - retention-expired
+        - deletion-pending
+        - deleted
+      criticality:
+        enum:
+        - low
+        - medium
+        - high
+        - critical
+      currentVersionId:
+        type:
+        - string
+        - 'null'
+        format: uuid
+  CreateArchiveRequest:
+    type: object
+    additionalProperties: false
+    required:
+    - name
+    - criticality
+    properties:
+      name:
+        type: string
+      description:
+        type: string
+      criticality:
+        enum:
+        - low
+        - medium
+        - high
+        - critical
+  ArchiveVersion:
+    type: object
+    additionalProperties: false
+    required:
+    - id
+    - archiveId
+    - version
+    - state
+    - archiveFormatVersion
+    - manifestSchemaVersion
+    - integrityLevel
+    - recoverabilityLevel
+    - logicalBytes
+    - storedBytes
+    - objectCount
+    - createdAt
+    properties:
+      id:
+        $ref: common.yaml#/$defs/Uuid
+      archiveId:
+        $ref: common.yaml#/$defs/Uuid
+      version:
+        type: integer
+      state:
+        enum:
+        - created
+        - capturing
+        - finalizing
+        - replicating
+        - verifying
+        - available
+        - degraded
+        - corrupt
+        - unrecoverable
+        - retention-expired
+        - deletion-pending
+        - deleted
+      archiveFormatVersion:
+        type: string
+      manifestRootHash:
+        type:
+        - string
+        - 'null'
+      integrityLevel:
+        type: string
+      recoverabilityLevel:
+        type: string
+      manifestSchemaVersion:
+        type: string
+      logicalBytes:
+        type: integer
+        minimum: 0
+      storedBytes:
+        type: integer
+        minimum: 0
+      objectCount:
+        type: integer
+        minimum: 0
+      createdAt:
+        type: string
+        format: date-time
+      finalizedAt:
+        type:
+        - string
+        - 'null'
+        format: date-time
+  ArchiveJob:
+    type: object
+    additionalProperties: false
+    required:
+    - id
+    - archiveVersionId
+    - jobType
+    - state
+    - version
+    - createdAt
+    properties:
+      id:
+        $ref: common.yaml#/$defs/Uuid
+      archiveVersionId:
+        $ref: common.yaml#/$defs/Uuid
+      state:
+        enum:
+        - created
+        - queued
+        - running
+        - waiting
+        - succeeded
+        - warning
+        - failed
+        - cancelled
+      createdAt:
+        type: string
+        format: date-time
+      jobType:
+        enum:
+        - scrub
+        - repair
+        - replicate
+        - import
+        - delete
+      progress:
+        type: object
+      version:
+        type: integer
+        minimum: 0
+      startedAt:
+        type:
+        - string
+        - 'null'
+        format: date-time
+      completedAt:
+        type:
+        - string
+        - 'null'
+        format: date-time
+  RestoreDrillRun:
+    type: object
+    additionalProperties: false
+    required:
+    - id
+    - archiveVersionId
+    - level
+    - state
+    - outcome
+    - targetProfile
+    - verificationResultIds
+    - createdAt
+    properties:
+      id:
+        $ref: common.yaml#/$defs/Uuid
+      archiveVersionId:
+        $ref: common.yaml#/$defs/Uuid
+      level:
+        enum:
+        - plan-only
+        - artifact-reconstruction
+        - dataset-reconstruction
+        - isolated-workload-restore
+        - business-verification
+      state:
+        enum:
+        - created
+        - compiling-plan
+        - preparing-target
+        - restoring
+        - verifying
+        - cleaning
+        - succeeded
+        - warning
+        - failed
+        - cleanup-failed
+      outcome:
+        enum:
+        - passed
+        - passed-with-warnings
+        - failed
+        - incomplete
+      executionRunId:
+        oneOf:
+        - $ref: common.yaml#/$defs/Uuid
+        - type: 'null'
+      targetProfile:
+        type: object
+      verificationResultIds:
+        type: array
+        items:
+          $ref: common.yaml#/$defs/Uuid
+      createdAt:
+        type: string
+        format: date-time
+      completedAt:
+        type:
+        - string
+        - 'null'
+        format: date-time
+      validUntil:
+        type:
+        - string
+        - 'null'
+        format: date-time
+  SourceReleaseReadiness:
+    type: object
+    additionalProperties: false
+    required:
+    - archiveVersionId
+    - state
+    - gates
+    - generatedAt
+    properties:
+      archiveVersionId:
+        $ref: common.yaml#/$defs/Uuid
+      state:
+        enum:
+        - safe
+        - safe-with-accepted-risks
+        - not-safe
+      gates:
+        type: array
+        items:
+          type: object
+      acceptedRiskIds:
+        type: array
+        items:
+          type: string
+      generatedAt:
+        type: string
+        format: date-time

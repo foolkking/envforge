@@ -1,0 +1,168 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$defs:
+  DatasetMigrationRun:
+    type: object
+    additionalProperties: false
+    required:
+    - id
+    - executionRunId
+    - datasetExecutionContractId
+    - state
+    - phase
+    - currentWriterState
+    - transferSessionIds
+    - consistencyCheckpointIds
+    - verificationResultIds
+    - version
+    properties:
+      id:
+        $ref: common.yaml#/$defs/Uuid
+      executionRunId:
+        $ref: common.yaml#/$defs/Uuid
+      datasetExecutionContractId:
+        $ref: common.yaml#/$defs/Uuid
+      state:
+        enum:
+        - pending
+        - preflighting
+        - preparing
+        - initial-syncing
+        - waiting-quiesce
+        - quiescing
+        - final-syncing
+        - restoring
+        - activating
+        - verifying
+        - waiting
+        - paused
+        - blocked
+        - succeeded
+        - failed
+        - rollback-required
+        - rolling-back
+        - rolled-back
+        - partially-rolled-back
+      phase:
+        type: string
+      currentWriterState:
+        enum:
+        - unknown
+        - active
+        - draining
+        - quiesced
+        - stopped
+        - resumed
+      transferSessionIds:
+        type: array
+        items:
+          $ref: common.yaml#/$defs/Uuid
+      consistencyCheckpointIds:
+        type: array
+        items:
+          $ref: common.yaml#/$defs/Uuid
+      verificationResultIds:
+        type: array
+        items:
+          $ref: common.yaml#/$defs/Uuid
+      bytesPlanned:
+        type:
+        - integer
+        - 'null'
+        minimum: 0
+      bytesProcessed:
+        type: integer
+        minimum: 0
+      version:
+        type: integer
+        minimum: 0
+      startedAt:
+        type:
+        - string
+        - 'null'
+        format: date-time
+      completedAt:
+        type:
+        - string
+        - 'null'
+        format: date-time
+  TransferSession:
+    type: object
+    additionalProperties: false
+    required:
+    - id
+    - datasetMigrationRunId
+    - state
+    - phase
+    - completedBytes
+    - verifiedBytes
+    - completedItems
+    - activePartIds
+    - version
+    properties:
+      id:
+        $ref: common.yaml#/$defs/Uuid
+      datasetMigrationRunId:
+        $ref: common.yaml#/$defs/Uuid
+      state:
+        enum:
+        - created
+        - enumerating
+        - ready
+        - queued
+        - running
+        - pause-requested
+        - paused
+        - waiting
+        - verifying
+        - finalizing
+        - succeeded
+        - failed
+        - cancelled
+        - recovering
+        - blocked
+      phase:
+        enum:
+        - enumerating
+        - manifesting
+        - transferring
+        - verifying
+        - finalizing
+      totalBytes:
+        type:
+        - integer
+        - 'null'
+      completedBytes:
+        type: integer
+      verifiedBytes:
+        type: integer
+      completedItems:
+        type: integer
+      totalItems:
+        type:
+        - integer
+        - 'null'
+        minimum: 0
+      activePartIds:
+        type: array
+        items:
+          $ref: common.yaml#/$defs/Uuid
+      checkpointId:
+        oneOf:
+        - $ref: common.yaml#/$defs/Uuid
+        - type: 'null'
+      version:
+        type: integer
+        minimum: 0
+      createdAt:
+        type: string
+        format: date-time
+      startedAt:
+        type:
+        - string
+        - 'null'
+        format: date-time
+      completedAt:
+        type:
+        - string
+        - 'null'
+        format: date-time

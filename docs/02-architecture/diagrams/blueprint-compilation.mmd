@@ -1,0 +1,18 @@
+%% diagram-version: 1.1
+%% source-of-truth: ../../04-compilation/blueprint-compilation-overview.md
+flowchart LR
+ B[Confirmed Blueprint Revisions] --> V[Validate readiness]
+ D[DecisionSet Revision] --> V
+ S[Source/Target Snapshot or Archive] --> V
+ C[Capability Catalog + Policy] --> V
+ V --> R[Resolve graph and compatibility]
+ R --> DS[Dataset Contracts]
+ R --> SS[Secret Contracts]
+ R --> AS[Plan Actions + DAG]
+ R --> CS[Cutover Contract]
+ R --> VS[Verification and Rollback]
+ DS --> P[Immutable PlanRevision]
+ SS --> P
+ AS --> P
+ CS --> P
+ VS --> P

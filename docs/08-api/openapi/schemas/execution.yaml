@@ -1,0 +1,245 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$defs:
+  ExecutionRunState:
+    enum:
+    - created
+    - queued
+    - claimed
+    - running
+    - waiting
+    - pause-requested
+    - pausing
+    - paused
+    - blocked
+    - recovering
+    - cancel-requested
+    - cancelling
+    - rollback-required
+    - rolling-back
+    - succeeded
+    - failed
+    - cancelled
+    - rolled-back
+    - partially-rolled-back
+  ExecutionRun:
+    type: object
+    additionalProperties: false
+    required:
+    - id
+    - projectId
+    - runType
+    - planRevisionId
+    - planHash
+    - state
+    - fencingToken
+    - version
+    - createdAt
+    properties:
+      id:
+        $ref: common.yaml#/$defs/Uuid
+      projectId:
+        $ref: common.yaml#/$defs/Uuid
+      runType:
+        enum:
+        - build
+        - migration
+        - capture
+        - restore
+        - verification
+        - rollback
+      planRevisionId:
+        $ref: common.yaml#/$defs/Uuid
+      planHash:
+        $ref: common.yaml#/$defs/Hash
+      state:
+        $ref: '#/$defs/ExecutionRunState'
+      phase:
+        type:
+        - string
+        - 'null'
+      waitingReason:
+        type:
+        - string
+        - 'null'
+      fencingToken:
+        type: integer
+      version:
+        type: integer
+      createdAt:
+        type: string
+        format: date-time
+      startedAt:
+        type:
+        - string
+        - 'null'
+        format: date-time
+      completedAt:
+        type:
+        - string
+        - 'null'
+        format: date-time
+  CreateRunRequest:
+    type: object
+    additionalProperties: false
+    properties:
+      priority:
+        type: integer
+        default: 0
+  StageRun:
+    type: object
+    additionalProperties: false
+    required:
+    - id
+    - runId
+    - stageKey
+    - state
+    - sequence
+    - version
+    properties:
+      id:
+        $ref: common.yaml#/$defs/Uuid
+      stageKey:
+        type: string
+      state:
+        enum:
+        - pending
+        - ready
+        - running
+        - waiting
+        - paused
+        - succeeded
+        - failed
+        - skipped
+        - cancelled
+        - blocked
+      sequence:
+        type: integer
+      runId:
+        $ref: common.yaml#/$defs/Uuid
+      version:
+        type: integer
+        minimum: 0
+      startedAt:
+        type:
+        - string
+        - 'null'
+        format: date-time
+      completedAt:
+        type:
+        - string
+        - 'null'
+        format: date-time
+  ActionRun:
+    type: object
+    additionalProperties: false
+    required:
+    - id
+    - runId
+    - planActionId
+    - actionKey
+    - state
+    - attemptCount
+    - version
+    properties:
+      id:
+        $ref: common.yaml#/$defs/Uuid
+      actionKey:
+        type: string
+      state:
+        enum:
+        - pending
+        - ready
+        - blocked
+        - claimed
+        - running
+        - waiting
+        - pause-pending
+        - paused
+        - succeeded
+        - failed
+        - skipped
+        - cancelled
+        - rollback-pending
+        - rolling-back
+        - rolled-back
+        - rollback-failed
+      attemptCount:
+        type: integer
+      version:
+        type: integer
+      runId:
+        $ref: common.yaml#/$defs/Uuid
+      planActionId:
+        $ref: common.yaml#/$defs/Uuid
+      currentAttemptId:
+        oneOf:
+        - $ref: common.yaml#/$defs/Uuid
+        - type: 'null'
+      lastErrorClass:
+        type:
+        - string
+        - 'null'
+      startedAt:
+        type:
+        - string
+        - 'null'
+        format: date-time
+      completedAt:
+        type:
+        - string
+        - 'null'
+        format: date-time
+  VerificationResult:
+    type: object
+    additionalProperties: false
+    required:
+    - id
+    - checkId
+    - required
+    - status
+    - summary
+    - createdAt
+    properties:
+      id:
+        $ref: common.yaml#/$defs/Uuid
+      checkId:
+        type: string
+      required:
+        type: boolean
+      status:
+        enum:
+        - passed
+        - failed
+        - warning
+        - skipped
+      summary:
+        type: object
+      createdAt:
+        type: string
+        format: date-time
+  ExecutionCommitRecord:
+    type: object
+    additionalProperties: false
+    required:
+    - id
+    - runId
+    - commitType
+    - planHash
+    - verificationSnapshotHash
+    - committedAt
+    properties:
+      id:
+        $ref: common.yaml#/$defs/Uuid
+      runId:
+        $ref: common.yaml#/$defs/Uuid
+      commitType:
+        enum:
+        - build
+        - restore
+      planHash:
+        $ref: common.yaml#/$defs/Hash
+      verificationSnapshotHash:
+        $ref: common.yaml#/$defs/Hash
+      committedAt:
+        type: string
+        format: date-time

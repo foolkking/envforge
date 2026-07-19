@@ -1,0 +1,3687 @@
+openapi: 3.1.0
+info:
+  title: EnvForge API
+  version: 1.1.0
+  description: Normative design contract. Availability is additionally gated by implementation Phase and Capability certification.
+servers:
+- url: /api/v1
+tags:
+- name: Projects
+- name: Discovery
+- name: Review
+- name: Workloads
+- name: Planning
+- name: Execution
+- name: Dataset
+- name: Secrets
+- name: Cutover
+- name: Archive
+paths:
+  /projects:
+    post:
+      summary: Create project
+      operationId: CreateProject
+      tags:
+      - Projects
+      parameters:
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ./schemas/project.yaml#/$defs/CreateProjectRequest
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/project.yaml#/$defs/EnvironmentProject
+        '401':
+          $ref: '#/components/responses/E401'
+        '403':
+          $ref: '#/components/responses/E403'
+        '404':
+          $ref: '#/components/responses/E404'
+        '409':
+          $ref: '#/components/responses/E409'
+        '412':
+          $ref: '#/components/responses/E412'
+        '422':
+          $ref: '#/components/responses/E422'
+    get:
+      summary: List projects
+      operationId: ListProjects
+      tags:
+      - Projects
+      parameters:
+      - &id001
+        $ref: '#/components/parameters/Limit'
+      - &id002
+        $ref: '#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - items
+                - page
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: ./schemas/project.yaml#/$defs/EnvironmentProject
+                  page:
+                    $ref: ./schemas/common.yaml#/$defs/PageMeta
+        '401':
+          $ref: '#/components/responses/E401'
+        '403':
+          $ref: '#/components/responses/E403'
+        '404':
+          $ref: '#/components/responses/E404'
+        '409':
+          $ref: '#/components/responses/E409'
+        '412':
+          $ref: '#/components/responses/E412'
+        '422':
+          $ref: '#/components/responses/E422'
+  /projects/{projectId}:
+    get:
+      summary: Get project
+      operationId: GetProject
+      tags:
+      - Projects
+      parameters:
+      - name: projectId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/project.yaml#/$defs/EnvironmentProject
+        '401':
+          $ref: '#/components/responses/E401'
+        '403':
+          $ref: '#/components/responses/E403'
+        '404':
+          $ref: '#/components/responses/E404'
+        '409':
+          $ref: '#/components/responses/E409'
+        '412':
+          $ref: '#/components/responses/E412'
+        '422':
+          $ref: '#/components/responses/E422'
+  /projects/{projectId}/archive:
+    post:
+      summary: Archive project
+      operationId: ArchiveProject
+      tags:
+      - Projects
+      parameters:
+      - name: projectId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/IfMatch'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/project.yaml#/$defs/EnvironmentProject
+        '401':
+          $ref: '#/components/responses/E401'
+        '403':
+          $ref: '#/components/responses/E403'
+        '404':
+          $ref: '#/components/responses/E404'
+        '409':
+          $ref: '#/components/responses/E409'
+        '412':
+          $ref: '#/components/responses/E412'
+        '422':
+          $ref: '#/components/responses/E422'
+  /projects/{projectId}/endpoints:
+    post:
+      summary: Bind endpoint to project
+      operationId: BindEndpointToProject
+      tags:
+      - Projects
+      parameters:
+      - name: projectId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ./schemas/project.yaml#/$defs/BindEndpointRequest
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/project.yaml#/$defs/Endpoint
+        '401':
+          $ref: '#/components/responses/E401'
+        '403':
+          $ref: '#/components/responses/E403'
+        '404':
+          $ref: '#/components/responses/E404'
+        '409':
+          $ref: '#/components/responses/E409'
+        '412':
+          $ref: '#/components/responses/E412'
+        '422':
+          $ref: '#/components/responses/E422'
+    get:
+      summary: List project endpoints
+      operationId: ListProjectEndpoints
+      tags:
+      - Projects
+      parameters:
+      - name: projectId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: ./schemas/project.yaml#/$defs/Endpoint
+        '401':
+          $ref: '#/components/responses/E401'
+        '403':
+          $ref: '#/components/responses/E403'
+        '404':
+          $ref: '#/components/responses/E404'
+        '409':
+          $ref: '#/components/responses/E409'
+        '412':
+          $ref: '#/components/responses/E412'
+        '422':
+          $ref: '#/components/responses/E422'
+  /endpoints/{endpointId}/snapshot-runs:
+    post:
+      summary: Create snapshot collection run
+      operationId: CreateSnapshotCollectionRun
+      tags:
+      - Discovery
+      parameters:
+      - name: endpointId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ./schemas/project.yaml#/$defs/SnapshotCollectionRunRequest
+      responses:
+        '202':
+          description: Accepted
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/common.yaml#/$defs/CommandAccepted
+        '401':
+          $ref: '#/components/responses/E401'
+        '403':
+          $ref: '#/components/responses/E403'
+        '404':
+          $ref: '#/components/responses/E404'
+        '409':
+          $ref: '#/components/responses/E409'
+        '412':
+          $ref: '#/components/responses/E412'
+        '422':
+          $ref: '#/components/responses/E422'
+  /snapshot-runs/{runId}:
+    get:
+      summary: Get snapshot collection run
+      operationId: GetSnapshotCollectionRun
+      tags:
+      - Discovery
+      parameters:
+      - name: runId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/project.yaml#/$defs/SnapshotCollectionRun
+        '401':
+          $ref: '#/components/responses/E401'
+        '403':
+          $ref: '#/components/responses/E403'
+        '404':
+          $ref: '#/components/responses/E404'
+        '409':
+          $ref: '#/components/responses/E409'
+        '412':
+          $ref: '#/components/responses/E412'
+        '422':
+          $ref: '#/components/responses/E422'
+  /snapshots/{snapshotId}:
+    get:
+      summary: Get snapshot
+      operationId: GetSnapshot
+      tags:
+      - Discovery
+      parameters:
+      - name: snapshotId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/project.yaml#/$defs/EnvironmentSnapshot
+        '401':
+          $ref: '#/components/responses/E401'
+        '403':
+          $ref: '#/components/responses/E403'
+        '404':
+          $ref: '#/components/responses/E404'
+        '409':
+          $ref: '#/components/responses/E409'
+        '412':
+          $ref: '#/components/responses/E412'
+        '422':
+          $ref: '#/components/responses/E422'
+  /snapshots/{snapshotId}/candidate-generations:
+    post:
+      summary: Create candidate generation
+      operationId: CreateCandidateGeneration
+      tags:
+      - Discovery
+      parameters:
+      - name: snapshotId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/IfMatch'
+      responses:
+        '202':
+          description: Accepted
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/common.yaml#/$defs/CommandAccepted
+        '401':
+          $ref: '#/components/responses/E401'
+        '403':
+          $ref: '#/components/responses/E403'
+        '404':
+          $ref: '#/components/responses/E404'
+        '409':
+          $ref: '#/components/responses/E409'
+        '412':
+          $ref: '#/components/responses/E412'
+        '422':
+          $ref: '#/components/responses/E422'
+  /candidate-generations/{generationId}:
+    get:
+      summary: Get candidate generation
+      operationId: GetCandidateGeneration
+      tags:
+      - Discovery
+      parameters:
+      - name: generationId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/project.yaml#/$defs/CandidateGeneration
+        '401':
+          $ref: '#/components/responses/E401'
+        '403':
+          $ref: '#/components/responses/E403'
+        '404':
+          $ref: '#/components/responses/E404'
+        '409':
+          $ref: '#/components/responses/E409'
+        '412':
+          $ref: '#/components/responses/E412'
+        '422':
+          $ref: '#/components/responses/E422'
+  /candidate-generations/{generationId}/candidates:
+    get:
+      summary: List workload candidates
+      operationId: ListWorkloadCandidates
+      tags:
+      - Discovery
+      parameters:
+      - name: generationId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - *id001
+      - *id002
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: ./schemas/project.yaml#/$defs/WorkloadCandidate
+        '401':
+          $ref: '#/components/responses/E401'
+        '403':
+          $ref: '#/components/responses/E403'
+        '404':
+          $ref: '#/components/responses/E404'
+        '409':
+          $ref: '#/components/responses/E409'
+        '412':
+          $ref: '#/components/responses/E412'
+        '422':
+          $ref: '#/components/responses/E422'
+  /candidate-generations/{generationId}/review-sessions:
+    post:
+      summary: Create candidate review session
+      operationId: CreateCandidateReviewSession
+      tags:
+      - Review
+      parameters:
+      - name: generationId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/IfMatch'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/project.yaml#/$defs/ReviewSession
+        '401':
+          $ref: '#/components/responses/E401'
+        '403':
+          $ref: '#/components/responses/E403'
+        '404':
+          $ref: '#/components/responses/E404'
+        '409':
+          $ref: '#/components/responses/E409'
+        '412':
+          $ref: '#/components/responses/E412'
+        '422':
+          $ref: '#/components/responses/E422'
+  /candidate-review-sessions/{sessionId}:
+    get:
+      summary: Get candidate review session
+      operationId: GetCandidateReviewSession
+      tags:
+      - Review
+      parameters:
+      - name: sessionId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/project.yaml#/$defs/ReviewSession
+        '401':
+          $ref: '#/components/responses/E401'
+        '403':
+          $ref: '#/components/responses/E403'
+        '404':
+          $ref: '#/components/responses/E404'
+        '409':
+          $ref: '#/components/responses/E409'
+        '412':
+          $ref: '#/components/responses/E412'
+        '422':
+          $ref: '#/components/responses/E422'
+  /candidate-review-sessions/{sessionId}/confirm:
+    post:
+      summary: Confirm
+      operationId: ConfirmCandidateReview
+      tags:
+      - Review
+      parameters:
+      - name: sessionId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ./schemas/project.yaml#/$defs/ReviewCommand
+      responses:
+        '202':
+          description: Accepted
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/common.yaml#/$defs/CommandAccepted
+        '401':
+          $ref: '#/components/responses/E401'
+        '403':
+          $ref: '#/components/responses/E403'
+        '404':
+          $ref: '#/components/responses/E404'
+        '409':
+          $ref: '#/components/responses/E409'
+        '412':
+          $ref: '#/components/responses/E412'
+        '422':
+          $ref: '#/components/responses/E422'
+  /candidate-review-sessions/{sessionId}/merge:
+    post:
+      summary: Merge
+      operationId: Merge
+      tags:
+      - Review
+      parameters:
+      - name: sessionId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ./schemas/project.yaml#/$defs/ReviewCommand
+      responses:
+        '202':
+          description: Accepted
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/common.yaml#/$defs/CommandAccepted
+        '401':
+          $ref: '#/components/responses/E401'
+        '403':
+          $ref: '#/components/responses/E403'
+        '404':
+          $ref: '#/components/responses/E404'
+        '409':
+          $ref: '#/components/responses/E409'
+        '412':
+          $ref: '#/components/responses/E412'
+        '422':
+          $ref: '#/components/responses/E422'
+  /candidate-review-sessions/{sessionId}/split:
+    post:
+      summary: Split
+      operationId: Split
+      tags:
+      - Review
+      parameters:
+      - name: sessionId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ./schemas/project.yaml#/$defs/ReviewCommand
+      responses:
+        '202':
+          description: Accepted
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/common.yaml#/$defs/CommandAccepted
+        '401':
+          $ref: '#/components/responses/E401'
+        '403':
+          $ref: '#/components/responses/E403'
+        '404':
+          $ref: '#/components/responses/E404'
+        '409':
+          $ref: '#/components/responses/E409'
+        '412':
+          $ref: '#/components/responses/E412'
+        '422':
+          $ref: '#/components/responses/E422'
+  /candidate-review-sessions/{sessionId}/reassign-evidence:
+    post:
+      summary: Reassign Evidence
+      operationId: ReassignEvidence
+      tags:
+      - Review
+      parameters:
+      - name: sessionId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ./schemas/project.yaml#/$defs/ReviewCommand
+      responses:
+        '202':
+          description: Accepted
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/common.yaml#/$defs/CommandAccepted
+        '401':
+          $ref: '#/components/responses/E401'
+        '403':
+          $ref: '#/components/responses/E403'
+        '404':
+          $ref: '#/components/responses/E404'
+        '409':
+          $ref: '#/components/responses/E409'
+        '412':
+          $ref: '#/components/responses/E412'
+        '422':
+          $ref: '#/components/responses/E422'
+  /candidate-review-sessions/{sessionId}/mark-shared:
+    post:
+      summary: Mark Shared
+      operationId: MarkShared
+      tags:
+      - Review
+      parameters:
+      - name: sessionId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ./schemas/project.yaml#/$defs/ReviewCommand
+      responses:
+        '202':
+          description: Accepted
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/common.yaml#/$defs/CommandAccepted
+        '401':
+          $ref: '#/components/responses/E401'
+        '403':
+          $ref: '#/components/responses/E403'
+        '404':
+          $ref: '#/components/responses/E404'
+        '409':
+          $ref: '#/components/responses/E409'
+        '412':
+          $ref: '#/components/responses/E412'
+        '422':
+          $ref: '#/components/responses/E422'
+  /candidate-review-sessions/{sessionId}/exclude-evidence:
+    post:
+      summary: Exclude Evidence
+      operationId: ExcludeEvidence
+      tags:
+      - Review
+      parameters:
+      - name: sessionId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ./schemas/project.yaml#/$defs/ReviewCommand
+      responses:
+        '202':
+          description: Accepted
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/common.yaml#/$defs/CommandAccepted
+        '401':
+          $ref: '#/components/responses/E401'
+        '403':
+          $ref: '#/components/responses/E403'
+        '404':
+          $ref: '#/components/responses/E404'
+        '409':
+          $ref: '#/components/responses/E409'
+        '412':
+          $ref: '#/components/responses/E412'
+        '422':
+          $ref: '#/components/responses/E422'
+  /candidate-review-sessions/{sessionId}/answer-question:
+    post:
+      summary: Answer Question
+      operationId: AnswerQuestion
+      tags:
+      - Review
+      parameters:
+      - name: sessionId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ./schemas/project.yaml#/$defs/ReviewCommand
+      responses:
+        '202':
+          description: Accepted
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/common.yaml#/$defs/CommandAccepted
+        '401':
+          $ref: '#/components/responses/E401'
+        '403':
+          $ref: '#/components/responses/E403'
+        '404':
+          $ref: '#/components/responses/E404'
+        '409':
+          $ref: '#/components/responses/E409'
+        '412':
+          $ref: '#/components/responses/E412'
+        '422':
+          $ref: '#/components/responses/E422'
+  /candidate-review-sessions/{sessionId}/preview-blueprint:
+    post:
+      summary: Preview Blueprint
+      operationId: PreviewBlueprint
+      tags:
+      - Review
+      parameters:
+      - name: sessionId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ./schemas/project.yaml#/$defs/ReviewCommand
+      responses:
+        '202':
+          description: Accepted
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/common.yaml#/$defs/CommandAccepted
+        '401':
+          $ref: '#/components/responses/E401'
+        '403':
+          $ref: '#/components/responses/E403'
+        '404':
+          $ref: '#/components/responses/E404'
+        '409':
+          $ref: '#/components/responses/E409'
+        '412':
+          $ref: '#/components/responses/E412'
+        '422':
+          $ref: '#/components/responses/E422'
+  /candidate-review-sessions/{sessionId}/promote:
+    post:
+      summary: Promote
+      operationId: Promote
+      tags:
+      - Review
+      parameters:
+      - name: sessionId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ./schemas/project.yaml#/$defs/ReviewCommand
+      responses:
+        '202':
+          description: Accepted
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/common.yaml#/$defs/CommandAccepted
+        '401':
+          $ref: '#/components/responses/E401'
+        '403':
+          $ref: '#/components/responses/E403'
+        '404':
+          $ref: '#/components/responses/E404'
+        '409':
+          $ref: '#/components/responses/E409'
+        '412':
+          $ref: '#/components/responses/E412'
+        '422':
+          $ref: '#/components/responses/E422'
+  /workloads:
+    get:
+      summary: List workloads
+      operationId: ListWorkloads
+      tags:
+      - Workloads
+      parameters:
+      - *id001
+      - *id002
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: ./schemas/project.yaml#/$defs/Workload
+        '401':
+          $ref: '#/components/responses/E401'
+        '403':
+          $ref: '#/components/responses/E403'
+        '404':
+          $ref: '#/components/responses/E404'
+        '409':
+          $ref: '#/components/responses/E409'
+        '412':
+          $ref: '#/components/responses/E412'
+        '422':
+          $ref: '#/components/responses/E422'
+  /workloads/{workloadId}:
+    get:
+      summary: Get workload
+      operationId: GetWorkload
+      tags:
+      - Workloads
+      parameters:
+      - name: workloadId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/project.yaml#/$defs/Workload
+        '401':
+          $ref: '#/components/responses/E401'
+        '403':
+          $ref: '#/components/responses/E403'
+        '404':
+          $ref: '#/components/responses/E404'
+        '409':
+          $ref: '#/components/responses/E409'
+        '412':
+          $ref: '#/components/responses/E412'
+        '422':
+          $ref: '#/components/responses/E422'
+  /workloads/{workloadId}/archive:
+    post:
+      summary: Archive workload
+      operationId: ArchiveWorkload
+      tags:
+      - Workloads
+      parameters:
+      - name: workloadId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/IfMatch'
+      responses:
+        '202':
+          description: Accepted
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/common.yaml#/$defs/CommandAccepted
+        '401':
+          $ref: '#/components/responses/E401'
+        '403':
+          $ref: '#/components/responses/E403'
+        '404':
+          $ref: '#/components/responses/E404'
+        '409':
+          $ref: '#/components/responses/E409'
+        '412':
+          $ref: '#/components/responses/E412'
+        '422':
+          $ref: '#/components/responses/E422'
+  /workloads/{workloadId}/blueprints:
+    get:
+      summary: List blueprint revisions
+      operationId: ListBlueprintRevisions
+      tags:
+      - Workloads
+      parameters:
+      - name: workloadId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - *id001
+      - *id002
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: ./schemas/project.yaml#/$defs/WorkloadBlueprintRevision
+        '401':
+          $ref: '#/components/responses/E401'
+        '403':
+          $ref: '#/components/responses/E403'
+        '404':
+          $ref: '#/components/responses/E404'
+        '409':
+          $ref: '#/components/responses/E409'
+        '412':
+          $ref: '#/components/responses/E412'
+        '422':
+          $ref: '#/components/responses/E422'
+  /blueprint-revisions/{revisionId}:
+    get:
+      summary: Get blueprint revision
+      operationId: GetBlueprintRevision
+      tags:
+      - Workloads
+      parameters:
+      - name: revisionId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/project.yaml#/$defs/WorkloadBlueprintRevision
+        '401':
+          $ref: '#/components/responses/E401'
+        '403':
+          $ref: '#/components/responses/E403'
+        '404':
+          $ref: '#/components/responses/E404'
+        '409':
+          $ref: '#/components/responses/E409'
+        '412':
+          $ref: '#/components/responses/E412'
+        '422':
+          $ref: '#/components/responses/E422'
+  /blueprint-revisions/{revisionId}/draft-successor:
+    post:
+      summary: Draft Successor
+      operationId: DraftSuccessor
+      tags:
+      - Workloads
+      parameters:
+      - name: revisionId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/IfMatch'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/project.yaml#/$defs/WorkloadBlueprintRevision
+        '401':
+          $ref: '#/components/responses/E401'
+        '403':
+          $ref: '#/components/responses/E403'
+        '404':
+          $ref: '#/components/responses/E404'
+        '409':
+          $ref: '#/components/responses/E409'
+        '412':
+          $ref: '#/components/responses/E412'
+        '422':
+          $ref: '#/components/responses/E422'
+  /blueprint-revisions/{revisionId}/confirm:
+    post:
+      summary: Confirm
+      operationId: ConfirmBlueprintRevision
+      tags:
+      - Workloads
+      parameters:
+      - name: revisionId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/IfMatch'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/project.yaml#/$defs/WorkloadBlueprintRevision
+        '401':
+          $ref: '#/components/responses/E401'
+        '403':
+          $ref: '#/components/responses/E403'
+        '404':
+          $ref: '#/components/responses/E404'
+        '409':
+          $ref: '#/components/responses/E409'
+        '412':
+          $ref: '#/components/responses/E412'
+        '422':
+          $ref: '#/components/responses/E422'
+  /blueprint-revisions/{revisionId}/evaluate-readiness:
+    post:
+      summary: Evaluate Readiness
+      operationId: EvaluateReadiness
+      tags:
+      - Workloads
+      parameters:
+      - name: revisionId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/IfMatch'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/project.yaml#/$defs/ReadinessResult
+        '401':
+          $ref: '#/components/responses/E401'
+        '403':
+          $ref: '#/components/responses/E403'
+        '404':
+          $ref: '#/components/responses/E404'
+        '409':
+          $ref: '#/components/responses/E409'
+        '412':
+          $ref: '#/components/responses/E412'
+        '422':
+          $ref: '#/components/responses/E422'
+  /blueprint-revisions/{revisionId}/drift:
+    get:
+      summary: Get blueprint drift
+      operationId: GetBlueprintDrift
+      tags:
+      - Workloads
+      parameters:
+      - name: revisionId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          $ref: '#/components/responses/E401'
+        '403':
+          $ref: '#/components/responses/E403'
+        '404':
+          $ref: '#/components/responses/E404'
+        '409':
+          $ref: '#/components/responses/E409'
+        '412':
+          $ref: '#/components/responses/E412'
+        '422':
+          $ref: '#/components/responses/E422'
+  /blueprint-update-proposals/{proposalId}/accept:
+    post:
+      summary: Accept blueprint update proposal
+      operationId: AcceptBlueprintUpdateProposal
+      tags:
+      - Workloads
+      parameters:
+      - name: proposalId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/IfMatch'
+      responses:
+        '202':
+          description: Accepted
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/common.yaml#/$defs/CommandAccepted
+        '401':
+          $ref: '#/components/responses/E401'
+        '403':
+          $ref: '#/components/responses/E403'
+        '404':
+          $ref: '#/components/responses/E404'
+        '409':
+          $ref: '#/components/responses/E409'
+        '412':
+          $ref: '#/components/responses/E412'
+        '422':
+          $ref: '#/components/responses/E422'
+  /blueprint-update-proposals/{proposalId}/reject:
+    post:
+      summary: Reject blueprint update proposal
+      operationId: RejectBlueprintUpdateProposal
+      tags:
+      - Workloads
+      parameters:
+      - name: proposalId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/IfMatch'
+      responses:
+        '202':
+          description: Accepted
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/common.yaml#/$defs/CommandAccepted
+        '401':
+          $ref: '#/components/responses/E401'
+        '403':
+          $ref: '#/components/responses/E403'
+        '404':
+          $ref: '#/components/responses/E404'
+        '409':
+          $ref: '#/components/responses/E409'
+        '412':
+          $ref: '#/components/responses/E412'
+        '422':
+          $ref: '#/components/responses/E422'
+  /projects/{projectId}/decision-set-revisions:
+    post:
+      summary: Create decision set revision
+      operationId: CreateDecisionSetRevision
+      tags:
+      - Planning
+      parameters:
+      - name: projectId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ./schemas/planning.yaml#/$defs/CreateDecisionSetRequest
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/planning.yaml#/$defs/DecisionSetRevision
+        '401':
+          $ref: '#/components/responses/E401'
+        '403':
+          $ref: '#/components/responses/E403'
+        '404':
+          $ref: '#/components/responses/E404'
+        '409':
+          $ref: '#/components/responses/E409'
+        '412':
+          $ref: '#/components/responses/E412'
+        '422':
+          $ref: '#/components/responses/E422'
+  /decision-set-revisions/{revisionId}:
+    get:
+      summary: Get decision set revision
+      operationId: GetDecisionSetRevision
+      tags:
+      - Planning
+      parameters:
+      - name: revisionId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/planning.yaml#/$defs/DecisionSetRevision
+        '401':
+          $ref: '#/components/responses/E401'
+        '403':
+          $ref: '#/components/responses/E403'
+        '404':
+          $ref: '#/components/responses/E404'
+        '409':
+          $ref: '#/components/responses/E409'
+        '412':
+          $ref: '#/components/responses/E412'
+        '422':
+          $ref: '#/components/responses/E422'
+  /projects/{projectId}/plan-compilations:
+    post:
+      summary: Create plan compilation
+      operationId: CreatePlanCompilation
+      tags:
+      - Planning
+      parameters:
+      - name: projectId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ./schemas/planning.yaml#/$defs/PlanCompilationRequest
+      responses:
+        '202':
+          description: Accepted
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/common.yaml#/$defs/CommandAccepted
+        '401':
+          $ref: '#/components/responses/E401'
+        '403':
+          $ref: '#/components/responses/E403'
+        '404':
+          $ref: '#/components/responses/E404'
+        '409':
+          $ref: '#/components/responses/E409'
+        '412':
+          $ref: '#/components/responses/E412'
+        '422':
+          $ref: '#/components/responses/E422'
+  /plan-compilations/{compilationId}:
+    get:
+      summary: Get plan compilation
+      operationId: GetPlanCompilation
+      tags:
+      - Planning
+      parameters:
+      - name: compilationId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/planning.yaml#/$defs/PlanCompilationRun
+        '401':
+          $ref: '#/components/responses/E401'
+        '403':
+          $ref: '#/components/responses/E403'
+        '404':
+          $ref: '#/components/responses/E404'
+        '409':
+          $ref: '#/components/responses/E409'
+        '412':
+          $ref: '#/components/responses/E412'
+        '422':
+          $ref: '#/components/responses/E422'
+  /plans/{planRevisionId}:
+    get:
+      summary: Get plan revision
+      operationId: GetPlanRevision
+      tags:
+      - Planning
+      parameters:
+      - name: planRevisionId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/planning.yaml#/$defs/PlanRevision
+        '401':
+          $ref: '#/components/responses/E401'
+        '403':
+          $ref: '#/components/responses/E403'
+        '404':
+          $ref: '#/components/responses/E404'
+        '409':
+          $ref: '#/components/responses/E409'
+        '412':
+          $ref: '#/components/responses/E412'
+        '422':
+          $ref: '#/components/responses/E422'
+  /plans/{planRevisionId}/actions:
+    get:
+      summary: List plan actions
+      operationId: ListPlanActions
+      tags:
+      - Planning
+      parameters:
+      - name: planRevisionId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - *id001
+      - *id002
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: ./schemas/planning.yaml#/$defs/PlanAction
+        '401':
+          $ref: '#/components/responses/E401'
+        '403':
+          $ref: '#/components/responses/E403'
+        '404':
+          $ref: '#/components/responses/E404'
+        '409':
+          $ref: '#/components/responses/E409'
+        '412':
+          $ref: '#/components/responses/E412'
+        '422':
+          $ref: '#/components/responses/E422'
+  /plans/{planRevisionId}/risks:
+    get:
+      summary: List plan risks
+      operationId: ListPlanRisks
+      tags:
+      - Planning
+      parameters:
+      - name: planRevisionId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - *id001
+      - *id002
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+        '401':
+          $ref: '#/components/responses/E401'
+        '403':
+          $ref: '#/components/responses/E403'
+        '404':
+          $ref: '#/components/responses/E404'
+        '409':
+          $ref: '#/components/responses/E409'
+        '412':
+          $ref: '#/components/responses/E412'
+        '422':
+          $ref: '#/components/responses/E422'
+  /plans/{planRevisionId}/gates:
+    get:
+      summary: List plan gates
+      operationId: ListPlanGates
+      tags:
+      - Planning
+      parameters:
+      - name: planRevisionId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - *id001
+      - *id002
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+        '401':
+          $ref: '#/components/responses/E401'
+        '403':
+          $ref: '#/components/responses/E403'
+        '404':
+          $ref: '#/components/responses/E404'
+        '409':
+          $ref: '#/components/responses/E409'
+        '412':
+          $ref: '#/components/responses/E412'
+        '422':
+          $ref: '#/components/responses/E422'
+  /plans/{planRevisionId}/submit-for-approval:
+    post:
+      summary: Submit For Approval
+      operationId: SubmitForApproval
+      tags:
+      - Planning
+      parameters:
+      - name: planRevisionId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/IfMatch'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/planning.yaml#/$defs/PlanRevision
+        '401':
+          $ref: '#/components/responses/E401'
+        '403':
+          $ref: '#/components/responses/E403'
+        '404':
+          $ref: '#/components/responses/E404'
+        '409':
+          $ref: '#/components/responses/E409'
+        '412':
+          $ref: '#/components/responses/E412'
+        '422':
+          $ref: '#/components/responses/E422'
+  /plans/{planRevisionId}/approve:
+    post:
+      summary: Approve
+      operationId: Approve
+      tags:
+      - Planning
+      parameters:
+      - name: planRevisionId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ./schemas/planning.yaml#/$defs/ApprovalRequest
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/planning.yaml#/$defs/PlanApproval
+        '401':
+          $ref: '#/components/responses/E401'
+        '403':
+          $ref: '#/components/responses/E403'
+        '404':
+          $ref: '#/components/responses/E404'
+        '409':
+          $ref: '#/components/responses/E409'
+        '412':
+          $ref: '#/components/responses/E412'
+        '422':
+          $ref: '#/components/responses/E422'
+  /plans/{planRevisionId}/reject:
+    post:
+      summary: Reject
+      operationId: Reject
+      tags:
+      - Planning
+      parameters:
+      - name: planRevisionId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/IfMatch'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/planning.yaml#/$defs/PlanApproval
+        '401':
+          $ref: '#/components/responses/E401'
+        '403':
+          $ref: '#/components/responses/E403'
+        '404':
+          $ref: '#/components/responses/E404'
+        '409':
+          $ref: '#/components/responses/E409'
+        '412':
+          $ref: '#/components/responses/E412'
+        '422':
+          $ref: '#/components/responses/E422'
+  /plans/{planRevisionId}/revoke:
+    post:
+      summary: Revoke
+      operationId: Revoke
+      tags:
+      - Planning
+      parameters:
+      - name: planRevisionId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/IfMatch'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/planning.yaml#/$defs/PlanApproval
+        '401':
+          $ref: '#/components/responses/E401'
+        '403':
+          $ref: '#/components/responses/E403'
+        '404':
+          $ref: '#/components/responses/E404'
+        '409':
+          $ref: '#/components/responses/E409'
+        '412':
+          $ref: '#/components/responses/E412'
+        '422':
+          $ref: '#/components/responses/E422'
+  /plans/{planRevisionId}/runs:
+    post:
+      summary: Create execution run
+      operationId: CreateExecutionRun
+      tags:
+      - Execution
+      parameters:
+      - name: planRevisionId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ./schemas/execution.yaml#/$defs/CreateRunRequest
+      responses:
+        '202':
+          description: Accepted
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/common.yaml#/$defs/CommandAccepted
+        '401':
+          $ref: '#/components/responses/E401'
+        '403':
+          $ref: '#/components/responses/E403'
+        '404':
+          $ref: '#/components/responses/E404'
+        '409':
+          $ref: '#/components/responses/E409'
+        '412':
+          $ref: '#/components/responses/E412'
+        '422':
+          $ref: '#/components/responses/E422'
+  /runs/{runId}:
+    get:
+      summary: Get execution run
+      operationId: GetExecutionRun
+      tags:
+      - Execution
+      parameters:
+      - name: runId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/execution.yaml#/$defs/ExecutionRun
+        '401':
+          $ref: '#/components/responses/E401'
+        '403':
+          $ref: '#/components/responses/E403'
+        '404':
+          $ref: '#/components/responses/E404'
+        '409':
+          $ref: '#/components/responses/E409'
+        '412':
+          $ref: '#/components/responses/E412'
+        '422':
+          $ref: '#/components/responses/E422'
+  /runs/{runId}/stages:
+    get:
+      summary: Get run stages
+      operationId: GetRunStages
+      tags:
+      - Execution
+      parameters:
+      - name: runId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: ./schemas/execution.yaml#/$defs/StageRun
+        '401':
+          $ref: '#/components/responses/E401'
+        '403':
+          $ref: '#/components/responses/E403'
+        '404':
+          $ref: '#/components/responses/E404'
+        '409':
+          $ref: '#/components/responses/E409'
+        '412':
+          $ref: '#/components/responses/E412'
+        '422':
+          $ref: '#/components/responses/E422'
+  /runs/{runId}/actions:
+    get:
+      summary: Get run actions
+      operationId: GetRunActions
+      tags:
+      - Execution
+      parameters:
+      - name: runId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - *id001
+      - *id002
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: ./schemas/execution.yaml#/$defs/ActionRun
+        '401':
+          $ref: '#/components/responses/E401'
+        '403':
+          $ref: '#/components/responses/E403'
+        '404':
+          $ref: '#/components/responses/E404'
+        '409':
+          $ref: '#/components/responses/E409'
+        '412':
+          $ref: '#/components/responses/E412'
+        '422':
+          $ref: '#/components/responses/E422'
+  /runs/{runId}/events:
+    get:
+      summary: Get run events
+      operationId: GetRunEvents
+      tags:
+      - Execution
+      parameters:
+      - name: runId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - *id001
+      - *id002
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+        '401':
+          $ref: '#/components/responses/E401'
+        '403':
+          $ref: '#/components/responses/E403'
+        '404':
+          $ref: '#/components/responses/E404'
+        '409':
+          $ref: '#/components/responses/E409'
+        '412':
+          $ref: '#/components/responses/E412'
+        '422':
+          $ref: '#/components/responses/E422'
+  /runs/{runId}/progress:
+    get:
+      summary: Get run progress
+      operationId: GetRunProgress
+      tags:
+      - Execution
+      parameters:
+      - name: runId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          $ref: '#/components/responses/E401'
+        '403':
+          $ref: '#/components/responses/E403'
+        '404':
+          $ref: '#/components/responses/E404'
+        '409':
+          $ref: '#/components/responses/E409'
+        '412':
+          $ref: '#/components/responses/E412'
+        '422':
+          $ref: '#/components/responses/E422'
+  /runs/{runId}/events/stream:
+    get:
+      summary: Stream run events
+      operationId: StreamRunEvents
+      tags:
+      - Execution
+      parameters:
+      - name: runId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: SSE stream
+          content:
+            text/event-stream:
+              schema:
+                type: string
+        '401':
+          $ref: '#/components/responses/E401'
+        '403':
+          $ref: '#/components/responses/E403'
+        '404':
+          $ref: '#/components/responses/E404'
+        '409':
+          $ref: '#/components/responses/E409'
+        '412':
+          $ref: '#/components/responses/E412'
+        '422':
+          $ref: '#/components/responses/E422'
+  /runs/{runId}/pause:
+    post:
+      summary: Pause execution run
+      operationId: PauseExecutionRun
+      tags:
+      - Execution
+      parameters:
+      - name: runId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/IfMatch'
+      responses:
+        '202':
+          description: Accepted
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/common.yaml#/$defs/CommandAccepted
+        '401':
+          $ref: '#/components/responses/E401'
+        '403':
+          $ref: '#/components/responses/E403'
+        '404':
+          $ref: '#/components/responses/E404'
+        '409':
+          $ref: '#/components/responses/E409'
+        '412':
+          $ref: '#/components/responses/E412'
+        '422':
+          $ref: '#/components/responses/E422'
+  /runs/{runId}/resume:
+    post:
+      summary: Resume execution run
+      operationId: ResumeExecutionRun
+      tags:
+      - Execution
+      parameters:
+      - name: runId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/IfMatch'
+      responses:
+        '202':
+          description: Accepted
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/common.yaml#/$defs/CommandAccepted
+        '401':
+          $ref: '#/components/responses/E401'
+        '403':
+          $ref: '#/components/responses/E403'
+        '404':
+          $ref: '#/components/responses/E404'
+        '409':
+          $ref: '#/components/responses/E409'
+        '412':
+          $ref: '#/components/responses/E412'
+        '422':
+          $ref: '#/components/responses/E422'
+  /runs/{runId}/cancel:
+    post:
+      summary: Cancel execution run
+      operationId: CancelExecutionRun
+      tags:
+      - Execution
+      parameters:
+      - name: runId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/IfMatch'
+      responses:
+        '202':
+          description: Accepted
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/common.yaml#/$defs/CommandAccepted
+        '401':
+          $ref: '#/components/responses/E401'
+        '403':
+          $ref: '#/components/responses/E403'
+        '404':
+          $ref: '#/components/responses/E404'
+        '409':
+          $ref: '#/components/responses/E409'
+        '412':
+          $ref: '#/components/responses/E412'
+        '422':
+          $ref: '#/components/responses/E422'
+  /runs/{runId}/retry:
+    post:
+      summary: Retry execution run
+      operationId: RetryExecutionRun
+      tags:
+      - Execution
+      parameters:
+      - name: runId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/IfMatch'
+      responses:
+        '202':
+          description: Accepted
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/common.yaml#/$defs/CommandAccepted
+        '401':
+          $ref: '#/components/responses/E401'
+        '403':
+          $ref: '#/components/responses/E403'
+        '404':
+          $ref: '#/components/responses/E404'
+        '409':
+          $ref: '#/components/responses/E409'
+        '412':
+          $ref: '#/components/responses/E412'
+        '422':
+          $ref: '#/components/responses/E422'
+  /runs/{runId}/rollback:
+    post:
+      summary: Rollback execution run
+      operationId: RollbackExecutionRun
+      tags:
+      - Execution
+      parameters:
+      - name: runId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/IfMatch'
+      responses:
+        '202':
+          description: Accepted
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/common.yaml#/$defs/CommandAccepted
+        '401':
+          $ref: '#/components/responses/E401'
+        '403':
+          $ref: '#/components/responses/E403'
+        '404':
+          $ref: '#/components/responses/E404'
+        '409':
+          $ref: '#/components/responses/E409'
+        '412':
+          $ref: '#/components/responses/E412'
+        '422':
+          $ref: '#/components/responses/E422'
+  /runs/{runId}/manual-gates/{gateId}/complete:
+    post:
+      summary: Complete manual gate
+      operationId: CompleteManualGate
+      tags:
+      - Execution
+      parameters:
+      - name: runId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: gateId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - evidence
+              properties:
+                evidence:
+                  type: object
+      responses:
+        '202':
+          description: Accepted
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/common.yaml#/$defs/CommandAccepted
+        '401':
+          $ref: '#/components/responses/E401'
+        '403':
+          $ref: '#/components/responses/E403'
+        '404':
+          $ref: '#/components/responses/E404'
+        '409':
+          $ref: '#/components/responses/E409'
+        '412':
+          $ref: '#/components/responses/E412'
+        '422':
+          $ref: '#/components/responses/E422'
+  /runs/{runId}/dataset-runs:
+    get:
+      summary: List dataset runs
+      operationId: ListDatasetRuns
+      tags:
+      - Dataset
+      parameters:
+      - name: runId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: ./schemas/dataset.yaml#/$defs/DatasetMigrationRun
+        '401':
+          $ref: '#/components/responses/E401'
+        '403':
+          $ref: '#/components/responses/E403'
+        '404':
+          $ref: '#/components/responses/E404'
+        '409':
+          $ref: '#/components/responses/E409'
+        '412':
+          $ref: '#/components/responses/E412'
+        '422':
+          $ref: '#/components/responses/E422'
+  /dataset-runs/{datasetRunId}:
+    get:
+      summary: Get dataset run
+      operationId: GetDatasetRun
+      tags:
+      - Dataset
+      parameters:
+      - name: datasetRunId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/dataset.yaml#/$defs/DatasetMigrationRun
+        '401':
+          $ref: '#/components/responses/E401'
+        '403':
+          $ref: '#/components/responses/E403'
+        '404':
+          $ref: '#/components/responses/E404'
+        '409':
+          $ref: '#/components/responses/E409'
+        '412':
+          $ref: '#/components/responses/E412'
+        '422':
+          $ref: '#/components/responses/E422'
+  /dataset-runs/{datasetRunId}/pause:
+    post:
+      summary: Pause dataset run
+      operationId: PauseDatasetRun
+      tags:
+      - Dataset
+      parameters:
+      - name: datasetRunId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/IfMatch'
+      responses:
+        '202':
+          description: Accepted
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/common.yaml#/$defs/CommandAccepted
+        '401':
+          $ref: '#/components/responses/E401'
+        '403':
+          $ref: '#/components/responses/E403'
+        '404':
+          $ref: '#/components/responses/E404'
+        '409':
+          $ref: '#/components/responses/E409'
+        '412':
+          $ref: '#/components/responses/E412'
+        '422':
+          $ref: '#/components/responses/E422'
+  /dataset-runs/{datasetRunId}/resume:
+    post:
+      summary: Resume dataset run
+      operationId: ResumeDatasetRun
+      tags:
+      - Dataset
+      parameters:
+      - name: datasetRunId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/IfMatch'
+      responses:
+        '202':
+          description: Accepted
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/common.yaml#/$defs/CommandAccepted
+        '401':
+          $ref: '#/components/responses/E401'
+        '403':
+          $ref: '#/components/responses/E403'
+        '404':
+          $ref: '#/components/responses/E404'
+        '409':
+          $ref: '#/components/responses/E409'
+        '412':
+          $ref: '#/components/responses/E412'
+        '422':
+          $ref: '#/components/responses/E422'
+  /dataset-runs/{datasetRunId}/retry:
+    post:
+      summary: Retry dataset run
+      operationId: RetryDatasetRun
+      tags:
+      - Dataset
+      parameters:
+      - name: datasetRunId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/IfMatch'
+      responses:
+        '202':
+          description: Accepted
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/common.yaml#/$defs/CommandAccepted
+        '401':
+          $ref: '#/components/responses/E401'
+        '403':
+          $ref: '#/components/responses/E403'
+        '404':
+          $ref: '#/components/responses/E404'
+        '409':
+          $ref: '#/components/responses/E409'
+        '412':
+          $ref: '#/components/responses/E412'
+        '422':
+          $ref: '#/components/responses/E422'
+  /dataset-runs/{datasetRunId}/rollback:
+    post:
+      summary: Rollback dataset run
+      operationId: RollbackDatasetRun
+      tags:
+      - Dataset
+      parameters:
+      - name: datasetRunId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/IfMatch'
+      responses:
+        '202':
+          description: Accepted
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/common.yaml#/$defs/CommandAccepted
+        '401':
+          $ref: '#/components/responses/E401'
+        '403':
+          $ref: '#/components/responses/E403'
+        '404':
+          $ref: '#/components/responses/E404'
+        '409':
+          $ref: '#/components/responses/E409'
+        '412':
+          $ref: '#/components/responses/E412'
+        '422':
+          $ref: '#/components/responses/E422'
+  /dataset-runs/{datasetRunId}/transfers:
+    get:
+      summary: List transfer sessions
+      operationId: ListTransferSessions
+      tags:
+      - Dataset
+      parameters:
+      - name: datasetRunId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: ./schemas/dataset.yaml#/$defs/TransferSession
+        '401':
+          $ref: '#/components/responses/E401'
+        '403':
+          $ref: '#/components/responses/E403'
+        '404':
+          $ref: '#/components/responses/E404'
+        '409':
+          $ref: '#/components/responses/E409'
+        '412':
+          $ref: '#/components/responses/E412'
+        '422':
+          $ref: '#/components/responses/E422'
+  /transfer-sessions/{transferSessionId}:
+    get:
+      summary: Get transfer session
+      operationId: GetTransferSession
+      tags:
+      - Dataset
+      parameters:
+      - name: transferSessionId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/dataset.yaml#/$defs/TransferSession
+        '401':
+          $ref: '#/components/responses/E401'
+        '403':
+          $ref: '#/components/responses/E403'
+        '404':
+          $ref: '#/components/responses/E404'
+        '409':
+          $ref: '#/components/responses/E409'
+        '412':
+          $ref: '#/components/responses/E412'
+        '422':
+          $ref: '#/components/responses/E422'
+  /transfer-sessions/{transferSessionId}/progress:
+    get:
+      summary: Get transfer progress
+      operationId: GetTransferProgress
+      tags:
+      - Dataset
+      parameters:
+      - name: transferSessionId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          $ref: '#/components/responses/E401'
+        '403':
+          $ref: '#/components/responses/E403'
+        '404':
+          $ref: '#/components/responses/E404'
+        '409':
+          $ref: '#/components/responses/E409'
+        '412':
+          $ref: '#/components/responses/E412'
+        '422':
+          $ref: '#/components/responses/E422'
+  /transfer-sessions/{transferSessionId}/manifest:
+    get:
+      summary: Get transfer manifest
+      operationId: GetTransferManifest
+      tags:
+      - Dataset
+      parameters:
+      - name: transferSessionId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - *id001
+      - *id002
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          $ref: '#/components/responses/E401'
+        '403':
+          $ref: '#/components/responses/E403'
+        '404':
+          $ref: '#/components/responses/E404'
+        '409':
+          $ref: '#/components/responses/E409'
+        '412':
+          $ref: '#/components/responses/E412'
+        '422':
+          $ref: '#/components/responses/E422'
+  /projects/{projectId}/secret-requirements:
+    get:
+      summary: List secret requirements
+      operationId: ListSecretRequirements
+      tags:
+      - Secrets
+      parameters:
+      - name: projectId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+        '401':
+          $ref: '#/components/responses/E401'
+        '403':
+          $ref: '#/components/responses/E403'
+        '404':
+          $ref: '#/components/responses/E404'
+        '409':
+          $ref: '#/components/responses/E409'
+        '412':
+          $ref: '#/components/responses/E412'
+        '422':
+          $ref: '#/components/responses/E422'
+  /projects/{projectId}/secret-provider-bindings:
+    post:
+      summary: Create secret provider binding
+      operationId: CreateSecretProviderBinding
+      tags:
+      - Secrets
+      parameters:
+      - name: projectId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ./schemas/secret.yaml#/$defs/CreateSecretBindingRequest
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/secret.yaml#/$defs/SecretProviderBinding
+        '401':
+          $ref: '#/components/responses/E401'
+        '403':
+          $ref: '#/components/responses/E403'
+        '404':
+          $ref: '#/components/responses/E404'
+        '409':
+          $ref: '#/components/responses/E409'
+        '412':
+          $ref: '#/components/responses/E412'
+        '422':
+          $ref: '#/components/responses/E422'
+  /secret-provider-bindings/{bindingId}:
+    get:
+      summary: Get secret provider binding
+      operationId: GetSecretProviderBinding
+      tags:
+      - Secrets
+      parameters:
+      - name: bindingId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/secret.yaml#/$defs/SecretProviderBinding
+        '401':
+          $ref: '#/components/responses/E401'
+        '403':
+          $ref: '#/components/responses/E403'
+        '404':
+          $ref: '#/components/responses/E404'
+        '409':
+          $ref: '#/components/responses/E409'
+        '412':
+          $ref: '#/components/responses/E412'
+        '422':
+          $ref: '#/components/responses/E422'
+  /secret-provider-bindings/{bindingId}/validate:
+    post:
+      summary: Validate secret provider binding
+      operationId: ValidateSecretProviderBinding
+      tags:
+      - Secrets
+      parameters:
+      - name: bindingId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/IfMatch'
+      responses:
+        '202':
+          description: Accepted
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/common.yaml#/$defs/CommandAccepted
+        '401':
+          $ref: '#/components/responses/E401'
+        '403':
+          $ref: '#/components/responses/E403'
+        '404':
+          $ref: '#/components/responses/E404'
+        '409':
+          $ref: '#/components/responses/E409'
+        '412':
+          $ref: '#/components/responses/E412'
+        '422':
+          $ref: '#/components/responses/E422'
+  /runs/{runId}/secret-gates:
+    get:
+      summary: List run secret gates
+      operationId: ListRunSecretGates
+      tags:
+      - Secrets
+      parameters:
+      - name: runId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: ./schemas/secret.yaml#/$defs/SecretGate
+        '401':
+          $ref: '#/components/responses/E401'
+        '403':
+          $ref: '#/components/responses/E403'
+        '404':
+          $ref: '#/components/responses/E404'
+        '409':
+          $ref: '#/components/responses/E409'
+        '412':
+          $ref: '#/components/responses/E412'
+        '422':
+          $ref: '#/components/responses/E422'
+  /runs/{runId}/secret-gates/{gateId}/input-sessions:
+    post:
+      summary: Create secret input session
+      operationId: CreateSecretInputSession
+      tags:
+      - Secrets
+      parameters:
+      - name: runId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: gateId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/IfMatch'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/secret.yaml#/$defs/SecretInputSession
+        '401':
+          $ref: '#/components/responses/E401'
+        '403':
+          $ref: '#/components/responses/E403'
+        '404':
+          $ref: '#/components/responses/E404'
+        '409':
+          $ref: '#/components/responses/E409'
+        '412':
+          $ref: '#/components/responses/E412'
+        '422':
+          $ref: '#/components/responses/E422'
+  /secret-input-sessions/{sessionId}/submit:
+    post:
+      summary: Submit one-time secret
+      operationId: SubmitOneTimeSecret
+      tags:
+      - Secrets
+      parameters:
+      - name: sessionId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ./schemas/secret.yaml#/$defs/SecretInputRequest
+      responses:
+        '202':
+          description: Accepted
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/common.yaml#/$defs/CommandAccepted
+        '401':
+          $ref: '#/components/responses/E401'
+        '403':
+          $ref: '#/components/responses/E403'
+        '404':
+          $ref: '#/components/responses/E404'
+        '409':
+          $ref: '#/components/responses/E409'
+        '412':
+          $ref: '#/components/responses/E412'
+        '422':
+          $ref: '#/components/responses/E422'
+  /secret-delivery-runs/{deliveryRunId}/retry:
+    post:
+      summary: Retry secret delivery
+      operationId: RetrySecretDelivery
+      tags:
+      - Secrets
+      parameters:
+      - name: deliveryRunId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/IfMatch'
+      responses:
+        '202':
+          description: Accepted
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/common.yaml#/$defs/CommandAccepted
+        '401':
+          $ref: '#/components/responses/E401'
+        '403':
+          $ref: '#/components/responses/E403'
+        '404':
+          $ref: '#/components/responses/E404'
+        '409':
+          $ref: '#/components/responses/E409'
+        '412':
+          $ref: '#/components/responses/E412'
+        '422':
+          $ref: '#/components/responses/E422'
+  /secret-delivery-runs/{deliveryRunId}/rotate:
+    post:
+      summary: Rotate secret delivery
+      operationId: RotateSecretDelivery
+      tags:
+      - Secrets
+      parameters:
+      - name: deliveryRunId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/IfMatch'
+      responses:
+        '202':
+          description: Accepted
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/common.yaml#/$defs/CommandAccepted
+        '401':
+          $ref: '#/components/responses/E401'
+        '403':
+          $ref: '#/components/responses/E403'
+        '404':
+          $ref: '#/components/responses/E404'
+        '409':
+          $ref: '#/components/responses/E409'
+        '412':
+          $ref: '#/components/responses/E412'
+        '422':
+          $ref: '#/components/responses/E422'
+  /secret-delivery-runs/{deliveryRunId}/revoke:
+    post:
+      summary: Revoke secret delivery
+      operationId: RevokeSecretDelivery
+      tags:
+      - Secrets
+      parameters:
+      - name: deliveryRunId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/IfMatch'
+      responses:
+        '202':
+          description: Accepted
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/common.yaml#/$defs/CommandAccepted
+        '401':
+          $ref: '#/components/responses/E401'
+        '403':
+          $ref: '#/components/responses/E403'
+        '404':
+          $ref: '#/components/responses/E404'
+        '409':
+          $ref: '#/components/responses/E409'
+        '412':
+          $ref: '#/components/responses/E412'
+        '422':
+          $ref: '#/components/responses/E422'
+  /runs/{runId}/cutover:
+    get:
+      summary: Get run cutover
+      operationId: GetRunCutover
+      tags:
+      - Cutover
+      parameters:
+      - name: runId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/cutover.yaml#/$defs/CutoverRun
+        '401':
+          $ref: '#/components/responses/E401'
+        '403':
+          $ref: '#/components/responses/E403'
+        '404':
+          $ref: '#/components/responses/E404'
+        '409':
+          $ref: '#/components/responses/E409'
+        '412':
+          $ref: '#/components/responses/E412'
+        '422':
+          $ref: '#/components/responses/E422'
+  /cutover-runs/{cutoverRunId}:
+    get:
+      summary: Get cutover run
+      operationId: GetCutoverRun
+      tags:
+      - Cutover
+      parameters:
+      - name: cutoverRunId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/cutover.yaml#/$defs/CutoverRun
+        '401':
+          $ref: '#/components/responses/E401'
+        '403':
+          $ref: '#/components/responses/E403'
+        '404':
+          $ref: '#/components/responses/E404'
+        '409':
+          $ref: '#/components/responses/E409'
+        '412':
+          $ref: '#/components/responses/E412'
+        '422':
+          $ref: '#/components/responses/E422'
+  /cutover-runs/{cutoverRunId}/authority:
+    get:
+      summary: Get cutover authority
+      operationId: GetCutoverAuthority
+      tags:
+      - Cutover
+      parameters:
+      - name: cutoverRunId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          $ref: '#/components/responses/E401'
+        '403':
+          $ref: '#/components/responses/E403'
+        '404':
+          $ref: '#/components/responses/E404'
+        '409':
+          $ref: '#/components/responses/E409'
+        '412':
+          $ref: '#/components/responses/E412'
+        '422':
+          $ref: '#/components/responses/E422'
+  /cutover-runs/{cutoverRunId}/traffic:
+    get:
+      summary: Get cutover traffic
+      operationId: GetCutoverTraffic
+      tags:
+      - Cutover
+      parameters:
+      - name: cutoverRunId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/cutover.yaml#/$defs/TrafficState
+        '401':
+          $ref: '#/components/responses/E401'
+        '403':
+          $ref: '#/components/responses/E403'
+        '404':
+          $ref: '#/components/responses/E404'
+        '409':
+          $ref: '#/components/responses/E409'
+        '412':
+          $ref: '#/components/responses/E412'
+        '422':
+          $ref: '#/components/responses/E422'
+  /cutover-runs/{cutoverRunId}/verification:
+    get:
+      summary: Get cutover verification
+      operationId: GetCutoverVerification
+      tags:
+      - Cutover
+      parameters:
+      - name: cutoverRunId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: ./schemas/execution.yaml#/$defs/VerificationResult
+        '401':
+          $ref: '#/components/responses/E401'
+        '403':
+          $ref: '#/components/responses/E403'
+        '404':
+          $ref: '#/components/responses/E404'
+        '409':
+          $ref: '#/components/responses/E409'
+        '412':
+          $ref: '#/components/responses/E412'
+        '422':
+          $ref: '#/components/responses/E422'
+  /cutover-runs/{cutoverRunId}/observation:
+    get:
+      summary: Get cutover observation
+      operationId: GetCutoverObservation
+      tags:
+      - Cutover
+      parameters:
+      - name: cutoverRunId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          $ref: '#/components/responses/E401'
+        '403':
+          $ref: '#/components/responses/E403'
+        '404':
+          $ref: '#/components/responses/E404'
+        '409':
+          $ref: '#/components/responses/E409'
+        '412':
+          $ref: '#/components/responses/E412'
+        '422':
+          $ref: '#/components/responses/E422'
+  /cutover-runs/{cutoverRunId}/start:
+    post:
+      summary: Start cutover
+      operationId: StartCutover
+      tags:
+      - Cutover
+      parameters:
+      - name: cutoverRunId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/IfMatch'
+      responses:
+        '202':
+          description: Accepted
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/common.yaml#/$defs/CommandAccepted
+        '401':
+          $ref: '#/components/responses/E401'
+        '403':
+          $ref: '#/components/responses/E403'
+        '404':
+          $ref: '#/components/responses/E404'
+        '409':
+          $ref: '#/components/responses/E409'
+        '412':
+          $ref: '#/components/responses/E412'
+        '422':
+          $ref: '#/components/responses/E422'
+  /cutover-runs/{cutoverRunId}/resume-source:
+    post:
+      summary: Resume Source cutover
+      operationId: ResumeSourceCutover
+      tags:
+      - Cutover
+      parameters:
+      - name: cutoverRunId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/IfMatch'
+      responses:
+        '202':
+          description: Accepted
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/common.yaml#/$defs/CommandAccepted
+        '401':
+          $ref: '#/components/responses/E401'
+        '403':
+          $ref: '#/components/responses/E403'
+        '404':
+          $ref: '#/components/responses/E404'
+        '409':
+          $ref: '#/components/responses/E409'
+        '412':
+          $ref: '#/components/responses/E412'
+        '422':
+          $ref: '#/components/responses/E422'
+  /cutover-runs/{cutoverRunId}/commit:
+    post:
+      summary: Commit cutover
+      operationId: CommitCutover
+      tags:
+      - Cutover
+      parameters:
+      - name: cutoverRunId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/IfMatch'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/cutover.yaml#/$defs/CutoverCommitRecord
+        '401':
+          $ref: '#/components/responses/E401'
+        '403':
+          $ref: '#/components/responses/E403'
+        '404':
+          $ref: '#/components/responses/E404'
+        '409':
+          $ref: '#/components/responses/E409'
+        '412':
+          $ref: '#/components/responses/E412'
+        '422':
+          $ref: '#/components/responses/E422'
+  /cutover-runs/{cutoverRunId}/rollback:
+    post:
+      summary: Rollback cutover
+      operationId: RollbackCutover
+      tags:
+      - Cutover
+      parameters:
+      - name: cutoverRunId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/IfMatch'
+      responses:
+        '202':
+          description: Accepted
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/common.yaml#/$defs/CommandAccepted
+        '401':
+          $ref: '#/components/responses/E401'
+        '403':
+          $ref: '#/components/responses/E403'
+        '404':
+          $ref: '#/components/responses/E404'
+        '409':
+          $ref: '#/components/responses/E409'
+        '412':
+          $ref: '#/components/responses/E412'
+        '422':
+          $ref: '#/components/responses/E422'
+  /archives:
+    post:
+      summary: Create archive catalog
+      operationId: CreateArchiveCatalog
+      tags:
+      - Archive
+      parameters:
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ./schemas/archive.yaml#/$defs/CreateArchiveRequest
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/archive.yaml#/$defs/EnvironmentArchive
+        '401':
+          $ref: '#/components/responses/E401'
+        '403':
+          $ref: '#/components/responses/E403'
+        '404':
+          $ref: '#/components/responses/E404'
+        '409':
+          $ref: '#/components/responses/E409'
+        '412':
+          $ref: '#/components/responses/E412'
+        '422':
+          $ref: '#/components/responses/E422'
+    get:
+      summary: List archives
+      operationId: ListArchives
+      tags:
+      - Archive
+      parameters:
+      - *id001
+      - *id002
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: ./schemas/archive.yaml#/$defs/EnvironmentArchive
+        '401':
+          $ref: '#/components/responses/E401'
+        '403':
+          $ref: '#/components/responses/E403'
+        '404':
+          $ref: '#/components/responses/E404'
+        '409':
+          $ref: '#/components/responses/E409'
+        '412':
+          $ref: '#/components/responses/E412'
+        '422':
+          $ref: '#/components/responses/E422'
+  /archives/{archiveId}:
+    get:
+      summary: Get archive
+      operationId: GetArchive
+      tags:
+      - Archive
+      parameters:
+      - name: archiveId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/archive.yaml#/$defs/EnvironmentArchive
+        '401':
+          $ref: '#/components/responses/E401'
+        '403':
+          $ref: '#/components/responses/E403'
+        '404':
+          $ref: '#/components/responses/E404'
+        '409':
+          $ref: '#/components/responses/E409'
+        '412':
+          $ref: '#/components/responses/E412'
+        '422':
+          $ref: '#/components/responses/E422'
+  /archives/{archiveId}/versions:
+    get:
+      summary: List archive versions
+      operationId: ListArchiveVersions
+      tags:
+      - Archive
+      parameters:
+      - name: archiveId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - *id001
+      - *id002
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: ./schemas/archive.yaml#/$defs/ArchiveVersion
+        '401':
+          $ref: '#/components/responses/E401'
+        '403':
+          $ref: '#/components/responses/E403'
+        '404':
+          $ref: '#/components/responses/E404'
+        '409':
+          $ref: '#/components/responses/E409'
+        '412':
+          $ref: '#/components/responses/E412'
+        '422':
+          $ref: '#/components/responses/E422'
+  /archive-versions/{versionId}:
+    get:
+      summary: Get archive version
+      operationId: GetArchiveVersion
+      tags:
+      - Archive
+      parameters:
+      - name: versionId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/archive.yaml#/$defs/ArchiveVersion
+        '401':
+          $ref: '#/components/responses/E401'
+        '403':
+          $ref: '#/components/responses/E403'
+        '404':
+          $ref: '#/components/responses/E404'
+        '409':
+          $ref: '#/components/responses/E409'
+        '412':
+          $ref: '#/components/responses/E412'
+        '422':
+          $ref: '#/components/responses/E422'
+  /archive-versions/{versionId}/health:
+    get:
+      summary: Get archive health
+      operationId: GetArchiveHealth
+      tags:
+      - Archive
+      parameters:
+      - name: versionId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          $ref: '#/components/responses/E401'
+        '403':
+          $ref: '#/components/responses/E403'
+        '404':
+          $ref: '#/components/responses/E404'
+        '409':
+          $ref: '#/components/responses/E409'
+        '412':
+          $ref: '#/components/responses/E412'
+        '422':
+          $ref: '#/components/responses/E422'
+  /archive-versions/{versionId}/scrub-runs:
+    post:
+      summary: Create archive scrub
+      operationId: CreateArchiveScrub
+      tags:
+      - Archive
+      parameters:
+      - name: versionId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/IfMatch'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/archive.yaml#/$defs/ArchiveJob
+        '401':
+          $ref: '#/components/responses/E401'
+        '403':
+          $ref: '#/components/responses/E403'
+        '404':
+          $ref: '#/components/responses/E404'
+        '409':
+          $ref: '#/components/responses/E409'
+        '412':
+          $ref: '#/components/responses/E412'
+        '422':
+          $ref: '#/components/responses/E422'
+  /archive-versions/{versionId}/repair-runs:
+    post:
+      summary: Create archive repair
+      operationId: CreateArchiveRepair
+      tags:
+      - Archive
+      parameters:
+      - name: versionId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/IfMatch'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/archive.yaml#/$defs/ArchiveJob
+        '401':
+          $ref: '#/components/responses/E401'
+        '403':
+          $ref: '#/components/responses/E403'
+        '404':
+          $ref: '#/components/responses/E404'
+        '409':
+          $ref: '#/components/responses/E409'
+        '412':
+          $ref: '#/components/responses/E412'
+        '422':
+          $ref: '#/components/responses/E422'
+  /archive-versions/{versionId}/restore-drill-runs:
+    post:
+      summary: Create restore drill
+      operationId: CreateRestoreDrill
+      tags:
+      - Archive
+      parameters:
+      - name: versionId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/IfMatch'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/archive.yaml#/$defs/RestoreDrillRun
+        '401':
+          $ref: '#/components/responses/E401'
+        '403':
+          $ref: '#/components/responses/E403'
+        '404':
+          $ref: '#/components/responses/E404'
+        '409':
+          $ref: '#/components/responses/E409'
+        '412':
+          $ref: '#/components/responses/E412'
+        '422':
+          $ref: '#/components/responses/E422'
+  /archive-versions/{versionId}/restore-projects:
+    post:
+      summary: Create restore project
+      operationId: CreateRestoreProject
+      tags:
+      - Archive
+      parameters:
+      - name: versionId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/IfMatch'
+      responses:
+        '202':
+          description: Accepted
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/common.yaml#/$defs/CommandAccepted
+        '401':
+          $ref: '#/components/responses/E401'
+        '403':
+          $ref: '#/components/responses/E403'
+        '404':
+          $ref: '#/components/responses/E404'
+        '409':
+          $ref: '#/components/responses/E409'
+        '412':
+          $ref: '#/components/responses/E412'
+        '422':
+          $ref: '#/components/responses/E422'
+  /archive-versions/{versionId}/source-release-readiness:
+    get:
+      summary: Get source release readiness
+      operationId: GetSourceReleaseReadiness
+      tags:
+      - Archive
+      parameters:
+      - name: versionId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/archive.yaml#/$defs/SourceReleaseReadiness
+        '401':
+          $ref: '#/components/responses/E401'
+        '403':
+          $ref: '#/components/responses/E403'
+        '404':
+          $ref: '#/components/responses/E404'
+        '409':
+          $ref: '#/components/responses/E409'
+        '412':
+          $ref: '#/components/responses/E412'
+        '422':
+          $ref: '#/components/responses/E422'
+  /archive-versions/{versionId}/source-release-commit:
+    post:
+      summary: Commit source release
+      operationId: CommitSourceRelease
+      tags:
+      - Archive
+      parameters:
+      - name: versionId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/IfMatch'
+      responses:
+        '202':
+          description: Accepted
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/common.yaml#/$defs/CommandAccepted
+        '401':
+          $ref: '#/components/responses/E401'
+        '403':
+          $ref: '#/components/responses/E403'
+        '404':
+          $ref: '#/components/responses/E404'
+        '409':
+          $ref: '#/components/responses/E409'
+        '412':
+          $ref: '#/components/responses/E412'
+        '422':
+          $ref: '#/components/responses/E422'
+  /archive-versions/{versionId}/replicas:
+    post:
+      summary: Create archive replica
+      operationId: CreateArchiveReplica
+      tags:
+      - Archive
+      parameters:
+      - name: versionId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/IfMatch'
+      responses:
+        '202':
+          description: Accepted
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/common.yaml#/$defs/CommandAccepted
+        '401':
+          $ref: '#/components/responses/E401'
+        '403':
+          $ref: '#/components/responses/E403'
+        '404':
+          $ref: '#/components/responses/E404'
+        '409':
+          $ref: '#/components/responses/E409'
+        '412':
+          $ref: '#/components/responses/E412'
+        '422':
+          $ref: '#/components/responses/E422'
+  /archive-versions/{versionId}/deletion-requests:
+    post:
+      summary: Request archive deletion
+      operationId: RequestArchiveDeletion
+      tags:
+      - Archive
+      parameters:
+      - name: versionId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/IfMatch'
+      responses:
+        '202':
+          description: Accepted
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/common.yaml#/$defs/CommandAccepted
+        '401':
+          $ref: '#/components/responses/E401'
+        '403':
+          $ref: '#/components/responses/E403'
+        '404':
+          $ref: '#/components/responses/E404'
+        '409':
+          $ref: '#/components/responses/E409'
+        '412':
+          $ref: '#/components/responses/E412'
+        '422':
+          $ref: '#/components/responses/E422'
+components:
+  parameters:
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema:
+        type: string
+        minLength: 8
+        maxLength: 200
+    IfMatch:
+      name: If-Match
+      in: header
+      required: true
+      schema:
+        type: string
+      description: Expected aggregate version ETag. For create commands use the parent resource version; use * only where
+        explicitly documented.
+    Limit:
+      name: limit
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 200
+        default: 50
+    Cursor:
+      name: cursor
+      in: query
+      schema:
+        type: string
+  responses:
+    E400:
+      description: Bad request
+      content:
+        application/problem+json:
+          schema: &id003
+            $ref: ./schemas/common.yaml#/$defs/ProblemDetails
+    E401:
+      description: Unauthenticated
+      content:
+        application/problem+json:
+          schema: *id003
+    E403:
+      description: Forbidden
+      content:
+        application/problem+json:
+          schema: *id003
+    E404:
+      description: Not found
+      content:
+        application/problem+json:
+          schema: *id003
+    E409:
+      description: Conflict
+      content:
+        application/problem+json:
+          schema: *id003
+    E412:
+      description: Precondition failed
+      content:
+        application/problem+json:
+          schema: *id003
+    E422:
+      description: Domain validation failed
+      content:
+        application/problem+json:
+          schema: *id003
+    E423:
+      description: Resource locked
+      content:
+        application/problem+json:
+          schema: *id003
+    E500:
+      description: Internal error
+      content:
+        application/problem+json:
+          schema: *id003
+  securitySchemes:
+    oidc:
+      type: openIdConnect
+      openIdConnectUrl: https://example.invalid/.well-known/openid-configuration
+security:
+- oidc: []

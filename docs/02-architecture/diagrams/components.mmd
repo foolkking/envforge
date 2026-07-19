@@ -1,0 +1,13 @@
+%% diagram-version: 1.1
+%% source-of-truth: ../component-architecture.md
+flowchart LR
+  Core --> Discovery --> Workload --> Planning --> Execution
+  Execution --> Dataset
+  Execution --> Secret
+  Execution --> Cutover
+  Execution --> Archive
+  Capability[Capability SDK] --> Discovery
+  Capability --> Planning
+  Capability --> Execution
+  Audit[Audit/Event] --- Core
+  Audit --- Execution

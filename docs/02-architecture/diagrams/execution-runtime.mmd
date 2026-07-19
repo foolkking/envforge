@@ -1,0 +1,46 @@
+%% diagram-version: 1.1
+%% source-of-truth: ../../03-domain/state-machines.md and ../../05-execution/durable-execution-engine.md
+stateDiagram-v2
+  state "created" as created
+  state "queued" as queued
+  state "claimed" as claimed
+  state "running" as running
+  state "waiting" as waiting
+  state "pause-requested" as pauseRequested
+  state "pausing" as pausing
+  state "paused" as paused
+  state "cancel-requested" as cancelRequested
+  state "cancelling" as cancelling
+  state "cancelled" as cancelled
+  state "rollback-required" as rollbackRequired
+  state "rolling-back" as rollingBack
+  state "rolled-back" as rolledBack
+  state "partially-rolled-back" as partiallyRolledBack
+  state "recovering" as recovering
+  state "blocked" as blocked
+  state "succeeded" as succeeded
+  state "failed" as failed
+
+  [*] --> created
+  created --> queued: enqueue
+  queued --> claimed: claim lease
+  claimed --> running: start/recover
+  running --> waiting: external gate/backoff
+  waiting --> queued: condition satisfied
+  running --> pauseRequested: pause command
+  pauseRequested --> pausing: action reaches boundary
+  pausing --> paused: checkpoint persisted
+  paused --> queued: resume validated
+  running --> cancelRequested: cancel command
+  cancelRequested --> cancelling: safe boundary
+  cancelling --> cancelled: cleanup complete
+  running --> rollbackRequired: failure policy
+  rollbackRequired --> rollingBack: rollback run created
+  rollingBack --> rolledBack: full rollback
+  rollingBack --> partiallyRolledBack: partial result
+  running --> recovering: lease lost / unknown outcome
+  recovering --> queued: reconciled and resumable
+  recovering --> blocked: manual intervention
+  running --> succeeded: required verification + commit
+  running --> failed: terminal failure
+  created --> cancelled

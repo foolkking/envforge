@@ -1,0 +1,18 @@
+%% diagram-version: 1.1
+%% source-of-truth: ../../03-domain/domain-overview.md
+flowchart LR
+ P[EnvironmentProject] --> E[EnvironmentEndpoint]
+ E --> S[EnvironmentSnapshot]
+ S --> G[CandidateGeneration]
+ G --> C[WorkloadCandidate]
+ C --> R[CandidateReviewSession]
+ R --> W[Workload]
+ W --> B[WorkloadBlueprintRevision]
+ B --> D[DecisionSetRevision]
+ D --> PL[PlanRevision]
+ PL --> A[PlanApproval]
+ A --> ER[ExecutionRun]
+ ER --> CR{Commit Record}
+ ER -. capture only .-> AV[ArchiveVersion]
+ AV --> RD[RestoreDrillRun]
+ AV --> RP[Restore Project]

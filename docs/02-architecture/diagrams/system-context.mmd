@@ -1,0 +1,10 @@
+%% diagram-version: 1.1
+%% source-of-truth: ../system-context.md
+flowchart LR
+  U[Operator / Approver] -->|review approve run| EF[EnvForge]
+  EF -->|collect inspect quiesce capture| S[Source Linux]
+  EF -->|build restore verify| T[Target Linux]
+  EF -->|put get scrub| O[Artifact / Archive Repository]
+  EF -->|JIT resolve wrap unwrap| K[Secret / Key Providers]
+  EF -->|inspect switch rollback| TP[Traffic Providers]
+  EF -->|business probes| V[External Verification]
