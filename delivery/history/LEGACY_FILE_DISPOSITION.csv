@@ -1,0 +1,52 @@
+﻿source,sha256,bytes,action,target
+archive/README.md,96a25f6a8fb9867b3107fbc122b459bcef183edd313d9d83ca65946d4305a66b,554,MERGE-AND-RETIRE,active leaf specifications
+audit-report-2026-07-08.md,895b0072c8df682063b054a6d65f6b9b75a2eb81dd4aeb20a81e38a7115fe6b4,50114,ARCHIVE-EVIDENCE,delivery/history/audits/audit-report-2026-07-08.md
+audits/envforge-local-current-state-audit-2026-07-18.md,b4d5c4f72ac7b8ac7cd77bf17541aae81eb2b4e9dddc2e873051ba18fe8c0c15,55648,ARCHIVE-EVIDENCE,delivery/history/audits/envforge-local-current-state-audit-2026-07-18.md
+capability-catalog-preview.md,1c306911a89ef9c83f9045ad6bff077adb1b209be32a3d8f88e7ad41e1e1593c,4249,MERGE-AND-RETIRE,active leaf specifications
+capability-sdk.md,29ba44614e74ca30f4e22eb8d16022ecd10b58fe075f08ea33f47d25e31d2ac9,5560,SPLIT-AND-RETAIN,active leaf specs + current implementation guide
+catalog.md,fbbff64d3d18990a8e80e9687d9ab24dafb4b052d07a99f06526f99a7b1dff0b,6225,SPLIT-AND-RETAIN,active leaf specs + current implementation guide
+decisions.md,71c2367e847427aaf1e6c6db342899e57b68f3856d197b08913dfbd9adc48a41,1929,MERGE-AND-RETIRE,active leaf specifications
+generated/README.md,ba815abaa8c11ee9b10d0ad52d850e8b68a236809d731554d55d908c7bf2f197,588,REGENERATE-OUTSIDE-DOCS,artifacts/generated/ or delivery/history/catalog-certification-snapshots/
+generated/catalog-certification-backlog.md,4b2cad299e9ba6f5afcbdc4efcc0d4e304ed384a2871e9079bc9420dfb996bed,13396,REGENERATE-OUTSIDE-DOCS,artifacts/generated/ or delivery/history/catalog-certification-snapshots/
+generated/catalog-certification.json,1d490f8805d527a9659b1e58e867294fff797bb7c9e7a67accd367171c35f419,228867,REGENERATE-OUTSIDE-DOCS,artifacts/generated/ or delivery/history/catalog-certification-snapshots/
+generated/catalog-certification.md,e7038606ea4f1f7548682fbae1ffa8be99d98e6e518773bf5396454dc838c1ed,19243,REGENERATE-OUTSIDE-DOCS,artifacts/generated/ or delivery/history/catalog-certification-snapshots/
+generated/catalog-items.audit.json,e08b3df593ca065224a9effdb11450a81643b12ac0032918ba002eca4baf9773,3528,REGENERATE-OUTSIDE-DOCS,artifacts/generated/ or delivery/history/catalog-certification-snapshots/
+harness-reports/2026-07-18T08-23-52-375Z/summary.json,e4632bb0fbfd497cac598d84bfe3b29eed0215c97ba24e2f596bd2bcadc52be5,232,DELETE-EPHEMERAL,delivery/history/deleted-ephemeral-files.md
+harness-reports/2026-07-18T08-23-52-375Z/summary.md,201d1cefeb406af72a2ff07607389d2a3fb2b9f29820cb5052598569218f5aba,172,DELETE-EPHEMERAL,delivery/history/deleted-ephemeral-files.md
+harness-reports/2026-07-18T08-34-58-904Z/summary.json,382121f81c889f3aa11216447c3591551fbc21eb9b78180ca18b4fd3ba0a2d20,226,DELETE-EPHEMERAL,delivery/history/deleted-ephemeral-files.md
+harness-reports/2026-07-18T08-34-58-904Z/summary.md,5aa49206733b2ff4c6397a98d6d83514cc08930160232963c37fbadf76a0b437,168,DELETE-EPHEMERAL,delivery/history/deleted-ephemeral-files.md
+index.md,9aa6e7a1b217ba2700eab3f57ff293eaeda49264e0aa2d87d9775b253146cbb4,3457,MERGE-AND-RETIRE,active leaf specifications
+operations.md,151dd57e6a86af7fa79f0171664619e5e45cd8d6382a6c26e2b66a3053edcaeb,7343,SPLIT-AND-RETAIN,active leaf specs + current implementation guide
+phase-plan-reconciliation-2026-07-09.md,37aa3aa31f97927e4a89c8cdd338955f3f7fb61fa3fe8db5bd6a247e04cb9403,8669,ARCHIVE-EVIDENCE,delivery/history/legacy-phase-reports/phase-plan-reconciliation-2026-07-09.md
+phase5r-a-data-migration-first-closed-loop-planning-2026-07-09.md,8775946ae9130abd983c0619b532bf5350288f5d11be999c35516afb1c6b9123,39001,ARCHIVE-EVIDENCE,delivery/history/legacy-phase-reports/phase5r-a-data-migration-first-closed-loop-planning-2026-07-09.md
+phase5r-b-postgres-dry-run-first-closed-loop-implementation-2026-07-09.md,edfbe574b37b29b08d57ca55103daf803ab4cb1a966ace0c2ebb18fd761791d7,7225,ARCHIVE-EVIDENCE,delivery/history/legacy-phase-reports/phase5r-b-postgres-dry-run-first-closed-loop-implementation-2026-07-09.md
+phase6-a-planning-report-2026-07-09.md,3ae7fc3a2054a5c7cd741a080839dcc1494c5f39ef9f00c2138bd54234ef6127,25191,ARCHIVE-EVIDENCE,delivery/history/legacy-phase-reports/phase6-a-planning-report-2026-07-09.md
+phase6-b-implementation-report-2026-07-09.md,db12d6613f947eb81e5d29b6346fd5b2ba434ad57978b3d4044629b082646192,6063,ARCHIVE-EVIDENCE,delivery/history/legacy-phase-reports/phase6-b-implementation-report-2026-07-09.md
+phase6-c-browser-api-evidence-closure-2026-07-09.md,622bdd083c8ca2e2b87c3e6f8f765158be4da0fc488fad158fe36ee7a7c79723,6303,ARCHIVE-EVIDENCE,delivery/history/legacy-phase-reports/phase6-c-browser-api-evidence-closure-2026-07-09.md
+phase6r-a-runtime-schema-validation-routes-split-planning-2026-07-09.md,af89d31fb132919626f07b0ab2795006c30c1e2aaf35af3ee24a869112025ae9,31709,ARCHIVE-EVIDENCE,delivery/history/legacy-phase-reports/phase6r-a-runtime-schema-validation-routes-split-planning-2026-07-09.md
+phase6r-b-runtime-schema-validation-implementation-2026-07-09.md,15c6192b7a837962a512af6ee02994ef1d6fc9f2b1466105cef2e15e15ed5684,9378,ARCHIVE-EVIDENCE,delivery/history/legacy-phase-reports/phase6r-b-runtime-schema-validation-implementation-2026-07-09.md
+phase7-a-production-consumer-hardening-planning-2026-07-09.md,57a30af22752e2a0ffdf9efad8ab0fbcee5674347cf9329203bdd068bdcfa305,39652,ARCHIVE-EVIDENCE,delivery/history/legacy-phase-reports/phase7-a-production-consumer-hardening-planning-2026-07-09.md
+phase7-b-consumer-hardening-implementation-report-2026-07-09.md,98718b0c41e7d0d664e01ef4086450a07eb7e3b1a759d508ca14bb2e68c598d8,9028,ARCHIVE-EVIDENCE,delivery/history/legacy-phase-reports/phase7-b-consumer-hardening-implementation-report-2026-07-09.md
+phase7-c-contract-stability-evidence-closure-2026-07-09.md,af60f2de31bb45782ef8e8be5201d1080cec106535d40163bbe6852e167168a6,6815,ARCHIVE-EVIDENCE,delivery/history/legacy-phase-reports/phase7-c-contract-stability-evidence-closure-2026-07-09.md
+phase7r-0-baseline-recovery-2026-07-18.md,f4dd5ac764a67a080e57b37efae60bd6b2a096353ea6389f5779d173d288e187,11464,ARCHIVE-EVIDENCE,delivery/history/legacy-phase-reports/phase7r-0-baseline-recovery-2026-07-18.md
+phase7r-a-final-audit-convergence-planning-2026-07-18.md,577037cac6eb2e8ac58336f488eee3baa56b44b9798147d48990d051203f4763,17383,ARCHIVE-EVIDENCE,delivery/history/legacy-phase-reports/phase7r-a-final-audit-convergence-planning-2026-07-18.md
+phase7r-b-final-audit-evidence-2026-07-18.md,7bc599045b97f23bddafebea891e5d0923c3907e135d32aab37c788b047f66c6,17372,ARCHIVE-EVIDENCE,delivery/history/legacy-phase-reports/phase7r-b-final-audit-evidence-2026-07-18.md
+phase7r-c-final-convergence-verification-2026-07-18.md,6aa15036f690bab780e61e4344471cc73a659a719e64c5f4f9f63e8e98a9a193,12414,ARCHIVE-EVIDENCE,delivery/history/legacy-phase-reports/phase7r-c-final-convergence-verification-2026-07-18.md
+product.md,625adcfc4f4a0122809363c05b3090b39be24256b771017c60d7f717c3897305,4718,MERGE-AND-RETIRE,active leaf specifications
+product/README.md,d4372b12e79b6525c9440689eb01ddfcf4abd972b73345164da382ed3af591f7,1642,MERGE-AND-RETIRE,active leaf specifications
+product/capability-ecosystem.md,8e8c7dfdb810f3040a828f7ca5c9d7c7d4fb844ca24679502cfb174f17f40a91,4385,MERGE-AND-RETIRE,active leaf specifications
+product/explainability.md,f93fa09f53aa400f77e551f89136943ed07c136aa7bdb2cad142b677db7306c1,1822,MERGE-AND-RETIRE,active leaf specifications
+product/failure-recovery-support.md,cc0c5ee676ef55ea35b4b225913b6c4ed4a2fd0e8a5410d0ef69e7b6f172a678,3544,MERGE-AND-RETIRE,active leaf specifications
+product/first-run-experience.md,089d99b68e1c0adb558dfd284c77553078ddcad0138f25a9996956094d82ed00,2778,MERGE-AND-RETIRE,active leaf specifications
+product/golden-scenarios.md,a1eaddb657b5066082a62cabec14a8d3ec3c647ae05c1ff475d1300663c45d31,4823,SPLIT-AND-RETAIN,active leaf specs + current implementation guide
+product/product-strategy.md,97c0b3248bc940ba1732c87f792642925ec13d174b104b727ed8f017831509cc,2603,MERGE-AND-RETIRE,active leaf specifications
+product/production-adoption.md,c3c0f911fdcafd52999d075a388ec127f784f401915eb4e073552debd34d404f,1153,MERGE-AND-RETIRE,active leaf specifications
+product/quality-harness.md,dcc54ce6371952f31bd6050a62b8ac1fb97bf463b1a56ab2168033e9c8d2ef5a,7765,SPLIT-AND-RETAIN,active leaf specs + current implementation guide
+product/review-inbox.md,9ceb7c3f1e3c2ffa5027fa9f0ab0f9af6fb6d6cc623228cb24012e76fa3e9da1,2092,MERGE-AND-RETIRE,active leaf specifications
+product/roadmap.md,ed81d568850933d83808ca53b0d1c9145348f98ae163c7f05fc321762de9699c,1790,ARCHIVE-EVIDENCE,delivery/history/legacy-roadmaps/product-roadmap.md
+product/service-stack-model.md,c37666d1c0aa199a4c5b7532e1c342b168a92735c90440dc2eb21077043280f5,2640,SPLIT-AND-RETAIN,active leaf specs + current implementation guide
+product/trust-model.md,527f73c43453c116ce6ed1c58150b488e3f300a64960f8aa3bc7224340d2d644,1650,MERGE-AND-RETIRE,active leaf specifications
+system-design.md,668b200b3d4aa25437e62d276d9e2e455ceddc4f5bda29a71335a297db49c28a,12696,SPLIT-AND-RETAIN,active leaf specs + current implementation guide
+ui-ia-restructure.md,540d284253e12b2e86e3c410de7c09a63faf1eb8c43e16cd95748c9dde836783,6249,ARCHIVE-EVIDENCE,delivery/history/legacy-design/ui-ia-restructure.md
+validation.md,8020c800cec6c3022a3381ec3d1ead8054cc3793e1f60043a4c63f73cbd6df3c,3741,SPLIT-AND-RETAIN,active leaf specs + current implementation guide
+web-ui.md,b9ef8a9e708f3438a5025b149d26c552a1e8533c029f7bcef967862b929ea595,6857,SPLIT-AND-RETAIN,active leaf specs + current implementation guide

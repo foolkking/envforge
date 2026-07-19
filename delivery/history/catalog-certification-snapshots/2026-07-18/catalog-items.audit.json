@@ -1,0 +1,104 @@
+{
+  "generatedAt": "2026-05-29T07:10:00.000Z",
+  "schemaVersion": "v2",
+  "catalogCount": 119,
+  "stats": {
+    "byKind": { "software": 104, "combo": 15 },
+    "bySupportLevel": {
+      "detect-only": 62,
+      "basic-rebuild": 23,
+      "managed-config": 27,
+      "full-migration": 7
+    },
+    "byAuditStatus": {
+      "pass": 114,
+      "fixed": 5,
+      "needs-review": 0,
+      "blocked": 0,
+      "pending": 0
+    }
+  },
+  "batches": [
+    {
+      "id": "batch-01",
+      "range": "1-20",
+      "status": "complete",
+      "items": [
+        "node-runtime-profile", "docker-host-profile", "ssh-hardening", "nginx-web-service",
+        "postgres-profile", "firewall-baseline", "python-toolchain", "redis-server",
+        "mysql-server", "golang-runtime", "openjdk-runtime", "rust-toolchain",
+        "git-version-control", "certbot-ssl", "fail2ban-protection", "prometheus-monitoring",
+        "grafana-dashboard", "mongodb", "rabbitmq", "wireguard-vpn"
+      ]
+    },
+    {
+      "id": "batch-02",
+      "range": "21-40",
+      "status": "complete",
+      "items": [
+        "netdata-monitoring", "minio-storage", "traefik-proxy", "elasticsearch",
+        "cockpit-panel", "htop-tools", "swap-config", "mariadb",
+        "sqlite", "nodejs-version-mgr", "pyenv-toolchain", "zsh-shell",
+        "neovim-editor", "tmux-multiplex", "ansible-tool", "nextcloud",
+        "gitea-server", "portainer", "jellyfin-media", "samba-share"
+      ]
+    },
+    {
+      "id": "batch-03",
+      "range": "41-60",
+      "status": "complete",
+      "items": [
+        "rsync-tools", "mosquitto-mqtt", "zabbix-monitoring", "dotnet-runtime",
+        "php-toolchain", "ruby-toolchain", "code-server", "fish-shell",
+        "jenkins-ci", "gitlab-runner", "vault-secrets", "terraform-iac",
+        "kubernetes-tools", "loki-logging", "openvpn-server", "haproxy-lb",
+        "sonarqube", "rust-cli-tools", "memcached", "flutter-sdk"
+      ]
+    },
+    {
+      "id": "batch-04",
+      "range": "61-80",
+      "status": "complete",
+      "items": [
+        "nodejs-pm2", "openresty", "nethogs-bandwidth", "firewalld",
+        "x-ui-panel", "vaultwarden", "caddy-server", "pihole",
+        "authentik", "meilisearch", "wikijs", "n8n",
+        "valkey-server", "clickhouse", "influxdb", "bookstack",
+        "home-assistant", "gitlab-ce", "umami", "nocodb"
+      ]
+    },
+    {
+      "id": "batch-05",
+      "range": "81-100",
+      "status": "complete",
+      "items": [
+        "nfs-server", "adguard-home", "tailscale", "keycloak",
+        "authelia", "docker-mailserver", "onlyoffice-docs", "immich",
+        "forgejo", "k3s", "filebrowser", "uptime-kuma",
+        "homepage", "dozzle", "paperless-ngx", "navidrome",
+        "audiobookshelf", "freshrss", "stirling-pdf", "mealie"
+      ]
+    },
+    {
+      "id": "batch-06",
+      "range": "101-115",
+      "status": "complete",
+      "items": [
+        "linkwarden", "seafile",
+        "lamp-stack", "lemp-stack", "node-production-deploy", "docker-compose-dev",
+        "security-baseline", "monitoring-stack", "selfhost-essentials",
+        "ai-localllm-stack", "mail-stack", "sso-stack", "homelab-dashboard",
+        "selfhost-media", "selfhost-pkm"
+      ]
+    },
+    {
+      "id": "batch-07-enforcement",
+      "range": "116-119",
+      "status": "complete",
+      "items": [
+        "apache-httpd", "php-fpm", "certbot-letsencrypt", "systemd-resolved"
+      ]
+    }
+  ],
+  "items": []
+}
