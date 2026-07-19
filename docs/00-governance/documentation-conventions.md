@@ -45,7 +45,8 @@ source_of_truth_for:
 - `informative`：说明、索引、背景或示例。
 - `generated`：由工具生成，不手工编辑。
 - 历史证据位于 `delivery/history/`，可使用 `classification: historical-evidence`，但必须声明 `not_source_of_truth: true`。
-- 当前实现指南仍使用 `classification: informative`，并声明 `target_architecture_authority: false`、`current_implementation_as_of` 和可选 `retirement_phase`。
+- 当前实现指南使用 `classification: informative-current-implementation`，并声明 `target_architecture_authority: false`、`current_implementation_as_of`、`verified_against_commit` 和 `retirement_phase`。
+- 可重建输出使用 `classification: generated-artifact` 并位于 `artifacts/generated/` 或 CI Artifact；临时输出使用 `ephemeral-output` 且不得进入 active docs。
 
 ## 3. 设计标记
 

@@ -17,7 +17,7 @@ source_of_truth_for:
 
 | ADR | 决策 |
 |---|---|
-| ADR-001 | 采纳 Markdown Design Baseline v1.1 |
+| ADR-001 | 采纳 Markdown Design Baseline v1.1（已由 ADR-013 取代） |
 | ADR-002 | 模块化单体控制面 |
 | ADR-003 | PostgreSQL 权威状态 |
 | ADR-004 | 独立 Durable Worker |
@@ -29,3 +29,7 @@ source_of_truth_for:
 | ADR-010 | Build/Restore 统一 ExecutionCommitRecord |
 | ADR-011 | ControlPlaneOperation 与 ExecutionRun 分离 |
 | ADR-012 | Queue 行保留与 WorkerLease 权威 |
+| ADR-013 | 采纳 EnvForge Integrated Design Baseline v1.2 |
+| ADR-014 | Authentication 与高风险 Reauthentication 基线 |
+| ADR-015 | 显式 SQL Migration 为生产 Schema 权威 |
+| ADR-016 | Local Artifact 原子发布与生产敏感 Artifact 默认加密 |

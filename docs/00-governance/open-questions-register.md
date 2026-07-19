@@ -22,9 +22,9 @@ source_of_truth_for:
 | ID | 优先级 | 问题 | 影响 | 推荐方案 | Owner | 最迟阶段 | 状态 | 决策/ADR |
 |---|---|---|---|---|---|---|---|---|
 | OQ-001 | P0 | 首期认证 OS 精确范围 | Collector、Package、测试矩阵 | Ubuntu 22.04/24.04 + Debian 12，x86_64 | Product/Capability | Phase 1 | proposed | — |
-| OQ-002 | P0 | 用户认证方式 | API/UI、审计、Secret 输入 | 首期本地账户 + OIDC 可选；生产必须 MFA 支持 | Security | Phase 0 | open | — |
-| OQ-003 | P0 | PostgreSQL migration 工具和 ORM | DDL、事务、回滚 | 使用显式 SQL migration；ORM 不拥有 Schema | Backend | Phase 0 | open | — |
-| OQ-004 | P0 | Artifact 本地开发实现路径与加密默认 | Secret/证据安全 | 本地实现支持原子写与可选加密；生产敏感 Artifact 默认加密 | Infra/Security | Phase 0 | proposed | ADR-009 |
+| OQ-002 | P0 | 用户认证方式 | API/UI、审计、Secret 输入 | 本地管理员引导 + OIDC 可选；生产 MFA；高风险 recent reauth | Security | Phase 0 | decided | ADR-014；2026-07-19 |
+| OQ-003 | P0 | PostgreSQL migration 工具和 ORM | DDL、事务、回滚 | 显式 SQL migration 为权威；ORM 不自动同步生产 Schema | Backend | Phase 0 | decided | ADR-015；2026-07-19 |
+| OQ-004 | P0 | Artifact 本地开发实现路径与加密默认 | Secret/证据安全 | Local 原子发布 + SHA-256；生产敏感 Artifact 默认加密 | Infra/Security | Phase 0 | decided | ADR-016；2026-07-19 |
 | OQ-005 | P1 | Build/Restore Commit 是否统一 | 状态机、API、Report | 采用 `ExecutionCommitRecord` | Architecture | Phase 1 | decided | ADR-010 |
 | OQ-006 | P1 | 非 Plan 长任务的统一模型 | Snapshot/Compilation/Scrub | `ControlPlaneOperation` + 子系统运行记录；不冒充 ExecutionRun | Architecture | Phase 1 | decided | ADR-011 |
 | OQ-007 | P1 | Capability 包版本保留周期 | 旧 Plan/Archive 可读性 | 保存 manifest 和兼容 Reader；执行需可用认证版本 | Capability | Phase 3 | open | — |

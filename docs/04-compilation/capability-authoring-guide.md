@@ -3,7 +3,7 @@ id: EF-COMP-GUIDE-001
 title: Capability 编写指南
 version: '1.1'
 status: accepted
-classification: informative
+classification: informative-current-implementation
 owners:
 - capability
 - engineering
@@ -12,8 +12,10 @@ supersedes: []
 related_adrs: []
 source_of_truth_for:
 - current capability contributor guide
-current_implementation_as_of: '2026-07-18'
+current_implementation_as_of: '2026-07-19'
 target_architecture_authority: false
+verified_against_commit: a0a9a69cefc0888c32e9fb2ef3f5ca5416a4a254
+retirement_phase: phase-10
 ---
 
 # Capability 编写指南

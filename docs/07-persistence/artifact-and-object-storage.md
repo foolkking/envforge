@@ -7,7 +7,7 @@ classification: normative
 owners: [backend, platform, security]
 last_reviewed: '2026-07-19'
 supersedes: []
-related_adrs: [ADR-009]
+related_adrs: [ADR-009, ADR-016]
 source_of_truth_for: [ArtifactRecord, artifact storage boundary]
 ---
 
@@ -41,6 +41,8 @@ interface ArtifactRecord {
 ## 3. 写入协议
 
 `create pending record -> stream temporary object -> compute hash -> provider head/read verification -> atomic publish/multipart complete -> mark available`。数据库不得在远端校验前标记 available。失败对象进入 cleanup queue，并保留失败事件。
+
+根据 ADR-016，Local 开发 Provider 必须使用 temp write、SHA-256、文件 fsync、atomic rename 和发布后校验；生产敏感 Artifact 默认 envelope encryption。Local path 不构成 Archive 长期可靠副本。
 
 对象键使用 opaque ID/ciphertext hash，不使用原路径、域名或数据库名。用户路径只放在受保护 Metadata 或加密 Manifest。
 

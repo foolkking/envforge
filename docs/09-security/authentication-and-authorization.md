@@ -11,6 +11,7 @@ last_reviewed: '2026-07-19'
 supersedes: []
 related_adrs:
 - ADR-001
+- ADR-014
 source_of_truth_for:
 - authentication
 - authorization
@@ -19,7 +20,7 @@ source_of_truth_for:
 
 # 身份认证与授权
 
-[建议方案] v1 支持本地管理员引导和 OIDC；生产环境推荐 OIDC + MFA。Session 使用 HttpOnly/Secure/SameSite Cookie 或短期 Bearer，CSRF 防护适用于 Cookie 模式。
+根据 ADR-014，v1 支持本地管理员引导和 OIDC；生产策略必须支持 MFA，高风险操作要求 recent reauthentication。Session 使用 HttpOnly/Secure/SameSite Cookie 或短期 Bearer，CSRF 防护适用于 Cookie 模式。应用会话不得复用为 SSH 或 Secret Provider Credential。
 
 ## RBAC/ABAC
 

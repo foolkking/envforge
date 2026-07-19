@@ -15,6 +15,7 @@ related_adrs:
 - ADR-008
 - ADR-009
 - ADR-012
+- ADR-015
 source_of_truth_for:
 - persistence architecture
 ---
@@ -41,4 +42,4 @@ v1 使用单一 PostgreSQL 作为控制面、Run、Queue、Lease 和 Audit 权�
 
 ## 迁移原则
 
-生产 migration 是实际 Schema 事实源。`ddl/*.sql` 是 reference DDL；在对应 Phase Acceptance 前状态为 proposed，不可直接当作已验证生产脚本。
+根据 ADR-015，reviewed explicit SQL migration 是生产 Schema 事实源；ORM/Query Builder 不得自动同步生产 Schema。`ddl/*.sql` 是 reference DDL；在对应 Phase Acceptance 前状态为 proposed，不可直接当作已验证生产脚本。

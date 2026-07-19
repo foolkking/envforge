@@ -9,3 +9,5 @@
 3. 旧 Phase 编号仅表示历史；
 4. 不从历史报告复制 Secret 或生产主机信息；
 5. 当前设计、API 和 Migration 以 `docs/` 的事实源为准。
+
+`capability-preview-snapshots/` 保存项目历史生成物；当前 preview 只能进入 `artifacts/generated/` 或 CI Artifact，不能直接启用 Runtime Catalog。

@@ -10,7 +10,7 @@ owners:
 - engineering
 last_reviewed: '2026-07-19'
 supersedes: []
-related_adrs: []
+related_adrs: [ADR-003, ADR-009, ADR-014, ADR-015, ADR-016]
 source_of_truth_for:
 - Phase 0 acceptance
 ---
@@ -39,11 +39,14 @@ source_of_truth_for:
 ## 必须通过
 
 - Reference migration 实际执行并通过约束测试；
+- production migration 使用 reviewed explicit SQL，禁止 ORM auto-sync，并通过 clean install、逐版本 upgrade、checksum/replay 验证；
+- 本地管理员引导与可选 OIDC 的 Session/MFA 基线通过；高风险 reauthentication 失败时拒绝命令并记录 Audit；
 - API 重启后 Project/Operation 状态不丢失；
 - 相同 Idempotency Key 重放返回同一结果，不同 body 返回 409；
 - CAS 冲突返回 412；
 - Outbox 重复投递只产生一个消费结果；
 - Artifact atomic publish、Hash 和 corruption detection 通过；
+- Local Provider 的 temp write/fsync/atomic rename 和 cleanup 通过；生产敏感 Artifact 加密默认不可被配置静默降级；
 - Canary Secret 不出现在 DB/Event/log/trace/error report。
 
 ## 故障注入

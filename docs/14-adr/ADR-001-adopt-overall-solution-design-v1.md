@@ -2,12 +2,13 @@
 id: EF-ADR-001
 title: ADR-001：采纳 Overall Solution Design v1.1
 version: '1.1'
-status: accepted
+status: superseded
 classification: normative
 owners:
 - architecture
 last_reviewed: '2026-07-19'
 supersedes: []
+superseded_by: ADR-013
 related_adrs: []
 source_of_truth_for:
 - design baseline
@@ -17,7 +18,7 @@ source_of_truth_for:
 
 ## 状态
 
-Accepted — 2026-07-19
+Superseded by ADR-013 — 2026-07-19
 
 ## 背景
 
@@ -25,7 +26,7 @@ EnvForge 已从同步 Apply 工具扩展为发现、构建、迁移、封存和�
 
 ## 决策
 
-采纳 Markdown docs v1.1 作为工程事实源；DOCX 仅为发布视图。核心不变量变化必须 ADR。
+本 ADR 曾采纳 Markdown docs v1.1 作为工程事实源；DOCX 仅为发布视图。Integrated Design Baseline v1.2 的包级采纳由 ADR-013 取代本 ADR，核心不变量变化仍必须 ADR。
 
 ## 决策驱动因素
 

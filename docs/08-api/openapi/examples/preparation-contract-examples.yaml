@@ -1,0 +1,41 @@
+examples:
+  create-project-valid:
+    schema: ../schemas/project.yaml#/$defs/CreateProjectRequest
+    valid: true
+    value:
+      type: build
+      name: preparation-example
+  create-project-invalid:
+    schema: ../schemas/project.yaml#/$defs/CreateProjectRequest
+    valid: false
+    value:
+      type: build
+  problem-details-valid:
+    schema: ../schemas/common.yaml#/$defs/ProblemDetails
+    valid: true
+    value:
+      type: about:blank
+      title: Validation failed
+      status: 422
+      code: VALIDATION_FAILED
+  run-request-valid:
+    schema: ../schemas/execution.yaml#/$defs/CreateRunRequest
+    valid: true
+    value:
+      priority: 0
+  run-request-invalid:
+    schema: ../schemas/execution.yaml#/$defs/CreateRunRequest
+    valid: false
+    value:
+      priority: high
+  one-time-secret-shape-valid:
+    schema: ../schemas/secret.yaml#/$defs/SecretInputRequest
+    valid: true
+    value:
+      value: <provided-at-runtime>
+  one-time-secret-shape-invalid:
+    schema: ../schemas/secret.yaml#/$defs/SecretInputRequest
+    valid: false
+    value:
+      value:
+        nested: not-allowed

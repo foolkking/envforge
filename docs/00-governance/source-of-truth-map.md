@@ -21,7 +21,7 @@ source_of_truth_for:
 
 | 设计主题 | 唯一权威来源 | 说明 |
 |---|---|---|
-| 产品体验、信息架构和交互安全 | [`15-experience/README.md`](../15-experience/README.md) | 不重新定义领域/API；current implementation 文档为 informative |
+| 产品体验、信息架构和交互安全 | [`15-experience/README.md`](../15-experience/README.md) | 不重新定义领域/API；current implementation 文档为 `informative-current-implementation` |
 | 产品模式、输入输出和边界 | [`01-product/product-modes.md`](../01-product/product-modes.md) | Overall Design 只做摘要 |
 | 术语和 canonical names | [`terminology-and-naming.md`](terminology-and-naming.md) | 代码、DDL、API 必须一致 |
 | 领域对象与不变量 | `03-domain/*.md` | 类型字段和关系由对象文件定义 |
@@ -54,6 +54,8 @@ source_of_truth_for:
 - `current-*` 和 `*-guide` 文件若标记 `target_architecture_authority: false`，只描述旧代码基线；目标规范优先。
 - `delivery/history/` 保留审计和旧 Phase 证据，不是事实源。
 - `artifacts/generated/` 和 CI Artifact 是可重建输出，不手工维护。
+- `historical-evidence` 的关键事实必须在当前 HEAD 重验证。
+- `ephemeral-output` 不进入 active `docs/`、Closure 或正式 Evidence；只在必要时登记 Hash 和删除原因。
 
 ## 可执行规范状态
 
