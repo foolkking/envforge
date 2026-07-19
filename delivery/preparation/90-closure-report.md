@@ -108,6 +108,10 @@ The final Preparation commits are scoped to docs, delivery governance,
 validation tooling, CI, and test/output-path determinism. Pre-existing user dirty
 paths remain untouched and are not included. No product feature work was started.
 
+- `28dbb821e6b9ac52c8b89c7d6b3a24cf8773bfc2` — design decisions and document migration
+- `ad749d22de6cc2dd55afc46906f35d9f0d6ff7f3` — specification validation tooling and CI
+- `7dbb9189ff2dd9d712917464c71898be96e6a4e0` — delivery evidence, Closure, and Handoff baseline
+
 ## 16. Final Verdict
 
 PASS — Ready to generate Phase 0 Execution and Closure Prompt
