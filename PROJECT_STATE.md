@@ -6,9 +6,9 @@ AI-readable current-state snapshot. Read this before changing the repo, then rea
 
 ## Phase 0 platform foundation status
 
-Phase 0 implementation is in stabilization on branch
-`phase/0-platform-and-persistence`; Closure has not yet been declared. The
-working tree adds opt-in PostgreSQL production migrations and repositories for
+Phase 0 closed PASS on branch `phase/0-platform-and-persistence`; final
+implementation HEAD is `a51e442`. The phase adds opt-in PostgreSQL production
+migrations and repositories for
 Workspace, Project/Endpoint foundations, safe ControlPlaneOperation, Artifact
 metadata, Event/Audit/Outbox/Inbox, idempotency, and projections. It also adds
 separate operation-worker/projection entrypoints, provider-backed Artifact
@@ -18,9 +18,9 @@ disposable restore commands.
 `ENVFORGE_POSTGRES_URL` gates this additive foundation. Existing SQLite runtime
 paths remain unchanged and are not dual-written. No Phase 1 Plan model, Phase 2
 ExecutionRun/Action worker, Dataset, Secret Delivery, Cutover, Archive, Restore,
-or UI product flow is implemented by Phase 0. Current targeted evidence is
-12/12 passing against an isolated real PostgreSQL cluster; full regression and
-Closure evidence still require final stabilization.
+or UI product flow is implemented by Phase 0. Final evidence is 13/13 targeted
+and two consecutive 1014/1014 full API runs against an isolated real PostgreSQL
+cluster, root typecheck/build PASS, and Web smoke 16/16 PASS.
 
 ## Preparation delivery status
 

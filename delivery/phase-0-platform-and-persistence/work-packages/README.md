@@ -15,7 +15,7 @@
 | WP10 | Operations and observability | PASS | health, bounded metrics, backup/restore, runbook |
 | WP11 | Tests, failure and performance | PASS | real disposable PostgreSQL integration suite |
 | WP12 | Documentation synchronization | PASS | OpenAPI, schema, migration catalog and current guides |
-| WP13 | Stabilization, Closure and Handoff | PENDING | final regression and evidence hashes required |
+| WP13 | Stabilization, Closure and Handoff | PASS | final regression, Closure, Handoff and hashes |
 
 No Work Package implements PlanRevision, ExecutionRun, Dataset, Secret Delivery,
 Cutover, Archive, Restore, SSH mutation, or a new UI flow.

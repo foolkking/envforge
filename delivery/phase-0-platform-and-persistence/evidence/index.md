@@ -14,6 +14,7 @@ exact commands and summarized results needed to replay them.
 | security | `security/secret-isolation.md` | canary and workspace isolation tests |
 | failure | `failure-injection/failure-matrix.md` | disposable failure tests |
 | performance | `performance/baseline.md` | platform performance subtest |
+| hashes | `hashes/sha256-manifest.txt` | `Get-FileHash -Algorithm SHA256` |
 
 The Phase 0 integration test owns its PostgreSQL cluster, runtime-store path,
 Artifact root and tokens under a temporary directory. No runtime database,

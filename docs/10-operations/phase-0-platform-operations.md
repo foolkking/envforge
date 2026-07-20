@@ -9,7 +9,7 @@ last_reviewed: '2026-07-20'
 related_adrs: [ADR-003, ADR-009, ADR-015, ADR-016]
 source_of_truth_for: [current Phase 0 platform operations]
 current_implementation_as_of: '2026-07-20'
-verified_against_commit: phase-0-working-tree
+verified_against_commit: a51e442
 target_architecture_authority: false
 retirement_phase: phase-10
 ---
