@@ -799,3 +799,109 @@
   .module-docs-layout { grid-template-columns: 1fr; }
   .module-docs-nav { max-height: 200px; }
 }
+.phase1-planning {
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--ef-border);
+  padding-bottom: 16px;
+}
+
+.phase1-planning-header,
+.phase1-planning-toolbar,
+.phase1-compilation {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.phase1-planning-header h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 18px;
+}
+
+.phase1-planning-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+
+.phase1-planning-header p,
+.phase1-plan-contract p {
+  margin: 4px 0 0;
+  color: var(--ef-muted);
+  font-size: 12px;
+}
+
+.phase1-planning-layout {
+  display: grid;
+  grid-template-columns: minmax(180px, 0.7fr) minmax(0, 2fr);
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.phase1-project-list {
+  display: grid;
+  align-content: start;
+  gap: 6px;
+}
+
+.phase1-project-list button {
+  display: grid;
+  gap: 2px;
+  padding: 10px;
+  border: 1px solid var(--ef-border);
+  background: var(--ef-surface);
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.phase1-project-list button.active {
+  border-color: var(--ef-accent);
+}
+
+.phase1-project-list span,
+.phase1-planning-toolbar small {
+  display: block;
+  color: var(--ef-muted);
+  font-size: 11px;
+}
+
+.phase1-compilation,
+.phase1-plan-contract {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--ef-border);
+}
+
+.phase1-compilation > div,
+.phase1-plan-contract > div {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.phase1-compilation code,
+.phase1-plan-contract code {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.phase1-plan-contract dl {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.phase1-plan-contract dl div {
+  padding: 8px;
+  background: var(--ef-surface-subtle);
+}
+
+.phase1-plan-contract dt { color: var(--ef-muted); font-size: 11px; }
+.phase1-plan-contract dd { margin: 2px 0 0; font-weight: 700; }
+
+@media (max-width: 760px) {
+  .phase1-planning-layout { grid-template-columns: 1fr; }
+  .phase1-planning-header { align-items: flex-start; flex-direction: column; }
+}

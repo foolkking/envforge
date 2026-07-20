@@ -19,6 +19,15 @@ retirement_phase: phase-10
 
 # 当前 Web 实现说明
 
+## Phase 1 Planning v1 panel
+
+The Plans surface now includes a Project-centered Planning v1 panel. It can
+create a Build Project, author and confirm a complete Blueprint fixture, create
+an immutable Decision revision, enqueue Plan compilation, and inspect the exact
+Plan hash and contract counts. The panel deliberately exposes no Execute/Run
+action; legacy Plans Center behavior remains a separate compatibility surface
+until later retirement.
+
 > 本文记录旧代码基线的实现事实，用于 Preparation 审计和迁移。它不是目标信息架构或领域模型事实源。所有路径必须在当前仓库 HEAD 上重新验证。
 
 ## 1. 当前技术

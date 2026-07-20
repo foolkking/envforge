@@ -117,4 +117,3 @@ export function evaluateReadiness(content: BlueprintContent, mode: PlanningMode)
 }
 
 export function planHash(plan: CanonicalPlan): string { return canonicalHash(plan); }
-

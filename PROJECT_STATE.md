@@ -4,13 +4,33 @@ AI-readable current-state snapshot. Read this before changing the repo, then rea
 `AGENTS.md` for working rules. Human entry point: `README.md`. Last updated:
 2026-07-20.
 
+## Phase 1 core domain and planning status
+
+Phase 1 is implemented on `delivery/envforge-v1` and is awaiting final closure
+validation and exact-HEAD GitHub CI. PostgreSQL migration `0003` adds
+mode-specific Project lifecycle space, Project lineage, Workload/Placement,
+complete immutable Blueprint contracts, per-mode readiness, immutable Decision
+revisions, expiring MigrationEstimate, deterministic Plan compilation, Action
+DAG/Contracts/Gates/Risks, and exact-hash Approval.
+
+The compiler runs as a Phase 0 ControlPlaneOperation through Outbox/Inbox and
+produces no SSH, target mutation, Dataset transfer, Secret delivery, Cutover,
+Archive/Restore runtime, Report claim, or ExecutionRun. Legacy EnvironmentPlan
+and ServiceStack data remain separate compatibility/evidence inputs. A minimal
+Planning v1 Web panel exposes Project -> Workload -> Blueprint -> Decision ->
+Compilation -> immutable Plan review without an Execute/Run action.
+
+Final local validation passes the Phase 1 disposable PostgreSQL suite 14/14,
+the full API suite 1028/1028, Web smoke 16/16, typecheck/build, OpenAPI 109
+operations, JSON Schema positive/negative fixtures and Secret canary scanning.
+Coverage includes 100-repeat determinism, concurrency, immutability, exact-hash
+approval, drift, workspace isolation, legacy import safety, and locked Run creation.
+
 ## Phase 0 platform foundation status
 
-Phase 0 local Closure commit `c146dbf` was invalidated as an effective release
-gate by failed GitHub CI on `8e5e390`. CI remediation is locally validated on
-branch `delivery/envforge-v1`, but Phase 1 remains locked until GitHub Actions
-passes on the exact final remediation HEAD. The Phase 0 implementation HEAD is
-`a51e442`. The phase adds opt-in PostgreSQL production
+Phase 0 is effective at `6958944a6c7c1fe0dab58ae8361162f14a1104cc`; GitHub
+Actions run `29730199276` passed required check `CI / build` for that exact SHA.
+The Phase 0 implementation HEAD is `a51e442`. The phase adds opt-in PostgreSQL production
 migrations and repositories for
 Workspace, Project/Endpoint foundations, safe ControlPlaneOperation, Artifact
 metadata, Event/Audit/Outbox/Inbox, idempotency, and projections. It also adds

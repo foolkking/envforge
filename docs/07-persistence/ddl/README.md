@@ -18,6 +18,14 @@ source_of_truth_for:
 
 # Reference DDL
 
+## Phase ownership clarification
+
+`phase-1-domain.sql` remains a cross-phase reference artifact. Its Discovery,
+snapshot collection, candidate generation, and candidate review tables belong
+to Phase 4 and are intentionally absent from the Phase 1 production migration.
+Phase 1 production authority is the reviewed `0003_phase1_domain_planning.sql`
+subset under `apps/api/migrations/postgres/`.
+
 这些 SQL 是 v1.1 逻辑设计的可执行参考，不是已经部署的生产 migration。使用前必须：
 
 1. 在目标 PostgreSQL 版本实际执行；

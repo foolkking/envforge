@@ -32,9 +32,12 @@ $defs:
     type: object
     additionalProperties: false
     required:
+    - mode
     - blueprintRevisionIds
     - decisionSetRevisionId
     properties:
+      mode:
+        enum: [build, migration, capture, restore]
       blueprintRevisionIds:
         type: array
         minItems: 1
@@ -51,6 +54,21 @@ $defs:
       archiveVersionId:
         type: string
         format: uuid
+      targetSnapshot:
+        type: object
+        required: [id, hash]
+      sourceSnapshot:
+        type: object
+        required: [id, hash]
+      archiveVersion:
+        type: object
+        required: [id, hash]
+      capability:
+        type: object
+        required: [id, hash, version, certifiedModes]
+      policy:
+        type: object
+        required: [id, hash, version]
   PlanCompilationRun:
     allOf:
     - $ref: common.yaml#/$defs/OperationBase
@@ -123,6 +141,8 @@ $defs:
         $ref: common.yaml#/$defs/Hash
       version:
         type: integer
+      canonicalContent:
+        type: object
   PlanAction:
     type: object
     additionalProperties: false

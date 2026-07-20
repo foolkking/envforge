@@ -3744,6 +3744,49 @@ paths:
           $ref: '#/components/responses/E412'
         '422':
           $ref: '#/components/responses/E422'
+  /projects/{projectId}/workloads:
+    get:
+      summary: List Project workloads
+      operationId: ListProjectWorkloads
+      tags: [Workloads]
+      parameters:
+      - {name: projectId, in: path, required: true, schema: {type: string, format: uuid}}
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema: {type: object, properties: {items: {type: array, items: {$ref: ./schemas/project.yaml#/$defs/Workload}}}}
+        '401': {$ref: '#/components/responses/E401'}
+        '403': {$ref: '#/components/responses/E403'}
+        '404': {$ref: '#/components/responses/E404'}
+        '409': {$ref: '#/components/responses/E409'}
+        '412': {$ref: '#/components/responses/E412'}
+        '422': {$ref: '#/components/responses/E422'}
+    post:
+      summary: Create a Project-scoped Workload
+      operationId: CreateWorkload
+      tags: [Workloads]
+      parameters:
+      - {name: projectId, in: path, required: true, schema: {type: string, format: uuid}}
+      - {$ref: '#/components/parameters/IdempotencyKey'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: ./schemas/project.yaml#/$defs/CreateWorkloadRequest}
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: {$ref: ./schemas/project.yaml#/$defs/Workload}
+        '401': {$ref: '#/components/responses/E401'}
+        '403': {$ref: '#/components/responses/E403'}
+        '404': {$ref: '#/components/responses/E404'}
+        '409': {$ref: '#/components/responses/E409'}
+        '412': {$ref: '#/components/responses/E412'}
+        '422': {$ref: '#/components/responses/E422'}
 components:
   parameters:
     IdempotencyKey:

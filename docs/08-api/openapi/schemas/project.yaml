@@ -345,6 +345,48 @@ $defs:
         type: string
       payload:
         type: object
+  BlueprintContent:
+    type: object
+    additionalProperties: true
+    required: [identity, components, runtime, deployment, config, datasets, secretRequirements, endpoints, systemIdentities, scheduledTasks, dependencies, externalDependencies, ephemeralState, compatibility, verification, operationalRequirements, migrationRequirements, captureRequirements, knownLimitations]
+    properties:
+      identity: {type: object}
+      components: {type: array, items: {type: object}, minItems: 1}
+      runtime: {type: object}
+      deployment: {type: object}
+      config: {type: array, items: {type: object}}
+      datasets: {type: array, items: {type: object}}
+      secretRequirements: {type: array, items: {type: object}}
+      endpoints: {type: array, items: {type: object}}
+      systemIdentities: {type: array, items: {type: object}}
+      scheduledTasks: {type: array, items: {type: object}}
+      dependencies: {type: array, items: {type: object}}
+      externalDependencies: {type: array, items: {type: object}}
+      ephemeralState: {type: object}
+      compatibility: {type: object}
+      verification: {type: array, items: {type: object}}
+      operationalRequirements: {type: object}
+      migrationRequirements: {type: object}
+      captureRequirements: {type: object}
+      knownLimitations: {type: array, items: {type: string}}
+  CreateWorkloadRequest:
+    type: object
+    additionalProperties: false
+    required: [name, kind]
+    properties:
+      name: {type: string, minLength: 1, maxLength: 160}
+      kind: {type: string, minLength: 1}
+      ownerRef: {type: string}
+      tags: {type: array, items: {type: string}}
+  CreateBlueprintRequest:
+    type: object
+    additionalProperties: false
+    required: [content]
+    properties:
+      origin:
+        enum: [manual, legacy-import, update-proposal]
+      content:
+        $ref: '#/$defs/BlueprintContent'
   Workload:
     type: object
     additionalProperties: false

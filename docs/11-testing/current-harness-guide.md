@@ -29,6 +29,15 @@ retirement_phase: phase-10
 
 # 当前 Harness 指南
 
+## Phase 1 planning harness
+
+`apps/api/src/engine/tests/phase1-planning.test.ts` provisions a disposable
+PostgreSQL cluster and validates migration replay, mode-specific Project state,
+lineage, Workload placement, immutable Blueprint/Decision/Plan revisions,
+100-repeat compiler determinism, Action DAG validation, worker duplicate safety,
+exact-hash Approval, drift, workspace isolation, legacy import safety, and the
+locked Phase 2 Run boundary.
+
 > 本文记录旧基线命令和 Fixture。最终测试合同以 `11-testing` 的 normative 文档和 `13-acceptance` 为准。
 
 ## 1. 历史命令

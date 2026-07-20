@@ -4375,3 +4375,26 @@ export async function processLegacyAdminSuggestion(
   });
   return readJsonOrThrow(r, "Process suggestion failed");
 }
+
+// Phase 1 immutable planning contracts. These APIs intentionally expose no Run
+// creation or target mutation methods.
+export interface Phase1Project { id: string; workspaceId: string; type: "assessment"|"build"|"migration"|"capture"|"restore"; name: string; status: string; version: number }
+export interface Phase1Workload { id: string; workspaceId: string; name: string; kind: string; lifecycleStatus: string; currentBlueprintRevisionId?: string; version: number }
+export interface Phase1Blueprint { id: string; workloadId: string; revision: number; status: string; contentHash: string; version: number; content: Record<string, unknown> }
+export interface Phase1Decision { id: string; projectId: string; revision: number; contentHash: string }
+export interface Phase1Compilation { id: string; state: string; phase: string; outcome?: string; resultPlanRevisionId?: string; diagnostics: Record<string, unknown> }
+export interface Phase1Plan { id: string; projectId: string; revision: number; planType: string; status: string; planHash: string; version: number; canonicalContent: { stages: unknown[]; actions: unknown[]; gates: unknown[]; risks: unknown[]; contracts: unknown[]; limitations: string[] } }
+
+function phase1Headers(token: string, workspaceId?: string, mutation = false, extra: Record<string,string> = {}) {
+  return { Authorization: `Bearer ${token}`, ...(workspaceId ? { "X-Workspace-Id": workspaceId } : {}), ...(mutation ? { "Idempotency-Key": crypto.randomUUID(), "Content-Type": "application/json" } : {}), ...extra };
+}
+export async function listPhase1Projects(token:string):Promise<Phase1Project[]>{const response=await fetch("/api/v1/projects",{headers:phase1Headers(token)});const body=await readJsonOrThrow<{items:Phase1Project[]}>(response,"Load planning projects failed");return body.items;}
+export async function createPhase1Project(token:string,input:{type:Phase1Project["type"];name:string}):Promise<Phase1Project>{const response=await fetch("/api/v1/projects",{method:"POST",headers:phase1Headers(token,undefined,true),body:JSON.stringify(input)});return readJsonOrThrow(response,"Create planning project failed");}
+export async function listPhase1Workloads(token:string,workspaceId:string,projectId:string):Promise<Phase1Workload[]>{const response=await fetch(`/api/v1/projects/${encodeURIComponent(projectId)}/workloads`,{headers:phase1Headers(token,workspaceId)});const body=await readJsonOrThrow<{items:Phase1Workload[]}>(response,"Load workloads failed");return body.items;}
+export async function createPhase1Workload(token:string,workspaceId:string,projectId:string,input:{name:string;kind:string}):Promise<Phase1Workload>{const response=await fetch(`/api/v1/projects/${encodeURIComponent(projectId)}/workloads`,{method:"POST",headers:phase1Headers(token,workspaceId,true),body:JSON.stringify(input)});return readJsonOrThrow(response,"Create workload failed");}
+export async function createPhase1Blueprint(token:string,workspaceId:string,workloadId:string,content:Record<string,unknown>):Promise<Phase1Blueprint>{const response=await fetch(`/api/v1/workloads/${encodeURIComponent(workloadId)}/blueprints`,{method:"POST",headers:phase1Headers(token,workspaceId,true),body:JSON.stringify({content,origin:"manual"})});return readJsonOrThrow(response,"Create Blueprint failed");}
+export async function confirmPhase1Blueprint(token:string,workspaceId:string,blueprintId:string,version:number):Promise<Phase1Blueprint>{const response=await fetch(`/api/v1/blueprint-revisions/${encodeURIComponent(blueprintId)}/confirm`,{method:"POST",headers:phase1Headers(token,workspaceId,true,{"If-Match":`"${version}"`}),body:"{}"});return readJsonOrThrow(response,"Confirm Blueprint failed");}
+export async function createPhase1Decision(token:string,workspaceId:string,projectId:string,content:Record<string,unknown>):Promise<Phase1Decision>{const response=await fetch(`/api/v1/projects/${encodeURIComponent(projectId)}/decision-set-revisions`,{method:"POST",headers:phase1Headers(token,workspaceId,true),body:JSON.stringify({content})});return readJsonOrThrow(response,"Create DecisionSet failed");}
+export async function createPhase1Compilation(token:string,workspaceId:string,projectId:string,input:Record<string,unknown>):Promise<Phase1Compilation>{const response=await fetch(`/api/v1/projects/${encodeURIComponent(projectId)}/plan-compilations`,{method:"POST",headers:phase1Headers(token,workspaceId,true),body:JSON.stringify(input)});return readJsonOrThrow(response,"Compile Plan failed");}
+export async function getPhase1Compilation(token:string,workspaceId:string,id:string):Promise<Phase1Compilation>{const response=await fetch(`/api/v1/plan-compilations/${encodeURIComponent(id)}`,{headers:phase1Headers(token,workspaceId)});return readJsonOrThrow(response,"Load Plan compilation failed");}
+export async function getPhase1Plan(token:string,workspaceId:string,id:string):Promise<Phase1Plan>{const response=await fetch(`/api/v1/plans/${encodeURIComponent(id)}`,{headers:phase1Headers(token,workspaceId)});return readJsonOrThrow(response,"Load immutable Plan failed");}

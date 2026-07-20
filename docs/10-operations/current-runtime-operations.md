@@ -26,6 +26,17 @@ retirement_phase: phase-10
 
 # 当前运行时运维指南
 
+## Phase 1 planning runtime
+
+With `ENVFORGE_POSTGRES_URL` configured, API startup applies production
+migrations through `0003`, registers `/api/v1` Workload/Blueprint/Decision/Plan
+routes, and keeps PostgreSQL as the sole authority for new planning writes.
+`npm run start:platform-worker` consumes both foundation operations and
+`planning.compilation.requested`; Plan compilation is deterministic control-plane
+work and performs no SSH or target mutation. Legacy SQLite EnvironmentPlan and
+ServiceStack paths remain bounded compatibility/evidence sources and are not
+dual-written into the new authority.
+
 > 本文是旧代码基线的临时运行手册。目标部署和运维以本目录其他规范为准。Preparation 必须在实际 HEAD 上确认所有命令。
 
 ## 1. 历史运行模型

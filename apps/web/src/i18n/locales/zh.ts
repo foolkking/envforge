@@ -405,6 +405,25 @@ export const zh = {
       committed: "已提交"
     }
   },
+  phase1Planning: {
+    title: "Planning v1",
+    boundary: "这里只生成不可变规划合同，不执行目标动作，也不创建 Run。",
+    newProject: "新建 Build 项目",
+    refreshProjects: "加载项目",
+    defaultProject: "规划工作区",
+    defaultWorkload: "Web 应用",
+    selectProject: "请选择 Project",
+    workspaceCount: "{{count}} 个工作负载",
+    createContract: "创建审查合同",
+    refresh: "刷新编译状态",
+    empty: "创建 Workload、确认 Blueprint，并编译只读审查 Plan 合同。",
+    planHash: "精确 Plan 哈希",
+    stages: "阶段",
+    actions: "动作",
+    contracts: "合同",
+    risks: "风险",
+    noExecution: "审批与执行分离。Phase 2 完成前不提供 Durable Run 执行。"
+  },
   runs: {
     title: "执行记录",
     refresh: "刷新",

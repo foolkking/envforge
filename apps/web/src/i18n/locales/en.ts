@@ -405,6 +405,25 @@ export const en = {
       committed: "Committed"
     }
   },
+  phase1Planning: {
+    title: "Planning v1",
+    boundary: "Immutable planning contracts only. No target action or Run is created here.",
+    newProject: "New Build project",
+    refreshProjects: "Load projects",
+    defaultProject: "Planning workspace",
+    defaultWorkload: "Web application",
+    selectProject: "Select a Project",
+    workspaceCount: "{{count}} workloads",
+    createContract: "Create review contract",
+    refresh: "Refresh compilation",
+    empty: "Create a Workload, confirm its Blueprint, and compile a review-only Plan contract.",
+    planHash: "Exact Plan hash",
+    stages: "Stages",
+    actions: "Actions",
+    contracts: "Contracts",
+    risks: "Risks",
+    noExecution: "Approval and execution are separate. Durable Run execution is unavailable until Phase 2."
+  },
   runs: {
     title: "Runs",
     refresh: "Refresh",

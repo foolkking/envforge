@@ -24,6 +24,7 @@ import type { Locale } from "../lib/types";
 import { confirmDialog } from "../lib/dialogs";
 import { Button } from "../components/ui/Button";
 import { Badge } from "../components/ui/Badge";
+import { Phase1PlanningPanel } from "../components/Phase1PlanningPanel";
 
 const EMPTY_YAML = `# EnvForge Environment Plan
 name: Reviewable Environment Plan
@@ -233,6 +234,7 @@ export function PlanRecipesPage({
 
       {opsTab === "plans" ? (
         <>
+      <Phase1PlanningPanel authToken={authToken} />
       <PlansCenterPanel authToken={authToken} locale={locale} />
       <div className="playbook-page" style={{ marginTop: 12 }}>
         <div className="playbook-sidebar">

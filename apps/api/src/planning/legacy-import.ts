@@ -24,4 +24,3 @@ export function proposeLegacyServiceStackImport(input: LegacyServiceStackInput):
     }
   };
 }
-
