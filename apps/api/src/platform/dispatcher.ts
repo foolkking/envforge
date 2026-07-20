@@ -1,21 +1,45 @@
 import type { PoolClient } from "pg";
 import { canonicalHash, uuidV7 } from "./foundation.js";
 import { PlatformDatabase } from "./postgres.js";
+import { processPlanCompilation } from "../planning/service.js";
 
 interface ClaimedMessage { id: string; workspaceId: string; topic: string; payload: Record<string, unknown>; claimToken: string; attempt: number }
 
 export async function dispatchOnce(database: PlatformDatabase, role: "operation" | "projection", workerId: string): Promise<number> {
-  const topics = role === "operation" ? ["foundation.operation.requested"] : ["projection.project", "projection.endpoint"];
+  const topics = role === "operation" ? ["foundation.operation.requested", "planning.compilation.requested"] : ["projection.project", "projection.endpoint"];
   const claimed = await claim(database, topics, workerId, 20);
   for (const message of claimed) {
     try {
-      if (role === "operation") await processOperation(database, message, workerId);
+      if (role === "operation" && message.topic === "planning.compilation.requested") await processPlanning(database, message, workerId);
+      else if (role === "operation") await processOperation(database, message, workerId);
       else await processProjection(database, message, workerId);
     } catch (error) {
       await fail(database, message, error);
     }
   }
   return claimed.length;
+}
+
+async function processPlanning(database: PlatformDatabase, message: ClaimedMessage, workerId: string): Promise<void> {
+  const consumer = "plan-compiler";
+  const alreadyCompleted = await database.pool.query(
+    "SELECT processing_state FROM audit.inbox_messages WHERE workspace_id=$1 AND consumer_name=$2 AND message_id=$3",
+    [message.workspaceId, consumer, message.id]
+  );
+  if (alreadyCompleted.rows[0]?.processing_state === "completed") {
+    return database.transaction((client) => completeOutbox(client, message, workerId));
+  }
+  await database.transaction(async (client) => {
+    await client.query(`INSERT INTO audit.inbox_messages(workspace_id,consumer_name,message_id,processing_state)
+      VALUES($1,$2,$3,'processing') ON CONFLICT DO NOTHING`, [message.workspaceId, consumer, message.id]);
+  });
+  const operationId = String(message.payload.operationId ?? "");
+  if (!operationId) throw new Error("Planning message has no operationId.");
+  await processPlanCompilation(database, message.workspaceId, operationId, workerId);
+  await database.transaction(async (client) => {
+    await finishInbox(client, message, consumer, canonicalHash({ operationId }));
+    await completeOutbox(client, message, workerId);
+  });
 }
 
 async function claim(database: PlatformDatabase, topics: string[], workerId: string, limit: number): Promise<ClaimedMessage[]> {

@@ -77,7 +77,7 @@ test("production migration clean apply and replay preserve checksum and required
   const first = await database.migrate();
   const second = await database.migrate();
   assert.deepEqual(second, first);
-  assert.equal(first.length, 2);
+  assert.equal(first.length, 3);
   const types = await database.pool.query("SELECT conname,pg_get_constraintdef(oid) definition FROM pg_constraint WHERE conrelid='core.projects'::regclass");
   assert.match(types.rows.map((row) => row.definition).join(" "), /assessment.*build.*migration.*capture.*restore/);
   const delayed = await database.pool.query("SELECT column_name FROM information_schema.columns WHERE table_schema='core' AND table_name='control_plane_operations'");
@@ -111,13 +111,13 @@ test("production migration clean apply and replay preserve checksum and required
 test("failed production migration rolls back its schema and version record", async () => {
   const migrationRoot = path.join(tempRoot, "failed-migrations");
   await fs.mkdir(migrationRoot, { recursive: true });
-  for (const file of ["0001_phase0_foundation.sql", "0002_phase0_operations.sql"]) {
+  for (const file of ["0001_phase0_foundation.sql", "0002_phase0_operations.sql", "0003_phase1_domain_planning.sql"]) {
     await fs.copyFile(resolveFromRoot("apps/api/migrations/postgres", file), path.join(migrationRoot, file));
   }
-  await fs.writeFile(path.join(migrationRoot, "0003_failure_probe.sql"), "CREATE TABLE platform.must_rollback(id integer); SELECT missing_column FROM platform.must_rollback;\n");
+  await fs.writeFile(path.join(migrationRoot, "0004_failure_probe.sql"), "CREATE TABLE platform.must_rollback(id integer); SELECT missing_column FROM platform.must_rollback;\n");
   await assert.rejects(() => database.migrate(migrationRoot));
   const table = await database.pool.query("SELECT to_regclass('platform.must_rollback') name");
-  const version = await database.pool.query("SELECT 1 FROM platform.schema_migrations WHERE version='0003'");
+  const version = await database.pool.query("SELECT 1 FROM platform.schema_migrations WHERE version='0004'");
   assert.equal(table.rows[0].name, null);
   assert.equal(version.rowCount, 0);
 });
@@ -284,7 +284,7 @@ test("PostgreSQL backup restores into an empty disposable database", async () =>
   const restored = new PlatformDatabase(restoreUrl);
   const counts = await restored.pool.query("SELECT count(*) projects FROM core.projects");
   assert.ok(Number(counts.rows[0].projects) >= 1);
-  assert.deepEqual((await restored.migrate()).map((item) => item.version), ["0001", "0002"]);
+  assert.deepEqual((await restored.migrate()).map((item) => item.version), ["0001", "0002", "0003"]);
   await restored.close();
 });
 

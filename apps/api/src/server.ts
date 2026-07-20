@@ -7,6 +7,7 @@ import { runMigrations } from "./migrations.js";
 import { initializeDatabase, shutdownSqliteDatabase } from "./db-sqlite.js";
 import { platformDatabaseFromEnv } from "./platform/postgres.js";
 import { registerPlatformRoutes } from "./platform/routes.js";
+import { registerPlanningRoutes } from "./planning/routes.js";
 
 const config = getConfig();
 
@@ -47,7 +48,10 @@ process.once("SIGTERM", (signal) => { void gracefulShutdown(signal); });
 process.once("SIGINT", (signal) => { void gracefulShutdown(signal); });
 
 await registerRoutes(app);
-if (platformDatabase) await registerPlatformRoutes(app, platformDatabase);
+if (platformDatabase) {
+  await registerPlatformRoutes(app, platformDatabase);
+  await registerPlanningRoutes(app, platformDatabase);
+}
 if (config.serveWeb) {
   registerStaticWeb(app, config.webDistDir);
 }
