@@ -113,7 +113,7 @@ entrypoints and the no-execution boundary.
 
 | ID | Command | Result | Acceptance |
 |---|---|---|---|
-| T-PH1-API | `npm run test --workspace @fool/api` | PASS 1028/1028 | PH1-002..029, PH1-GAP-001..014 |
+| T-PH1-API | `npm run test --workspace @fool/api` | PASS 1029/1029 | PH1-002..029, PH1-GAP-001..014 |
 | T-PH1-WEB | `npm run smoke:web` | PASS 16/16 | PH1-030 |
 | T-PH1-BUILD | `npm run typecheck && npm run build` | PASS | PH1-033 |
 | T-PH1-CONTRACT | `npm run validate:openapi && npm run validate:schemas` | PASS | PH1-029, PH1-034 |
@@ -138,7 +138,7 @@ about 100 seconds and Web smoke 54 seconds. No GA SLO claim is made.
 
 ## 19. Regression
 
-Phase 0 and legacy API tests pass in the 1028-test suite. The initial migration
+Phase 0 and legacy API tests pass in the 1029-test suite. The initial migration
 count and Web eager-load regressions were fixed and their enclosing suites rerun.
 
 ## 20. Documentation and Specifications

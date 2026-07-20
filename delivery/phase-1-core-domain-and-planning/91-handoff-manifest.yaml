@@ -91,8 +91,11 @@ planning:
   migration_estimate_schema: apps/api/migrations/postgres/0003_phase1_domain_planning.sql
   target_drift_invalidation: apps/api/src/planning/service.ts
 phase_2_required_inputs:
-  approved_plan_fixture_ids: [phase1-postgresql-approved-build-fixture]
-  approved_plan_hashes: [resolved-by-phase1-planning-test]
+  approved_plan_fixture_ids: [phase1-approved-build-v1]
+  approved_plan_hashes:
+    - 797c27e8463d03b99d3f60cc90082fe3b249a6c6d1c048f6d0f87ec36a5ccfa2
+  approved_approval_hashes:
+    - edcba1a5af60514df05e61543924b3390d8b894ea053a116998d993844a97cc2
   plan_repository: apps/api/src/planning/service.ts
   plan_query_service: apps/api/src/planning/service.ts
   plan_approval_service: apps/api/src/planning/service.ts
@@ -113,6 +116,7 @@ phase_2_required_inputs:
   artifact_store_api: apps/api/src/platform/artifacts.ts
   database_test_harness: apps/api/src/engine/tests/phase1-planning.test.ts
   api_test_harness: apps/api/src/engine/tests/phase1-planning.test.ts
+  approved_plan_fixture: apps/api/src/planning/approved-build-fixture.ts
   required_code_paths:
     - apps/api/src/planning
     - apps/api/migrations/postgres/0003_phase1_domain_planning.sql

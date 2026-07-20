@@ -8,7 +8,7 @@ environment with disposable PostgreSQL 17.10 databases.
 | Web typecheck | `cd apps/web && npx tsc --noEmit` | PASS |
 | Full typecheck | `npm run typecheck` | PASS |
 | Build | `npm run build` | PASS |
-| API regression | `npm run test --workspace @fool/api` | PASS, 1028/1028, 17 suites, 0 skipped |
+| API regression | `npm run test --workspace @fool/api` | PASS, 1029/1029, 17 suites, 0 skipped |
 | Phase 1 PostgreSQL suite | included in API regression | PASS, 14/14 |
 | Web smoke | `npm run smoke:web` | PASS, 16/16 desktop/mobile and zh/en |
 | OpenAPI | `npm run validate:openapi` | PASS, OpenAPI 3.1, 104 paths, 109 operations |

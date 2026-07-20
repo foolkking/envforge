@@ -12,6 +12,7 @@ import { canonicalHash, uuidV7 } from "../../platform/foundation.js";
 import { PlanningService } from "../../planning/service.js";
 import { assertValidDag, compilePlan, type CompilerInput } from "../../planning/compiler.js";
 import { assertPlanningSafe, evaluateReadiness, planHash, type BlueprintContent } from "../../planning/model.js";
+import { APPROVED_BUILD_FIXTURE, APPROVED_BUILD_FIXTURE_ID } from "../../planning/approved-build-fixture.js";
 import { dispatchOnce } from "../../platform/dispatcher.js";
 import { registerPlanningRoutes } from "../../planning/routes.js";
 import { registerRoutes } from "../../routes.js";
@@ -74,6 +75,8 @@ test("Workload placement and expiring MigrationEstimate preserve authority-neutr
 test("Legacy ServiceStack import is review-required, deterministic, and never copies secret content or approval",()=>{const input={id:"legacy-stack",name:"Legacy web",service:{name:"node",unit:"app.service"},packages:[{name:"nodejs"}],configs:[{path:"/srv/app/.env",containsSecret:true}],ports:[8080]};const first=proposeLegacyServiceStackImport(input);const second=proposeLegacyServiceStackImport(input);assert.deepEqual(second,first);assert.equal(first.state,"review-required");assert.ok(first.unresolved.includes("secret-provider-binding"));assert.doesNotMatch(JSON.stringify(first),/password=|token=|envforge-secret-canary/i);assert.equal("approval" in first,false);});
 
 test("DecisionSet is immutable and hard blockers cannot be risk accepted",async()=>{const fixture=await seeded("decision");const planning=new PlanningService(database);const first=await planning.createDecisionSet(ctx(fixture.workspaceId,"author","decision-1"),fixture.project.id,{conflicts:{port:"reuse"}});const second=await planning.createDecisionSet(ctx(fixture.workspaceId,"author","decision-2"),fixture.project.id,{conflicts:{port:"rename"}});assert.equal(second.revision,first.revision+1);await assert.rejects(()=>database.pool.query("UPDATE planning.decision_set_revisions SET content='{}'::jsonb WHERE id=$1",[first.id]),/immutable/);await assert.rejects(()=>planning.createDecisionSet(ctx(fixture.workspaceId,"author","decision-hard"),fixture.project.id,{riskAcceptances:[{riskId:"hard-blocker:data-owner",reason:"ignore"}]}),/Hard blockers/);});
+
+test("approved Golden Build fixture has stable exact Plan and Approval hashes",()=>{assert.equal(APPROVED_BUILD_FIXTURE.fixtureId,APPROVED_BUILD_FIXTURE_ID);assert.equal(APPROVED_BUILD_FIXTURE.status,"approved");assert.match(APPROVED_BUILD_FIXTURE.planHash,/^[0-9a-f]{64}$/);assert.match(APPROVED_BUILD_FIXTURE.approvalHash,/^[0-9a-f]{64}$/);assert.equal(planHash(APPROVED_BUILD_FIXTURE.canonicalPlan),APPROVED_BUILD_FIXTURE.planHash);assert.equal(APPROVED_BUILD_FIXTURE.canonicalPlan.actions.length,3);});
 
 test("Compiler is deterministic for 100 repeats, input-sensitive, multi-Blueprint, and acyclic",()=>{
   const input=compilerInput();const first=compilePlan(input);assert.notEqual(first.outcome,"blocked");if(first.outcome==="blocked")return;for(let i=0;i<100;i++)assert.equal((compilePlan({...input,blueprints:[...input.blueprints].reverse()}) as {hash:string}).hash,first.hash);

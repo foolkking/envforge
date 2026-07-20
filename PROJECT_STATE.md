@@ -21,7 +21,7 @@ Planning v1 Web panel exposes Project -> Workload -> Blueprint -> Decision ->
 Compilation -> immutable Plan review without an Execute/Run action.
 
 Final local validation passes the Phase 1 disposable PostgreSQL suite 14/14,
-the full API suite 1028/1028, Web smoke 16/16, typecheck/build, OpenAPI 109
+the full API suite 1029/1029, Web smoke 16/16, typecheck/build, OpenAPI 109
 operations, JSON Schema positive/negative fixtures and Secret canary scanning.
 Coverage includes 100-repeat determinism, concurrency, immutability, exact-hash
 approval, drift, workspace isolation, legacy import safety, and locked Run creation.
