@@ -11,3 +11,14 @@
 5. 当前设计、API 和 Migration 以 `docs/` 的事实源为准。
 
 `capability-preview-snapshots/` 保存项目历史生成物；当前 preview 只能进入 `artifacts/generated/` 或 CI Artifact，不能直接启用 Runtime Catalog。
+
+## Phase 0-10 requirement and revision evidence
+
+The following files are historical, non-authoritative evidence. Current target
+design remains under `docs/`, while Phase entry uses the canonical source index.
+
+- `requirements/chatgpt-vm-migration-pain-analysis-5.md`
+- `audits/envforge-phase0-phase10-coverage-gap-audit.md`
+- `phase-prompt-revisions/envforge-phase0-phase10-v1.1-change-log.md` (when supplied)
+- `phase-prompt-revisions/envforge-phase0-phase10-v1.1-SHA256SUMS` (when supplied)
+- `phase-prompt-revisions/envforge-phase0-phase10-v1.1-validation-report.json` (when supplied)

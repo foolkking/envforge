@@ -1,0 +1,112 @@
+[
+  {
+    "file": "EnvForge_Phase_0_Platform_and_Persistence_Execution_and_Closure_Prompt.md",
+    "bytes": 71340,
+    "lines": 3067,
+    "version_1_1": true,
+    "global_binding": true,
+    "phase_patch": true,
+    "fences": 190,
+    "fences_balanced": true
+  },
+  {
+    "file": "EnvForge_Phase_10_Final_System_Integration_and_GA_Closure_Execution_and_Closure_Prompt.md",
+    "bytes": 70632,
+    "lines": 2612,
+    "version_1_1": true,
+    "global_binding": true,
+    "phase_patch": true,
+    "fences": 114,
+    "fences_balanced": true
+  },
+  {
+    "file": "EnvForge_Phase_1_Core_Domain_and_Planning_Execution_and_Closure_Prompt.md",
+    "bytes": 90838,
+    "lines": 4123,
+    "version_1_1": true,
+    "global_binding": true,
+    "phase_patch": true,
+    "fences": 260,
+    "fences_balanced": true
+  },
+  {
+    "file": "EnvForge_Phase_2_Durable_Execution_Kernel_Execution_and_Closure_Prompt.md",
+    "bytes": 74155,
+    "lines": 3548,
+    "version_1_1": true,
+    "global_binding": true,
+    "phase_patch": true,
+    "fences": 176,
+    "fences_balanced": true
+  },
+  {
+    "file": "EnvForge_Phase_3_Golden_Build_Execution_and_Closure_Prompt.md",
+    "bytes": 94771,
+    "lines": 4067,
+    "version_1_1": true,
+    "global_binding": true,
+    "phase_patch": true,
+    "fences": 186,
+    "fences_balanced": true
+  },
+  {
+    "file": "EnvForge_Phase_4_Discovery_and_Candidate_Review_Execution_and_Closure_Prompt.md",
+    "bytes": 82093,
+    "lines": 3743,
+    "version_1_1": true,
+    "global_binding": true,
+    "phase_patch": true,
+    "fences": 204,
+    "fences_balanced": true
+  },
+  {
+    "file": "EnvForge_Phase_5_Dataset_Migration_Engine_Execution_and_Closure_Prompt.md",
+    "bytes": 106086,
+    "lines": 4710,
+    "version_1_1": true,
+    "global_binding": true,
+    "phase_patch": true,
+    "fences": 246,
+    "fences_balanced": true
+  },
+  {
+    "file": "EnvForge_Phase_6_Live_Migration_and_Cutover_Execution_and_Closure_Prompt.md",
+    "bytes": 117499,
+    "lines": 4901,
+    "version_1_1": true,
+    "global_binding": true,
+    "phase_patch": true,
+    "fences": 224,
+    "fences_balanced": true
+  },
+  {
+    "file": "EnvForge_Phase_7_Capture_and_Environment_Archive_Execution_and_Closure_Prompt.md",
+    "bytes": 98378,
+    "lines": 4261,
+    "version_1_1": true,
+    "global_binding": true,
+    "phase_patch": true,
+    "fences": 206,
+    "fences_balanced": true
+  },
+  {
+    "file": "EnvForge_Phase_8_Restore_and_Source_Release_Execution_and_Closure_Prompt.md",
+    "bytes": 118135,
+    "lines": 4898,
+    "version_1_1": true,
+    "global_binding": true,
+    "phase_patch": true,
+    "fences": 216,
+    "fences_balanced": true
+  },
+  {
+    "file": "EnvForge_Phase_9_Production_Hardening_Execution_and_Closure_Prompt.md",
+    "bytes": 103203,
+    "lines": 4596,
+    "version_1_1": true,
+    "global_binding": true,
+    "phase_patch": true,
+    "fences": 220,
+    "fences_balanced": true
+  }
+]

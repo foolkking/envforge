@@ -1,0 +1,31 @@
+id: EF-PHASE-0-10-REQUIREMENT-SOURCE-INDEX-001
+version: "1.0"
+status: accepted-input
+bundle:
+  filename: EnvForge_Phase0_Phase10_Revised_v1.1.zip
+  sha256: f722bb014695d01c0fd0df9e627f8c3336f9a494ea817b8c98b39d0fac3d7287
+prompt_bodies_stored_in_repository: false
+sources:
+  addendum:
+    path: delivery/phase-0-platform-and-persistence/00a-post-preparation-requirement-gap-addendum.md
+    sha256: a152573efdbb9439ed4f0ee2fbf4e460ad9770957db680b10b9659d7f175b79c
+  original_requirement_matrix:
+    path: delivery/phase-0-platform-and-persistence/00b-original-requirement-traceability-baseline.md
+    sha256: dc6fa5de3a68326908965aad4a5593e2fecce236476ba768266e7d730746695d
+  original_analysis:
+    path: delivery/history/requirements/chatgpt-vm-migration-pain-analysis-5.md
+    sha256: ce424d13f10770ea47d8c385f5f7eb3897b99127e33c67ac20d544b8684a4988
+  coverage_gap_audit:
+    path: delivery/history/audits/envforge-phase0-phase10-coverage-gap-audit.md
+    sha256: 1209d1820adbd783000793824c21a87cf215a97cabebd6fa1be25ef413e2a8ac
+revision_evidence:
+  change_log:
+    path: delivery/history/phase-prompt-revisions/envforge-phase0-phase10-v1.1-change-log.md
+  bundle_checksums:
+    path: delivery/history/phase-prompt-revisions/envforge-phase0-phase10-v1.1-SHA256SUMS
+  validation_report:
+    path: delivery/history/phase-prompt-revisions/envforge-phase0-phase10-v1.1-validation-report.json
+phase_prompt_policy:
+  external_only: true
+  required_version: "1.1"
+  phase_0_prompt_sha256: 06f0434369918b186378658fe505a7a45258551211d6ce908fb42c799e6ffacc
