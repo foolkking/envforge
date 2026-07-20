@@ -1,0 +1,23 @@
+{
+  "capturedAt": "2026-07-20T08:59:31Z",
+  "failedSha": "8e5e390594fcc68149a24d5184a1710063fc733c",
+  "repository": "foolkking/envforge",
+  "checks": [
+    {
+      "workflow": "CI",
+      "runId": 29727165796,
+      "runUrl": "https://github.com/foolkking/envforge/actions/runs/29727165796",
+      "event": "push",
+      "job": "build",
+      "jobId": 88302822582,
+      "jobUrl": "https://github.com/foolkking/envforge/actions/runs/29727165796/job/88302822582",
+      "runner": "ubuntu-latest",
+      "attempt": 1,
+      "failedStep": "Validate integrated design baseline",
+      "status": "completed",
+      "conclusion": "failure",
+      "startedAt": "2026-07-20T08:13:51Z",
+      "completedAt": "2026-07-20T08:15:28Z"
+    }
+  ]
+}

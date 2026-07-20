@@ -1,0 +1,24 @@
+Workflow: CI
+Run: 29727165796
+Job: build (88302822582)
+Step: Validate integrated design baseline
+SHA: 8e5e390594fcc68149a24d5184a1710063fc733c
+
+> npm run validate:design
+> npm run validate:docs:static && npm run validate:docs:markdown && npm run validate:docs:mermaid && npm run validate:openapi && npm run validate:schemas
+
+Static design validation: PASS
+Markdown validation: PASS (235 files, 0 errors)
+
+> npm run validate:docs:mermaid
+> node tools/preparation/render-mermaid.mjs
+
+Error: Failed to launch the browser process!
+FATAL: zygote_host_impl_linux.cc(128) No usable sandbox!
+The Ubuntu runner disabled the unprivileged user-namespace path and no usable
+setuid sandbox was available.
+
+Process completed with exit code 1.
+
+This excerpt is manually minimized and contains no token, credential, private
+path, environment dump, or full GitHub log.

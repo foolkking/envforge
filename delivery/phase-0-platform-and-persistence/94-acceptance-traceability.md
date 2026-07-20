@@ -30,7 +30,8 @@ this table, the final report and the Handoff are committed together.
 | PH0-023 | Security isolation | auth/membership/FKs | cross-workspace tests | PASS |
 | PH0-024 | Current guide sync | current guide addenda | Markdown validation | PASS |
 | PH0-025 | Full regression | all API/Web/workspaces | API 1014/1014, Web 16/16 | PASS |
-| PH0-026 | Closure/Handoff | `90`, `91`, this file | final diff and hashes | PASS |
+| PH0-026 | Closure/Handoff | `90`, `91`, this file | local PASS; remote CI required | LOCAL-PASS-REMOTE-PENDING |
+| PH0-CI-001 | GitHub CI on final remediation HEAD | `evidence/ci-remediation/` | pending candidate run | PENDING |
 | PH0-GAP-001 | Addendum hashes bound | `01-entry-assessment.md` | SHA-256 recorded | PASS |
 | PH0-GAP-002 | Five immutable Project Types | `core.projects` | insert/trigger test | PASS |
 | PH0-GAP-003 | ProjectLink/Endpoint binding space | composite FKs/routes | schema/API test | PASS |

@@ -1,0 +1,25 @@
+{
+  "state": "LOCAL-VALIDATION-PASS",
+  "completedAt": "2026-07-20T09:02:15Z",
+  "environment": {
+    "os": "win32-x64",
+    "node": "20.13.1",
+    "npm": "10.5.2",
+    "postgresql": "17.10"
+  },
+  "correctionCommit": "f949c7ae8788a34ac44d8a94d49e1bccd48eabc1",
+  "checks": [
+    {"name":"npm-ci","exitCode":0,"result":"PASS"},
+    {"name":"mermaid-run-1","exitCode":0,"result":"PASS","count":"7/7"},
+    {"name":"mermaid-run-2","exitCode":0,"result":"PASS","count":"7/7"},
+    {"name":"api-full","exitCode":0,"result":"PASS","count":"1014/1014","skipped":0},
+    {"name":"phase0-postgresql","exitCode":0,"result":"PASS","count":"13/13"},
+    {"name":"typecheck","exitCode":0,"result":"PASS"},
+    {"name":"build","exitCode":0,"result":"PASS"},
+    {"name":"web-smoke","exitCode":0,"result":"PASS","count":"16/16"},
+    {"name":"validate-preparation","exitCode":0,"result":"PASS"},
+    {"name":"secret-canary","exitCode":0,"result":"PASS","findings":0},
+    {"name":"failure-paths","exitCode":0,"result":"PASS","count":"9/9"}
+  ],
+  "remoteCi": {"status":"pending","checkedSha":"pending-final-remediation-head"}
+}

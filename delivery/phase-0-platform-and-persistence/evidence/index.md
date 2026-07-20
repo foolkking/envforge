@@ -15,6 +15,7 @@ exact commands and summarized results needed to replay them.
 | failure | `failure-injection/failure-matrix.md` | disposable failure tests |
 | performance | `performance/baseline.md` | platform performance subtest |
 | hashes | `hashes/sha256-manifest.txt` | `Get-FileHash -Algorithm SHA256` |
+| CI remediation | `ci-remediation/` | `gh run view`, exact local and remote gates |
 
 The Phase 0 integration test owns its PostgreSQL cluster, runtime-store path,
 Artifact root and tokens under a temporary directory. No runtime database,

@@ -6,8 +6,11 @@ AI-readable current-state snapshot. Read this before changing the repo, then rea
 
 ## Phase 0 platform foundation status
 
-Phase 0 closed PASS on branch `phase/0-platform-and-persistence`; final
-implementation HEAD is `a51e442`. The phase adds opt-in PostgreSQL production
+Phase 0 local Closure commit `c146dbf` was invalidated as an effective release
+gate by failed GitHub CI on `8e5e390`. CI remediation is locally validated on
+branch `delivery/envforge-v1`, but Phase 1 remains locked until GitHub Actions
+passes on the exact final remediation HEAD. The Phase 0 implementation HEAD is
+`a51e442`. The phase adds opt-in PostgreSQL production
 migrations and repositories for
 Workspace, Project/Endpoint foundations, safe ControlPlaneOperation, Artifact
 metadata, Event/Audit/Outbox/Inbox, idempotency, and projections. It also adds

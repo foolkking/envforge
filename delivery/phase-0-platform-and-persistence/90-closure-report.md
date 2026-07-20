@@ -1,8 +1,24 @@
 # EnvForge Phase 0 Closure Report
 
+## 0. GitHub CI Remediation Gate
+
+- Original local Closure HEAD: `c146dbfefc54194dbd453940c6bbfe410c75f024`
+- Failed remote SHA: `8e5e390594fcc68149a24d5184a1710063fc733c`
+- Original remote CI result: failed
+- Original PASS effective: false
+- Remediation status: `LOCAL-VALIDATION-PASS`
+- CI provider: GitHub Actions
+- CI checked SHA: `pending-final-remediation-head`
+- CI status: pending
+- Phase 1: locked until every required check succeeds on the exact candidate HEAD
+
 ## 1. Result
 
-`PASS — Phase 1 Core Domain and Planning is unlocked`.
+`LOCAL-VALIDATION-PASS - REMOTE-CI-PENDING`.
+
+This report does not unlock Phase 1 while the GitHub CI blocker in the Handoff
+is present. After all required checks succeed on the exact final remediation
+HEAD, the blocker is externally satisfied without another repository change.
 
 ## 2. Baseline
 
@@ -205,6 +221,7 @@ are not Phase 0 failures.
 | E6 | `evidence/failure-injection/failure-matrix.md` | current evidence | failure |
 | E7 | `evidence/performance/baseline.md` | current evidence | performance |
 | E8 | `evidence/tests/final-test-report.md` | current evidence | regression |
+| E9 | `evidence/ci-remediation/` | sanitized remote/local evidence | CI remediation |
 
 SHA-256 inventory is `evidence/hashes/sha256-manifest.txt`; the final Git tree
 provides content identity for Closure metadata. Ephemeral raw logs are not
@@ -218,15 +235,16 @@ committed.
 | `387a2b8` | PostgreSQL and platform foundation | typecheck/build/targeted integration |
 | `7a7a081` | failure, recovery and performance tests | targeted and full API suites |
 | `a51e442` | contracts, operations and evidence | design/Markdown/OpenAPI/schema validation |
+| `f949c7a` | GitHub Linux Mermaid renderer correction | local Mermaid twice and full local gate |
 
 The final Closure commit contains this report, Handoff, Acceptance traceability
 and evidence hash inventory; it does not alter implementation behavior.
 
 ## 25. Final Repository State
 
-- Final branch: `phase/0-platform-and-persistence`
+- Final branch: `delivery/envforge-v1`
 - Final implementation HEAD: `a51e442259dd4faf4a21e7df619d4c805cb37049`
-- Working tree: required clean after Closure commit
+- Working tree: required clean after remediation Closure commit
 - Schema/API: `phase0-postgresql-0002`, `/api/v1` foundation subset
 - Feature flags: six explicit foundation/compatibility flags
 - Tests/CI-equivalent: all required local checks PASS
@@ -240,4 +258,4 @@ ControlPlaneOperation as ExecutionRun.
 
 ## 27. Final Verdict
 
-`PASS — Phase 1 Core Domain and Planning is unlocked`.
+`LOCAL-VALIDATION-PASS - REMOTE-CI-PENDING - Phase 1 remains locked`.
