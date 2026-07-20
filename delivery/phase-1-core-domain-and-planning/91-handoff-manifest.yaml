@@ -1,0 +1,135 @@
+phase: phase-1
+phase_name: Core Domain and Planning
+verdict: PASS
+product_verdict: PASS
+effective_pass: false
+phase_2_unlocked: false
+delivery_contract: EF-DELIVERY-CONTRACT-001@1.1
+prompt_version: "1.1"
+base_prompt_version: "1.1"
+overlay_version: "1.1"
+effective_prompt_version: "1.1+delivery-ci.2"
+effective_prompt_file_sha256: 5ecb919e282c24b61e064f0f88af2faf7ca2165a83cd9ceabb6d97a89bcb411c
+prompt_body_stored_in_repository: false
+design_baseline: EnvForge Integrated Design Baseline v1.2
+branch: delivery/envforge-v1
+remote_branch: origin/delivery/envforge-v1
+phase_0_final_head: 6958944a6c7c1fe0dab58ae8361162f14a1104cc
+phase_0_handoff_sha256: ebb52a73615911c51f30aa2394f9726e80b2e69397c1d7bd611aac24389ee1c1
+initial_head: 6958944a6c7c1fe0dab58ae8361162f14a1104cc
+final_head: pending-candidate-closure-head
+schema_version: 0003_phase1_domain_planning
+api_version: 1.1.0
+compiler_version: phase1-v1
+canonicalizer_version: phase1-canonical-json-v1
+blueprint_schema_versions: ["1.0"]
+decision_schema_versions: ["1.0"]
+plan_schema_versions: ["1.0"]
+capability_catalog:
+  id: builtin-capability-catalog
+  version: preparation-baseline
+  hash: bound-per-plan-input
+policy_bundle:
+  id: builtin-planning-policy
+  version: phase1-v1
+  hash: bound-per-plan-input
+feature_flags:
+  - workload-domain-v1
+  - blueprint-revisions-v1
+  - plan-compiler-v1
+  - plan-approval-v1
+authoritative_write_paths:
+  - apps/api/migrations/postgres/0003_phase1_domain_planning.sql
+  - apps/api/src/planning/service.ts
+authoritative_read_paths:
+  - apps/api/src/planning/service.ts
+  - apps/api/src/planning/routes.ts
+deprecated_paths:
+  - legacy EnvironmentPlan write and approval paths after cutover
+compatibility_adapters:
+  - apps/api/src/planning/legacy-import.ts
+new_capabilities:
+  - environment-project-lifecycle
+  - workload-domain-and-placement
+  - immutable-blueprint-revisions
+  - planner-readiness
+  - immutable-decision-set-revisions
+  - compatibility-engine
+  - deterministic-plan-compilation
+  - immutable-plan-revisions
+  - traceable-action-dag
+  - exact-hash-plan-approval
+current_implementation_guides:
+  - docs/10-operations/current-runtime-operations.md
+  - docs/11-testing/current-harness-guide.md
+  - docs/15-experience/current-web-implementation.md
+historical_evidence_revalidated:
+  - legacy planning objects and API paths audited at initial HEAD
+known_debt:
+  - owner: phase-2
+    item: durable ExecutionRun and Action execution
+  - owner: phase-4
+    item: automatic collection and Candidate review
+open_questions: []
+blocking_conditions:
+  - github-ci-success-required-for-candidate-closure-head
+ci_provider: github-actions
+ci_required: true
+ci_status: pending
+ci_checked_sha: pending
+project_domain:
+  immutable_types: [assessment, build, migration, capture, restore]
+  project_link_service: apps/api/src/planning/service.ts
+  mode_state_machines: apps/api/src/planning/service.ts
+workload_domain:
+  placement_service: apps/api/src/planning/service.ts
+  runtime_contract_schema: apps/api/src/planning/model.ts
+  deployment_contract_schema: apps/api/src/planning/model.ts
+  config_contract_schema: apps/api/src/planning/model.ts
+  ephemeral_state_policy_schema: apps/api/src/planning/model.ts
+planning:
+  migration_estimate_schema: apps/api/migrations/postgres/0003_phase1_domain_planning.sql
+  target_drift_invalidation: apps/api/src/planning/service.ts
+phase_2_required_inputs:
+  approved_plan_fixture_ids: [phase1-postgresql-approved-build-fixture]
+  approved_plan_hashes: [resolved-by-phase1-planning-test]
+  plan_repository: apps/api/src/planning/service.ts
+  plan_query_service: apps/api/src/planning/service.ts
+  plan_approval_service: apps/api/src/planning/service.ts
+  plan_action_repository: planning.plan_actions
+  plan_contract_repository: planning.plan_contracts
+  plan_gate_repository: planning.plan_gates
+  plan_risk_repository: planning.plan_risks
+  action_dag_validator: apps/api/src/planning/compiler.ts
+  compiler_trace_reader: apps/api/src/planning/service.ts
+  input_binding_validator: apps/api/src/planning/compiler.ts
+  material_drift_checker: apps/api/src/planning/service.ts
+  transaction_api: apps/api/src/platform/postgres.ts
+  event_outbox_api: apps/api/src/platform/postgres.ts
+  audit_api: apps/api/src/platform/postgres.ts
+  idempotency_api: apps/api/src/platform/postgres.ts
+  auth_context: apps/api/src/planning/routes.ts
+  workspace_context: apps/api/src/planning/routes.ts
+  artifact_store_api: apps/api/src/platform/artifacts.ts
+  database_test_harness: apps/api/src/engine/tests/phase1-planning.test.ts
+  api_test_harness: apps/api/src/engine/tests/phase1-planning.test.ts
+  required_code_paths:
+    - apps/api/src/planning
+    - apps/api/migrations/postgres/0003_phase1_domain_planning.sql
+  accepted_adrs: []
+  feature_flags:
+    - plan-compiler-v1
+    - plan-approval-v1
+phase_2_execution_constraints:
+  run_creation_requires_approved_plan: true
+  bind_exact_plan_hash: true
+  bind_exact_approval_hash: true
+  no_latest_plan_resolution: true
+  no_plan_content_mutation: true
+  action_dag_is_immutable: true
+  required_verification_contracts_present: true
+  rollback_contracts_present: true
+acceptance_evidence: delivery/phase-1-core-domain-and-planning/94-acceptance-traceability.md
+closure_report: delivery/phase-1-core-domain-and-planning/90-closure-report.md
+required_next_actions:
+  - wait-for-github-ci-on-candidate-closure-head

@@ -1,0 +1,15 @@
+{
+  "phase": "phase-1",
+  "repository": "E:/1project/EnvForge",
+  "branch": "delivery/envforge-v1",
+  "initialHead": "6958944a6c7c1fe0dab58ae8361162f14a1104cc",
+  "remoteHead": "6958944a6c7c1fe0dab58ae8361162f14a1104cc",
+  "workingTreeClean": true,
+  "phase0CiRun": 29730199276,
+  "node": "20.13.1",
+  "npm": "10.5.2",
+  "postgresqlValidationTarget": "17.10",
+  "designBaseline": "EnvForge Integrated Design Baseline v1.2",
+  "effectivePromptVersion": "1.1+delivery-ci.2",
+  "promptSha256": "5ecb919e282c24b61e064f0f88af2faf7ca2165a83cd9ceabb6d97a89bcb411c"
+}
