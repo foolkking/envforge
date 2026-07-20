@@ -5,6 +5,8 @@ import { registerStaticWeb } from "./static-web.js";
 import { shutdownScheduler, startScheduler } from "./scheduler.js";
 import { runMigrations } from "./migrations.js";
 import { initializeDatabase, shutdownSqliteDatabase } from "./db-sqlite.js";
+import { platformDatabaseFromEnv } from "./platform/postgres.js";
+import { registerPlatformRoutes } from "./platform/routes.js";
 
 const config = getConfig();
 
@@ -20,6 +22,8 @@ app.addHook("onRequest", async (_request, reply) => {
 });
 
 await initializeDatabase();
+const platformDatabase = platformDatabaseFromEnv();
+if (platformDatabase) await platformDatabase.migrate();
 
 let shuttingDown = false;
 async function gracefulShutdown(signal: NodeJS.Signals): Promise<void> {
@@ -29,6 +33,7 @@ async function gracefulShutdown(signal: NodeJS.Signals): Promise<void> {
   try {
     await shutdownScheduler(5000);
     await app.close();
+    await platformDatabase?.close();
     await shutdownSqliteDatabase();
     app.log.info("Graceful shutdown complete");
     process.exit(0);
@@ -42,6 +47,7 @@ process.once("SIGTERM", (signal) => { void gracefulShutdown(signal); });
 process.once("SIGINT", (signal) => { void gracefulShutdown(signal); });
 
 await registerRoutes(app);
+if (platformDatabase) await registerPlatformRoutes(app, platformDatabase);
 if (config.serveWeb) {
   registerStaticWeb(app, config.webDistDir);
 }
