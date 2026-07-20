@@ -1,0 +1,7 @@
+{
+  "engine":"SQLite",
+  "migrationVersion":5,
+  "authority":["system_kv.runtime_db","relational auth/catalog/community tables"],
+  "tables":["schema_migrations","system_kv","users_cache_mirror","catalog_comments","comment_likes","comment_reports","catalog_suggestions","inbox_messages","admin_audit_logs","notification_queue","fts_sync_queue","background_tasks"],
+  "limitations":["process-local broad document mutex","no workspace-scoped foundation repositories","no transactional domain outbox","no PostgreSQL authority"]
+}

@@ -1,0 +1,4 @@
+branch=phase/0-platform-and-persistence
+head=6c4027f0663f191ac7c3f7b720ad019efb827173
+origin_main=6c4027f0663f191ac7c3f7b720ad019efb827173
+working_tree=clean
