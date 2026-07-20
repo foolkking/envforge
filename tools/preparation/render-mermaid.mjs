@@ -10,6 +10,9 @@ const docs = path.resolve(process.env.ENVFORGE_MERMAID_DOCS_ROOT || path.join(ro
 const outputRoot = path.resolve(process.env.ENVFORGE_MERMAID_OUTPUT_ROOT || path.join(root, "artifacts/generated/preparation/mermaid"));
 const evidencePath = path.resolve(process.env.ENVFORGE_MERMAID_EVIDENCE_PATH || path.join(root, "delivery/preparation/evidence/generated-artifacts/mermaid-validation.json"));
 const bin = path.join(root, "node_modules/.bin", process.platform === "win32" ? "mmdc.cmd" : "mmdc");
+const ciPuppeteerConfig = process.platform === "linux" && process.env.CI === "true"
+  ? path.join(root, "tools/preparation/puppeteer-ci.json")
+  : undefined;
 const started = Date.now();
 
 const inputs = (await walk(docs)).filter((file) => file.endsWith(".mmd")).sort();
@@ -21,7 +24,9 @@ for (const input of inputs) {
   const relative = path.relative(docs, input).replaceAll(path.sep, "/");
   const output = path.join(outputRoot, `${relative}.svg`);
   await mkdir(path.dirname(output), { recursive: true });
-  const result = spawnSync(bin, ["-i", input, "-o", output, "-b", "transparent"], {
+  const args = ["-i", input, "-o", output, "-b", "transparent"];
+  if (ciPuppeteerConfig) args.push("-p", ciPuppeteerConfig);
+  const result = spawnSync(bin, args, {
     cwd: root,
     encoding: "utf8",
     shell: process.platform === "win32"
@@ -46,6 +51,7 @@ const summary = {
   command: "npm run validate:docs:mermaid",
   tool: `@mermaid-js/mermaid-cli ${(version.stdout || version.stderr).trim()}`,
   environment: `${process.platform}/${process.arch} node ${process.version}`,
+  browserSandboxMode: ciPuppeteerConfig ? "github-ci-no-sandbox" : "platform-default",
   exitCode: 0,
   sourceCount: inputs.length,
   outputBytes: rendered.reduce((sum, item) => sum + item.bytes, 0),
