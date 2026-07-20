@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - main
+      - delivery/envforge-v1
 
 jobs:
   build:
