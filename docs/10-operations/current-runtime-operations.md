@@ -18,6 +18,12 @@ verified_against_commit: a0a9a69cefc0888c32e9fb2ef3f5ca5416a4a254
 retirement_phase: phase-10
 ---
 
+> Phase 0 update (2026-07-20): the opt-in PostgreSQL foundation, process
+> commands, authority boundary, backup/restore procedure, and failure recovery
+> are documented in [`phase-0-platform-operations.md`](phase-0-platform-operations.md).
+> Existing SQLite paths remain active for legacy resources and are not silently
+> dual-written.
+
 # 当前运行时运维指南
 
 > 本文是旧代码基线的临时运行手册。目标部署和运维以本目录其他规范为准。Preparation 必须在实际 HEAD 上确认所有命令。

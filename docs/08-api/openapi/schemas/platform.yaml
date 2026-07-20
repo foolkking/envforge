@@ -1,0 +1,80 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$defs:
+  HashVerificationRequest:
+    type: object
+    additionalProperties: false
+    required:
+    - input
+    properties:
+      input:
+        type: object
+      notBefore:
+        type: string
+        format: date-time
+  FoundationOperation:
+    type: object
+    additionalProperties: false
+    required:
+    - id
+    - workspaceId
+    - operationType
+    - state
+    - inputHash
+    - version
+    - availableAt
+    - createdAt
+    - updatedAt
+    properties:
+      id:
+        $ref: common.yaml#/$defs/Uuid
+      workspaceId:
+        $ref: common.yaml#/$defs/Uuid
+      operationType:
+        const: hash-verification
+      state:
+        enum: [created, queued, running, waiting, finalizing, succeeded, failed, cancelled]
+      inputHash:
+        $ref: common.yaml#/$defs/Hash
+      resultHash:
+        $ref: common.yaml#/$defs/Hash
+      errorCode:
+        type: string
+      errorSummary:
+        type: string
+      version:
+        type: integer
+        minimum: 0
+      availableAt:
+        type: string
+        format: date-time
+      createdAt:
+        type: string
+        format: date-time
+      updatedAt:
+        type: string
+        format: date-time
+  FoundationMetrics:
+    type: object
+    additionalProperties: false
+    required: [workspaceId, projects, operations_pending, outbox_pending, outbox_dead_letter, inbox_completed, artifacts_corrupt]
+    properties:
+      workspaceId:
+        $ref: common.yaml#/$defs/Uuid
+      projects:
+        type: integer
+        minimum: 0
+      operations_pending:
+        type: integer
+        minimum: 0
+      outbox_pending:
+        type: integer
+        minimum: 0
+      outbox_dead_letter:
+        type: integer
+        minimum: 0
+      inbox_completed:
+        type: integer
+        minimum: 0
+      artifacts_corrupt:
+        type: integer
+        minimum: 0

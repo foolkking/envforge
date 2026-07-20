@@ -1,0 +1,20 @@
+{
+  "verifiedAt": "2026-07-20",
+  "basePath": "/api/v1",
+  "auth": "existing session bearer token plus PostgreSQL workspace membership",
+  "operations": [
+    {"method":"GET","path":"/health/live","handler":"registerPlatformRoutes","mutation":false},
+    {"method":"GET","path":"/health/ready","handler":"registerPlatformRoutes","mutation":false},
+    {"method":"POST","path":"/projects","handler":"FoundationService.createProject","mutation":true,"idempotency":true},
+    {"method":"GET","path":"/projects","handler":"FoundationService.listProjects","mutation":false},
+    {"method":"GET","path":"/projects/{projectId}","handler":"FoundationService.getProject","mutation":false,"etag":true},
+    {"method":"PATCH","path":"/projects/{projectId}","handler":"FoundationService.updateProjectName","mutation":true,"idempotency":true,"ifMatch":true},
+    {"method":"POST","path":"/projects/{projectId}/endpoints","handler":"FoundationService.bindEndpoint","mutation":true,"idempotency":true,"ifMatch":true},
+    {"method":"GET","path":"/projects/{projectId}/endpoints","handler":"FoundationService.listProjectEndpoints","mutation":false},
+    {"method":"POST","path":"/platform/operations/hash-verification","handler":"FoundationService.createHashVerificationOperation","mutation":true,"adminOnly":true,"idempotency":true,"longRunning":true},
+    {"method":"GET","path":"/platform/operations/{operationId}","handler":"FoundationService.getOperation","mutation":false,"adminOnly":true},
+    {"method":"GET","path":"/platform/metrics","handler":"FoundationService.getWorkspaceMetrics","mutation":false,"adminOnly":true}
+  ],
+  deferredByPhase: ["snapshot/candidate/blueprint/plan APIs: Phase 1+", "execution/dataset/secret/cutover/archive APIs: later phases"],
+  notes: ["ControlPlaneOperation is not ExecutionRun", "no direct SSH or target mutation route was added"]
+}

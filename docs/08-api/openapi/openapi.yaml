@@ -16,6 +16,7 @@ tags:
 - name: Secrets
 - name: Cutover
 - name: Archive
+- name: Platform
 paths:
   /projects:
     post:
@@ -25,7 +26,6 @@ paths:
       - Projects
       parameters:
       - $ref: '#/components/parameters/IdempotencyKey'
-      - $ref: '#/components/parameters/IfMatch'
       requestBody:
         required: true
         content:
@@ -33,8 +33,12 @@ paths:
             schema:
               $ref: ./schemas/project.yaml#/$defs/CreateProjectRequest
       responses:
-        '200':
-          description: Success
+        '201':
+          description: Created
+          headers:
+            ETag:
+              schema:
+                type: string
           content:
             application/json:
               schema:
@@ -68,9 +72,7 @@ paths:
             application/json:
               schema:
                 type: object
-                required:
-                - items
-                - page
+                required: [items, page]
                 properties:
                   items:
                     type: array
@@ -106,6 +108,49 @@ paths:
       responses:
         '200':
           description: Success
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/project.yaml#/$defs/EnvironmentProject
+        '401':
+          $ref: '#/components/responses/E401'
+        '403':
+          $ref: '#/components/responses/E403'
+        '404':
+          $ref: '#/components/responses/E404'
+        '409':
+          $ref: '#/components/responses/E409'
+        '412':
+          $ref: '#/components/responses/E412'
+        '422':
+          $ref: '#/components/responses/E422'
+    patch:
+      summary: Update the mutable Phase 0 project envelope
+      operationId: UpdateProject
+      tags:
+      - Projects
+      parameters:
+      - name: projectId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ./schemas/project.yaml#/$defs/UpdateProjectRequest
+      responses:
+        '200':
+          description: Updated project envelope
+          headers:
+            ETag:
+              schema:
+                type: string
           content:
             application/json:
               schema:
@@ -214,9 +259,107 @@ paths:
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: ./schemas/project.yaml#/$defs/Endpoint
+                type: object
+                additionalProperties: false
+                required: [items, page]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: ./schemas/project.yaml#/$defs/ProjectEndpoint
+                  page:
+                    $ref: ./schemas/common.yaml#/$defs/PageMeta
+        '401':
+          $ref: '#/components/responses/E401'
+        '403':
+          $ref: '#/components/responses/E403'
+        '404':
+          $ref: '#/components/responses/E404'
+        '409':
+          $ref: '#/components/responses/E409'
+        '412':
+          $ref: '#/components/responses/E412'
+        '422':
+          $ref: '#/components/responses/E422'
+  /platform/operations/hash-verification:
+    post:
+      summary: Queue a safe foundation hash verification operation
+      operationId: CreateFoundationHashVerification
+      tags: [Platform]
+      parameters:
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ./schemas/platform.yaml#/$defs/HashVerificationRequest
+      responses:
+        '202':
+          description: Durable foundation operation queued
+          headers:
+            Location:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/platform.yaml#/$defs/FoundationOperation
+        '401':
+          $ref: '#/components/responses/E401'
+        '403':
+          $ref: '#/components/responses/E403'
+        '404':
+          $ref: '#/components/responses/E404'
+        '409':
+          $ref: '#/components/responses/E409'
+        '412':
+          $ref: '#/components/responses/E412'
+        '422':
+          $ref: '#/components/responses/E422'
+  /platform/operations/{operationId}:
+    get:
+      summary: Read a foundation control-plane operation
+      operationId: GetFoundationOperation
+      tags: [Platform]
+      parameters:
+      - name: operationId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Foundation operation
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/platform.yaml#/$defs/FoundationOperation
+        '401':
+          $ref: '#/components/responses/E401'
+        '403':
+          $ref: '#/components/responses/E403'
+        '404':
+          $ref: '#/components/responses/E404'
+        '409':
+          $ref: '#/components/responses/E409'
+        '412':
+          $ref: '#/components/responses/E412'
+        '422':
+          $ref: '#/components/responses/E422'
+  /platform/metrics:
+    get:
+      summary: Read bounded workspace platform metrics
+      operationId: GetFoundationMetrics
+      tags: [Platform]
+      responses:
+        '200':
+          description: Workspace-scoped foundation metrics
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/platform.yaml#/$defs/FoundationMetrics
         '401':
           $ref: '#/components/responses/E401'
         '403':

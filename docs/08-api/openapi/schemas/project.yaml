@@ -78,6 +78,16 @@ $defs:
       archiveVersionId:
         type: string
         format: uuid
+  UpdateProjectRequest:
+    type: object
+    additionalProperties: false
+    required:
+    - name
+    properties:
+      name:
+        type: string
+        minLength: 1
+        maxLength: 160
   Endpoint:
     type: object
     additionalProperties: false
@@ -127,6 +137,27 @@ $defs:
         - target
         - storage
         - drill-target
+  ProjectEndpoint:
+    type: object
+    additionalProperties: false
+    required: [id, workspaceId, kind, displayName, status, version, role]
+    properties:
+      id:
+        $ref: common.yaml#/$defs/Uuid
+      workspaceId:
+        $ref: common.yaml#/$defs/Uuid
+      kind:
+        enum: [linux-host, storage-host, external-service, drill-target]
+      displayName:
+        type: string
+      status:
+        enum: [unvalidated, available, degraded, unavailable, retired]
+      hostIdentity:
+        type: object
+      version:
+        type: integer
+      role:
+        enum: [source, target, storage, drill-target]
   SnapshotCollectionRunRequest:
     type: object
     additionalProperties: false

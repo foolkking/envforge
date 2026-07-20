@@ -18,6 +18,15 @@ source_of_truth_for:
 
 # EnvForge Integrated Design Baseline v1.2
 
+Current Phase 0 implementation references:
+
+- [Production migration catalog](07-persistence/production-migration-catalog.md)
+- [Phase 0 platform operations](10-operations/phase-0-platform-operations.md)
+- [Phase 0 acceptance](13-acceptance/phase-0-platform-foundation.md)
+
+These references do not make Phase 1 Planning or Phase 2 Durable Execution
+capabilities available.
+
 本目录是 EnvForge 的工程设计事实源。总体设计提供跨团队视图，叶子规范定义可实施合同；实现、测试、数据库迁移和 API 不得仅依赖聊天记录或 DOCX。
 
 ## 阅读路径

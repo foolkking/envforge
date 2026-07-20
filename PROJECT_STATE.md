@@ -4,6 +4,24 @@ AI-readable current-state snapshot. Read this before changing the repo, then rea
 `AGENTS.md` for working rules. Human entry point: `README.md`. Last updated:
 2026-07-20.
 
+## Phase 0 platform foundation status
+
+Phase 0 implementation is in stabilization on branch
+`phase/0-platform-and-persistence`; Closure has not yet been declared. The
+working tree adds opt-in PostgreSQL production migrations and repositories for
+Workspace, Project/Endpoint foundations, safe ControlPlaneOperation, Artifact
+metadata, Event/Audit/Outbox/Inbox, idempotency, and projections. It also adds
+separate operation-worker/projection entrypoints, provider-backed Artifact
+publication, deterministic legacy dry-run/backfill, and PostgreSQL backup and
+disposable restore commands.
+
+`ENVFORGE_POSTGRES_URL` gates this additive foundation. Existing SQLite runtime
+paths remain unchanged and are not dual-written. No Phase 1 Plan model, Phase 2
+ExecutionRun/Action worker, Dataset, Secret Delivery, Cutover, Archive, Restore,
+or UI product flow is implemented by Phase 0. Current targeted evidence is
+12/12 passing against an isolated real PostgreSQL cluster; full regression and
+Closure evidence still require final stabilization.
+
 ## Preparation delivery status
 
 Preparation adopted EnvForge Integrated Design Baseline v1.2 and established the

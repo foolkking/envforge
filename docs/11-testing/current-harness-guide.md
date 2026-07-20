@@ -18,6 +18,15 @@ verified_against_commit: a0a9a69cefc0888c32e9fb2ef3f5ca5416a4a254
 retirement_phase: phase-10
 ---
 
+> Phase 0 update (2026-07-20): the `Phase 0 platform foundation` integration
+> suite creates an isolated real PostgreSQL cluster, applies production SQL,
+> tests API/worker/projection/Artifact/backfill behavior, executes
+> `pg_dump`/`pg_restore`, and removes the cluster. Run the filtered suite with:
+>
+> `node --test --test-concurrency=1 --test-name-pattern="Phase 0 platform foundation" apps/api/dist/engine/tests`
+>
+> A filtered run does not replace the full API regression run.
+
 # 当前 Harness 指南
 
 > 本文记录旧基线命令和 Fixture。最终测试合同以 `11-testing` 的 normative 文档和 `13-acceptance` 为准。
