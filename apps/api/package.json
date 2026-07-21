@@ -15,6 +15,7 @@
     "platform:backfill:apply": "node dist/platform-backfill.js --apply",
     "platform:backup": "node dist/platform-backup.js",
     "platform:restore": "node dist/platform-restore.js",
+    "execution:worker": "node dist/execution/worker.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "npm run clean && npm run build && node --test --test-concurrency=1 dist/engine/tests"
   },

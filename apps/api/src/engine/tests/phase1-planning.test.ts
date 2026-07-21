@@ -36,8 +36,8 @@ before(async()=>{
 });
 after(async()=>{await app.close();await database.close();await _resetSqliteDbForTests();if(dataDir)command("pg_ctl",["-D",dataDir,"-m","fast","-w","stop"],true,true);if(tempRoot)await fs.rm(tempRoot,{recursive:true,force:true});});
 
-test("Phase 1 production migration is scoped, replayable, and excludes Phase 4/2 tables",async()=>{
-  const migrations=await database.migrate(); assert.equal(migrations.length,3); assert.equal((await database.migrate()).length,3);
+test("Phase 1 production migration remains scoped and replayable after later migrations",async()=>{
+  const migrations=await database.migrate(); assert.equal(migrations.length,4); assert.equal((await database.migrate()).length,4);
   const tables=await database.pool.query<{name:string|null}>("SELECT to_regclass('workload.blueprint_revisions') name UNION ALL SELECT to_regclass('planning.plan_revisions') UNION ALL SELECT to_regclass('discovery.workload_candidates') UNION ALL SELECT to_regclass('planning.execution_runs')");
   assert.ok(tables.rows[0].name);assert.ok(tables.rows[1].name);assert.equal(tables.rows[2].name,null);assert.equal(tables.rows[3].name,null);
 });
