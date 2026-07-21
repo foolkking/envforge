@@ -1,0 +1,14 @@
+{
+  "phase": "phase-2",
+  "branch": "delivery/envforge-v1",
+  "initialHead": "bbfaafe80e4c8095430dba5a553aea5fde64dd2e",
+  "remoteHead": "bbfaafe80e4c8095430dba5a553aea5fde64dd2e",
+  "workingTreeClean": true,
+  "phase1HandoffSha256": "3b60db74d16315d0e3c0f712f69dfa46d74d5ddc143cd8e40e8bf10df37845b",
+  "promptSha256": "a4b47d9073fdb1febb4e94571466b8048fe73d741569f85b0243ad21ce0179b7",
+  "schemaVersion": "0003_phase1_domain_planning",
+  "apiVersion": "1.1.0",
+  "postgresqlVersion": "17",
+  "legacyExecutionAuthority": "sqlite-and-process-scoped",
+  "capturedAt": "2026-07-20T23:00:00+08:00"
+}

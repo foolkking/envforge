@@ -22,6 +22,15 @@ source_of_truth_for:
 
 本文件定义逻辑表组；reference DDL 位于 [`ddl/`](ddl/README.md)。
 
+## Phase 2 production execution schema
+
+Migration `0004` adds exact-bound Runs, stage/action/attempt state, durable
+queue, worker/resource leases, checkpoints, reconciliation, events,
+verification, once-only commits, immutable reports, control requests, delayed
+scheduled operations, structured manual actions, and post-commit attention
+records. Partial unique indexes enforce one active live Run per Project and
+approved Plan. Legacy SQLite Apply records are not inserted into this schema.
+
 ## core
 
 `workspaces, projects, endpoints, connection_refs, project_endpoints, project_links, control_plane_operations`。

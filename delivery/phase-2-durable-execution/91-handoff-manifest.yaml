@@ -1,0 +1,65 @@
+phase: phase-2
+phase_name: Durable Execution Kernel
+verdict: PASS
+product_verdict: PASS
+effective_pass: false
+phase_3_unlocked: false
+delivery_contract: EF-DELIVERY-CONTRACT-001@1.1
+prompt_version: "1.1"
+base_prompt_version: "1.1"
+overlay_version: "1.1"
+effective_prompt_version: "1.1+delivery-ci.2"
+effective_prompt_file_sha256: a4b47d9073fdb1febb4e94571466b8048fe73d741569f85b0243ad21ce0179b7
+prompt_body_stored_in_repository: false
+design_baseline: EnvForge Integrated Design Baseline v1.2
+phase_1_handoff_sha256: 3b60db74d16315d0e3c0f712f69dfa46d74d5ddc143cd8e40e8bf10df37845b
+initial_head: bbfaafe80e4c8095430dba5a553aea5fde64dd2e
+final_head: pending-candidate-closure-head
+schema_version: 0004_phase2_durable_execution
+api_version: 1.1.0
+worker_version: phase2-v1
+execution_schema_versions: ["1.0"]
+checkpoint_schema_versions: ["1.0"]
+report_schema_versions: ["1.0"]
+feature_flags: [execution-run-v1, durable-queue-v1, worker-lease-v1, scheduled-verification-v1]
+authoritative_write_paths: [apps/api/src/execution/service.ts, apps/api/migrations/postgres/0004_phase2_durable_execution.sql]
+authoritative_read_paths: [apps/api/src/execution/routes.ts, apps/api/src/execution/service.ts]
+deprecated_paths: [legacy SQLite Apply write authority for new approved Plans]
+compatibility_adapters: [legacy Apply read/history remains isolated]
+new_capabilities: [execution-run, durable-queue, worker-lease-and-fencing, resource-lease, action-attempts, checkpoints, retry-and-reconciliation, pause-resume-cancel, verification-main-dag, execution-commit-record, independent-rollback-run, immutable-run-report, durable-scheduled-operations]
+known_debt: [production Build adapters require Phase 3 certification]
+open_questions: []
+blocking_conditions: [github-ci-success-required-for-candidate-closure-head]
+ci_provider: github-actions
+ci_required: true
+ci_status: pending
+ci_checked_sha: pending
+execution_kernel:
+  project_live_run_constraint: one_active_live_run_per_project
+  plan_live_run_constraint: one_active_live_run_per_plan
+  scheduled_operation_service: apps/api/src/execution/service.ts
+  structured_manual_action_adapter: execution.manual_actions
+  post_commit_attention_service: execution.attention_records
+phase_3_required_inputs:
+  approved_golden_build_plan_ids: [phase1-approved-build-v1]
+  approved_golden_build_plan_hashes: [797c27e8463d03b99d3f60cc90082fe3b249a6c6d1c048f6d0f87ec36a5ccfa2]
+  approval_hashes: [edcba1a5af60514df05e61543924b3390d8b894ea053a116998d993844a97cc2]
+  execution_run_service: apps/api/src/execution/service.ts
+  scheduler: apps/api/src/execution/service.ts
+  worker_runtime: apps/api/src/execution/worker.ts
+  action_adapter_interface: apps/api/src/execution/model.ts
+  test_action_adapter: apps/api/src/execution/test-adapter.ts
+  database_test_harness: apps/api/src/engine/tests/phase2-execution.test.ts
+phase_3_execution_constraints:
+  exact_plan_binding: true
+  exact_approval_binding: true
+  no_latest_resolution: true
+  stale_worker_rejected: true
+  verification_in_main_dag: true
+  commit_once_only: true
+  rollback_is_independent_run: true
+  secrets_by_reference_only: true
+  real_build_actions_not_yet_certified: true
+acceptance_evidence: delivery/phase-2-durable-execution/94-acceptance-traceability.md
+closure_report: delivery/phase-2-durable-execution/90-closure-report.md
+required_next_actions: [wait-for-github-ci-on-candidate-closure-head]

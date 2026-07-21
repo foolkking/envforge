@@ -22,6 +22,16 @@ source_of_truth_for:
 
 # Durable Execution Engine
 
+## Current Phase 2 implementation binding
+
+Production migration `0004_phase2_durable_execution.sql` and
+`apps/api/src/execution/` implement the accepted kernel subset. New Runs bind
+exact Plan/Approval/input hashes, use PostgreSQL queue authority and DB-time
+leases, reject stale fencing tokens, retain append-only attempts/checkpoints,
+require reconciliation for unknown outcomes, and create one Commit only after
+required verification. The only shipped adapter is a deterministic disposable
+test adapter; this is not Golden Build or production SSH capability.
+
 ## 目标
 
 把 Approved Plan 的执行从 HTTP 生命周期中剥离，提供持久状态、可恢复调度、真实证据、可验证成功和独立 Rollback。

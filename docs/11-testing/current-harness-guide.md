@@ -38,6 +38,16 @@ lineage, Workload placement, immutable Blueprint/Decision/Plan revisions,
 exact-hash Approval, drift, workspace isolation, legacy import safety, and the
 locked Phase 2 Run boundary.
 
+## Phase 2 execution harness
+
+`apps/api/src/engine/tests/phase2-execution.test.ts` provisions PostgreSQL 17,
+applies migrations through `0004`, and verifies exact binding, idempotency,
+active-Run uniqueness, concurrent claim, lease reclaim, stale-fence rejection,
+resource locks, attempts/checkpoints, unknown reconciliation, required
+verification, once-only Commit, immutable report, scheduled-operation
+deduplication/cancel, structured manual evidence, independent rollback and
+workspace isolation. It uses only a disposable marker adapter.
+
 > 本文记录旧基线命令和 Fixture。最终测试合同以 `11-testing` 的 normative 文档和 `13-acceptance` 为准。
 
 ## 1. 历史命令

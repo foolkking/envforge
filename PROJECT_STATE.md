@@ -2,7 +2,24 @@
 
 AI-readable current-state snapshot. Read this before changing the repo, then read
 `AGENTS.md` for working rules. Human entry point: `README.md`. Last updated:
-2026-07-20.
+2026-07-21.
+
+## Phase 2 durable execution status
+
+Phase 2 is implemented as a candidate on `delivery/envforge-v1`. Migration
+`0004` adds exact-bound ExecutionRun, durable queue, DB-time Worker leases,
+monotonic fencing, ResourceLease, immutable ActionAttempt/Checkpoint/Event,
+unknown-outcome reconciliation, required verification, once-only Commit,
+immutable report, independent rollback relations, delayed scheduled operations,
+structured manual evidence and post-commit attention records.
+
+The API exposes workspace-scoped Run read/control contracts; an independent
+worker entrypoint executes only a deterministic disposable marker adapter.
+Plans to Runs distinguishes this authority from legacy task history. No
+production SSH, Golden Build, Dataset, Cutover, Archive or Restore action is
+certified by Phase 2. Targeted Phase 1 and Phase 2 PostgreSQL regression passes
+25/25; full stabilization and exact-HEAD GitHub CI remain required before
+effective Phase 2 PASS.
 
 ## Phase 1 core domain and planning status
 

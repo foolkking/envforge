@@ -81,7 +81,20 @@ $defs:
   CreateRunRequest:
     type: object
     additionalProperties: false
+    required: [expectedPlanHash, approvalId, expectedApprovalHash]
     properties:
+      expectedPlanHash:
+        $ref: common.yaml#/$defs/Hash
+      approvalId:
+        $ref: common.yaml#/$defs/Uuid
+      expectedApprovalHash:
+        $ref: common.yaml#/$defs/Hash
+      runType:
+        enum: [build, migration, capture, restore, verification]
+        default: build
+      operationClass:
+        enum: [live, dry-run, rehearsal, verification]
+        default: live
       priority:
         type: integer
         default: 0

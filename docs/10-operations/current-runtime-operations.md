@@ -37,6 +37,16 @@ work and performs no SSH or target mutation. Legacy SQLite EnvironmentPlan and
 ServiceStack paths remain bounded compatibility/evidence sources and are not
 dual-written into the new authority.
 
+## Phase 2 durable execution runtime
+
+With PostgreSQL configured, API startup applies migration `0004` and registers
+workspace-scoped `/api/v1/runs` routes. `npm run execution:worker --workspace
+@fool/api` runs one independent queue claim/execute cycle. Queue, leases,
+fencing, attempts, checkpoints and reports are PostgreSQL-authoritative. The
+bundled adapter writes only deterministic markers under a configured disposable
+`ENVFORGE_EXECUTION_SANDBOX`; it is not a production Build/SSH adapter. Legacy
+Apply remains isolated and cannot be claimed by this worker.
+
 > 本文是旧代码基线的临时运行手册。目标部署和运维以本目录其他规范为准。Preparation 必须在实际 HEAD 上确认所有命令。
 
 ## 1. 历史运行模型

@@ -22,6 +22,9 @@ examples:
     schema: ../schemas/execution.yaml#/$defs/CreateRunRequest
     valid: true
     value:
+      expectedPlanHash: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+      approvalId: 018f0000-0000-7000-8000-000000000010
+      expectedApprovalHash: bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
       priority: 0
   run-request-invalid:
     schema: ../schemas/execution.yaml#/$defs/CreateRunRequest

@@ -28,6 +28,14 @@ Plan hash and contract counts. The panel deliberately exposes no Execute/Run
 action; legacy Plans Center behavior remains a separate compatibility surface
 until later retirement.
 
+## Phase 2 Durable Runs panel
+
+Plans to Runs now shows PostgreSQL durable Runs separately from legacy task
+history. It displays exact Plan/Approval hashes, Run type/state/version and
+safe-state Pause/Resume/Cancel commands. Unknown/recovering and attention states
+remain distinct; the UI does not claim Golden Build support or expose the test
+adapter as a product capability.
+
 > 本文记录旧代码基线的实现事实，用于 Preparation 审计和迁移。它不是目标信息架构或领域模型事实源。所有路径必须在当前仓库 HEAD 上重新验证。
 
 ## 1. 当前技术
