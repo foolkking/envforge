@@ -8,6 +8,7 @@ import { initializeDatabase, shutdownSqliteDatabase } from "./db-sqlite.js";
 import { platformDatabaseFromEnv } from "./platform/postgres.js";
 import { registerPlatformRoutes } from "./platform/routes.js";
 import { registerPlanningRoutes } from "./planning/routes.js";
+import { registerExecutionRoutes } from "./execution/routes.js";
 
 const config = getConfig();
 
@@ -51,6 +52,7 @@ await registerRoutes(app);
 if (platformDatabase) {
   await registerPlatformRoutes(app, platformDatabase);
   await registerPlanningRoutes(app, platformDatabase);
+  await registerExecutionRoutes(app, platformDatabase);
 }
 if (config.serveWeb) {
   registerStaticWeb(app, config.webDistDir);

@@ -425,6 +425,7 @@ export const zh = {
     noExecution: "审批与执行分离。Phase 2 完成前不提供 Durable Run 执行。"
   },
   runs: {
+    durable: { title: "持久运行", empty: "这些项目尚未创建持久运行。", planHash: "计划", approvalHash: "审批", pause: "暂停", resume: "继续", cancel: "取消", pauseReason: "操作员请求在安全点暂停。", resumeReason: "重新验证后由操作员请求继续。", cancelReason: "操作员请求在安全边界取消。", states: { queued:"已排队", claimed:"已领取", running:"运行中", waiting:"等待中", "pause-requested":"已请求暂停", paused:"已暂停", recovering:"核对中", "cancel-requested":"已请求取消", succeeded:"已成功", failed:"已失败", "attention-required":"需要关注" } },
     title: "执行记录",
     refresh: "刷新",
     refreshing: "刷新中...",

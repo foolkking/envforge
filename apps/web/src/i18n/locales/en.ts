@@ -425,6 +425,7 @@ export const en = {
     noExecution: "Approval and execution are separate. Durable Run execution is unavailable until Phase 2."
   },
   runs: {
+    durable: { title: "Durable Runs", empty: "No durable Run has been created for these projects.", planHash: "Plan", approvalHash: "Approval", pause: "Pause", resume: "Resume", cancel: "Cancel", pauseReason: "Operator requested a safe-point pause.", resumeReason: "Operator requested resume after revalidation.", cancelReason: "Operator requested cancellation at a safe boundary.", states: { queued:"Queued", claimed:"Claimed", running:"Running", waiting:"Waiting", "pause-requested":"Pause requested", paused:"Paused", recovering:"Reconciling", "cancel-requested":"Cancel requested", succeeded:"Succeeded", failed:"Failed", "attention-required":"Attention required" } },
     title: "Runs",
     refresh: "Refresh",
     refreshing: "Refreshing...",
